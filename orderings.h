@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.h,v 3.2 2002-03-18 11:12:52 lorens Exp $
+ * $Id: orderings.h,v 3.3 2002-03-21 22:49:42 lorens Exp $
  */
 #ifndef ORDERINGS_H
 #define ORDERINGS_H
@@ -185,7 +185,7 @@ struct BinaryOrderings : public Orderings {
   BinaryOrderings();
 
   /* Constructs an ordering collection. */
-  BinaryOrderings(const Chain<const Step*>* steps,
+  BinaryOrderings(const Chain<Step>* steps,
 		  const OrderingChain* orderings);
 
   /* Computes the flexibility of this ordering collection as defined in
@@ -230,7 +230,7 @@ struct TemporalOrderings : public Orderings {
   TemporalOrderings();
 
   /* Constructs an ordering collection. */
-  TemporalOrderings(const Chain<const Step*>* steps,
+  TemporalOrderings(const Chain<Step>* steps,
 		    const OrderingChain* orderings);
 
   /* Checks if the first step could be ordered before the second step. */
