@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: types.cc,v 3.5 2002-03-18 09:38:00 lorens Exp $
+ * $Id: types.cc,v 3.6 2002-03-18 09:38:07 lorens Exp $
  */
 #include "types.h"
 
@@ -168,7 +168,6 @@ bool UnionType::equals(const EqualityComparable& o) const {
 /* Prints this object on the given stream. */
 void UnionType::print(ostream& os) const {
   os << "(either";
-  copy(types().begin(), types().end(),
-       pre_ostream_iterator<SimpleType>(os));
+  copy(types().begin(), types().end(), pre_ostream_iterator<SimpleType>(os));
   os << ")";
 }
