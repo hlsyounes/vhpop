@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: types.h,v 6.1 2003-03-23 10:41:49 lorens Exp $
+ * $Id: types.h,v 6.2 2003-07-13 16:12:06 lorens Exp $
  */
 #ifndef TYPES_H
 #define TYPES_H
@@ -32,7 +32,7 @@
 /* Type index. */
 typedef int Type;
 
-/* The object type */
+/* The object type. */
 const Type OBJECT_TYPE = 0;
 /* Name of object type. */
 const std::string OBJECT_NAME("object");
@@ -59,9 +59,6 @@ struct TypeSet : public hashing::hash_set<Type> {
  * Type table.
  */
 struct TypeTable {
-  /* Constructs an empty type table. */
-  TypeTable() : names_(std::vector<std::string>(1, OBJECT_NAME)) {}
-
   /* Adds a simple type with the given name to this table and returns
      the type. */
   Type add_type(const std::string& name);
@@ -75,8 +72,11 @@ struct TypeTable {
      result. */
   std::pair<Type, bool> find_type(const std::string& name) const;
 
-  /* Returns the size of this type table. */
-  Type size() const { return names_.size(); }
+  /* Returns the first type of this type table. */
+  Type first_type() const { return OBJECT_TYPE; }
+
+  /* Returns the last type of this type table. */
+  Type last_type() const { return names_.size(); }
 
   /* Adds the second type as a supertype of the first type.  Returns
      false if the second type is a proper subtype of the first
@@ -89,8 +89,8 @@ struct TypeTable {
   /* Fills the provided set with the components of the given type. */
   void components(TypeSet& components, Type type) const;
 
-  /* Prints the name of the given type on the given stream. */
-  void print_name(std::ostream& os, Type type) const;
+  /* Prints the given type on the given stream. */
+  void print_type(std::ostream& os, Type type) const;
 
 private:
   /* Type names. */
