@@ -16,15 +16,16 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.h,v 4.4 2002-12-16 17:02:34 lorens Exp $
+ * $Id: bindings.h,v 4.5 2002-12-16 17:27:07 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
 
 #include <config.h>
+#include "formulas.h"
 #include "chain.h"
-#include <set>
 #include "hashing.h"
+#include <set>
 
 struct Term;
 struct Name;
@@ -49,17 +50,43 @@ struct PlanningGraph;
  */
 struct Binding {
   /* Constructs a variable binding from the given substitution. */
-  Binding(const Substitution& s, bool equality, const Reason& reason);
+  Binding(const Substitution& s, bool equality, const Reason& reason)
+    : var_(&s.var()), var_id_(s.var_id()),
+      term_(&s.term()), term_id_(s.term_id()), equality_(equality) {
+#ifdef TRANSFORMATIONAL
+    reason_ = &reason;
+    Reason::register_use(reason_);
+#endif
+  }
+
 
   /* Constructs a variable binding. */
   Binding(const Variable& var, size_t var_id, const Term& term, size_t term_id,
-	  bool equality, const Reason& reason);
+	  bool equality, const Reason& reason)
+    : var_(&var), var_id_(var_id), term_(&term), term_id_(term_id),
+      equality_(equality) {
+#ifdef TRANSFORMATIONAL
+    reason_ = &reason;
+    Reason::register_use(reason_);
+#endif
+  }
 
   /* Constructs a variable binding. */
-  Binding(const Binding& b);
+  Binding(const Binding& b)
+    : var_(b.var_), var_id_(b.var_id_), term_(b.term_), term_id_(b.term_id_),
+      equality_(b.equality_) {
+#ifdef TRANSFORMATIONAL
+    reason_ = b.reason_;
+    Reason::register_use(reason_);
+#endif
+  }
 
   /* Deletes this variable binding. */
-  ~Binding();
+  ~Binding() {
+#ifdef TRANSFORMATIONAL
+    Reason::unregister_use(reason_);
+#endif
+  }
 
   /* Returns the variable of this binding. */
   const Variable& var() const { return *var_; }

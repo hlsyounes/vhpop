@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.h,v 4.8 2002-12-16 17:07:27 lorens Exp $
+ * $Id: domains.h,v 4.9 2002-12-16 17:27:12 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -25,8 +25,8 @@
 #include "requirements.h"
 #include "formulas.h"
 #include "types.h"
-#include <map>
 #include "hashing.h"
+#include <map>
 
 struct Problem;
 
