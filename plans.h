@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.3 2001-05-04 03:20:40 lorens Exp $
+ * $Id: plans.h,v 1.4 2001-05-04 15:38:29 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -352,8 +352,6 @@ struct Plan : public gc {
     return num_open_conds_;
   }
 
-  static bool static_open_condition(const OpenCondition& open_cond);
-
 private:
   /* List of plans. */
   typedef vector<const Plan*, container_alloc> PlanList;
@@ -368,8 +366,6 @@ private:
   static bool transformations;
   /* Verbosity. */
   static unsigned int verbosity;
-  /* Domain of problem currently being solved. */
-  static const Domain* domain;
   /* Number of visited plans. */
   static size_t num_visited_plans;
   /* Number of generated plans. */
