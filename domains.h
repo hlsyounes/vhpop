@@ -2,7 +2,7 @@
 /*
  * Domain descriptions.
  *
- * $Id: domains.h,v 1.1 2001-05-03 15:26:02 lorens Exp $
+ * $Id: domains.h,v 1.2 2001-05-04 03:46:19 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -12,7 +12,6 @@
 #include <hash_map>
 #include <hash_set>
 #include <vector>
-#include <gc/new_gc_alloc.h>
 #include "support.h"
 #include "formulas.h"
 

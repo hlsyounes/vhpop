@@ -2,7 +2,7 @@
 /*
  * Types, terms, and formulas.
  *
- * $Id: formulas.h,v 1.2 2001-05-03 21:40:55 lorens Exp $
+ * $Id: formulas.h,v 1.3 2001-05-04 03:46:28 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -11,7 +11,6 @@
 #include <string>
 #include <hash_map>
 #include <vector>
-#include <gc/new_gc_alloc.h>
 #include "support.h"
 
 
