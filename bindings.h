@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.h,v 6.1 2003-07-13 15:52:12 lorens Exp $
+ * $Id: bindings.h,v 6.2 2003-07-13 16:51:10 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
@@ -225,29 +225,10 @@ std::ostream& operator<<(std::ostream& os, const ActionDomain& ad);
 
 
 /* ====================================================================== */
-/* VarsetChain */
+/* Bindings */
 
 struct Varset;
-
-/*
- * Chain of varsets.
- */
-typedef CollectibleChain<Varset> VarsetChain;
-
-
-/* ====================================================================== */
-/* StepDomainChain */
-
 struct StepDomain;
-
-/*
- * Chain of step domains.
- */
-typedef CollectibleChain<StepDomain> StepDomainChain;
-
-
-/* ====================================================================== */
-/* Bindings */
 
 /*
  * A collection of variable bindings.
@@ -273,7 +254,7 @@ struct Bindings {
   /* Creates a collection of variable bindings with the given equality
      and inequality bindings. Parameter constrains are used if pg is
      not NULL. */
-  static const Bindings* make_bindings(const CollectibleChain<Step>* steps,
+  static const Bindings* make_bindings(const Chain<Step>* steps,
 				       const PlanningGraph* pg);
 
   /* Checks if the given formulas can be unified. */
@@ -340,17 +321,17 @@ struct Bindings {
 
 private:
   /* Varsets representing the transitive closure of the bindings. */
-  const VarsetChain* varsets_;
+  const Chain<Varset>* varsets_;
   /* Highest step id of variable in varsets. */
   size_t high_step_;
   /* Step domains. */
-  const StepDomainChain* step_domains_;
+  const Chain<StepDomain>* step_domains_;
   /* Reference counter. */
   mutable size_t ref_count_;
 
   /* Constructs a binding collection. */
-  Bindings(const VarsetChain* varsets, size_t high_step,
-	   const StepDomainChain* step_domains);
+  Bindings(const Chain<Varset>* varsets, size_t high_step,
+	   const Chain<StepDomain>* step_domains);
 
   friend std::ostream& operator<<(std::ostream& os, const Bindings& b);
 };

@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: flaws.h,v 6.1 2003-07-13 16:00:07 lorens Exp $
+ * $Id: flaws.h,v 6.2 2003-07-13 16:51:16 lorens Exp $
  */
 #ifndef FLAWS_H
 #define FLAWS_H
@@ -107,15 +107,6 @@ inline bool operator==(const OpenCondition& oc1, const OpenCondition& oc2) {
 
 
 /* ====================================================================== */
-/* OpenConditionChain */
-
-/*
- * Chain of open conditions.
- */
-typedef CollectibleChain<OpenCondition> OpenConditionChain;
-
-
-/* ====================================================================== */
 /* Unsafe */
 
 /*
@@ -157,15 +148,6 @@ private:
 inline bool operator==(const Unsafe& u1, const Unsafe& u2) {
   return &u1 == &u2;
 }
-
-
-/* ====================================================================== */
-/* UnsafeChain */
-
-/*
- * Chain of threatened causal links.
- */
-typedef CollectibleChain<Unsafe> UnsafeChain;
 
 
 #endif /* FLAWS_H */
