@@ -1,5 +1,5 @@
 /*
- * $Id: formulas.cc,v 1.35 2002-01-17 21:11:52 lorens Exp $
+ * $Id: formulas.cc,v 1.36 2002-01-24 03:20:10 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -404,12 +404,6 @@ const Constant& Constant::strip_static(const Domain& domain) const {
 }
 
 
-/* Returns this formula with equalities/inequalities assumed true. */
-const Constant& Constant::strip_equality() const {
-  return *this;
-}
-
-
 /* Checks if this formula is equivalent to the given formula.  Two
    formulas are equivalent if they only differ in the choice of
    variable names. */
@@ -507,12 +501,6 @@ const Atom& Atom::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Returns this formula with equalities/inequalities assumed true. */
-const Atom& Atom::strip_equality() const {
-  return *this;
-}
-
-
 /* Checks if this formula is equivalent to the given formula.  Two
    formulas are equivalent if they only differ in the choice of
    variable names. */
@@ -604,12 +592,6 @@ const Formula& Negation::instantiation(const SubstitutionList& subst,
 /* Returns this formula subject to the given substitutions. */
 const Negation& Negation::substitution(const SubstitutionList& subst) const {
   return *(new Negation(atom.substitution(subst)));
-}
-
-
-/* Returns this formula with equalities/inequalities assumed true. */
-const Negation& Negation::strip_equality() const {
-  return *this;
 }
 
 
@@ -712,12 +694,6 @@ const Formula& Equality::strip_static(const Domain& domain) const {
 }
 
 
-/* Returns this formula with equalities/inequalities assumed true. */
-const Formula& Equality::strip_equality() const {
-  return TRUE;
-}
-
-
 /* Checks if this formula is equivalent to the given formula.  Two
    formulas are equivalent if they only differ in the choice of
    variable names. */
@@ -798,12 +774,6 @@ const Formula& Inequality::strip_static(const Domain& domain) const {
 }
 
 
-/* Returns this formula with equalities/inequalities assumed true. */
-const Formula& Inequality::strip_equality() const {
-  return *this;
-}
-
-
 /* Checks if this formula is equivalent to the given formula.  Two
    formulas are equivalent if they only differ in the choice of
    variable names. */
@@ -880,17 +850,6 @@ const Formula& Conjunction::strip_static(const Domain& domain) const {
   for (FormulaListIter fi = conjuncts.begin();
        fi != conjuncts.end() && !c->contradiction(); fi++) {
     c = &(*c && (*fi)->strip_static(domain));
-  }
-  return *c;
-}
-
-
-/* Returns this formula with equalities/inequalities assumed true. */
-const Formula& Conjunction::strip_equality() const {
-  const Formula* c = &TRUE;
-  for (FormulaListIter fi = conjuncts.begin();
-       fi != conjuncts.end() && !c->contradiction(); fi++) {
-    c = &(*c && (*fi)->strip_equality());
   }
   return *c;
 }
@@ -987,17 +946,6 @@ const Formula& Disjunction::strip_static(const Domain& domain) const {
 }
 
 
-/* Returns this formula with equalities/inequalities assumed true. */
-const Formula& Disjunction::strip_equality() const {
-  const Formula* d = &FALSE;
-  for (FormulaListIter fi = disjuncts.begin();
-       fi != disjuncts.end() && !d->tautology(); fi++) {
-    d = &(*d || (*fi)->strip_equality());
-  }
-  return *d;
-}
-
-
 /* Checks if this formula is equivalent to the given formula.  Two
    formulas are equivalent if they only differ in the choice of
    variable names. */
@@ -1066,7 +1014,50 @@ const Formula& ExistsFormula::instantiation(const Bindings& bindings) const {
 const Formula& ExistsFormula::instantiation(const SubstitutionList& subst,
 					    const Problem& problem) const {
   const Formula& b = body.instantiation(subst, problem);
-  return b.constant() ? b : *(new ExistsFormula(parameters, b));
+  size_t n = parameters.size();
+  Vector<NameList*> arguments;
+  Vector<NameListIter> next_arg;
+  for (VarListIter vi = parameters.begin(); vi != parameters.end(); vi++) {
+    arguments.push_back(new NameList());
+    problem.compatible_objects(*arguments.back(), (*vi)->type);
+    if (arguments.back()->empty()) {
+      return FALSE;
+    }
+    next_arg.push_back(arguments.back()->begin());
+  }
+  const Formula* result = &FALSE;
+  Stack<const Formula*> disjuncts;
+  disjuncts.push(&b);
+  for (size_t i = 0; i < n; ) {
+    SubstitutionList pargs;
+    pargs.push_back(new Substitution(*parameters[i], **next_arg[i]));
+    const Formula& disjunct = disjuncts.top()->instantiation(pargs, problem);
+    disjuncts.push(&disjunct);
+    if (i + 1 == n) {
+      result = &(*result || disjunct);
+      if (result->tautology()) {
+	break;
+      }
+      for (int j = i; j >= 0; j--) {
+	disjuncts.pop();
+	next_arg[j]++;
+	if (next_arg[j] == arguments[j]->end()) {
+	  if (j == 0) {
+	    i = n;
+	    break;
+	  } else {
+	    next_arg[j] = arguments[j]->begin();
+	  }
+	} else {
+	  i = j;
+	  break;
+	}
+      }
+    } else {
+      i++;
+    }
+  }
+  return *result;
 }
 
 
@@ -1081,13 +1072,6 @@ ExistsFormula::substitution(const SubstitutionList& subst) const {
 /* Returns this formula with static literals assumed true. */
 const Formula& ExistsFormula::strip_static(const Domain& domain) const {
   const Formula& b = body.strip_static(domain);
-  return b.constant() ? b : *(new ExistsFormula(parameters, b));
-}
-
-
-/* Returns this formula with equalities/inequalities assumed true. */
-const Formula& ExistsFormula::strip_equality() const {
-  const Formula& b = body.strip_equality();
   return b.constant() ? b : *(new ExistsFormula(parameters, b));
 }
 
@@ -1151,7 +1135,50 @@ const Formula& ForallFormula::instantiation(const Bindings& bindings) const {
 const Formula& ForallFormula::instantiation(const SubstitutionList& subst,
 					    const Problem& problem) const {
   const Formula& b = body.instantiation(subst, problem);
-  return b.constant() ? b : *(new ForallFormula(parameters, b));
+  size_t n = parameters.size();
+  Vector<NameList*> arguments;
+  Vector<NameListIter> next_arg;
+  for (VarListIter vi = parameters.begin(); vi != parameters.end(); vi++) {
+    arguments.push_back(new NameList());
+    problem.compatible_objects(*arguments.back(), (*vi)->type);
+    if (arguments.back()->empty()) {
+      return FALSE;
+    }
+    next_arg.push_back(arguments.back()->begin());
+  }
+  const Formula* result = &TRUE;
+  Stack<const Formula*> conjuncts;
+  conjuncts.push(&b);
+  for (size_t i = 0; i < n; ) {
+    SubstitutionList pargs;
+    pargs.push_back(new Substitution(*parameters[i], **next_arg[i]));
+    const Formula& conjunct = conjuncts.top()->instantiation(pargs, problem);
+    conjuncts.push(&conjunct);
+    if (i + 1 == n) {
+      result = &(*result && conjunct);
+      if (result->contradiction()) {
+	break;
+      }
+      for (int j = i; j >= 0; j--) {
+	conjuncts.pop();
+	next_arg[j]++;
+	if (next_arg[j] == arguments[j]->end()) {
+	  if (j == 0) {
+	    i = n;
+	    break;
+	  } else {
+	    next_arg[j] = arguments[j]->begin();
+	  }
+	} else {
+	  i = j;
+	  break;
+	}
+      }
+    } else {
+      i++;
+    }
+  }
+  return *result;
 }
 
 
@@ -1166,13 +1193,6 @@ ForallFormula::substitution(const SubstitutionList& subst) const {
 /* Returns this formula with static literals assumed true. */
 const Formula& ForallFormula::strip_static(const Domain& domain) const {
   const Formula& b = body.strip_static(domain);
-  return b.constant() ? b : *(new ForallFormula(parameters, b));
-}
-
-
-/* Returns this formula with equalities/inequalities assumed true. */
-const Formula& ForallFormula::strip_equality() const {
-  const Formula& b = body.strip_equality();
   return b.constant() ? b : *(new ForallFormula(parameters, b));
 }
 

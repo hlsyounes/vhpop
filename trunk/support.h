@@ -2,7 +2,7 @@
 /*
  * Auxiliary types and functions.
  *
- * $Id: support.h,v 1.15 2002-01-16 21:37:03 lorens Exp $
+ * $Id: support.h,v 1.16 2002-01-24 03:20:33 lorens Exp $
  */
 #ifndef SUPPORT_H
 #define SUPPORT_H
@@ -47,6 +47,26 @@ struct Vector : public vector<T, container_alloc>, public gc {
 
   Vector<T>(size_t n, T x)
     : vector<T, container_alloc>(n, x) {}
+};
+
+
+/*
+ * A deque using a traceable allocator.
+ */
+template<typename T>
+struct Deque : public deque<T, container_alloc>, public gc {
+  Deque<T>() {}
+
+  Deque<T>(size_t n, T x)
+    : deque<T, container_alloc>(n, x) {}
+};
+
+
+/*
+ * A stack using a traceable allocator.
+ */
+template<typename T>
+struct Stack : public stack<T, Deque<T> >, public gc {
 };
 
 
