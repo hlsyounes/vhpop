@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 1.37 2002-01-25 18:23:19 lorens Exp $
+ * $Id: formulas.cc,v 1.38 2002-01-26 04:25:05 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -1020,7 +1020,8 @@ const ExistsFormula& ExistsFormula::instantiation(size_t id) const {
 /* Returns an instantiation of this formula. */
 const Formula& ExistsFormula::instantiation(const Bindings& bindings) const {
   const Formula& b = body.instantiation(bindings);
-  return b.constant() ? b : *(new ExistsFormula(parameters, b));
+  return (b.constant()
+	  ? b : (const Formula&) *(new ExistsFormula(parameters, b)));
 }
 
 
@@ -1079,14 +1080,16 @@ const Formula& ExistsFormula::instantiation(const SubstitutionList& subst,
 const Formula&
 ExistsFormula::substitution(const SubstitutionList& subst) const {
   const Formula& b = body.substitution(subst);
-  return b.constant() ? b : *(new ExistsFormula(parameters, b));
+  return (b.constant()
+	  ? b : (const Formula&) *(new ExistsFormula(parameters, b)));
 }
 
 
 /* Returns this formula with static literals assumed true. */
 const Formula& ExistsFormula::strip_static(const Domain& domain) const {
   const Formula& b = body.strip_static(domain);
-  return b.constant() ? b : *(new ExistsFormula(parameters, b));
+  return (b.constant()
+	  ? b : (const Formula&) *(new ExistsFormula(parameters, b)));
 }
 
 
@@ -1141,7 +1144,8 @@ const ForallFormula& ForallFormula::instantiation(size_t id) const {
 /* Returns an instantiation of this formula. */
 const Formula& ForallFormula::instantiation(const Bindings& bindings) const {
   const Formula& b = body.instantiation(bindings);
-  return b.constant() ? b : *(new ForallFormula(parameters, b));
+  return (b.constant()
+	  ? b : (const Formula&) *(new ForallFormula(parameters, b)));
 }
 
 
@@ -1200,14 +1204,16 @@ const Formula& ForallFormula::instantiation(const SubstitutionList& subst,
 const Formula&
 ForallFormula::substitution(const SubstitutionList& subst) const {
   const Formula& b = body.substitution(subst);
-  return b.constant() ? b : *(new ForallFormula(parameters, b));
+  return (b.constant()
+	  ? b : (const Formula&) *(new ForallFormula(parameters, b)));
 }
 
 
 /* Returns this formula with static literals assumed true. */
 const Formula& ForallFormula::strip_static(const Domain& domain) const {
   const Formula& b = body.strip_static(domain);
-  return b.constant() ? b : *(new ForallFormula(parameters, b));
+  return (b.constant()
+	  ? b : (const Formula&) *(new ForallFormula(parameters, b)));
 }
 
 

@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: types.cc,v 1.10 2002-01-25 18:23:20 lorens Exp $
+ * $Id: types.cc,v 1.11 2002-01-26 04:25:54 lorens Exp $
  */
 #include "types.h"
 
@@ -59,7 +59,8 @@ const SimpleType& SimpleType::OBJECT = *(new SimpleType("object"));
 
 /* Constructs a simple type with the given name. */
 SimpleType::SimpleType(const string& name, const Type& supertype)
-  : name(name), supertype(name == "object" ? *this : supertype) {}
+  : name(name),
+    supertype(name == "object" ? (const Type&) *this : supertype) {}
 
 
 /* Checks if this type is a subtype of the given type. */
