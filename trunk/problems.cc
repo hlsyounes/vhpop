@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: problems.cc,v 6.4 2003-08-27 17:04:19 lorens Exp $
+ * $Id: problems.cc,v 6.5 2003-08-27 22:13:40 lorens Exp $
  */
 #include "problems.h"
 #include "domains.h"
@@ -143,13 +143,6 @@ void Problem::instantiated_actions(GroundActionList& actions) const {
 }
 
 
-/* Prints the given term on the given stream with the given
-   bindings. */
-void Problem::print_term(std::ostream& os, Term term, size_t step_id,
-			 const Bindings& bindings) const {
-}
-
-
 /* Output operator for problems. */
 std::ostream& operator<<(std::ostream& os, const Problem& p) {
   os << "name: " << p.name();
@@ -158,7 +151,7 @@ std::ostream& operator<<(std::ostream& os, const Problem& p) {
   for (Object i = p.terms().first_object();
        i <= p.terms().last_object(); i++) {
     os << std::endl << "  ";
-    p.terms().print_term(os, i, 0, Bindings());
+    p.terms().print_term(os, i);
     os << " - ";
     p.domain().types().print_type(os, p.terms().type(i));
   }
