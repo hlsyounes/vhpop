@@ -1,7 +1,7 @@
 /*
  * Main program.
  *
- * $Id: vhpop.cc,v 1.15 2001-12-23 22:09:16 lorens Exp $
+ * $Id: vhpop.cc,v 1.16 2001-12-27 19:13:25 lorens Exp $
  */
 #include <iostream>
 #include <cstdio>
@@ -241,9 +241,9 @@ int main(int argc, char* argv[]) {
        */
       cout << "----------------------------------------"<< endl;
       cout << "domains:" << endl;
-      for (Domain::DomainMap::const_iterator i = Domain::begin();
-	   i != Domain::end(); i++) {
-	cout << endl << *(*i).second << endl;
+      for (Domain::DomainMapIter di = Domain::begin();
+	   di != Domain::end(); di++) {
+	cout << endl << *(*di).second << endl;
       }
       cout << "----------------------------------------"<< endl;
       cout << "problems:" << endl;

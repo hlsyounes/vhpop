@@ -1,5 +1,5 @@
 /*
- * $Id: formulas.cc,v 1.29 2001-12-26 18:51:47 lorens Exp $
+ * $Id: formulas.cc,v 1.30 2001-12-27 19:13:18 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -370,7 +370,7 @@ const FormulaList& FormulaList::negation() const {
 
 /* Constructs a constant formula. */
 Constant::Constant(bool value)
-  : value(value) {}
+  : value_(value) {}
 
 
 /* Returns an instantiation of this formula. */
@@ -420,13 +420,13 @@ bool Constant::equivalent(const Formula& f) const {
 
 /* Prints this object on the given stream. */
 void Constant::print(ostream& os) const {
-  os << (value ? "TRUE" : "FALSE");
+  os << (value_ ? "TRUE" : "FALSE");
 }
 
 
 /* Returns a negation of this formula. */
 const Formula& Constant::negation() const {
-  return value ? FALSE : TRUE;
+  return value_ ? FALSE : TRUE;
 }
 
 
