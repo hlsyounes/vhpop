@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.3 2001-05-04 03:20:57 lorens Exp $
+ * $Id: plans.cc,v 1.4 2001-05-04 03:51:51 lorens Exp $
  */
 #include <queue>
 #include <hash_set>
@@ -172,18 +172,6 @@ struct less<const Plan*> {
     }
   }
 };
-
-
-/* Prints this open condition on the given stream. */
-void OpenCondition::print(ostream& os) const {
-  os << "#<OPEN " << condition << " step " << step_id << ">";
-}
-
-
-/* Prints this threatened causal link on the given stream. */
-void Unsafe::print(ostream& os) const {
-  os << "#<UNSAFE " << link << " step " << step_id << ">";
-}
 
 
 /* Prints this causal link. */
