@@ -1,7 +1,8 @@
 /*
- * $Id: support.cc,v 1.5 2001-12-22 18:49:49 lorens Exp $
+ * $Id: support.cc,v 1.6 2001-12-23 16:26:19 lorens Exp $
  */
 
+#include <cstdlib>
 #include "support.h"
 
 
@@ -26,3 +27,15 @@ void Exception::print(ostream& os) const {
 /* Constructs an unimplemented exception. */
 Unimplemented::Unimplemented(const string& message)
   : Exception(message) {}
+
+
+/* Generates a random number in the interval [0,1]. */
+double rand01() {
+  return rand()/double(RAND_MAX);
+}
+
+
+/* Generates a random number in the interval [0,1). */
+double rand01ex() {
+  return rand()/(RAND_MAX + 1.0);
+}

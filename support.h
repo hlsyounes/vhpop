@@ -2,7 +2,7 @@
 /*
  * Auxiliary types and functions.
  *
- * $Id: support.h,v 1.11 2001-12-22 18:49:51 lorens Exp $
+ * $Id: support.h,v 1.12 2001-12-23 16:26:24 lorens Exp $
  */
 #ifndef SUPPORT_H
 #define SUPPORT_H
@@ -245,5 +245,13 @@ struct hash<string> {
     return hash<char*>()(s.c_str());
   }
 };
+
+
+/* Generates a random number in the interval [0,1]. */
+double rand01();
+
+/* Generates a random number in the interval [0,1). */
+double rand01ex();
+
 
 #endif /* SUPPORT_H */
