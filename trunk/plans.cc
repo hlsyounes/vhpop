@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.12 2001-08-18 15:46:28 lorens Exp $
+ * $Id: plans.cc,v 1.13 2001-08-18 16:49:13 lorens Exp $
  */
 #include <queue>
 #include <hash_set>
@@ -529,7 +529,7 @@ const Plan* Plan::make_initial_plan(const Problem& problem) {
   /*
    * Create step representing initial conditions of problem.
    */
-  EffectList init;
+  EffectList& init = *(new EffectList());
   if (problem.init != NULL) {
     /* Add initial conditions of problem as effects. */
     init.push_back(problem.init);
@@ -542,7 +542,7 @@ const Plan* Plan::make_initial_plan(const Problem& problem) {
    */
   /* Goal step. */
   const Step& goal_step =
-    *(new Step(Plan::GOAL_ID, problem.goal, EffectList(), init_reason));
+    *(new Step(Plan::GOAL_ID, problem.goal, *(new EffectList()), init_reason));
   /* Reason for open conditions of goal. */
   const Reason& goal_reason = *(new AddStepReason(goal_step.id));
   /* Chain of open conditions. */
