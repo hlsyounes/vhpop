@@ -2,7 +2,7 @@
 /*
  * PDDL parser.
  *
- * $Id: pddl.yy,v 1.27 2002-01-09 20:42:19 lorens Exp $
+ * $Id: pddl.yy,v 1.28 2002-01-12 18:59:05 lorens Exp $
  */
 %{
 #include <typeinfo>
@@ -427,11 +427,15 @@ problem : '(' DEFINE '(' PROBLEM NAME ')' '(' PDOMAIN NAME ')'
 	    }
         ;
 
-problem_body : '(' object_decl problem_body2
+problem_body : '(' require_def problem_body2
              | problem_body2
              ;
 
-problem_body2 : '(' init goals
+problem_body2 : '(' object_decl problem_body3
+              | problem_body3
+              ;
+
+problem_body3 : '(' init goals
                   { problem_init = $2; problem_goal = $3; }
               | goals
                   {
