@@ -13,10 +13,11 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.cc,v 6.5 2003-09-05 16:25:34 lorens Exp $
+ * $Id: orderings.cc,v 6.6 2003-09-08 21:27:52 lorens Exp $
  */
 #include "orderings.h"
 #include "plans.h"
+#include "heuristics.h"
 #include "domains.h"
 #include "expressions.h"
 #include "debug.h"
@@ -169,6 +170,10 @@ private:
 /* ====================================================================== */
 /* Orderings */
 
+/* Minimum distance between two ordered steps. */
+float Orderings::threshold = 0.01f;
+
+
 /* Constructs an empty ordering collection. */
 Orderings::Orderings()
   : ref_count_(0) {
@@ -284,8 +289,10 @@ BinaryOrderings::refine(const Ordering& new_ordering) const {
 
 
 /* Returns the the ordering collection with the given additions. */
-const BinaryOrderings* BinaryOrderings::refine(const Ordering& new_ordering,
-					       const Step& new_step) const {
+const BinaryOrderings*
+BinaryOrderings::refine(const Ordering& new_ordering,
+			const Step& new_step, const PlanningGraph* pg,
+			const Bindings* bindings) const {
   if (new_step.id() != 0 && new_step.id() != Plan::GOAL_ID) {
     BinaryOrderings& orderings = *new BinaryOrderings(*this);
     std::map<size_t, BoolVector*> own_data;
@@ -315,13 +322,40 @@ float BinaryOrderings::schedule(std::map<size_t, float>& start_times,
   float max_dist = 0.0f;
   size_t n = before_.size() + 1;
   for (size_t i = 1; i <= n; i++) {
-    max_dist = std::max(max_dist, schedule(start_times, end_times, i));
+    float ed = schedule(start_times, end_times, i);
+    if (ed > max_dist) {
+      max_dist = ed;
+    }
   }
-  return max_dist;
+  return max_dist/threshold;
 }
 
 
-/* Schedules the given instruction. */
+/* Returns the makespan of this ordering collection. */
+float
+BinaryOrderings::makespan(const std::map<std::pair<size_t, StepTime>,
+			  float>& min_times) const {
+  std::map<size_t, float> start_times, end_times;
+  float max_dist = 0.0f;
+  size_t n = before_.size() + 1;
+  for (size_t i = 1; i <= n; i++) {
+    float ed = schedule(start_times, end_times, i, min_times);
+    if (ed > max_dist) {
+      max_dist = ed;
+    }
+  }
+  std::map<std::pair<size_t, StepTime>, float>::const_iterator md =
+    min_times.find(std::make_pair(Plan::GOAL_ID, STEP_START));
+  if (md != min_times.end()) {
+    if ((*md).second > max_dist) {
+      max_dist = (*md).second;
+    }
+  }
+  return max_dist/threshold;
+}
+
+
+/* Schedules the given instruction with the given constraints. */
 float BinaryOrderings::schedule(std::map<size_t, float>& start_times,
 				std::map<size_t, float>& end_times,
 				size_t step_id) const {
@@ -333,7 +367,47 @@ float BinaryOrderings::schedule(std::map<size_t, float>& start_times,
     size_t n = before_.size() + 1;
     for (size_t j = 1; j <= n; j++) {
       if (step_id != j && before(j, step_id)) {
-	sd = std::max(sd, 1.0f + schedule(start_times, end_times, j));
+	float ed = 1.0f + schedule(start_times, end_times, j);
+	if (ed > sd) {
+	  sd = ed;
+	}
+      }
+    }
+    start_times.insert(std::make_pair(step_id, sd));
+    end_times.insert(std::make_pair(step_id, sd));
+    return sd;
+  }
+}
+
+
+/* Schedules the given instruction with the given constraints. */
+float
+BinaryOrderings::schedule(std::map<size_t, float>& start_times,
+			  std::map<size_t, float>& end_times, size_t step_id,
+			  const std::map<std::pair<size_t, StepTime>,
+			  float>& min_times) const {
+  std::map<size_t, float>::const_iterator d = start_times.find(step_id);
+  if (d != start_times.end()) {
+    return (*d).second;
+  } else {
+    float sd = threshold;
+    size_t n = before_.size() + 1;
+    for (size_t j = 1; j <= n; j++) {
+      if (step_id != j && before(j, step_id)) {
+	float ed = threshold + schedule(start_times, end_times, j, min_times);
+	if (ed > sd) {
+	  sd = ed;
+	}
+      }
+    }
+    std::map<std::pair<size_t, StepTime>, float>::const_iterator md =
+      min_times.find(std::make_pair(step_id, STEP_START));
+    if (md == min_times.end()) {
+      md = min_times.find(std::make_pair(step_id, STEP_END));
+    }
+    if (md != min_times.end()) {
+      if ((*md).second > sd) {
+	sd = (*md).second;
       }
     }
     start_times.insert(std::make_pair(step_id, sd));
@@ -424,10 +498,6 @@ void BinaryOrderings::print(std::ostream& os) const {
 /* ====================================================================== */
 /* TemporalOrderings */
 
-/* Minimum distance between two ordered steps. */
-float TemporalOrderings::threshold = 0.01f;
-
-
 /* Constructs an empty ordering collection. */
 TemporalOrderings::TemporalOrderings() {}
 
@@ -482,6 +552,34 @@ bool TemporalOrderings::possibly_after(size_t id1, StepTime t1,
 
 
 /* Returns the the ordering collection with the given additions. */
+const TemporalOrderings* TemporalOrderings::refine(size_t step_id,
+						   float min_start,
+						   float min_end) const {
+  if (step_id != 0 && step_id != Plan::GOAL_ID) {
+    size_t i = time_node(step_id, STEP_START);
+    size_t j = time_node(step_id, STEP_END);
+    if (-distance(i, 0) >= min_start && -distance(j, 0) >= min_end) {
+      return this;
+    } else if (distance(0, i) < min_start || distance(0, j) < min_end) {
+      return NULL;
+    } else {
+      TemporalOrderings& orderings = *new TemporalOrderings(*this);
+      std::map<size_t, FloatVector*> own_data;
+      if (orderings.fill_transitive(own_data, 0, i, min_start)
+	  && orderings.fill_transitive(own_data, 0, j, min_end)) {
+	return &orderings;
+      } else {
+	delete &orderings;
+	return NULL;
+      }
+    }
+  } else {
+    return this;
+  }
+}
+
+
+/* Returns the the ordering collection with the given additions. */
 const TemporalOrderings*
 TemporalOrderings::refine(const Ordering& new_ordering) const {
   if (new_ordering.before_id() != 0
@@ -490,7 +588,9 @@ TemporalOrderings::refine(const Ordering& new_ordering) const {
 			new_ordering.after_id(), new_ordering.after_time())) {
     TemporalOrderings& orderings = *new TemporalOrderings(*this);
     std::map<size_t, FloatVector*> own_data;
-    if (orderings.fill_transitive(own_data, new_ordering)) {
+    size_t i = time_node(new_ordering.before_id(), new_ordering.before_time());
+    size_t j = time_node(new_ordering.after_id(), new_ordering.after_time());
+    if (orderings.fill_transitive(own_data, i, j, threshold)) {
       return &orderings;
     } else {
       delete &orderings;
@@ -505,30 +605,47 @@ TemporalOrderings::refine(const Ordering& new_ordering) const {
 /* Returns the the ordering collection with the given additions. */
 const TemporalOrderings*
 TemporalOrderings::refine(const Ordering& new_ordering,
-			  const Step& new_step) const {
+			  const Step& new_step, const PlanningGraph* pg,
+			  const Bindings* bindings) const {
   if (new_step.id() != 0 && new_step.id() != Plan::GOAL_ID) {
     TemporalOrderings& orderings = *new TemporalOrderings(*this);
     std::map<size_t, FloatVector*> own_data;
     if (new_step.id() > distance_.size()/2) {
+      const Value* min_v =
+	dynamic_cast<const Value*>(&new_step.action().min_duration());
+      if (min_v == NULL) {
+	throw Exception("non-constant minimum duration");
+      }
+      const Value* max_v =
+	dynamic_cast<const Value*>(&new_step.action().max_duration());
+      if (max_v == NULL) {
+	throw Exception("non-constant maximum duration");
+      }
+      float start_time = threshold;
+      float end_time;
+      if (pg != NULL) {
+	HeuristicValue h, hs;
+	new_step.action().condition().heuristic_value(h, hs, *pg,
+						      new_step.id(), bindings);
+	if (hs.makespan() > start_time) {
+	  start_time = hs.makespan();
+	}
+	end_time = start_time + min_v->value();
+	if (h.makespan() > end_time) {
+	  end_time = h.makespan();
+	}
+      } else {
+	end_time = threshold + min_v->value();
+      }
       FloatVector* fv = new FloatVector(4*new_step.id() - 2, INFINITY);
-      (*fv)[4*new_step.id() - 3] = -threshold;
+      /* Earliest time for start of new step. */
+      (*fv)[4*new_step.id() - 3] = -start_time;
       own_data.insert(std::make_pair(orderings.distance_.size(), fv));
       orderings.distance_.push_back(fv);
       FloatVector::register_use(fv);
       fv = new FloatVector(4*new_step.id(), INFINITY);
-      const Value* min_v =
-	dynamic_cast<const Value*>(&new_step.action().min_duration());
-      if (min_v == NULL) {
-	throw Exception("trying to add step with non-constant minimum"
-			" duration");
-      }
-      (*fv)[4*new_step.id() - 1] = -(threshold + min_v->value());
-      const Value* max_v =
-	dynamic_cast<const Value*>(&new_step.action().max_duration());
-      if (max_v == NULL) {
-	throw Exception("trying to add step with non-constant maximum"
-			" duration");
-      }
+      /* Earliest time for end of new step. */
+      (*fv)[4*new_step.id() - 1] = -end_time;
       (*fv)[2*new_step.id() - 1] = max_v->value();
       (*fv)[2*new_step.id()] = -min_v->value();
       own_data.insert(std::make_pair(orderings.distance_.size(), fv));
@@ -537,7 +654,10 @@ TemporalOrderings::refine(const Ordering& new_ordering,
     }
     if (new_ordering.before_id() != 0
 	&& new_ordering.after_id() != Plan::GOAL_ID) {
-      if (orderings.fill_transitive(own_data, new_ordering)) {
+      size_t i = time_node(new_ordering.before_id(),
+			   new_ordering.before_time());
+      size_t j = time_node(new_ordering.after_id(), new_ordering.after_time());
+      if (orderings.fill_transitive(own_data, i, j, threshold)) {
 	return &orderings;
       } else {
 	delete &orderings;
@@ -559,27 +679,31 @@ TemporalOrderings::schedule(std::map<size_t, float>& start_times,
   float max_dist = 0.0f;
   size_t n = distance_.size()/2;
   for (size_t i = 1; i <= n; i++) {
-    max_dist = std::max(max_dist, schedule(start_times, end_times, i));
+    start_times.insert(std::make_pair(i,
+				      -distance(time_node(i, STEP_START), 0)));
+    float ed = -distance(time_node(i, STEP_END), 0);
+    end_times.insert(std::make_pair(i, ed));
+    if (ed > max_dist) {
+      max_dist = ed;
+    }
   }
   return max_dist;
 }
 
 
-/* Schedules the given instruction. */
-float TemporalOrderings::schedule(std::map<size_t, float>& start_times,
-				  std::map<size_t, float>& end_times,
-				  size_t step_id) const {
-  std::map<size_t, float>::const_iterator d = end_times.find(step_id);
-  if (d != end_times.end()) {
-    return (*d).second;
-  } else {
-    size_t i = time_node(step_id, STEP_START);
-    start_times.insert(std::make_pair(step_id, -distance(i, 0)));
-    size_t j = time_node(step_id, STEP_END);
-    float ed = -distance(j, 0);
-    end_times.insert(std::make_pair(step_id, ed));
-    return ed;
+/* Returns the makespan of this ordering collection. */
+float
+TemporalOrderings::makespan(const std::map<std::pair<size_t, StepTime>,
+			    float>& min_times) const {
+  float max_dist = 0.0f;
+  size_t n = distance_.size()/2;
+  for (size_t i = 1; i <= n; i++) {
+    float ed = -distance(time_node(i, STEP_END), 0);
+    if (ed > max_dist) {
+      max_dist = ed;
+    }
   }
+  return max_dist;
 }
 
 
@@ -624,10 +748,8 @@ void TemporalOrderings::set_distance(std::map<size_t, FloatVector*>& own_data,
 /* Updates the transitive closure given a new ordering constraint. */
 bool
 TemporalOrderings::fill_transitive(std::map<size_t, FloatVector*>& own_data,
-				   const Ordering& ordering) {
-  size_t i = time_node(ordering.before_id(), ordering.before_time());
-  size_t j = time_node(ordering.after_id(), ordering.after_time());
-  if (distance(j, i) > -threshold) {
+				   size_t i, size_t j, float dist) {
+  if (distance(j, i) > -dist) {
     /*
      * Update the temporal constraints.
      *
@@ -636,12 +758,12 @@ TemporalOrderings::fill_transitive(std::map<size_t, FloatVector*>& own_data,
     size_t n = distance_.size();
     for (size_t k = 0; k <= n; k++) {
       float d_ik = distance(i, k);
-      if (!isinf(d_ik) && distance(j, k) > d_ik - threshold) {
+      if (!isinf(d_ik) && distance(j, k) > d_ik - dist) {
 	for (size_t l = 0; l <= n; l++) {
 	  float d_lj = distance(l, j);
-	  if (!isinf(d_lj) && distance(l, k) > d_ik + d_lj - threshold) {
-	    set_distance(own_data, l, k, d_ik + d_lj - threshold);
-	    if (-distance(k, l) > d_ik + d_lj - threshold) {
+	  if (!isinf(d_lj) && distance(l, k) > d_ik + d_lj - dist) {
+	    set_distance(own_data, l, k, d_ik + d_lj - dist);
+	    if (-distance(k, l) > d_ik + d_lj - dist) {
 	      return false;
 	    }
 	  }
