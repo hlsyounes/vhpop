@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 3.5 2002-03-23 15:24:31 lorens Exp $
+ * $Id: vhpop.cc,v 3.6 2002-03-23 19:10:33 lorens Exp $
  */
 #include <iostream>
 #include <cstdio>
@@ -153,6 +153,8 @@ static void cleanup() {
 
 
 #ifdef DEBUG
+size_t created_plans = 0;
+size_t deleted_plans = 0;
 size_t created_chains = 0;
 size_t deleted_chains = 0;
 size_t created_collectibles = 0;
@@ -315,12 +317,17 @@ int main(int argc, char* argv[]) {
      * Solve the problems.
      */
     for (Problem::ProblemMapIter pi = Problem::begin();
-	 pi != Problem::end(); pi++) {
+	 pi != Problem::end(); ) {
       const Problem& problem = *(*pi).second;
+      pi++;
       cout << ';' << problem.name << endl;
       struct itimerval timer = { { 1000000, 900000 }, { 1000000, 900000 } };
       setitimer(ITIMER_PROF, &timer, NULL);
-      const Plan* plan = Plan::plan(problem, params);
+#ifdef ALWAYS_DELETE_ALL
+      const Plan* plan = Plan::plan(problem, params, false);
+#else
+      const Plan* plan = Plan::plan(problem, params, pi == Problem::end());
+#endif
       getitimer(ITIMER_PROF, &timer);
       /* Planning time. */
       double t = 1000000.9
@@ -358,6 +365,8 @@ int main(int argc, char* argv[]) {
   }
 
 #ifdef DEBUG
+  cout << ";Plans created: " << created_plans << endl;
+  cout << ";Plans deleted: " << deleted_plans << endl;
   cout << ";Chains created: " << created_chains << endl;
   cout << ";Chains deleted: " << deleted_chains << endl;
   cout << ";Collectibles created: " << created_collectibles << endl;
