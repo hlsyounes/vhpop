@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.31 2001-12-29 22:16:40 lorens Exp $
+ * $Id: plans.h,v 1.32 2001-12-30 15:15:28 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -117,6 +117,9 @@ struct Plan : public LessThanComparable, public Printable, public gc {
   /* Id of goal step. */
   static const size_t GOAL_ID;
 
+  /* Depth of this plan in the search space. */
+  const size_t depth;
+
   /* Returns plan for given problem. */
   static const Plan* plan(const Problem& problem, const Parameters& params);
 
@@ -195,7 +198,8 @@ private:
        const OpenConditionChain* open_conds, size_t num_open_conds,
        const Bindings& bindings, const Orderings& orderings,
        const Plan* parent, PlanType type = NORMAL_PLAN)
-    : steps_(steps), num_steps_(num_steps), high_step_id_(high_id),
+    : depth((parent != NULL) ? parent->depth + 1 : 0),
+      steps_(steps), num_steps_(num_steps), high_step_id_(high_id),
       links_(links), num_links_(num_links),
       unsafes_(unsafes), num_unsafes_(num_unsafes),
       open_conds_(open_conds), num_open_conds_(num_open_conds),
