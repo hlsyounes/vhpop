@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.h,v 3.1 2002-03-10 14:34:46 lorens Exp $
+ * $Id: orderings.h,v 3.2 2002-03-18 11:12:52 lorens Exp $
  */
 #ifndef ORDERINGS_H
 #define ORDERINGS_H
@@ -29,6 +29,9 @@ struct Step;
 struct Literal;
 struct Effect;
 
+
+/* ====================================================================== */
+/* StepTime */
 
 /*
  * A step time.
@@ -48,36 +51,59 @@ StepTime end_time(const Literal& f);
 StepTime start_time(const Literal& f);
 
 
+/* ====================================================================== */
+/* Ordering */
+
 /*
  * Ordering constraint between plan steps.
  */
-struct Ordering : public Printable, public gc {
-  /* Preceeding step. */
-  const size_t before_id;
-  /* Time point of preceeding step. */
-  StepTime t1;
-  /* Succeeding step. */
-  const size_t after_id;
-  /* Time point of suceeding step. */
-  StepTime t2;
-  /* Reason for ordering constraint. */
-  const Reason& reason;
-
+struct Ordering {
   /* Constructs an ordering constraint. */
-  Ordering(size_t before_id, StepTime t1, size_t after_id, StepTime t2,
-	   const Reason& reason);
+  Ordering(size_t before_id, StepTime before_time,
+	   size_t after_id, StepTime after_time, const Reason& reason);
 
-protected:
-  /* Prints this ordering constraint on the given stream. */
-  virtual void print(ostream& os) const;
+  /* Returns the preceeding step id. */
+  size_t before_id() const { return before_id_; }
+
+  /* Returns the time point of preceeding step. */
+  StepTime before_time() const { return before_time_; }
+
+  /* Returns the suceeding step id. */
+  size_t after_id() const { return after_id_; }
+
+  /* Returns the time point of the preceeding step. */
+  StepTime after_time() const { return after_time_; }
+
+  /* Returns the reason. */
+  const Reason& reason() const;
+
+private:
+  /* Preceeding step id. */
+  size_t before_id_;
+  /* Time point of preceeding step. */
+  StepTime before_time_;
+  /* Succeeding step id. */
+  size_t after_id_;
+  /* Time point of suceeding step. */
+  StepTime after_time_;
+#ifdef TRANSFORMATIONAL
+  /* Reason for ordering constraint. */
+  const Reason* reason_;
+#endif
 };
 
+
+/* ====================================================================== */
+/* OrderingChain */
 
 /*
  * Chain of ordering constraints.
  */
-typedef Chain<const Ordering*> OrderingChain;
+typedef Chain<Ordering> OrderingChain;
 
+
+/* ====================================================================== */
+/* Orderings */
 
 /*
  * Collection of ordering constraints.
@@ -114,8 +140,6 @@ protected:
   /* Iterator for id maps. */
   typedef IdMap::const_iterator IdMapIter;
 
-  /* The ordering constraints making up this collection. */
-  const OrderingChain* orderings_;
   /* Number of steps. */
   size_t size_;
   /* Maps step ids to positions in the matrix below. */
@@ -124,6 +148,10 @@ protected:
   vector<size_t> id_map2_;
   /* Matrix representing the transitive closure of the ordering constraints. */
   vector<vector<bool> > order_;
+#ifdef TRANSFORMATIONAL
+  /* The ordering constraints making up this collection. */
+  const OrderingChain* orderings_;
+#endif
 
   /* Constructs an empty ordering collection. */
   Orderings();
@@ -145,6 +173,9 @@ protected:
   virtual void print(ostream& os) const;
 };
 
+
+/* ====================================================================== */
+/* BinaryOrderings */
 
 /*
  * Collection of binary ordering constraints.
@@ -187,6 +218,9 @@ protected:
   virtual bool fill_transitive(const Ordering& ordering);
 };
 
+
+/* ====================================================================== */
+/* TemporalOrderings */
 
 /*
  * Collection of temporal ordering constraints.
