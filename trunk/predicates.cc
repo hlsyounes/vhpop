@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: predicates.cc,v 6.1 2003-03-23 10:51:53 lorens Exp $
+ * $Id: predicates.cc,v 6.2 2003-07-13 16:07:48 lorens Exp $
  */
 #include "predicates.h"
 
@@ -24,7 +24,7 @@
 /* Adds a predicate with the given name to this table and returns
    the predicate. */
 Predicate PredicateTable::add_predicate(const std::string& name) {
-  Predicate predicate = size();
+  Predicate predicate = last_predicate() + 1;
   names_.push_back(name);
   predicates_.insert(std::make_pair(name, predicate));
   parameters_.push_back(TypeList());
@@ -44,4 +44,11 @@ PredicateTable::find_predicate(const std::string& name) const {
   } else {
     return std::make_pair(0, false);
   }
+}
+
+
+/* Prints the given predicate on the given stream. */
+void PredicateTable::print_predicate(std::ostream& os,
+				     Predicate predicate) const {
+  os << names_[predicate];
 }
