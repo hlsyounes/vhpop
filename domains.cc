@@ -13,8 +13,9 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.cc,v 3.8 2002-03-17 23:47:05 lorens Exp $
+ * $Id: domains.cc,v 3.9 2002-03-19 17:19:24 lorens Exp $
  */
+#include "bindings.h"
 #include "domains.h"
 #include "problems.h"
 
@@ -297,6 +298,100 @@ void EffectList::achievable_predicates(hash_set<string>& preds,
   for (const_iterator i = begin(); i != end(); i++) {
     (*i)->achievable_predicates(preds, neg_preds);
   }
+}
+
+
+/* "Strengthens" this effect list. */
+const EffectList& EffectList::stengthen(const Formula& condition) const {
+  /*
+   * First make sure there is only one add or del per effect.
+   */
+  EffectList& effects = *(new EffectList());
+  for (const_iterator i = begin(); i != end(); i++) {
+    const Effect& ei = **i;
+    if (ei.add_list.size() + ei.del_list.size() == 1) {
+      effects.push_back(&ei);
+    } else if (ei.add_list.size() + ei.del_list.size() > 1) {
+      for (AtomListIter ai = ei.add_list.begin();
+	   ai != ei.add_list.end(); ai++) {
+	AtomList& add_list = *(new AtomList());
+	add_list.push_back(*ai);
+	effects.push_back(new Effect(ei.forall, ei.condition, add_list,
+				     NegationList::EMPTY, ei.when));
+      }
+      for (NegationListIter ni = ei.del_list.begin();
+	   ni != ei.del_list.end(); ni++) {
+	NegationList& del_list = *(new NegationList());
+	del_list.push_back(*ni);
+	effects.push_back(new Effect(ei.forall, ei.condition, AtomList::EMPTY,
+				     del_list, ei.when));
+      }
+    }
+  }
+
+  /*
+   * Separate negative effects from positive effects occuring at the
+   * same time.
+   */
+  for (size_t i = 0; i < effects.size(); i++) {
+    const Effect& ei = *effects[i];
+    if (!ei.del_list.empty()) {
+      const Negation& neg = *ei.del_list.back();
+      const Formula* cond = &Formula::TRUE;
+      for (const_iterator j = effects.begin();
+	   j != effects.end() && !cond->contradiction(); j++) {
+	const Effect& ej = **j;
+	if (ei.when == ej.when
+	    && ej.condition.tautology() && !ej.add_list.empty()) {
+	  const Atom& atom = *ej.add_list.back();
+	  SubstitutionList mgu;
+	  if (Bindings::unifiable(mgu, neg.atom, atom)) {
+	    const Formula* sep = &Formula::FALSE;
+	    for (SubstListIter si = mgu.begin(); si != mgu.end(); si++) {
+	      const Substitution& subst = *si;
+	      const Variable* var = &subst.var();
+	      if (!member(ej.forall.begin(), ej.forall.end(), var)) {
+		var = dynamic_cast<const Variable*>(&subst.term());
+		if (var == NULL
+		    || !member(ej.forall.begin(), ej.forall.end(), var)) {
+		  if (subst.var() != subst.term()) {
+		    sep = &(*sep
+			    || *(new Inequality(subst.var(), subst.term())));
+		  }
+		}
+	      }
+	    }
+	    cond = &(*cond && *sep);
+	  }
+	}
+      }
+      cond = &(*cond && ei.condition);
+      if (cond != &ei.condition) {
+	effects[i] = new Effect(ei.forall, *cond, ei.add_list, ei.del_list,
+				ei.when);
+      }
+    }
+  }
+
+  /*
+   * Separate positive effects from conditions asserted at the same time.
+   */
+  for (size_t i = 0; i < effects.size(); i++) {
+    const Effect& ei = *effects[i];
+    const Literal* literal;
+    if (!ei.add_list.empty()) {
+      literal = ei.add_list.back();
+    } else {
+      literal = ei.del_list.back();
+    }
+    const Formula& cond = ei.condition && condition.separate(*literal);
+    if (&cond != &ei.condition) {
+      effects[i] = new Effect(ei.forall, cond, ei.add_list, ei.del_list,
+			      ei.when);
+    }
+  }
+
+  return effects;
 }
 
 

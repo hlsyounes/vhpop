@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.h,v 3.3 2002-03-18 12:08:06 lorens Exp $
+ * $Id: plans.h,v 3.4 2002-03-19 17:19:18 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -264,10 +264,12 @@ private:
   size_t high_step_id_;
   /* Binding constraints of this plan. */
   const Bindings& bindings_;
+#ifdef TRANSFORMATIONAL
   /* Parent plan. */
   const Plan* const parent_;
   /* Plan type. */
   const PlanType type_;
+#endif
   /* Rank of this plan. */
   mutable vector<double> rank_;
   /* Plan id (serial number). */

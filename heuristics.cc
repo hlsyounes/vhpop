@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 3.5 2002-03-18 17:21:07 lorens Exp $
+ * $Id: heuristics.cc,v 3.6 2002-03-19 17:19:30 lorens Exp $
  */
 #include <set>
 #include <typeinfo>
@@ -456,60 +456,6 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
   if (verbosity > 0) {
     cout << endl << "instantiated actions: " << actions.size() << endl;
   }
-
-  /*
-   * Remove actions with nonsensical effects.
-   */
-  size_t nactions = actions.size();
-  for (size_t i = 0; i < nactions; ) {
-    const Action& action = *actions[i];
-    bool useful_effect = false;
-    for (EffectListIter ei = action.effects.begin();
-	 ei != action.effects.end() && !useful_effect; ei++) {
-      const Effect& effect = **ei;
-      for (AtomListIter gi = effect.add_list.begin();
-	   gi != effect.add_list.end() && !useful_effect; gi++) {
-	const Atom& atom = **gi;
-	/* Effect is not useful if it is unconditional and asserted in
-           the preconditions of the action. */
-	if (!(effect.condition.tautology()
-	      && action.precondition.asserts(atom))) {
-	  useful_effect = true;
-	}
-      }
-      for (NegationListIter gi = effect.del_list.begin();
-	   gi != effect.del_list.end() && !useful_effect; gi++) {
-	const Negation& negation = **gi;
-	/* Effect is not useful if it is negated by an unconditional
-           atomic effect. */
-	useful_effect = true;
-	for (EffectListIter ej = action.effects.begin();
-	     ej != action.effects.end() && useful_effect; ej++) {
-	  if ((*ej)->condition.tautology()) {
-	    AtomList add_list = (*ej)->add_list;
-	    if (member_if(add_list.begin(), add_list.end(),
-			  bind1st(equal_to<const Literal*>(),
-				  &negation.atom))) {
-	      useful_effect = false;
-	    }
-	  }
-	}
-	/* Effect is not useful if it is unconditional and asserted in
-           the preconditions of the action. */
-	if (useful_effect && effect.condition.tautology()
-	    && action.precondition.asserts(negation)) {
-	  useful_effect = false;
-	}
-      }
-    }
-    if (useful_effect) {
-      i++;
-    } else {
-      nactions--;
-      actions[i] = actions[nactions];
-    }
-  }
-  actions.resize(nactions);
 
   /*
    * Add initial conditions at level 0.

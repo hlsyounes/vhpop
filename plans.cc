@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 3.7 2002-03-18 17:23:15 lorens Exp $
+ * $Id: plans.cc,v 3.8 2002-03-19 17:19:22 lorens Exp $
  */
 #include <queue>
 #include <algorithm>
@@ -671,13 +671,17 @@ Plan::Plan(const StepChain* steps, size_t num_steps,
     links(links), num_links(num_links),
     unsafes(unsafes), num_unsafes(num_unsafes),
     open_conds(open_conds), num_open_conds(num_open_conds),
-    orderings(orderings), bindings_(bindings),
-    parent_(params->transformational
-	    ? ((parent != NULL && parent->type_ == INTERMEDIATE_PLAN)
-	       ? parent->parent_ : parent)
-	    : NULL),
-    type_((parent != NULL && parent->type_ == INTERMEDIATE_PLAN) ?
-	  TRANSFORMED_PLAN : type) {
+    orderings(orderings), bindings_(bindings) {
+#ifdef TRANSFORMATIONAL
+  if (params->transformational) {
+    parent_ = ((parent != NULL && parent->type_ == INTERMEDIATE_PLAN)
+	       ? parent->parent_ : parent);
+  } else {
+    parent_ = NULL;
+  }
+  type_ = ((parent != NULL && parent->type_ == INTERMEDIATE_PLAN)
+	   ? TRANSFORMED_PLAN : type);
+#endif
   if (parent != NULL) {
     if (steps != NULL && steps->head->id < GOAL_ID) {
       high_step_id_ = max(parent->high_step_id_, steps->head->id);
@@ -2063,6 +2067,7 @@ pair<const Plan*, const OpenCondition*> Plan::unlink(const Link& link) const {
 
 /* Checks if this plan is a duplicate of a previous plan. */
 bool Plan::duplicate() const {
+#ifdef TRANSFORMATIONAL
   if (type_ == TRANSFORMED_PLAN) {
     if (verbosity > 2) {
       cout << "searching for duplicate..." << endl;
@@ -2076,6 +2081,7 @@ bool Plan::duplicate() const {
       }
     }
   }
+#endif
   return false;
 }
 

@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 3.7 2002-03-18 10:11:45 lorens Exp $
+ * $Id: formulas.cc,v 3.8 2002-03-19 17:19:26 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -392,9 +392,10 @@ Constant::Constant(bool value)
   : value_(value) {}
 
 
-/* Checks if this formula asserts the given atom. */
-bool Constant::asserts(const Literal& literal) const {
-  return false;
+/* Returns a formula that separates the given literal from anything
+   definitely asserted by this formula. */
+const Formula& Constant::separate(const Literal& literal) const {
+  return TRUE;
 }
 
 
@@ -457,11 +458,23 @@ Literal::Literal(FormulaTime when)
   : when(when) {}
 
 
-/* Checks if this formula asserts the given atom. */
-bool Literal::asserts(const Literal& literal) const {
-  return (*this == literal
-	  && (when == literal.when
-	      || when == OVER_ALL || literal.when == OVER_ALL));
+/* Returns a formula that separates the given literal from anything
+   definitely asserted by this formula. */
+const Formula& Literal::separate(const Literal& literal) const {
+  if (when == literal.when || when == OVER_ALL || literal.when == OVER_ALL) {
+    SubstitutionList mgu;
+    if (Bindings::unifiable(mgu, *this, literal)) {
+      const Formula* sep = &FALSE;
+      for (SubstListIter si = mgu.begin(); si != mgu.end(); si++) {
+	const Substitution& subst = *si;
+	if (subst.var() != subst.term()) {
+	  sep = &(*sep || *(new Inequality(subst.var(), subst.term())));
+	}
+      }
+      return *sep;
+    }
+  }
+  return TRUE;
 }
 
 
@@ -673,9 +686,10 @@ BindingLiteral::BindingLiteral(const Term& term1, const Term& term2)
   : term1(term1), term2(term2) {}
 
 
-/* Checks if this formula asserts the given atom. */
-bool BindingLiteral::asserts(const Literal& literal) const {
-  return false;
+/* Returns a formula that separates the given literal from anything
+   definitely asserted by this formula. */
+const Formula& BindingLiteral::separate(const Literal& literal) const {
+  return TRUE;
 }
 
 
@@ -846,14 +860,14 @@ Conjunction::Conjunction(const FormulaList& conjuncts)
   : conjuncts(conjuncts) {}
 
 
-/* Checks if this formula asserts the given atom. */
-bool Conjunction::asserts(const Literal& literal) const {
+/* Returns a formula that separates the given literal from anything
+   definitely asserted by this formula. */
+const Formula& Conjunction::separate(const Literal& literal) const {
+  const Formula* sep = &TRUE;
   for (FormulaListIter fi = conjuncts.begin(); fi != conjuncts.end(); fi++) {
-    if ((*fi)->asserts(literal)) {
-      return true;
-    }
+    sep = &(*sep && (*fi)->separate(literal));
   }
-  return false;
+  return *sep;
 }
 
 
@@ -946,14 +960,12 @@ Disjunction::Disjunction(const FormulaList& disjuncts)
   : disjuncts(disjuncts) {}
 
 
-/* Checks if this formula asserts the given atom. */
-bool Disjunction::asserts(const Literal& literal) const {
-  for (FormulaListIter fi = disjuncts.begin(); fi != disjuncts.end(); fi++) {
-    if (!(*fi)->asserts(literal)) {
-      return false;
-    }
-  }
-  return true;
+/* Returns a formula that separates the given literal from anything
+   definitely asserted by this formula. */
+const Formula& Disjunction::separate(const Literal& literal) const {
+  /* We are being conservative here.  It can be hard to find a
+     separator in this case. */
+  return TRUE;
 }
 
 
@@ -1047,9 +1059,12 @@ QuantifiedFormula::QuantifiedFormula(const VariableList& parameters,
   : parameters(parameters), body(body) {}
 
 
-/* Checks if this formula asserts the given atom. */
-bool QuantifiedFormula::asserts(const Literal& literal) const {
-  return body.asserts(literal);
+/* Returns a formula that separates the given literal from anything
+   definitely asserted by this formula. */
+const Formula& QuantifiedFormula::separate(const Literal& literal) const {
+  /* We are being conservative here.  It can be hard to find a
+     separator in this case. */
+  return TRUE;
 }
 
 
@@ -1298,6 +1313,10 @@ const QuantifiedFormula& ForallFormula::negation() const {
 /* ====================================================================== */
 /* AtomList */
 
+/* An empty atom list. */
+const AtomList AtomList::EMPTY = AtomList();
+
+
 /* Constructs an empty atom list. */
 AtomList::AtomList() {}
 
@@ -1329,6 +1348,10 @@ const AtomList& AtomList::substitution(const SubstitutionList& subst) const {
 
 /* ====================================================================== */
 /* NegationList */
+
+/* An empty negation list. */
+const NegationList NegationList::EMPTY = NegationList();
+
 
 /* Constructs an empty negation list. */
 NegationList::NegationList() {}
