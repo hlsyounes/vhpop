@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 4.4 2002-10-14 20:20:32 lorens Exp $
+ * $Id: pddl.yy,v 4.5 2002-10-30 19:35:57 lorens Exp $
  */
 %{
 #include <typeinfo>
@@ -782,7 +782,7 @@ formulas : /* empty */      { $$ = new FormulaList(); }
          ;
 
 formula : atomic_term_formula
-            { $$ = $1 }
+            { $$ = $1; }
         | '(' '=' terms ')'
             {
 	      if (!requirements->equality) {

@@ -142,7 +142,7 @@ several novel ones:
 Several flaw selection strategies can be used simultaneously in a
 round-robin scheme.  For example,
 
-  ./vhpop -f LCFR -l 10000 -f MW -f unlimited <domain> <problem>
+  ./vhpop -f LCFR -l 10000 -f MW -l unlimited <domain> <problem>
 
 specifies that both LCFR and MW should be used.  The search limit with
 LCFR is 10,000 generated search nodes, and with MW the number of
