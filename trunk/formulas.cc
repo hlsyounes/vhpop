@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 1.38 2002-01-26 04:25:05 lorens Exp $
+ * $Id: formulas.cc,v 3.1 2002-03-10 14:33:07 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -441,6 +441,11 @@ const Formula& Constant::negation() const {
 /* ====================================================================== */
 /* Literal */
 
+/* Constructs a literal. */
+Literal::Literal(FormulaTime when)
+  : when(when) {}
+
+
 /* Returns this formula with static literals assumed true. */
 const Formula& Literal::strip_static(const Domain& domain) const {
   if (domain.static_predicate(predicate())
@@ -456,8 +461,8 @@ const Formula& Literal::strip_static(const Domain& domain) const {
 /* Atom */
 
 /* Constructs an atomic formula. */
-Atom::Atom(const string& predicate, const TermList& terms)
-  : predicate_(predicate), terms_(terms) {}
+Atom::Atom(const string& predicate, const TermList& terms, FormulaTime when)
+  : Literal(when), predicate_(predicate), terms_(terms) {}
 
 
 /* Returns the predicate of this literal. */
@@ -474,13 +479,13 @@ const TermList& Atom::terms() const {
 
 /* Returns an instantiation of this formula. */
 const Atom& Atom::instantiation(size_t id) const {
-  return *(new Atom(predicate_, terms_.instantiation(id)));
+  return *(new Atom(predicate_, terms_.instantiation(id), when));
 }
 
 
 /* Returns an instantiation of this formula. */
 const Formula& Atom::instantiation(const Bindings& bindings) const {
-  return *(new Atom(predicate_, terms_.instantiation(bindings)));
+  return *(new Atom(predicate_, terms_.instantiation(bindings), when));
 }
 
 
@@ -511,7 +516,7 @@ const Formula& Atom::instantiation(const SubstitutionList& subst,
 
 /* Returns this formula subject to the given substitutions. */
 const Atom& Atom::substitution(const SubstitutionList& subst) const {
-  return *(new Atom(predicate_, terms_.substitution(subst)));
+  return *(new Atom(predicate_, terms_.substitution(subst), when));
 }
 
 
@@ -569,7 +574,7 @@ const Literal& Atom::negation() const {
 
 /* Constructs a negated atom. */
 Negation::Negation(const Atom& atom)
-  : atom(atom) {}
+  : Literal(atom.when), atom(atom) {}
 
 
 /* Returns the predicate of this literal. */

@@ -16,17 +16,19 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 2.3 2002-02-07 19:05:50 lorens Exp $
+ * $Id: pddl.yy,v 3.1 2002-03-10 14:35:03 lorens Exp $
  */
 %{
-#include <typeinfo>
-#include <utility>
-#include <cstdlib>
 #include "requirements.h"
 #include "problems.h"
 #include "domains.h"
 #include "formulas.h"
 #include "types.h"
+#include <typeinfo>
+#include <utility>
+#include <cstdlib>
+#define __USE_ISOC99 1
+#include <cmath>
 
 
 /* The lexer. */
@@ -114,6 +116,8 @@ static string name_map_type;
 static NameMap* name_map;
 static const Formula* action_precond; 
 static const EffectList* action_effs;
+static pair<float, float> action_duration;
+static Formula::FormulaTime formula_time;
 static VariableList* variables;
 static Context free_variables;
 static const Effect* problem_init;
@@ -128,12 +132,13 @@ static bool unique_variables = true;
 %token QUANTIFIED_PRECONDITIONS CONDITIONAL_EFFECTS FLUENTS ADL
 %token DURATIVE_ACTIONS DURATION_INEQUALITIES CONTINUOUS_EFFECTS
 %token TYPES CONSTANTS PREDICATES
-%token ACTION PARAMETERS PRECONDITION EFFECT
+%token ACTION DURATIVE_ACTION DURATION PARAMETERS PRECONDITION CONDITION EFFECT
 %token PDOMAIN OBJECTS INIT GOAL METRIC
 %token WHEN NOT AND OR IMPLY EXISTS FORALL
 %token EITHER
+%token AT OVER START END ALL
 %token MINIMIZE MAXIMIZE TOTAL_TIME
-%token EQUALS NAME VARIABLE NUMBER
+%token LE GE NAME DURATION_VAR VARIABLE NUMBER
 %token ILLEGAL_TOKEN
 
 %union {
@@ -149,14 +154,15 @@ static bool unique_variables = true;
   VariableList* variables;
   const Variable* variable;
   const string* str;
-  double num;
+  float num;
   vector<string>* strings;
   const Type* type;
 }
 
 %type <action> action_def
-%type <formula> precondition
+%type <formula> precondition da_gd timed_gd
 %type <effects> effect eff_formula eff_formulas
+%type <effects> da_effect da_effects timed_effect
 %type <add_del_lists> one_eff_formula term_literals term_literal
 %type <effect> init
 %type <add_del_lists> name_literals name_literal
@@ -164,7 +170,7 @@ static bool unique_variables = true;
 %type <formula> goals
 %type <formulas> goal_list
 %type <formula> goal
-%type <formulas> formulas
+%type <formulas> timed_gds formulas
 %type <formula> formula
 %type <atom> atomic_term_formula atomic_name_formula
 %type <terms> terms
@@ -172,10 +178,11 @@ static bool unique_variables = true;
 %type <strings> name_seq variable_seq
 %type <type> types
 %type <type> type_spec type
-%type <str> predicate function_symbol name NAME VARIABLE
+%type <str> predicate function_symbol name NAME variable DURATION_VAR VARIABLE
 %type <num> NUMBER
 %type <str> DEFINE DOMAIN PROBLEM
 %type <str> WHEN NOT AND OR IMPLY EXISTS FORALL EITHER
+%type <str> AT OVER START END ALL
 %type <str> MINIMIZE MAXIMIZE TOTAL_TIME
 
 %%
@@ -280,12 +287,9 @@ require_key : STRIPS
             | ADL
                 { requirements->adl(); }
             | DURATIVE_ACTIONS
-                { throw Unimplemented("`:durative-actions' not supported"); }
+                { requirements->durative_actions = true; }
             | DURATION_INEQUALITIES
-                {
-		  throw Unimplemented("`:duration-inequalities'"
-				      " not supported");
-		}
+                { requirements->duration_inequalities = true; }
             | CONTINUOUS_EFFECTS
                 { throw Unimplemented("`:continuous-effects' not supported"); }
             ;
@@ -296,6 +300,7 @@ types_def : '(' TYPES
 		  domain_types->insert(make_pair(SimpleType::OBJECT.name,
 						 &SimpleType::OBJECT));
 		  yywarning("assuming `:typing' requirement");
+		  requirements->typing = true;
 		}
 		name_map_type = "type";
 	      }
@@ -335,15 +340,32 @@ action_def : '(' ACTION name
                {
 		 context = (" in action `" + *$3 + "' of domain `"
 			    + domain_name + "'");
+		 free_variables.push_frame();
 	       }
-             PARAMETERS
-               { free_variables.push_frame(); }
-             '(' opt_variables ')'
-             action_body ')'
+             PARAMETERS '(' opt_variables ')' action_body ')'
                {
 		 free_variables.pop_frame();
-		 $$ = new ActionSchema(*$3, *$8, *action_precond,
+		 $$ = new ActionSchema(*$3, *$7, *action_precond,
 				       *action_effs);
+	       }
+           | '(' DURATIVE_ACTION name
+               {
+		 if (!requirements->durative_actions) {
+		   yywarning("assuming `:durative-actions' requirement");
+		   requirements->durative_actions = true;
+		 }
+		 context = (" in action `" + *$3 + "' of domain `"
+			    + domain_name + "'");
+		 free_variables.push_frame();
+		 free_variables.insert(new Variable("?duration"));
+		 action_duration = make_pair(0.0f, INFINITY);
+	       }
+             PARAMETERS '(' opt_variables ')' da_body ')'
+               {
+		 free_variables.pop_frame();
+		 $$ = new ActionSchema(*$3, *$7, *action_precond,
+				       *action_effs, action_duration.first,
+				       action_duration.second);
 	       }
            ;
 
@@ -355,20 +377,25 @@ action_body2 : /* empty */ { action_effs = &EffectList::EMPTY; }
              | effect      { action_effs = $1; }
             ;
 
-precondition : PRECONDITION formula { $$ = $2; }
+precondition : PRECONDITION { formula_time = Formula::AT_START; }
+               formula { $$ = $3; }
              ;
 
 effect : EFFECT eff_formula { $$ = $2; }
        ;
 
 eff_formula : term_literal
-                { $$ = new EffectList(new Effect(*$1->first, *$1->second)); }
+                {
+		  $$ = new EffectList(new Effect(*$1->first, *$1->second,
+						 Effect::AT_END));
+		}
             | '(' AND eff_formulas ')'
                 { $$ = $3; }
             | '(' FORALL
                 {
 		  if (!requirements->conditional_effects) {
 		    yywarning("assuming `:conditional-effects' requirement");
+		    requirements->conditional_effects = true;
 		  }
 		  free_variables.push_frame();
 		}
@@ -382,30 +409,34 @@ eff_formula : term_literal
 		      const Effect& e = *(*$7)[i];
 		      if (e.forall.empty()) {
 			(*$7)[i] = new Effect(*$5, e.condition,
-					      e.add_list, e.del_list);
+					      e.add_list, e.del_list, e.when);
 		      } else {
 			VariableList& forall = *(new VariableList(*$5));
 			copy(e.forall.begin(), e.forall.end(),
 			     back_inserter(forall));
 			(*$7)[i] = new Effect(forall, e.condition,
-					      e.add_list, e.del_list);
+					      e.add_list, e.del_list, e.when);
 		      }
 		    }
 		    $$ = $7;
 		  }
 		}
-            | '(' WHEN formula one_eff_formula ')'
+            | '(' WHEN { formula_time = Formula::AT_START; }
+              formula one_eff_formula ')'
                 {
 		  if (!requirements->conditional_effects) {
 		    yywarning("assuming `:conditional-effects' requirement");
+		    requirements->conditional_effects = true;
 		  }
-		  if ($3->tautology()) {
-		    $$ = new EffectList(new Effect(*$4->first, *$4->second));
-		  } else if ($3->contradiction()) {
+		  if ($4->tautology()) {
+		    $$ = new EffectList(new Effect(*$5->first, *$5->second,
+						   Effect::AT_END));
+		  } else if ($4->contradiction()) {
 		    $$ = new EffectList();
 		  } else {
-		    $$ = new EffectList(new Effect(*$3,
-						   *$4->first, *$4->second));
+		    $$ = new EffectList(new Effect(*$4,
+						   *$5->first, *$5->second,
+						   Effect::AT_END));
 		  }
 		}
             ;
@@ -436,6 +467,161 @@ term_literal : atomic_term_formula
                  { $$ = &make_add_del(new AtomList($1), new NegationList()); }
              | '(' NOT atomic_term_formula ')'
                  { $$ = &make_add_del(new AtomList(), new NegationList($3)); }
+             ;
+
+da_body : DURATION duration_constraint da_body2
+        ;
+
+da_body2 : CONDITION da_gd da_body3 { action_precond = $2; }
+         | da_body3                 { action_precond = &Formula::TRUE; }
+         ;
+
+da_body3 : /* empty */      { action_effs = &EffectList::EMPTY; }
+         | EFFECT da_effect { action_effs = $2; }
+         ;
+
+duration_constraint : simple_duration_constraint
+                    | '(' AND simple_duration_constraints ')'
+                        {
+			  if (!requirements->duration_inequalities) {
+			    yywarning("assuming `:duration-inequalities' "
+				      "requirement");
+			    requirements->duration_inequalities = true;
+			  }
+			}
+                    ;
+
+simple_duration_constraint : '(' LE DURATION_VAR NUMBER ')'
+                               {
+				 if (!requirements->duration_inequalities) {
+				   yywarning("assuming "
+					     "`:duration-inequalities' "
+					     "requirement");
+				   requirements->duration_inequalities = true;
+				 }
+				 if ($4 < action_duration.second) {
+				   action_duration.second = $4;
+				 }
+			       }
+                           | '(' GE DURATION_VAR NUMBER ')'
+                               {
+				 if (!requirements->duration_inequalities) {
+				   yywarning("assuming "
+					     "`:duration-inequalities' "
+					     "requirement");
+				   requirements->duration_inequalities = true;
+				 }
+				 if (action_duration.first < $4) {
+				   action_duration.first = $4;
+				 }
+			       }
+                           | '(' '=' DURATION_VAR NUMBER ')'
+                               {
+				 if (action_duration.first <= $4
+				     && $4 <= action_duration.second) {
+				   action_duration.first =
+				     action_duration.second = $4;
+				 } else {
+				   action_duration = make_pair(1.0f, -1.0f);
+				 }
+			       }
+                           ;
+
+simple_duration_constraints : /* empty */
+                            | simple_duration_constraints
+                              simple_duration_constraint
+
+da_gd : timed_gd
+      | '(' AND timed_gds ')'
+          {
+	    $$ = &Formula::TRUE;
+	    for (FormulaListIter fi = $3->begin(); fi != $3->end(); fi++) {
+	      $$ = &(*$$ && **fi);
+	    }
+	  }
+      ;
+
+timed_gds : /* empty */        { $$ = new FormulaList(); }
+          | timed_gds timed_gd { $1->push_back($2); $$ = $1; }
+          ;
+
+timed_gd : '(' AT START { formula_time = Formula::AT_START; } formula ')'
+             { $$ = $5; }
+         | '(' AT END { formula_time = Formula::AT_END; } formula ')'
+             { $$ = $5; }
+         | '(' OVER ALL { formula_time = Formula::OVER_ALL; } formula ')'
+             { $$ = $5; }
+         ;
+
+da_effect : timed_effect
+          | '(' AND da_effects ')'
+              { $$ = $3; }
+          | '(' FORALL
+              {
+		if (!requirements->conditional_effects) {
+		  yywarning("assuming `:conditional-effects' requirement");
+		  requirements->conditional_effects = true;
+		}
+		free_variables.push_frame();
+	      }
+            '(' opt_variables ')' da_effect ')'
+              {
+		free_variables.pop_frame();
+		if ($5->empty()) {
+		  $$ = $7;
+		} else {
+		  for (size_t i = 0; i < $7->size(); i++) {
+		    const Effect& e = *(*$7)[i];
+		    if (e.forall.empty()) {
+		      (*$7)[i] = new Effect(*$5, e.condition,
+					    e.add_list, e.del_list, e.when);
+		    } else {
+		      VariableList& forall = *(new VariableList(*$5));
+		      copy(e.forall.begin(), e.forall.end(),
+			   back_inserter(forall));
+		      (*$7)[i] = new Effect(forall, e.condition,
+					    e.add_list, e.del_list, e.when);
+		    }
+		  }
+		  $$ = $7;
+		}
+	      }
+          | '(' WHEN da_gd timed_effect ')'
+              {
+		if (!requirements->conditional_effects) {
+		  yywarning("assuming `:conditional-effects' requirement");
+		  requirements->conditional_effects = true;
+		}
+		if ($3->tautology()) {
+		  $$ = $4;
+		} else if ($3->contradiction()) {
+		  $$ = new EffectList();
+		} else {
+		  for (size_t i = 0; i < $4->size(); i++) {
+		    const Effect& e = *(*$4)[i];
+		    (*$4)[i] = new Effect(e.forall, *$3,
+					  e.add_list, e.del_list, e.when);
+		  }
+		  $$ = $4;
+		}
+	      }
+          ;
+
+da_effects : /* empty */
+               { $$ = new EffectList(); }
+           | da_effects da_effect
+               { copy($2->begin(), $2->end(), back_inserter(*$1)); $$ = $1; }
+
+timed_effect : '(' AT START one_eff_formula ')'
+                 {
+		   $$ = new EffectList(new Effect(*$4->first, *$4->second,
+						  Effect::AT_START));
+		 }
+             | '(' AT END one_eff_formula ')'
+                 {
+		   $$ = new EffectList(new Effect(*$4->first, *$4->second,
+						  Effect::AT_END));
+		 }
              ;
 
 
@@ -482,7 +668,8 @@ problem_body3 : init goals
               | goals
                   {
 		    problem_init = new Effect(*(new AtomList()),
-					      *(new NegationList()));
+					      *(new NegationList()),
+					      Effect::AT_END);
 		    problem_goal = $1;
 		  }
               ;
@@ -501,7 +688,7 @@ init : '(' INIT
 	     " in initial conditions of problem `" + problem_name + "'";
 	 }
        name_literals ')'
-         { $$ = new Effect(*$4->first, *$4->second); }
+         { $$ = new Effect(*$4->first, *$4->second, Effect::AT_END); }
      ;
 
 name_literals : name_literal
@@ -554,7 +741,10 @@ goal_list : goal { $$ = new FormulaList($1); }
           ;
 
 goal : '(' GOAL
-         { context = " in goal of problem `" + problem_name + "'"; }
+         {
+	   context = " in goal of problem `" + problem_name + "'";
+	   formula_time = Formula::AT_START;
+	 }
        formula ')'
          { $$ = $4; }
      ;
@@ -591,10 +781,11 @@ formulas : /* empty */      { $$ = new FormulaList(); }
 
 formula : atomic_term_formula
             { $$ = $1 }
-        | '(' EQUALS terms ')'
+        | '(' '=' terms ')'
             {
 	      if (!requirements->equality) {
 		yywarning("assuming `:equality' requirement");
+		requirements->equality = true;
 	      }
 	      if ($3->size() != 2) {
 		yyerror(tostring($3->size()) + " parameter"
@@ -615,11 +806,13 @@ formula : atomic_term_formula
 		if (!requirements->negative_preconditions) {
 		  yywarning("assuming `:negative-preconditions' "
 			    "requirement");
+		  requirements->negative_preconditions = true;
 		}
 	      } else if (!requirements->disjunctive_preconditions
 			 && typeid(*$3) != typeid(Equality)) {
 		yywarning("assuming `:disjunctive-preconditions' "
 			  "requirement");
+		requirements->disjunctive_preconditions = true;
 	      }
 	      $$ = &!*$3;
 	    }
@@ -634,6 +827,7 @@ formula : atomic_term_formula
             {
 	      if (!requirements->disjunctive_preconditions) {
 		yywarning("assuming `:disjunctive-preconditions' requirement");
+		requirements->disjunctive_preconditions = true;
 	      }
 	      $$ = &Formula::FALSE;
 	      for (FormulaListIter fi = $3->begin(); fi != $3->end(); fi++) {
@@ -644,6 +838,7 @@ formula : atomic_term_formula
             {
 	      if (!requirements->disjunctive_preconditions) {
 		yywarning("assuming `:disjunctive-preconditions' requirement");
+		requirements->disjunctive_preconditions = true;
 	      }
 	      $$ = &(!*$3 || *$4);
 	    }
@@ -651,6 +846,7 @@ formula : atomic_term_formula
             {
 	      if (!requirements->existential_preconditions) {
 		yywarning("assuming `:existential-preconditions' requirement");
+		requirements->existential_preconditions = true;
 	      }
 	      free_variables.push_frame();
 	    }
@@ -663,6 +859,7 @@ formula : atomic_term_formula
             {
 	      if (!requirements->universal_preconditions) {
 		yywarning("assuming `:universal-preconditions' requirement");
+		requirements->universal_preconditions = true;
 	      }
 	      free_variables.push_frame();
 	    }
@@ -683,7 +880,7 @@ terms : /* empty */
           { $$ = new TermList(); }
       | terms name
           { $$ = &add_name(*$1, *$2); }
-      | terms VARIABLE
+      | terms variable
           {
 	    const Variable* v = free_variables.find(*$2);
 	    if (v == NULL) {
@@ -739,8 +936,8 @@ opt_vars : /* empty */
          | vars
          ;
 
-variable_seq : VARIABLE              { $$ = new vector<string>(1, *$1); }
-             | variable_seq VARIABLE { $1->push_back(*$2); $$ = $1; }
+variable_seq : variable              { $$ = new vector<string>(1, *$1); }
+             | variable_seq variable { $1->push_back(*$2); $$ = $1; }
              ;
 
 types : type
@@ -754,10 +951,19 @@ type : predicate            { $$ = &make_type(*$1); }
      | '(' EITHER types ')' { $$ = $3; }
      ;
 
+variable : DURATION_VAR
+         | VARIABLE
+         ;
+
 predicate : NAME
           | DEFINE
           | DOMAIN
           | PROBLEM
+          | AT
+          | OVER
+          | START
+          | END
+          | ALL
           | MINIMIZE
           | MAXIMIZE
           ;
@@ -774,8 +980,14 @@ function_symbol : NAME
                 | EXISTS
                 | FORALL
                 | EITHER
+                | AT
+                | OVER
+                | START
+                | END
+                | ALL
                 | MINIMIZE
                 | MAXIMIZE
+                | TOTAL_TIME
                 ;
 
 name : NAME
@@ -790,6 +1002,11 @@ name : NAME
      | EXISTS
      | FORALL
      | EITHER
+     | AT
+     | OVER
+     | START
+     | END
+     | ALL
      | MINIMIZE
      | MAXIMIZE
      | TOTAL_TIME
@@ -1002,7 +1219,7 @@ static const Atom& make_atom(const string& predicate, const TermList& terms) {
 	    + " passed to predicate `" + predicate
 	    + "' expecting " + tostring(p->arity()));
   }
-  return *(new Atom(predicate, terms));
+  return *(new Atom(predicate, terms, formula_time));
 }
 
 
