@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.cc,v 4.4 2002-09-22 23:20:38 lorens Exp $
+ * $Id: bindings.cc,v 4.5 2002-09-23 18:22:11 lorens Exp $
  */
 #include <typeinfo>
 #include "bindings.h"
@@ -322,9 +322,22 @@ static const Varset* find_varset(const VarsetChain* varsets,
  * A step domain.
  */
 struct StepDomain {
+  /* Constructs a step domain. */
   StepDomain(size_t id, const VariableList& parameters,
 	     const ActionDomain& domain)
     : id_(id), parameters_(&parameters), domain_(&domain) {
+    ActionDomain::register_use(domain_);
+  }
+
+  /* Constructs a step domain. */
+  StepDomain(const StepDomain& sd)
+    : id_(sd.id_), parameters_(sd.parameters_), domain_(sd.domain_) {
+    ActionDomain::register_use(domain_);
+  }
+
+  /* Deletes this step domain. */
+  ~StepDomain() {
+    ActionDomain::unregister_use(domain_);
   }
 
   /* Returns the step id. */
@@ -337,9 +350,7 @@ struct StepDomain {
   const ActionDomain& domain() const { return *domain_; }
 
   /* Returns the number of columns in this domain. */
-  size_t width() const {
-    return parameters().size();
-  }
+  size_t width() const { return parameters().size(); }
 
   /* Returns the index of the variable in this step domain, or -1 if
      the variable is not included. */
@@ -372,7 +383,7 @@ struct StepDomain {
     const ActionDomain* ad = domain().restrict(name, column);
     if (ad == NULL) {
       return NULL;
-    } else if (ad->size() == domain().size()) {
+    } else if (ad == &domain()) {
       return this;
     } else {
       sdc = new StepDomainChain(StepDomain(id(), parameters(), *ad), sdc);
@@ -388,7 +399,7 @@ struct StepDomain {
     const ActionDomain* ad = domain().restrict(names, column);
     if (ad == NULL) {
       return NULL;
-    } else if (ad->size() == domain().size()) {
+    } else if (ad == &domain()) {
       return this;
     } else {
       sdc = new StepDomainChain(StepDomain(id(), parameters(), *ad), sdc);
@@ -403,7 +414,7 @@ struct StepDomain {
     const ActionDomain* ad = domain().exclude(name, column);
     if (ad == NULL) {
       return NULL;
-    } else if (ad->size() == domain().size()) {
+    } else if (ad == &domain()) {
       return this;
     } else {
       sdc = new StepDomainChain(StepDomain(id(), parameters(), *ad), sdc);
@@ -466,6 +477,7 @@ Binding::Binding(const Substitution& s, bool equality, const Reason& reason)
     term_(&s.term()), term_id_(s.term_id()), equality_(equality) {
 #ifdef TRANSFORMATIONAL
   reason_ = &reason;
+  Collectible::register_use(reason_);
 #endif
 }
 
@@ -478,6 +490,15 @@ Binding::Binding(const Variable& var, size_t var_id,
     equality_(equality) {
 #ifdef TRANSFORMATIONAL
   reason_ = &reason;
+  Collectible::register_use(reason_);
+#endif
+}
+
+
+/* Deletes this variable binding. */
+Binding::~Binding() {
+#ifdef TRANSFORMATIONAL
+  Collectible::unregister_use(reason_);
 #endif
 }
 
@@ -501,14 +522,47 @@ ostream& operator<<(ostream& os, const Binding& b) {
 
 
 /* ====================================================================== */
+/* NameSet */
+
+/* Constructs a name set. */
+NameSet::NameSet()
+  : ref_count_(0) {
+#ifdef DEBUG_MEMORY
+  created_collectibles++;
+#endif
+}
+
+
+/* Deletes this name set. */
+NameSet::~NameSet() {
+#ifdef DEBUG_MEMORY
+  deleted_collectibles++;
+#endif
+}
+
+
+/* ====================================================================== */
 /* ActionDomain */
 
 /* Constructs an action domain with a single tuple. */
-ActionDomain::ActionDomain(const NameList& tuple) {
-  for (size_t i = 0; i < tuple.size(); i++) {
-    projections_.push_back(new NameSet());
-  }
+ActionDomain::ActionDomain(const NameList& tuple)
+  : ref_count_(0) {
+#ifdef DEBUG_MEMORY
+    created_collectibles++;
+#endif
   add(tuple);
+}
+
+
+/* Deletes this action domain. */
+ActionDomain::~ActionDomain() {
+#ifdef DEBUG_MEMORY
+  deleted_collectibles++;
+#endif
+  for (ProjectionMapIter pi = projections_.begin();
+       pi != projections_.end(); pi++) {
+    NameSet::unregister_use((*pi).second);
+  }
 }
 
 
@@ -521,21 +575,30 @@ size_t ActionDomain::size() const {
 /* Adds a tuple to this domain. */
 void ActionDomain::add(const NameList& tuple) {
   tuples_.push_back(&tuple);
-  for (size_t i = 0; i < tuple.size(); i++) {
-    projections_[i]->insert(tuple[i]);
-  }
 }
 
 
 /* Returns the set of names from the given column. */
 const NameSet& ActionDomain::projection(size_t column) const {
-  return *projections_[column];
+  ProjectionMapIter pi = projections_.find(column);
+  if (pi != projections_.end()) {
+    return *(*pi).second;
+  } else {
+    NameSet* projection = new NameSet();
+    for (TupleListIter ti = tuples_.begin(); ti != tuples_.end(); ti++) {
+      const NameList& tuple = **ti;
+      projection->insert(tuple[column]);
+    }
+    projections_.insert(make_pair(column, projection));
+    NameSet::register_use(projection);
+    return *projection;
+  }
 }
 
 
 /* Returns the size of the projection of the given column. */
 const size_t ActionDomain::projection_size(size_t column) const {
-  return projections_[column]->size();
+  return projection(column).size();
 }
 
 
@@ -554,7 +617,13 @@ const ActionDomain* ActionDomain::restrict(const Name& name,
       }
     }
   }
-  return new_domain;
+  if (new_domain != NULL && new_domain->size() == size()) {
+    ActionDomain::register_use(new_domain);
+    ActionDomain::unregister_use(new_domain);
+    return this;
+  } else {
+    return new_domain;
+  }
 }
 
 
@@ -574,7 +643,13 @@ const ActionDomain* ActionDomain::restrict(const NameSet& names,
       }
     }
   }
-  return new_domain;
+  if (new_domain != NULL && new_domain->size() == size()) {
+    ActionDomain::register_use(new_domain);
+    ActionDomain::unregister_use(new_domain);
+    return this;
+  } else {
+    return new_domain;
+  }
 }
 
 
@@ -593,7 +668,13 @@ const ActionDomain* ActionDomain::exclude(const Name& name,
       }
     }
   }
-  return new_domain;
+  if (new_domain != NULL && new_domain->size() == size()) {
+    ActionDomain::register_use(new_domain);
+    ActionDomain::unregister_use(new_domain);
+    return this;
+  } else {
+    return new_domain;
+  }
 }
 
 
@@ -694,7 +775,11 @@ Bindings::Bindings(const VarsetChain* varsets, size_t high_step,
 		   const StepDomainChain* step_domains,
 		   const BindingChain* equalities,
 		   const BindingChain* inequalities)
-  : varsets_(varsets), high_step_(high_step), step_domains_(step_domains) {
+  : varsets_(varsets), high_step_(high_step), step_domains_(step_domains),
+    ref_count_(0) {
+#ifdef DEBUG_MEMORY
+  created_collectibles++;
+#endif
   VarsetChain::register_use(varsets_);
   StepDomainChain::register_use(step_domains_);
 #ifdef TRANSFORMATIONAL
@@ -708,6 +793,9 @@ Bindings::Bindings(const VarsetChain* varsets, size_t high_step,
 
 /* Deletes this binding collection. */
 Bindings::~Bindings() {
+#ifdef DEBUG_MEMORY
+  deleted_collectibles++;
+#endif
   VarsetChain::unregister_use(varsets_);
   StepDomainChain::unregister_use(step_domains_);
 #ifdef TRANSFORMATIONAL
@@ -1122,6 +1210,7 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 		    VarsetChain::unregister_use(varsets);
 		    StepDomainChain::register_use(step_domains);
 		    StepDomainChain::unregister_use(step_domains);
+		    NameSet::unregister_use(intersection);
 		    return NULL;
 		  }
 		  if (sd.first != new_sd) {
@@ -1139,6 +1228,7 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 		      VarsetChain::unregister_use(varsets);
 		      StepDomainChain::register_use(step_domains);
 		      StepDomainChain::unregister_use(step_domains);
+		      NameSet::unregister_use(intersection);
 		      return NULL;
 		    }
 		    if (sd.first != new_sd) {
@@ -1146,6 +1236,7 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 		    }
 		  } else if (intersection == NULL) {
 		    intersection = &sd.first->projection(sd.second);
+		    NameSet::register_use(intersection);
 		  } else {
 		    NameSet* cut = new NameSet();
 		    const NameSet& set2 = sd.first->projection(sd.second);
@@ -1153,13 +1244,16 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 				     intersection->end(),
 				     set2.begin(), set2.end(),
 				     inserter(*cut, cut->begin()));
+		    NameSet::unregister_use(intersection);
 		    intersection = cut;
+		    NameSet::register_use(intersection);
 		    if (intersection->empty()) {
 		      /* Domain became empty. */
 		      VarsetChain::register_use(varsets);
 		      VarsetChain::unregister_use(varsets);
 		      StepDomainChain::register_use(step_domains);
 		      StepDomainChain::unregister_use(step_domains);
+		      NameSet::unregister_use(intersection);
 		      return NULL;
 		    }
 		  }
@@ -1167,6 +1261,7 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 	      }
 	    }
 	  }
+	  NameSet::unregister_use(intersection);
 	}
 #if TRANSFORMATIONAL
 	/* Add binding to chain of equality bindings. */
@@ -1370,11 +1465,11 @@ const Bindings* Bindings::add(size_t step_id, const Action& step_action,
 }
 
 
-/* Prints this binding collection on the given stream. */
-void Bindings::print(ostream& os) const {
+/* Output operator for bindings. */
+ostream& operator<<(ostream& os, const Bindings& b) {
   hash_map<size_t, vector<const Variable*> > seen_vars;
   vector<const Name*> seen_names;
-  for (const VarsetChain* vsc = varsets_; vsc != NULL; vsc = vsc->tail) {
+  for (const VarsetChain* vsc = b.varsets_; vsc != NULL; vsc = vsc->tail) {
     const Varset& vs = vsc->head;
     if (vs.cd_set() != NULL) {
       const VariableChain* vc = vs.cd_set();
@@ -1414,11 +1509,12 @@ void Bindings::print(ostream& os) const {
     }
   }
   hash_set<size_t> seen_steps;
-  for (const StepDomainChain* sd = step_domains_; sd != NULL; sd = sd->tail) {
+  for (const StepDomainChain* sd = b.step_domains_;
+       sd != NULL; sd = sd->tail) {
     if (seen_steps.find(sd->head.id()) == seen_steps.end()) {
       seen_steps.insert(sd->head.id());
       os << endl << sd->head;
     }
   }
-  os << "high step: " << high_step_ << endl;
+  return os;
 }
