@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.h,v 3.9 2002-04-08 09:57:02 lorens Exp $
+ * $Id: orderings.h,v 3.10 2002-05-27 00:16:45 lorens Exp $
  */
 #ifndef ORDERINGS_H
 #define ORDERINGS_H
@@ -62,6 +62,9 @@ struct Ordering {
   Ordering(size_t before_id, StepTime before_time,
 	   size_t after_id, StepTime after_time, const Reason& reason);
 
+  /* Deletes this ordering constraint. */
+  ~Ordering();
+
   /* Returns the preceeding step id. */
   size_t before_id() const { return before_id_; }
 
@@ -105,8 +108,6 @@ typedef CollectibleChain<Ordering> OrderingChain;
 /* ====================================================================== */
 /* Orderings */
 
-struct BoolVector;
-
 /*
  * Collection of ordering constraints.
  */
@@ -142,10 +143,6 @@ struct Orderings {
   virtual bool possibly_after(size_t id1, StepTime t1,
 			      size_t id2, StepTime t2) const = 0;
 
-  /* Checks if the two steps are possibly concurrent. */
-  virtual bool possibly_concurrent(size_t id1, StepTime t1,
-				   size_t id2, StepTime t2) const = 0;
-
   /* Returns the ordering collection with the given addition. */
   virtual const Orderings* refine(const Ordering& new_ordering) const = 0;
 
@@ -153,14 +150,10 @@ struct Orderings {
   virtual const Orderings* refine(const Ordering& new_ordering,
 				  const Step& new_step) const = 0;
 
-  /* Fills the given table with distances for each step to the goal
-     step, and returns the greatest distance. */
-  virtual float goal_distances(hash_map<size_t, float>& start_dist,
-			       hash_map<size_t, float>& end_dist) const;
-
-  /* Computes the flexibility of this ordering collection as defined in
-     "Reviving Partial Order Planning" (Nguyen & Kambhampati 2001). */
-  virtual float flexibility() const = 0;
+  /* Fills the given tables with distances for each step from the
+     start step, and returns the greatest distance. */
+  virtual float schedule(hash_map<size_t, float>& start_times,
+			 hash_map<size_t, float>& end_times) const;
 
 protected:
   /* A step id map. */
@@ -174,9 +167,6 @@ protected:
   IdMap id_map1_;
   /* Maps positions in the matrix below to step ids */
   vector<size_t> id_map2_;
-  /* Difference from parent's matrix representing the transitive
-     closure of the ordering constraints. */
-  vector<const BoolVector*> order_;
 #ifdef TRANSFORMATIONAL
   /* The ordering constraints making up this collection. */
   const OrderingChain* orderings_;
@@ -191,20 +181,10 @@ protected:
   /* Returns the number of steps. */
   size_t size() const;
 
-  /* Returns the entry at (r,c) in the matrix representing the
-     transitive closure of the ordering constraints. */
-  bool order(size_t r, size_t c) const;
-
-  /* Sets the entry at (r,c) to true in the matrix representing the
-     transitive closure of the ordering constraints. */
-  void set_order(hash_map<size_t, BoolVector*>& own_data, size_t r, size_t c);
-
-  /* Returns the distance of the given step to the goal step, and also
-     enters it into the given distance table. */
-  virtual float goal_distance(hash_map<size_t, float>& start_dist,
-			      hash_map<size_t, float>& end_dist,
-			      size_t step_id,
-			      StepTime t = STEP_START) const = 0;
+  /* Schedules the given instruction. */
+  virtual float schedule(hash_map<size_t, float>& start_times,
+			 hash_map<size_t, float>& end_times,
+			 size_t step_id, StepTime t = STEP_START) const = 0;
 
   /* Prints this ordering collection on the given stream. */
   virtual void print(ostream& os) const = 0;
@@ -223,6 +203,8 @@ ostream& operator<<(ostream& os, const Orderings& o);
 /* ====================================================================== */
 /* BinaryOrderings */
 
+struct BoolVector;
+
 /*
  * Collection of binary ordering constraints.
  */
@@ -234,6 +216,9 @@ struct BinaryOrderings : public Orderings {
   BinaryOrderings(const CollectibleChain<Step>* steps,
 		  const OrderingChain* orderings);
 
+  /* Deletes this ordering collection. */
+  virtual ~BinaryOrderings();
+
   /* Checks if the first step could be ordered before the second step. */
   virtual bool possibly_before(size_t id1, StepTime t1,
 			       size_t id2, StepTime t2) const;
@@ -243,36 +228,40 @@ struct BinaryOrderings : public Orderings {
 			      size_t id2, StepTime t2) const;
 
   /* Checks if the two steps are possibly concurrent. */
-  virtual bool possibly_concurrent(size_t id1, StepTime t1,
-				   size_t id2, StepTime t2) const;
+  bool possibly_concurrent(size_t id1, StepTime t1,
+			   size_t id2, StepTime t2) const;
 
   /* Returns the ordering collection with the given addition. */
-  virtual const Orderings* refine(const Ordering& new_ordering) const;
+  virtual const BinaryOrderings* refine(const Ordering& new_ordering) const;
 
   /* Returns the ordering collection with the given additions. */
-  virtual const Orderings* refine(const Ordering& new_ordering,
-				  const Step& new_step) const;
-
-  /* Computes the flexibility of this ordering collection as defined in
-     "Reviving Partial Order Planning" (Nguyen & Kambhampati 2001). */
-  virtual float flexibility() const;
+  virtual const BinaryOrderings* refine(const Ordering& new_ordering,
+					 const Step& new_step) const;
 
 protected:
-  /* Returns the distance of the given step to the goal step, and also
-     enters it into the given distance table. */
-  virtual float goal_distance(hash_map<size_t, float>& start_dist,
-			      hash_map<size_t, float>& end_dist,
-			      size_t step_id, StepTime t = STEP_START) const;
+  /* Schedules the given instruction. */
+  virtual float schedule(hash_map<size_t, float>& start_times,
+			 hash_map<size_t, float>& end_times,
+			 size_t step_id, StepTime t = STEP_START) const;
 
   /* Prints this ordering collection on the given stream. */
   virtual void print(ostream& os) const;
 
 private:
+  /* Difference from parent's matrix representing the transitive
+     closure of the ordering constraints. */
+  vector<const BoolVector*> order_;
+
   /* Constructs a copy of this ordering collection. */
   BinaryOrderings(const BinaryOrderings& o);
 
-  /* Checks if the first step is ordered before the second step. */
-  bool before(size_t id1, size_t id2) const;
+  /* Returns the entry at (r,c) in the matrix representing the
+     transitive closure of the ordering constraints. */
+  bool order(size_t r, size_t c) const;
+
+  /* Sets the entry at (r,c) to true in the matrix representing the
+     transitive closure of the ordering constraints. */
+  void set_order(hash_map<size_t, BoolVector*>& own_data, size_t r, size_t c);
 
   /* Updates the transitive closure given a new ordering constraint. */
   void fill_transitive(hash_map<size_t, BoolVector*>& own_data,
@@ -289,6 +278,9 @@ struct FloatVector;
  * Collection of temporal ordering constraints.
  */
 struct TemporalOrderings : public Orderings {
+  /* Minimum distance between two ordered steps. */
+  static float threshold;
+
   /* Constructs an empty ordering collection. */
   TemporalOrderings();
 
@@ -307,27 +299,18 @@ struct TemporalOrderings : public Orderings {
   virtual bool possibly_after(size_t id1, StepTime t1,
 			      size_t id2, StepTime t2) const;
 
-  /* Checks if the two steps are possibly concurrent. */
-  virtual bool possibly_concurrent(size_t id1, StepTime t1,
-				   size_t id2, StepTime t2) const;
-
   /* Returns the ordering collection with the given addition. */
-  virtual const Orderings* refine(const Ordering& new_ordering) const;
+  virtual const TemporalOrderings* refine(const Ordering& new_ordering) const;
 
   /* Returns the ordering collection with the given additions. */
-  virtual const Orderings* refine(const Ordering& new_ordering,
-				  const Step& new_step) const;
-
-  /* Computes the flexibility of this ordering collection as defined in
-     "Reviving Partial Order Planning" (Nguyen & Kambhampati 2001). */
-  virtual float flexibility() const;
+  virtual const TemporalOrderings* refine(const Ordering& new_ordering,
+					  const Step& new_step) const;
 
 protected:
-  /* Returns the distance of the given step to the goal step, and also
-     enters it into the given distance table. */
-  virtual float goal_distance(hash_map<size_t, float>& start_dist,
-			      hash_map<size_t, float>& end_dist,
-			      size_t step_id, StepTime t = STEP_START) const;
+  /* Schedules the given instruction. */
+  virtual float schedule(hash_map<size_t, float>& start_times,
+			 hash_map<size_t, float>& end_times,
+			 size_t step_id, StepTime t = STEP_START) const;
 
   /* Prints this ordering collection on the given stream. */
   virtual void print(ostream& os) const;
@@ -351,12 +334,8 @@ private:
   /* Returns the time node for the given step. */
   size_t time_node(size_t id, StepTime t) const;
 
-  /* Checks if the first step is ordered before the second step. */
-  bool before(size_t id1, StepTime t1, size_t id2, StepTime t2) const;
-
   /* Updates the transitive closure given a new ordering constraint. */
-  bool fill_transitive(hash_map<size_t, BoolVector*>& own_data1,
-		       hash_map<size_t, FloatVector*>& own_data2,
+  bool fill_transitive(hash_map<size_t, FloatVector*>& own_data,
 		       const Ordering& ordering);
 };
 
