@@ -3,6 +3,8 @@
 	* Fixed bug that made end times equal start times when scheduling
 	steps with temporal orderings.
 
+	* Workaround for bug in Bison 1.35 that disables stack growth.
+
 2002-12-17  Håkan L. S. Younes  <lorens@cs.cmu.edu>
 
 	* Effects with a false link condition must not be removed during
