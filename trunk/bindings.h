@@ -2,7 +2,7 @@
 /*
  * Binding constraints.
  *
- * $Id: bindings.h,v 1.10 2001-11-07 19:22:03 lorens Exp $
+ * $Id: bindings.h,v 1.11 2001-12-23 16:34:16 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
@@ -38,8 +38,7 @@ struct Binding : public Printable, public gc {
 protected:
   /* Constructs an abstract variable binding. */
   Binding(const Variable& variable, const Term& term, const Reason& reason)
-    : variable(variable), term(term), reason(reason) {
-  }
+    : variable(variable), term(term), reason(reason) {}
 };
 
 
@@ -54,8 +53,7 @@ struct EqualityBinding : public Binding {
      given term. */
   EqualityBinding(const Variable& variable, const Term& term,
 		  const Reason& reason)
-    : Binding(variable, term, reason) {
-  }
+    : Binding(variable, term, reason) {}
 
 protected:
   /* Prints this equality binding on the given stream. */
@@ -74,8 +72,7 @@ struct InequalityBinding : public Binding {
      from the given term. */
   InequalityBinding(const Variable& variable, const Term& term,
 		    const Reason& reason)
-    : Binding(variable, term, reason) {
-  }
+    : Binding(variable, term, reason) {}
 
 protected:
   /* Prints this inequality binding on the given stream. */
@@ -266,8 +263,7 @@ private:
 	   const VarsetChain* varsets, size_t high_step,
 	   const StepDomainChain* step_domains)
     : equalities(equalities), inequalities(inequalities),
-      varsets_(varsets), high_step_(high_step), step_domains_(step_domains) {
-  }
+      varsets_(varsets), high_step_(high_step), step_domains_(step_domains) {}
 };
 
 #endif /* BINDINGS_H */
