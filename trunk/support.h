@@ -16,20 +16,16 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  * 
- * $Id: support.h,v 3.4 2002-03-25 00:45:09 lorens Exp $
+ * $Id: support.h,v 3.5 2002-03-29 10:04:15 lorens Exp $
  */
 #ifndef SUPPORT_H
 #define SUPPORT_H
 
+#include "debug.h"
 #include <iostream>
 #include <string>
 #include <hash_map>
 
-
-#ifdef DEBUG
-extern size_t created_collectibles;
-extern size_t deleted_collectibles;
-#endif
 
 /*
  * A collectible object.
@@ -54,7 +50,7 @@ struct Collectible {
 
   /* Deletes this collectible object. */
   virtual ~Collectible() {
-#ifdef DEBUG
+#ifdef DEBUG_MEMORY
     deleted_collectibles++;
 #endif
   }
@@ -63,7 +59,7 @@ protected:
   /* Constructs a collectible object. */
   Collectible()
     : ref_count_(0) {
-#ifdef DEBUG
+#ifdef DEBUG_MEMORY
     created_collectibles++;
 #endif
   }
@@ -71,7 +67,7 @@ protected:
   /* Constructs a copy of a collectible object. */
   Collectible(const Collectible& collectible)
     : ref_count_(0) {
-#ifdef DEBUG
+#ifdef DEBUG_MEMORY
     created_collectibles++;
 #endif
   }

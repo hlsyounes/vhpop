@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 3.13 2002-03-25 01:08:02 lorens Exp $
+ * $Id: plans.cc,v 3.14 2002-03-29 10:04:35 lorens Exp $
  */
 #include "plans.h"
 #include "heuristics.h"
@@ -145,11 +145,6 @@ const Atom* Step::step_formula() const {
 
 /* ====================================================================== */
 /* Plan */
-
-#ifdef DEBUG
-extern size_t created_plans;
-extern size_t deleted_plans;
-#endif
 
 /*
  * Less than function object for plan pointers.
@@ -704,8 +699,10 @@ Plan::Plan(const StepChain* steps, size_t num_steps,
   Collectible::register_use(&bindings);
   UnsafeChain::register_use(unsafes);
   OpenConditionChain::register_use(open_conds);
-#ifdef DEBUG
+#ifdef DEBUG_MEMORY
   created_plans++;
+#endif
+#ifdef DEBUG
   depth_ = (parent != NULL) ? parent->depth() + 1 : 0;
 #endif
 #ifdef TRANSFORMATIONAL
@@ -732,7 +729,7 @@ Plan::Plan(const StepChain* steps, size_t num_steps,
 
 /* Deletes this plan. */
 Plan::~Plan() {
-#ifdef DEBUG
+#ifdef DEBUG_MEMORY
   deleted_plans++;
 #endif
   StepChain::unregister_use(steps_);

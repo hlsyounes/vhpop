@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 3.8 2002-03-25 00:43:59 lorens Exp $
+ * $Id: vhpop.cc,v 3.9 2002-03-29 10:04:38 lorens Exp $
  */
 #include "plans.h"
 #include "parameters.h"
@@ -150,7 +150,7 @@ static void cleanup() {
 }
 
 
-#ifdef DEBUG
+#ifdef DEBUG_MEMORY
 size_t created_plans = 0;
 size_t deleted_plans = 0;
 size_t created_chains = 0;
@@ -334,11 +334,8 @@ int main(int argc, char* argv[]) {
 #ifdef DEBUG
 	    cout << ";Depth of solution: " << plan->depth() << endl;
 #endif
-	    const BinaryOrderings* binary_ords =
-	      dynamic_cast<const BinaryOrderings*>(&plan->orderings());
-	    if (binary_ords != NULL) {
-	      cout << ";Flexibility: " << binary_ords->flexibility() << endl;
-	    }
+	    cout << ";Flexibility: " << plan->orderings().flexibility()
+		 << endl;
 	  }
 	  cout << *plan << endl;
 	} else {
@@ -359,7 +356,7 @@ int main(int argc, char* argv[]) {
     return -1;
   }
 
-#ifdef DEBUG
+#ifdef DEBUG_MEMORY
   cout << ";Plans created: " << created_plans << endl;
   cout << ";Plans deleted: " << deleted_plans << endl;
   cout << ";Chains created: " << created_chains << endl;

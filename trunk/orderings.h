@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.h,v 3.6 2002-03-28 23:34:31 lorens Exp $
+ * $Id: orderings.h,v 3.7 2002-03-29 10:04:07 lorens Exp $
  */
 #ifndef ORDERINGS_H
 #define ORDERINGS_H
@@ -110,7 +110,7 @@ struct BoolVector;
 /*
  * Collection of ordering constraints.
  */
-struct Orderings : public Printable, public Collectible {
+struct Orderings : public Collectible {
   /* Deletes this ordering collection. */
   virtual ~Orderings();
 
@@ -136,6 +136,10 @@ struct Orderings : public Printable, public Collectible {
      step, and returns the greatest distance. */
   virtual float goal_distances(hash_map<size_t, float>& start_dist,
 			       hash_map<size_t, float>& end_dist) const;
+
+  /* Computes the flexibility of this ordering collection as defined in
+     "Reviving Partial Order Planning" (Nguyen & Kambhampati 2001). */
+  virtual float flexibility() const = 0;
 
 protected:
   /* A step id map. */
@@ -182,8 +186,13 @@ protected:
 			      StepTime t = STEP_START) const = 0;
 
   /* Prints this ordering collection on the given stream. */
-  virtual void print(ostream& os) const;
+  virtual void print(ostream& os) const = 0;
+
+  friend ostream& operator<<(ostream& os, const Orderings& o);
 };
+
+/* Output operator for ordering collections. */
+ostream& operator<<(ostream& os, const Orderings& o);
 
 
 /* ====================================================================== */
@@ -200,10 +209,6 @@ struct BinaryOrderings : public Orderings {
   BinaryOrderings(const CollectibleChain<Step>* steps,
 		  const OrderingChain* orderings);
 
-  /* Computes the flexibility of this ordering collection as defined in
-     "Reviving Partial Order Planning" (Nguyen & Kambhampati 2001). */
-  float flexibility() const;
-
   /* Checks if the first step could be ordered before the second step. */
   virtual bool possibly_before(size_t id1, StepTime t1,
 			       size_t id2, StepTime t2) const;
@@ -219,12 +224,19 @@ struct BinaryOrderings : public Orderings {
   virtual const Orderings* refine(const Ordering& new_ordering,
 				  const Step& new_step) const;
 
+  /* Computes the flexibility of this ordering collection as defined in
+     "Reviving Partial Order Planning" (Nguyen & Kambhampati 2001). */
+  virtual float flexibility() const;
+
 protected:
   /* Returns the distance of the given step to the goal step, and also
      enters it into the given distance table. */
   virtual float goal_distance(hash_map<size_t, float>& start_dist,
 			      hash_map<size_t, float>& end_dist,
 			      size_t step_id, StepTime t = STEP_START) const;
+
+  /* Prints this ordering collection on the given stream. */
+  virtual void print(ostream& os) const;
 
 private:
   /* Constructs a copy of this ordering collection. */
@@ -273,12 +285,19 @@ struct TemporalOrderings : public Orderings {
   virtual const Orderings* refine(const Ordering& new_ordering,
 				  const Step& new_step) const;
 
+  /* Computes the flexibility of this ordering collection as defined in
+     "Reviving Partial Order Planning" (Nguyen & Kambhampati 2001). */
+  virtual float flexibility() const;
+
 protected:
   /* Returns the distance of the given step to the goal step, and also
      enters it into the given distance table. */
   virtual float goal_distance(hash_map<size_t, float>& start_dist,
 			      hash_map<size_t, float>& end_dist,
 			      size_t step_id, StepTime t = STEP_START) const;
+
+  /* Prints this ordering collection on the given stream. */
+  virtual void print(ostream& os) const;
 
 private:
   /* Matrix representing the minimal network for the ordering constraints. */
