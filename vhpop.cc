@@ -1,7 +1,7 @@
 /*
  * Main program.
  *
- * $Id: vhpop.cc,v 1.3 2001-07-29 17:59:35 lorens Exp $
+ * $Id: vhpop.cc,v 1.4 2001-08-11 06:16:02 lorens Exp $
  */
 #include <iostream>
 #include <stdio.h>
@@ -26,14 +26,15 @@ static const string PROGRAM_NAME = "tpop";
 
 /* Program options. */
 static struct option long_options[] = {
-  { "heuristic", required_argument, NULL, 'h' },
   { "early", optional_argument, NULL, 'e' },
-  { "trans", no_argument, NULL, 't' },
+  { "ground", no_argument, NULL, 'g' },
+  { "heuristic", required_argument, NULL, 'h' },
   { "limit", required_argument, NULL, 'l' },
+  { "trans", no_argument, NULL, 't' },
   { "verbose", optional_argument, NULL, 'v' },
-  { "help", no_argument, NULL, '?' },
   { "version", no_argument, NULL, 'V' },
   { "warnings", optional_argument, NULL, 'w' },
+  { "help", no_argument, NULL, '?' },
   { 0, 0, 0, 0 }
 };
 
@@ -45,6 +46,8 @@ static void display_help() {
        << "options:" << endl
        << "  -e[n], --early[=n]\t"
        << "enable early linking of open conditions" << endl
+       << "  -g,    --ground\t"
+       << "only use ground actions" << endl
        << "  -h h,  --heuristic=h\t"
        << "use heuristic h;" << endl
        << "\t\t\t  h can be `MAX' (default), `SUM', or `UCPOP'" << endl
@@ -96,28 +99,33 @@ int main(int argc, char* argv[]) {
   /* Set default heuristic. */
   Heuristic heuristic = MAX_HEURISTIC;
   /* Whether to allow early linking. */
-  unsigned int early_linking = 0;
+  int early_linking = 0;
+  /* Whether to just use ground actions. */
+  bool ground_actions = false;
   /* Whether to allow transformational plan operators. */
   bool transformations = false;
   /* Search limit. */
-  unsigned int limit = 2000;
+  size_t limit = 2000;
   /* Set default verbosity. */
-  unsigned int verbosity = 0;
+  int verbosity = 0;
 
   /*
    * Get command line options.
    */
   while (1) {
     int option_index = 0;
-    int c = getopt_long(argc, argv, "e::h:l:tv::Vw::?",
+    int c = getopt_long(argc, argv, "e::gh:l:tv::Vw::?",
 			long_options, &option_index);
     if (c == -1) {
       break;
     }
     switch (c) {
-    case 'V':
-      display_version();
-      return 0;
+    case 'e':
+      early_linking = (optarg != NULL) ? atoi(optarg) : 1;
+      break;
+    case 'g':
+      ground_actions = true;
+      break;
     case 'h':
       if (strcasecmp(optarg, "MAX") == 0) {
 	heuristic = MAX_HEURISTIC;
@@ -133,18 +141,18 @@ int main(int argc, char* argv[]) {
 	return -1;
       }
       break;
-    case 'e':
-      early_linking = (optarg != NULL) ? atoi(optarg) : 1;
+    case 'l':
+      limit = atoi(optarg);
       break;
     case 't':
       transformations = true;
       break;
-    case 'l':
-      limit = atoi(optarg);
-      break;
     case 'v':
       verbosity = (optarg != NULL) ? atoi(optarg) : 1;
       break;
+    case 'V':
+      display_version();
+      return 0;
     case 'w':
       warning_level = (optarg != NULL) ? atoi(optarg) : 1;
       break;
@@ -216,7 +224,8 @@ int main(int argc, char* argv[]) {
       const Problem& problem = *(*i).second;
       setitimer(ITIMER_PROF, &timer, NULL);
       const Plan* plan = Plan::plan(problem, heuristic, early_linking,
-				    transformations, limit, verbosity);
+				    ground_actions, transformations, limit,
+				    verbosity);
       getitimer(ITIMER_PROF, &timer);
       /* Planning time. */
       double t = 1000000.9
