@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.cc,v 3.14 2002-06-12 19:54:50 lorens Exp $
+ * $Id: bindings.cc,v 3.15 2002-06-12 23:10:12 lorens Exp $
  */
 #include <typeinfo>
 #include "bindings.h"
@@ -264,6 +264,44 @@ ostream& operator<<(ostream& os, const Varset& vs) {
 }
 
 
+/* Returns the varset containing the given constant, or NULL if none do. */
+static const Varset* find_varset(const VarsetChain* varsets,
+				 const Name& constant) {
+  for (const VarsetChain* vsc = varsets; vsc != NULL; vsc = vsc->tail) {
+    const Varset& vs = vsc->head;
+    if (vs.includes(constant)) {
+      return &vs;
+    }
+  }
+  return NULL;
+}
+
+
+/* Returns the varset containing the given variable, or NULL if none do. */
+static const Varset* find_varset(const VarsetChain* varsets,
+				 const Variable& var) {
+  for (const VarsetChain* vsc = varsets; vsc != NULL; vsc = vsc->tail) {
+    const Varset& vs = vsc->head;
+    if (vs.includes(var)) {
+      return &vs;
+    }
+  }
+  return NULL;
+}
+
+
+/* Returns the varset containing the given term, or NULL if none do. */
+static const Varset* find_varset(const VarsetChain* varsets, const Term& t) {
+  const Name* name = dynamic_cast<const Name*>(&t);
+  if (name != NULL) {
+    return find_varset(varsets, *name);
+  } else {
+    const Variable& var = dynamic_cast<const Variable&>(t);
+    return find_varset(varsets, var);
+  }
+}
+
+
 /* ====================================================================== */
 /* StepDomain */
 
@@ -383,44 +421,6 @@ ostream& operator<<(ostream& os, const StepDomain& sd) {
   }
   os << "> in " << sd.domain();
   return os;
-}
-
-
-/* Returns the varset containing the given constant, or NULL if none do. */
-static const Varset* find_varset(const VarsetChain* varsets,
-				 const Name& constant) {
-  for (const VarsetChain* vsc = varsets; vsc != NULL; vsc = vsc->tail) {
-    const Varset& vs = vsc->head;
-    if (vs.includes(constant)) {
-      return &vs;
-    }
-  }
-  return NULL;
-}
-
-
-/* Returns the varset containing the given variable, or NULL if none do. */
-static const Varset* find_varset(const VarsetChain* varsets,
-				 const Variable& var) {
-  for (const VarsetChain* vsc = varsets; vsc != NULL; vsc = vsc->tail) {
-    const Varset& vs = vsc->head;
-    if (vs.includes(var)) {
-      return &vs;
-    }
-  }
-  return NULL;
-}
-
-
-/* Returns the varset containing the given term, or NULL if none do. */
-static const Varset* find_varset(const VarsetChain* varsets, const Term& t) {
-  const Name* name = dynamic_cast<const Name*>(&t);
-  if (name != NULL) {
-    return find_varset(varsets, *name);
-  } else {
-    const Variable& var = dynamic_cast<const Variable&>(t);
-    return find_varset(varsets, var);
-  }
 }
 
 
