@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: tokens.ll,v 2.3 2002-02-07 19:06:06 lorens Exp $
+ * $Id: tokens.ll,v 3.1 2002-03-10 15:03:19 lorens Exp $
  */
 %{
 struct Type;
@@ -49,7 +49,9 @@ static int make_number(const char* s);
 
 %%
 
-[()+\-\*/]                   return yytext[0];
+[()=+\-\*/]                  return yytext[0];
+\<=                          return LE;
+>=                           return GE;
 define                       return make_string(yytext, DEFINE);
 domain                       return make_string(yytext, DOMAIN);
 problem                      return make_string(yytext, PROBLEM);
@@ -72,8 +74,11 @@ problem                      return make_string(yytext, PROBLEM);
 :constants                   return CONSTANTS;
 :predicates                  return PREDICATES;
 :action                      return ACTION;
+:durative-action             return DURATIVE_ACTION;
 :parameters                  return PARAMETERS;
+:duration                    return DURATION;
 :precondition                return PRECONDITION;
+:condition                   return CONDITION;
 :effect                      return EFFECT;
 :domain                      return PDOMAIN;
 :objects                     return OBJECTS;
@@ -88,13 +93,18 @@ imply                        return make_string(yytext, IMPLY);
 exists                       return make_string(yytext, EXISTS);
 forall                       return make_string(yytext, FORALL);
 either                       return make_string(yytext, EITHER);
+at                           return make_string(yytext, AT);
+over                         return make_string(yytext, OVER);
+start                        return make_string(yytext, START);
+end                          return make_string(yytext, END);
+all                          return make_string(yytext, ALL);
 minimize                     return make_string(yytext, MINIMIZE);
 maximize                     return make_string(yytext, MAXIMIZE);
 total-time                   return make_string(yytext, TOTAL_TIME);
 [A-Za-z]([A-Za-z0-9\-_])*    return make_string(yytext, NAME);
-=                            return EQUALS;
+\?duration                   return make_string(yytext, DURATION_VAR);
 \?[A-Za-z]([A-Z0-9a-z\-_])*  return make_string(yytext, VARIABLE);
-[+\-]?[0-9]*\.?[0-9]+        return make_number(yytext);
+[0-9]*\.?[0-9]+              return make_number(yytext);
 ;.*$                         /* comment */
 [ \t\r]+                     /* whitespace */
 \n                           line_number++;
