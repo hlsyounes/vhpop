@@ -1,7 +1,6 @@
 /*
- * $Id: types.cc,v 1.5 2001-10-06 22:55:42 lorens Exp $
+ * $Id: types.cc,v 1.6 2001-10-06 23:02:50 lorens Exp $
  */
-#include <algorithm>
 #include "types.h"
 
 
