@@ -16,28 +16,22 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.h,v 4.6 2003-03-01 18:53:22 lorens Exp $
+ * $Id: bindings.h,v 6.1 2003-07-13 15:52:12 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
 
 #include <config.h>
 #include "formulas.h"
+#include "terms.h"
 #include "chain.h"
 #include "hashing.h"
 #include <set>
 
-struct Term;
-struct Name;
-struct Variable;
-struct Substitution;
-struct SubstitutionList;
-struct NameList;
 struct Literal;
 struct Equality;
 struct Inequality;
 struct Action;
-struct Reason;
 struct Step;
 struct PlanningGraph;
 
@@ -49,53 +43,25 @@ struct PlanningGraph;
  * Variable binding.
  */
 struct Binding {
-  /* Constructs a variable binding from the given substitution. */
-  Binding(const Substitution& s, bool equality, const Reason& reason)
-    : var_(&s.var()), var_id_(s.var_id()),
-      term_(&s.term()), term_id_(s.term_id()), equality_(equality) {
-#ifdef TRANSFORMATIONAL
-    reason_ = &reason;
-    Reason::register_use(reason_);
-#endif
-  }
-
-
   /* Constructs a variable binding. */
-  Binding(const Variable& var, size_t var_id, const Term& term, size_t term_id,
-	  bool equality, const Reason& reason)
-    : var_(&var), var_id_(var_id), term_(&term), term_id_(term_id),
-      equality_(equality) {
-#ifdef TRANSFORMATIONAL
-    reason_ = &reason;
-    Reason::register_use(reason_);
-#endif
-  }
+  Binding(Variable var, size_t var_id, Term term, size_t term_id,
+	  bool equality)
+    : var_(var), var_id_(var_id), term_(term), term_id_(term_id),
+      equality_(equality) {}
 
   /* Constructs a variable binding. */
   Binding(const Binding& b)
     : var_(b.var_), var_id_(b.var_id_), term_(b.term_), term_id_(b.term_id_),
-      equality_(b.equality_) {
-#ifdef TRANSFORMATIONAL
-    reason_ = b.reason_;
-    Reason::register_use(reason_);
-#endif
-  }
-
-  /* Deletes this variable binding. */
-  ~Binding() {
-#ifdef TRANSFORMATIONAL
-    Reason::unregister_use(reason_);
-#endif
-  }
+      equality_(b.equality_) {}
 
   /* Returns the variable of this binding. */
-  const Variable& var() const { return *var_; }
+  Variable var() const { return var_; }
 
   /* Returns the step id for the variable. */
   size_t var_id() const { return var_id_; }
 
   /* Returns the term of this binding. */
-  const Term& term() const { return *term_; }
+  Term term() const { return term_; }
 
   /* Return the step id for the term. */
   size_t term_id() const { return term_id_; }
@@ -103,24 +69,17 @@ struct Binding {
   /* Checks if this is an equality binding. */
   bool equality() const { return equality_; }
 
-  /* Returns the reason for this binding. */
-  const Reason& reason() const;
-
 private:
   /* A variable. */
-  const Variable* var_;
+  Variable var_;
   /* Step id for the variable. */
   size_t var_id_;
   /* A term either bound to, or separated from the variable. */
-  const Term* term_;
+  Term term_;
   /* Step id for the term. */
   size_t term_id_;
   /* Whether or not this is an equality binding. */
   bool equality_;
-#ifdef TRANSFORMATIONAL
-  /* Reason for this binding. */
-  const Reason* reason_;
-#endif
 
   friend std::ostream& operator<<(std::ostream& os, const Binding& b);
 };
@@ -143,21 +102,12 @@ typedef BindingList::const_iterator BindingListIter;
 
 
 /* ====================================================================== */
-/* BindingChain */
-
-/*
- * Chain of bindings.
- */
-typedef CollectibleChain<Binding> BindingChain;
-
-
-/* ====================================================================== */
 /* NameSet */
 
 /*
  * A set of names.
  */
-struct NameSet : public std::set<const Name*> {
+struct NameSet : public std::set<Object> {
   /* Register use of the given object. */
   static void register_use(const NameSet* s) {
     if (s != NULL) {
@@ -215,7 +165,7 @@ struct ActionDomain {
   } 
 
  /* Constructs an action domain with a single tuple. */
-  ActionDomain(const NameList& tuple);
+  ActionDomain(const ObjectList& tuple);
 
   /* Deletes this action domain. */
   ~ActionDomain();
@@ -224,7 +174,7 @@ struct ActionDomain {
   size_t size() const;
 
   /* Adds a tuple to this domain. */
-  void add(const NameList& tuple);
+  void add(const ObjectList& tuple);
 
   /* Returns the set of names from the given column. */
   const NameSet& projection(size_t column) const;
@@ -234,7 +184,7 @@ struct ActionDomain {
 
   /* Returns a domain where the given column has been restricted to
      the given name, or NULL if this would leave an empty domain. */
-  const ActionDomain* restrict(const Name& name, size_t column) const;
+  const ActionDomain* restrict(Object name, size_t column) const;
 
   /* Returns a domain where the given column has been restricted to
      the given set of names, or NULL if this would leave an empty
@@ -243,11 +193,11 @@ struct ActionDomain {
 
   /* Returns a domain where the given column exclues the given name,
      or NULL if this would leave an empty domain. */
-  const ActionDomain* exclude(const Name& name, size_t column) const;
+  const ActionDomain* exclude(Object name, size_t column) const;
 
 private:
   /* A list of parameter tuples. */
-  struct TupleList : public std::vector<const NameList*> {
+  struct TupleList : public std::vector<const ObjectList*> {
   };
 
   /* A tuple list iterator. */
@@ -324,9 +274,7 @@ struct Bindings {
      and inequality bindings. Parameter constrains are used if pg is
      not NULL. */
   static const Bindings* make_bindings(const CollectibleChain<Step>* steps,
-				       const PlanningGraph* pg,
-				       const BindingChain* equalities,
-				       const BindingChain* inequalities);
+				       const PlanningGraph* pg);
 
   /* Checks if the given formulas can be unified. */
   static bool unifiable(const Literal& l1, size_t id1,
@@ -334,25 +282,21 @@ struct Bindings {
 
   /* Checks if the given formulas can be unified; the most general
      unifier is added to the provided substitution list. */
-  static bool unifiable(SubstitutionList& mgu,
-			const Literal& l1, size_t id1,
+  static bool unifiable(BindingList& mgu, const Literal& l1, size_t id1,
 			const Literal& l2, size_t id2);
+
+  /* Constructs an empty binding collection. */
+  Bindings();
 
   /* Deletes this binding collection. */
   ~Bindings();
 
-  /* Returns the equality bindings. */
-  const BindingChain* equalities() const;
-
-  /* Return the inequality bindings. */
-  const BindingChain* inequalities() const;
-
   /* Returns the binding for the given term, or the term itself if it
      is not bound to a single name. */
-  const Term& binding(const Term& t, size_t step_id) const;
+  Term binding(Term t, size_t step_id) const;
 
   /* Returns the domain for the given step variable. */
-  const NameSet* domain(const Variable& v, size_t step_id) const;
+  const NameSet* domain(Variable v, size_t step_id) const;
 
   /* Checks if one of the given formulas is the negation of the other,
      and the atomic formulas can be unified. */
@@ -362,8 +306,7 @@ struct Bindings {
   /* Checks if one of the given formulas is the negation of the other,
      and the atomic formulas can be unified; the most general unifier
      is added to the provided substitution list. */
-  bool affects(SubstitutionList& mgu,
-	       const Literal& l1, size_t id1,
+  bool affects(BindingList& mgu, const Literal& l1, size_t id1,
 	       const Literal& l2, size_t id2) const;
 
   /* Checks if the given formulas can be unified. */
@@ -372,8 +315,7 @@ struct Bindings {
 
   /* Checks if the given formulas can be unified; the most general
      unifier is added to the provided substitution list. */
-  bool unify(SubstitutionList& mgu,
-	     const Literal& l1, size_t id1,
+  bool unify(BindingList& mgu, const Literal& l1, size_t id1,
 	     const Literal& l2, size_t id2) const;
 
   /* Checks if the given equality is consistent with the current
@@ -403,19 +345,12 @@ private:
   size_t high_step_;
   /* Step domains. */
   const StepDomainChain* step_domains_;
-#ifdef TRANSFORMATIONAL
-  /* Equality bindings. */
-  const BindingChain* equalities_;
-  /* Inequality bindings. */
-  const BindingChain* inequalities_;
-#endif
   /* Reference counter. */
   mutable size_t ref_count_;
 
   /* Constructs a binding collection. */
   Bindings(const VarsetChain* varsets, size_t high_step,
-	   const StepDomainChain* step_domains,
-	   const BindingChain* equalities, const BindingChain* inequalities);
+	   const StepDomainChain* step_domains);
 
   friend std::ostream& operator<<(std::ostream& os, const Bindings& b);
 };
