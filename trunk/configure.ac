@@ -14,7 +14,7 @@
 # SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
 # ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
 #
-# $Id: configure.ac,v 1.4 2002-09-20 16:40:10 lorens Exp $
+# $Id: configure.ac,v 1.5 2002-09-22 01:40:47 lorens Exp $
 
 AC_INIT(VHPOP, 2.1, lorens@cs.cmu.edu)
 AM_INIT_AUTOMAKE(VHPOP, 2.1)
@@ -35,6 +35,9 @@ AC_SEARCH_LIBS(gettext, intl)
 AC_FUNC_ALLOCA
 AC_HEADER_STDC
 AC_CHECK_HEADERS([libintl.h malloc.h stdlib.h string.h strings.h sys/time.h unistd.h])
+AC_LANG_PUSH(C++)
+AC_CHECK_HEADERS(hash_map)
+AC_LANG_POP(C++)
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST

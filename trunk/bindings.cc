@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.cc,v 4.1 2002-09-20 16:43:22 lorens Exp $
+ * $Id: bindings.cc,v 4.2 2002-09-22 01:40:51 lorens Exp $
  */
 #include <typeinfo>
 #include "bindings.h"
@@ -31,12 +31,14 @@
 
 typedef pair<const Variable*, size_t> StepVariable;
 
+namespace std {
 struct less<StepVariable> {
   bool operator()(const StepVariable& sv1, const StepVariable& sv2) const {
     return (*sv1.first < *sv2.first
 	    || (*sv1.first == *sv2.first && sv1.second < sv2.second));
   }
 };
+}
 
 
 /* ====================================================================== */

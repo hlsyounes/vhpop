@@ -16,18 +16,15 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.h,v 4.2 2002-09-20 16:45:57 lorens Exp $
+ * $Id: domains.h,v 4.3 2002-09-22 01:41:04 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
 
-#include <hash_set>
 #include "support.h"
 #include "requirements.h"
 #include "types.h"
 #include "formulas.h"
-
-using namespace std;
 
 struct Problem;
 
@@ -73,14 +70,19 @@ private:
 /*
  * Hash function object for predicates.
  */
+namespace std {
 struct hash<const Predicate*> {
   size_t operator()(const Predicate* p) const {
     return size_t(p);
   }
 };
+}
 
 /* Equality operator for predicates. */
 bool operator==(const Predicate& p1, const Predicate& p2);
+
+/* Inequality operator for predicates. */
+bool operator!=(const Predicate& p1, const Predicate& p2);
 
 /* Output operator for predicates. */
 ostream& operator<<(ostream& os, const Predicate& p);

@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: tokens.ll,v 3.8 2002-06-28 20:13:56 lorens Exp $
+ * $Id: tokens.ll,v 3.9 2002-09-22 01:39:50 lorens Exp $
  */
 %{
 struct Type;
@@ -38,6 +38,7 @@ struct ActionSchema;
 #include <utility>
 #include <string>
 #include <vector>
+using namespace std;
 #include "pddl.h"
 
 

@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 4.4 2002-09-20 16:46:47 lorens Exp $
+ * $Id: formulas.h,v 4.5 2002-09-22 01:40:35 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -440,30 +440,36 @@ inline bool operator!=(const Literal& l1, const Literal& l2) {
 /*
  * Equality function object for literal pointers.
  */
+namespace std {
 struct equal_to<const Literal*>
   : public binary_function<const Literal*, const Literal*, bool> {
   bool operator()(const Literal* l1, const Literal* l2) const {
     return *l1 == *l2;
   }
 };
+}
 
 /*
  * Hash function object for literals.
  */
+namespace std {
 struct hash<Literal> {
   size_t operator()(const Literal& l) const {
     return l.hash_value();
   }
 };
+}
 
 /*
  * Hash function object for literal pointers.
  */
+namespace std {
 struct hash<const Literal*> {
   size_t operator()(const Literal* l) const {
     return l->hash_value();
   }
 };
+}
 
 
 /* ====================================================================== */

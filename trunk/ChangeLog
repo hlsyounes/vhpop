@@ -1,3 +1,7 @@
+2002-09-21  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Fixed compatibility problems with GCC 3.x.
+
 2002-09-20  Håkan L. S. Younes  <lorens@cs.cmu.edu>
 
 	* Terms and formulas are no longer instantiated when planning with

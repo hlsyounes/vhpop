@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.cc,v 4.2 2002-09-20 16:45:50 lorens Exp $
+ * $Id: domains.cc,v 4.3 2002-09-22 01:40:40 lorens Exp $
  */
 #include <stack>
 #include "bindings.h"
@@ -61,6 +61,12 @@ void Predicate::add_parameter(const Type& type) {
 /* Equality operator for predicates. */
 bool operator==(const Predicate& p1, const Predicate& p2) {
   return &p1 == &p2;
+}
+
+
+/* Inequality operator for predicates. */
+bool operator!=(const Predicate& p1, const Predicate& p2) {
+  return &p1 != &p2;
 }
 
 
