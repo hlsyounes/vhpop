@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.15 2001-09-03 20:05:39 lorens Exp $
+ * $Id: plans.cc,v 1.16 2001-09-18 18:53:20 lorens Exp $
  */
 #include <queue>
 #include <hash_set>
@@ -15,10 +15,12 @@ const size_t Plan::GOAL_ID = UINT_MAX;
 
 /* Flaw selection order. */
 static FlawSelectionOrder flaw_order;
-/* Heiristic to use for estimating cost of plan. */
+/* Heuristic to use for estimating cost of plan. */
 static Heuristic heuristic;
 /* Whether to allow transformational plan operators. */
 static bool transformations = false;
+/* Whether to use least-commitment. */
+static bool least_commitment = false;
 /* Verbosity. */
 static int verbosity = 0;
 /* Number of visited plans. */
@@ -193,36 +195,6 @@ static bool add_open_condition(const OpenConditionChain*& open_conds,
 			       size_t& num_open_conds,
 			       const Formula& goal, size_t step_id,
 			       const Reason& reason, const LinkChain* links) {
-  for (const OpenConditionChain* oc = open_conds; oc != NULL; oc = oc->tail) {
-    /*
-     * Consistency check with open conditions in same step.
-     */
-    if (oc->head->step_id == step_id) {
-      const Formula& cond = oc->head->condition;
-      if (goal.negates(cond)) {
-	/* goal is inconsistent with other precondition of same step */
-	return false;
-      } else if (goal == cond) {
-	/* goal already added */
-	return true;
-      }
-    }
-  }
-  /*
-   * Consistency check with linked preconditions in same step.
-   */
-  for (; links != NULL; links = links->tail) {
-    if (links->head->to_id == step_id) {
-      const Formula& cond = links->head->condition;
-      if (goal.negates(cond)) {
-	/* goal is inconsistent with other precondition of same step */
-	return false;
-      } else if (goal == cond) {
-	/* goal already added */
-	return true;
-      }
-    }
-  }
   /*
    * Add goal as open condition.
    */
@@ -424,6 +396,8 @@ const Plan* Plan::plan(const Problem& problem, const FlawSelectionOrder& f,
   heuristic = h;
   /* Set transformations. */
   transformations = t;
+  /* Set least-commitment. */
+  least_commitment = !g;
   /* Set verbosity. */
   verbosity = v;
   /* Set current domain. */
@@ -433,8 +407,9 @@ const Plan* Plan::plan(const Problem& problem, const FlawSelectionOrder& f,
   achieves.clear();
   achieves_pred.clear();
   achieves_neg_pred.clear();
-  if (g) {
-    problem.instantiated_actions(all_actions);
+  problem.instantiated_actions(all_actions);
+  compute_cost(problem, h, all_actions);
+  if (!least_commitment) {
     for (ActionList::const_iterator i = all_actions.begin();
 	 i != all_actions.end(); i++) {
       FormulaList goals;
@@ -443,7 +418,6 @@ const Plan* Plan::plan(const Problem& problem, const FlawSelectionOrder& f,
 	achieves[*j].push_back(*i);
       }
     }
-    compute_cost(problem, h, all_actions);
     if (verbosity > 0) {
       cout << achieves.size() << " achievable atoms." << endl;
       if (verbosity > 3) {
@@ -456,12 +430,14 @@ const Plan* Plan::plan(const Problem& problem, const FlawSelectionOrder& f,
       if (verbosity > 3) {
 	for (ActionList::const_iterator i = all_actions.begin();
 	     i != all_actions.end(); i++) {
-	  cout << "  " << (*i)->action_formula(0) << endl;
+	  cout << "  " << (*i)->action_formula() << endl;
+	  cout << "  " << **i << endl;
 	}
 	cout << endl;
       }
     }
   } else {
+    all_actions.clear();
     for (ActionMap::const_iterator i = domain->actions.begin();
 	 i != domain->actions.end(); i++) {
       all_actions.push_back((*i).second);
@@ -673,6 +649,20 @@ const Flaw& Plan::get_flaw() const {
       }
       if (least_work_open_cond_ != NULL) {
 	return *least_work_open_cond_;
+      }
+    } else if (flaw_order.most_linkable_first()) {
+      if (most_linkable_open_cond_ == NULL) {
+	h_rank();
+      }
+      if (most_linkable_open_cond_ != NULL) {
+	return *most_linkable_open_cond_;
+      }
+    } else if (flaw_order.least_linkable_first()) {
+      if (least_linkable_open_cond_ == NULL) {
+	h_rank();
+      }
+      if (least_linkable_open_cond_ != NULL) {
+	return *least_linkable_open_cond_;
       }
     }
     if (flaw_order.fifo()) {
@@ -1650,6 +1640,8 @@ void Plan::h_rank() const {
   int low_cost = INT_MAX;
   int high_work = -1;
   int low_work = INT_MAX;
+  int high_link = -1;
+  int low_link = INT_MAX;
   for (const OpenConditionChain* oc = open_conds_; oc != NULL; oc = oc->tail) {
     Cost c = oc->head->condition.cost(atom_cost, heuristic);
     if (c.cost > high_cost || (c.cost == high_cost && flaw_order.fifo())) {
@@ -1667,6 +1659,19 @@ void Plan::h_rank() const {
     if (c.work < low_work || (c.work == low_work && flaw_order.fifo())) {
       least_work_open_cond_ = oc->head;
       low_work = c.work;
+    }
+    hash_map<const Formula*, ActionList>::const_iterator fali =
+      achieves.find(&oc->head->condition);
+    if (fali != achieves.end()) {
+      int l = (*fali).second.size();
+      if (l > high_link || (l == high_link && flaw_order.fifo())) {
+	most_linkable_open_cond_ = oc->head;
+	high_link = l;
+      }
+      if (l < low_link || (l == low_link && flaw_order.fifo())) {
+	least_linkable_open_cond_ = oc->head;
+	low_link = l;
+      }
     }
   }
 #if 0
@@ -1759,6 +1764,41 @@ size_t Plan::make_node(CostGraph& cg, hash_map<size_t, size_t>& step_nodes,
   Cost c = cond.cost(atom_cost, heuristic);
   if (c.cost < 0) {
     c.cost = INT_MAX;
+    c.work = INT_MAX;
+    if (least_commitment) {
+      const AtomicFormula* atom = dynamic_cast<const AtomicFormula*>(&cond);
+      if (atom != NULL) {
+	if (domain->static_predicate(atom->predicate)) {
+	  c.cost = 0;
+	  c.work = 1;
+	} else {
+	  c.cost = 0;
+	  c.work = 0;
+	  int nc = 0;
+	  for (hash_map<const Formula*, Cost>::const_iterator ci =
+		 atom_cost.begin(); ci != atom_cost.end(); ci++) {
+	    if (bindings_.unify(*(*ci).first, cond)) {
+#ifdef MAX_COST_LEAST_COMMITMENT
+	      if ((*ci).second > c) {
+		c = (*ci).second;
+		nc = 1;
+	      }
+#else /* average cost */
+	      c += (*ci).second;
+	      nc++;
+#endif
+	    }
+	  }
+	  if (nc > 0) {
+	    c.cost /= nc;
+	    c.work /= nc;
+	  } else {
+	    c.cost = INT_MAX;
+	    c.work = INT_MAX;
+	  }
+	}
+      }
+    }
   }
   size_t cond_node = cg.add_node(c.cost, c.work);
   f_nodes[&cond] = cond_node;
