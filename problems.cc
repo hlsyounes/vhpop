@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: problems.cc,v 1.8 2002-01-25 18:23:15 lorens Exp $
+ * $Id: problems.cc,v 3.1 2002-03-18 09:31:16 lorens Exp $
  */
 #include "problems.h"
 #include "domains.h"
@@ -49,6 +49,11 @@ const Problem* Problem::find(const string& name) {
 
 /* Removes all defined problems. */
 void Problem::clear() {
+  ProblemMapIter pi = begin();
+  while (pi != end()) {
+    delete (*pi).second;
+    pi = begin();
+  }
   problems.clear();
 }
 
@@ -58,6 +63,10 @@ Problem::Problem(const string& name, const Domain& domain,
 		 const NameMap& objects, const Effect& init,
 		 const Formula& goal)
   : name(name), domain(domain), objects(objects), init(init), goal(goal) {
+  const Problem* p = find(name);
+  if (p != NULL) {
+    delete p;
+  }
   problems[name] = this;
 }
 
