@@ -13,13 +13,22 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: flaws.cc,v 3.3 2002-03-23 15:18:20 lorens Exp $
+ * $Id: flaws.cc,v 3.4 2002-09-23 02:34:13 lorens Exp $
  */
 #include "flaws.h"
 #include "plans.h"
 #include "reasons.h"
 #include "domains.h"
 #include "formulas.h"
+
+
+/* ====================================================================== */
+/* Flaw */
+
+ostream& operator<<(ostream& os, const Flaw& f) {
+  f.print(os);
+  return os;
+}
 
 
 /* ====================================================================== */
@@ -31,6 +40,15 @@ OpenCondition::OpenCondition(size_t step_id, const Formula& condition,
   : step_id_(step_id), condition_(&condition) {
 #ifdef TRANSFORMATIONAL
   reason_ = &reason;
+  Collectible::register_use(reason_);
+#endif
+}
+
+
+/* Deletes this open condition. */
+OpenCondition::~OpenCondition() {
+#ifdef TRANSFORMATIONAL
+  Collectible::unregister_use(reason_);
 #endif
 }
 
@@ -80,12 +98,6 @@ void OpenCondition::print(ostream& os) const {
 }
 
 
-/* Equality operator for open conditions. */
-bool operator==(const OpenCondition& oc1, const OpenCondition& oc2) {
-  return &oc1 == &oc2;
-}
-
-
 /* ====================================================================== */
 /* Unsafe */
 
@@ -100,10 +112,4 @@ Unsafe::Unsafe(const Link& link, size_t step_id, const Effect& effect,
 void Unsafe::print(ostream& os) const {
   os << "#<UNSAFE " << link().from_id() << ' ' << link().condition()
      << ' ' << link().to_id() << " step " << step_id() << ">";
-}
-
-
-/* Equality operator for unsafe links. */
-bool operator==(const Unsafe& u1, const Unsafe& u2) {
-  return &u1 == &u2;
 }
