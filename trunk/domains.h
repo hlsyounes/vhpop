@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.h,v 4.1 2002-07-22 22:42:44 lorens Exp $
+ * $Id: domains.h,v 4.2 2002-09-20 16:45:57 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -158,15 +158,9 @@ struct Effect {
   /* Returns the temporal annotation for this effect. */
   EffectTime when() const { return when_; }
 
-  /* Returns an instantiation of this effect. */
-  const Effect& instantiation(size_t id) const;
-
   /* Fills the provided list with instantiations of this effect. */
   void instantiations(EffectList& effects, const SubstitutionList& subst,
 		      const Problem& problem) const;
-
-  /* Returns this effect subject to the given substitutions. */
-  const Effect& substitution(const SubstitutionList& subst) const;
 
   /* Fills the provided sets with predicates achievable by the
      effect. */
@@ -218,14 +212,8 @@ struct EffectList : public vector<const Effect*> {
   EffectList(const Effect* effect);
 
   /* Returns an instantiation of this effect list. */
-  const EffectList& instantiation(size_t id) const;
-
-  /* Returns an instantiation of this effect list. */
   const EffectList& instantiation(const SubstitutionList& subst,
 				  const Problem& problem) const;
-
-  /* Returns this effect list subject to the given substitutions. */
-  const EffectList& substitution(const SubstitutionList& subst) const;
 
   /* Fills the provided sets with predicates achievable by the effects
      in this list. */
@@ -265,13 +253,14 @@ struct Action : public Printable {
   /* Maximum duration of this action. */
   float max_duration() const { return max_duration_; }
 
-  /* Returns a formula representing this action. */
-  virtual const Atom& action_formula() const = 0;
-
   /* Fills the provided sets with predicates achievable by this
      action. */
   void achievable_predicates(PredicateSet& preds,
 			     PredicateSet& neg_preds) const;
+
+  /* Prints this action on the given stream with the given bindings. */
+  virtual void print(ostream& os, size_t step_id,
+		     const Bindings* bindings) const = 0;
 
 protected:
   /* Constructs an action. */
@@ -333,9 +322,6 @@ struct ActionSchema : public Action {
   /* Returns the parameters of this action schema. */
   const VariableList& parameters() const { return *parameters_; }
 
-  /* Returns a formula representing this action. */
-  virtual const Atom& action_formula() const;
-
   /* Fills the provided action list with all instantiations of this
      action schema. */
   void instantiations(GroundActionList& actions, const Problem& problem) const;
@@ -343,6 +329,10 @@ struct ActionSchema : public Action {
   /* Returns this action schema with all static preconditions assumed
      true. */
   const ActionSchema& strip_static(const Domain& domain) const;
+
+  /* Prints this action on the given stream with the given bindings. */
+  virtual void print(ostream& os, size_t step_id,
+		     const Bindings* bindings) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -386,8 +376,9 @@ struct GroundAction : public Action {
   /* Action arguments. */
   const NameList& arguments() const { return *arguments_; }
 
-  /* Returns a formula representing this action. */
-  virtual const Atom& action_formula() const;
+  /* Prints this action on the given stream with the given bindings. */
+  virtual void print(ostream& os, size_t step_id,
+		     const Bindings* bindings) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -396,8 +387,6 @@ protected:
 private:
   /* Action arguments. */
   const NameList* arguments_;
-  /* Atomic representation of this ground action. */
-  mutable const Atom* formula_;
 };
 
 

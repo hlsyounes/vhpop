@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.h,v 4.1 2002-09-18 02:41:05 lorens Exp $
+ * $Id: plans.h,v 4.2 2002-09-20 16:48:46 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -112,12 +112,12 @@ struct Step {
   /* Returns the step id. */
   size_t id() const { return id_; }
 
+  /* Test if this is a dummy step. */
+  size_t dummy() const;
+
   /* Returns the action that this step was instantiated from, or NULL
      if step was not instantiated from an action. */
-  const Action* action() const { return action_; }
-
-  /* Returns the effects of this step. */
-  const EffectList& effects() const { return *effects_; }
+  const Action& action() const { return *action_; }
 
   /* Returns the reasons. */
   const Reason& reason() const;
@@ -125,16 +125,11 @@ struct Step {
   /* Sets the reason for this step. */
   void set_reason(const Reason& reason);
 
-  /* Returns a formula representing this step. */
-  const Atom* step_formula() const;
-
 private:
   /* Step id. */
   size_t id_;
   /* Action, or NULL if step is not instantiated from an action. */
   const Action* action_;
-  /* List of effects. */
-  const EffectList* effects_;
 #ifdef TRANSFORMATIONAL
   /* Reason for step. */
   const Reason* reason_;
@@ -231,7 +226,7 @@ struct Plan {
 
   /* Counts the number of refinements for the given inequality open
      condition. */
-  int inequality_refinements(const Inequality& neq) const;
+  int inequality_refinements(const Inequality& neq, size_t step_id) const;
 
   /* Counts the number of add-step refinements for the given literal
      open condition, and returns true iff the number of refinements
@@ -354,7 +349,6 @@ private:
      the given effects and the open condition, and returns true iff
      the number of refinements does not exceed the given limit. */
   bool count_new_links(int& count, size_t step_id, const Action& action,
-		       const EffectList& effects,
 		       const Literal& literal, size_t oc_step_id,
 		       int limit) const;
 
@@ -366,7 +360,7 @@ private:
   /* Checks if a new link be established between the given effects and
      the open condition using the closed world assumption. */
   int cw_link_possible(const EffectList& effects,
-		       const Negation& negation) const;
+		       const Negation& negation, size_t step_id) const;
 
   /* Adds plans to the given plan list with a link from the given step
      to the given open condition added using the closed world
