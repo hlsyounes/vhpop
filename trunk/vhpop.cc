@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 2.3 2002-02-08 05:16:13 lorens Exp $
+ * $Id: vhpop.cc,v 3.1 2002-03-10 15:03:33 lorens Exp $
  */
 #include <iostream>
 #include <cstdio>
@@ -273,19 +273,19 @@ int main(int argc, char* argv[]) {
       /*
        * Display domains and problems.
        */
-      cout << "----------------------------------------"<< endl
-	   << "domains:" << endl;
+      cout << ";----------------------------------------"<< endl
+	   << ";domains:" << endl;
       for (Domain::DomainMapIter di = Domain::begin();
 	   di != Domain::end(); di++) {
-	cout << endl << *(*di).second << endl;
+	cout << ';' << endl << ';' << *(*di).second << endl;
       }
-      cout << "----------------------------------------"<< endl
-	   << "problems:" << endl;
+      cout << ";----------------------------------------"<< endl
+	   << ";problems:" << endl;
       for (Problem::ProblemMapIter pi = Problem::begin();
 	   pi != Problem::end(); pi++) {
-	cout << endl << *(*pi).second << endl;
+	cout << ';' << endl << ';' << *(*pi).second << endl;
       }
-      cout << "----------------------------------------"<< endl;
+      cout << ";----------------------------------------"<< endl;
     }
 
     cout.setf(ios::unitbuf);
@@ -296,10 +296,7 @@ int main(int argc, char* argv[]) {
     for (Problem::ProblemMapIter pi = Problem::begin();
 	 pi != Problem::end(); pi++) {
       const Problem& problem = *(*pi).second;
-      if (pi != Problem::begin()) {
-	cout << endl;
-      }
-      cout << problem.name << endl;
+      cout << ';' << problem.name << endl;
       struct itimerval timer = { { 1000000, 900000 }, { 1000000, 900000 } };
       setitimer(ITIMER_PROF, &timer, NULL);
       const Plan* plan = Plan::plan(problem, params);
@@ -307,24 +304,25 @@ int main(int argc, char* argv[]) {
       /* Planning time. */
       double t = 1000000.9
 	- (timer.it_value.tv_sec + timer.it_value.tv_usec*1e-6);
-      if (t < 1e-3) {
-	t = 0.0;
-      }
-      if (verbosity > 0) {
-	cout << "Planning time: " << t << endl;
-      }
+      cout << "Time: " << int(1000.0*t + 0.5) << endl;
       if (plan != NULL) {
 	if (plan->complete()) {
 	  if (verbosity > 0) {
-	    cout << "Depth of solution: " << plan->depth << endl;
-	    cout << "Flexibility: " << plan->orderings.flexibility() << endl;
+	    cout << ";Depth of solution: " << plan->depth << endl;
+	    const BinaryOrderings* binary_ords =
+	      dynamic_cast<const BinaryOrderings*>(&plan->orderings);
+	    if (binary_ords != NULL) {
+	      cout << ";Flexibility: " << binary_ords->flexibility() << endl;
+	    }
 	  }
 	  cout << *plan << endl;
 	} else {
-	  cout << "Search limit reached." << endl;
+	  cout << "no plan" << endl;
+	  cout << ";Search limit reached." << endl;
 	}
       } else {
-	cout << "Problem has no solution." << endl;
+	cout << "no plan" << endl;
+	cout << ";Problem has no solution." << endl;
       }
     }
   } catch (const Exception& e) {
