@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.cc,v 3.20 2002-06-30 14:57:17 lorens Exp $
+ * $Id: orderings.cc,v 3.21 2002-06-30 23:03:18 lorens Exp $
  */
 #include "orderings.h"
 #include "plans.h"
@@ -43,7 +43,7 @@ StepTime end_time(const Effect& e) {
 /* Returns the step time corresponding to the end time of the given
    literal. */
 StepTime end_time(const Literal& f) {
-  if (f.when == Formula::AT_START) {
+  if (f.when() == Formula::AT_START) {
     return STEP_START;
   } else {
     return STEP_END;
@@ -54,7 +54,7 @@ StepTime end_time(const Literal& f) {
 /* Returns the step time corresponding to the start time of the given
    literal. */
 StepTime start_time(const Literal& f) {
-  if (f.when == Formula::AT_END) {
+  if (f.when() == Formula::AT_END) {
     return STEP_END;
   } else {
     return STEP_START;

@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 3.22 2002-06-30 14:57:12 lorens Exp $
+ * $Id: plans.cc,v 3.23 2002-06-30 23:03:11 lorens Exp $
  */
 #include <queue>
 #include <stack>
@@ -187,7 +187,7 @@ static bool add_goal(const OpenConditionChain*& open_conds,
     goals.pop_back();
     const Conjunction* conj = dynamic_cast<const Conjunction*>(goal);
     if (conj != NULL) {
-      const FormulaList& gs = conj->conjuncts;
+      const FormulaList& gs = conj->conjuncts();
       for (FormulaListIter fi = gs.begin(); fi != gs.end(); fi++) {
 	if (params->reverse_open_conditions) {
 	  goals.push_front(*fi);
@@ -218,20 +218,21 @@ static bool add_goal(const OpenConditionChain*& open_conds,
 	  if (bl != NULL) {
 	    bool is_eq = (typeid(*bl) == typeid(Equality));
 	    bool added = false;
-	    const Variable* var = dynamic_cast<const Variable*>(&bl->term1);
+	    const Variable* var = dynamic_cast<const Variable*>(&bl->term1());
 	    if (var != NULL) {
 	      /* The first term is a variable. */
-	      new_bindings.push_back(Binding(*var, bl->term2, is_eq, reason));
+	      new_bindings.push_back(Binding(*var, bl->term2(), is_eq,
+					     reason));
 	      added = true;
 	    } else {
-	      var = dynamic_cast<const Variable*>(&bl->term2);
+	      var = dynamic_cast<const Variable*>(&bl->term2());
 	      if (var != NULL) {
 		/* The second term is a variable. */
-		new_bindings.push_back(Binding(*var, bl->term1, is_eq,
+		new_bindings.push_back(Binding(*var, bl->term1(), is_eq,
 					       reason));
 		added = true;
-	      } else if ((is_eq && bl->term1 != bl->term2)
-			 || (!is_eq && bl->term1 == bl->term2)) {
+	      } else if ((is_eq && bl->term1() != bl->term2())
+			 || (!is_eq && bl->term1() == bl->term2())) {
 		/* Both terms are names, and the binding is inconsistent. */
 		return false;
 	      }
@@ -258,9 +259,9 @@ static bool add_goal(const OpenConditionChain*& open_conds,
 	      dynamic_cast<const ExistsFormula*>(goal);
 	    if (exists != NULL) {
 	      if (params->reverse_open_conditions) {
-		goals.push_front(&exists->body);
+		goals.push_front(&exists->body());
 	      } else {
-		goals.push_back(&exists->body);
+		goals.push_back(&exists->body());
 	      }
 	    } else if (dynamic_cast<const ForallFormula*>(goal) != NULL) {
 	      throw Unimplemented("adding universally quantified goal");
@@ -1096,7 +1097,7 @@ void Plan::handle_open_condition(PlanList& plans,
 int Plan::disjunction_refinements(const Disjunction& disj,
 				  size_t step_id) const {
   int count = 0;
-  const FormulaList& disjuncts = disj.disjuncts;
+  const FormulaList& disjuncts = disj.disjuncts();
   for (FormulaListIter fi = disjuncts.begin(); fi != disjuncts.end(); fi++) {
     BindingList new_bindings;
     const OpenConditionChain* new_open_conds = NULL;
@@ -1116,7 +1117,7 @@ int Plan::disjunction_refinements(const Disjunction& disj,
 void
 Plan::handle_disjunction(PlanList& plans, const Disjunction& disj,
 			 const OpenCondition& open_cond) const {
-  const FormulaList& disjuncts = disj.disjuncts;
+  const FormulaList& disjuncts = disj.disjuncts();
   for (FormulaListIter fi = disjuncts.begin(); fi != disjuncts.end(); fi++) {
     BindingList new_bindings;
     const OpenConditionChain* new_open_conds = open_conds()->remove(open_cond);
@@ -1142,8 +1143,8 @@ Plan::handle_disjunction(PlanList& plans, const Disjunction& disj,
    condition. */
 int Plan::inequality_refinements(const Inequality& neq) const {
   int count = 0;
-  const StepVar& v1 = dynamic_cast<const StepVar&>(neq.term1);
-  const StepVar& v2 = dynamic_cast<const StepVar&>(neq.term2);
+  const StepVar& v1 = dynamic_cast<const StepVar&>(neq.term1());
+  const StepVar& v2 = dynamic_cast<const StepVar&>(neq.term2());
   const NameSet* d1 = bindings_->domain(v1);
   const NameSet* d2 = bindings_->domain(v2);
   if (d1 == NULL || d2 == NULL) {
@@ -1182,8 +1183,8 @@ int Plan::inequality_refinements(const Inequality& neq) const {
 /* Handles inequality open condition. */
 void Plan::handle_inequality(PlanList& plans, const Inequality& neq,
 			     const OpenCondition& open_cond) const {
-  const StepVar& v1 = dynamic_cast<const StepVar&>(neq.term1);
-  const StepVar& v2 = dynamic_cast<const StepVar&>(neq.term2);
+  const StepVar& v1 = dynamic_cast<const StepVar&>(neq.term1());
+  const StepVar& v2 = dynamic_cast<const StepVar&>(neq.term2());
   const NameSet* d1 = bindings_->domain(v1);
   const NameSet* d2 = bindings_->domain(v2);
   if (d1 == NULL || d2 == NULL) {
@@ -1408,7 +1409,7 @@ void Plan::new_link(PlanList& plans, const Step& step, const Literal& literal,
    the open condition using the closed world assumption. */
 int Plan::cw_link_possible(const EffectList& effects,
 			   const Negation& negation) const {
-  const Atom& goal = negation.atom;
+  const Atom& goal = negation.atom();
   const Formula* goals = &Formula::TRUE;
   for (EffectListIter ei = effects.begin(); ei != effects.end(); ei++) {
     const Effect& effect = **ei;
@@ -1449,7 +1450,7 @@ void Plan::new_cw_link(PlanList& plans, const Step& step,
 		       const Literal& literal,
 		       const OpenCondition& open_cond) const {
   const Negation& negation = dynamic_cast<const Negation&>(literal);
-  const Atom& goal = negation.atom;
+  const Atom& goal = negation.atom();
   const Formula* goals = &Formula::TRUE;
   const EffectList& effs = step.effects();
   for (EffectListIter ei = effs.begin(); ei != effs.end(); ei++) {

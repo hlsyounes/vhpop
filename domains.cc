@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.cc,v 3.14 2002-06-30 14:56:57 lorens Exp $
+ * $Id: domains.cc,v 3.15 2002-06-30 23:03:16 lorens Exp $
  */
 #include <stack>
 #include "bindings.h"
@@ -393,7 +393,7 @@ const EffectList& EffectList::strengthen(const Formula& condition) const {
 	    && ej.condition().tautology() && !ej.add_list().empty()) {
 	  const Atom& atom = *ej.add_list().back();
 	  SubstitutionList mgu;
-	  if (Bindings::unifiable(mgu, neg.atom, atom)) {
+	  if (Bindings::unifiable(mgu, neg.atom(), atom)) {
 	    const Formula* sep = &Formula::FALSE;
 	    for (SubstListIter si = mgu.begin(); si != mgu.end(); si++) {
 	      const Substitution& subst = *si;

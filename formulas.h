@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 3.10 2002-03-25 00:44:53 lorens Exp $
+ * $Id: formulas.h,v 3.11 2002-06-30 23:03:07 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -126,6 +126,9 @@ private:
 };
 
 
+/* ====================================================================== */
+/* Name */
+
 /*
  * Name.
  */
@@ -145,6 +148,9 @@ struct Name : public Term {
   virtual bool equivalent(const Term& t) const;
 };
 
+
+/* ====================================================================== */
+/* Variable */
 
 /*
  * Variable.
@@ -169,12 +175,15 @@ struct Variable : public Term {
 };
 
 
+/* ====================================================================== */
+/* StepVar */
+
 /*
  * Instantiated variable.
  */
 struct StepVar : public Variable {
-  /* The id of the step that this variable belongs to. */
-  const size_t id;
+  /* Returns the id of the step that this variable belongs to. */
+  size_t id() const { return id_; }
 
 protected:
   /* Checks if this object is less than the given object. */
@@ -190,9 +199,15 @@ private:
   /* Constructs an instantiated variable. */
   StepVar(const Variable& var, size_t id);
 
+  /* The id of the step that this variable belongs to. */
+  size_t id_;
+
   friend const Variable& Variable::instantiation(size_t id) const;
 };
 
+
+/* ====================================================================== */
+/* TermList */
 
 /*
  * List of terms.
@@ -212,6 +227,9 @@ struct TermList : public vector<const Term*> {
 typedef TermList::const_iterator TermListIter;
 
 
+/* ====================================================================== */
+/* NameList */
+
 /*
  * List of names.
  */
@@ -221,6 +239,9 @@ struct NameList : public vector<const Name*> {
 /* Name list iterator. */
 typedef NameList::const_iterator NameListIter;
 
+
+/* ====================================================================== */
+/* NameMap */
 
 /*
  * Table of names.
@@ -232,12 +253,15 @@ struct NameMap : public hash_map<string, const Name*> {
 typedef NameMap::const_iterator NameMapIter;
 
 
+/* ====================================================================== */
+/* VariableList */
+
 /*
  * List of variables.
  */
 struct VariableList : public vector<const Variable*> {
   /* An empty variable list. */
-  static const VariableList& EMPTY;
+  static const VariableList EMPTY;
 
   /* Returns an instantiation of this variable list. */
   const VariableList& instantiation(size_t id) const;
@@ -246,6 +270,9 @@ struct VariableList : public vector<const Variable*> {
 /* Variable list iterator. */
 typedef VariableList::const_iterator VarListIter;
 
+
+/* ====================================================================== */
+/* Formula */
 
 struct Literal;
 
@@ -323,6 +350,9 @@ const Formula& operator&&(const Formula& f1, const Formula& f2);
 const Formula& operator||(const Formula& f1, const Formula& f2);
 
 
+/* ====================================================================== */
+/* FormulaList */
+
 /*
  * List of formulas.
  */
@@ -343,6 +373,9 @@ struct FormulaList : public vector<const Formula*> {
 /* A formula list const iterator. */
 typedef FormulaList::const_iterator FormulaListIter;
 
+
+/* ====================================================================== */
+/* Constant */
 
 /*
  * A formula with a constant truth value.
@@ -390,6 +423,11 @@ protected:
   virtual const Formula& negation() const;
 
 private:
+  /* Constant representing true. */
+  static const Constant TRUE_;
+  /* Constant representing false. */
+  static const Constant FALSE_;
+
   /* Value of this constant. */
   bool value_;
 
@@ -400,12 +438,15 @@ private:
 };
 
 
+/* ====================================================================== */
+/* Literal */
+
 /*
  * An abstract literal.
  */
 struct Literal : public Formula {
-  /* Temporal annotation for this formula. */
-  const FormulaTime when;
+  /* Returns the temporal annotation for this formula. */
+  FormulaTime when() const { return when_; }
 
   /* Returns the predicate of this literal. */
   virtual const string& predicate() const = 0;
@@ -429,6 +470,10 @@ protected:
 
   /* Returns the hash value of this object. */
   virtual size_t hash_value() const = 0;
+
+private:
+  /* Temporal annotation for this formula. */
+  FormulaTime when_;
 
   friend bool operator==(const Literal& l1, const Literal& l2);
   friend struct hash<Literal>;
@@ -474,6 +519,9 @@ struct hash<const Literal*> {
 };
 
 
+/* ====================================================================== */
+/* Atom */
+
 /*
  * An atom.
  */
@@ -482,10 +530,10 @@ struct Atom : public Literal {
   Atom(const string& predicate, const TermList& terms, FormulaTime when);
 
   /* Returns the predicate of this literal. */
-  virtual const string& predicate() const;
+  virtual const string& predicate() const { return predicate_; }
 
   /* Returns the terms of this literal. */
-  virtual const TermList& terms() const;
+  virtual const TermList& terms() const { return *terms_; }
 
   /* Returns an instantiation of this formula. */
   virtual const Atom& instantiation(size_t id) const;
@@ -531,25 +579,28 @@ private:
   /* Predicate of this atom. */
   string predicate_;
   /* Terms of this atom. */
-  const TermList& terms_;
+  const TermList* terms_;
 };
 
+
+/* ====================================================================== */
+/* Negation */
 
 /*
  * A negated atom.
  */
 struct Negation : public Literal {
-  /* The negated atom. */
-  const Atom& atom;
-
   /* Constructs a negated atom. */
   explicit Negation(const Atom& atom);
 
+  /* Returns the the negated atom. */
+  const Atom& atom() const { return *atom_; }
+
   /* Returns the predicate of this literal. */
-  virtual const string& predicate() const;
+  virtual const string& predicate() const { return atom().predicate(); }
 
   /* Returns the terms of this literal. */
-  virtual const TermList& terms() const;
+  virtual const TermList& terms() const { return atom().terms(); }
 
   /* Returns an instantiation of this formula. */
   virtual const Negation& instantiation(size_t id) const;
@@ -590,17 +641,25 @@ protected:
 
   /* Returns the negation of this formula. */
   virtual const Literal& negation() const;
+
+private:
+  /* The negated atom. */
+  const Atom* atom_;
 };
 
+
+/* ====================================================================== */
+/* BindingLiteral */
 
 /*
  * A binding literal.
  */
 struct BindingLiteral : public Formula {
-  /* First term of binding literal. */
-  const Term& term1;
+  /* Returns the first term of binding literal. */
+  const Term& term1() const { return *term1_; }
+
   /* Second term of binding literal. */
-  const Term& term2;
+  const Term& term2() const { return *term2_; }
 
   /* Returns a formula that separates the given literal from anything
      definitely asserted by this formula. */
@@ -609,8 +668,17 @@ struct BindingLiteral : public Formula {
 protected:
   /* Constructs a binding literal. */
   BindingLiteral(const Term& term1, const Term& term2);
+
+private:
+  /* First term of binding literal. */
+  const Term* term1_;
+  /* Second term of binding literal. */
+  const Term* term2_;
 };
 
+
+/* ====================================================================== */
+/* Equality */
 
 /*
  * Equality formula.
@@ -658,6 +726,9 @@ protected:
 };
 
 
+/* ====================================================================== */
+/* Inequality */
+
 /*
  * Inequality formula.
  */
@@ -704,12 +775,15 @@ protected:
 };
 
 
+/* ====================================================================== */
+/* Conjunction */
+
 /*
  * Conjunction.
  */
 struct Conjunction : public Formula {
-  /* The conjuncts. */
-  const FormulaList& conjuncts;
+  /* Returns the conjuncts. */
+  const FormulaList& conjuncts() const { return *conjuncts_; }
 
   /* Returns a formula that separates the given literal from anything
      definitely asserted by this formula. */
@@ -753,6 +827,9 @@ protected:
   virtual const Formula& negation() const;
 
 private:
+  /* The conjuncts. */
+  const FormulaList* conjuncts_;
+
   /* Constructs a conjunction. */
   Conjunction(const FormulaList& conjuncts);
 
@@ -760,12 +837,15 @@ private:
 };
 
 
+/* ====================================================================== */
+/* Disjunction */
+
 /*
  * Disjunction.
  */
 struct Disjunction : public Formula {
-  /* The disjuncts. */
-  const FormulaList& disjuncts;
+  /* Returns the disjuncts. */
+  const FormulaList& disjuncts() const { return *disjuncts_; }
 
   /* Returns a formula that separates the given literal from anything
      definitely asserted by this formula. */
@@ -809,6 +889,9 @@ protected:
   virtual const Formula& negation() const;
 
 private:
+  /* The disjuncts. */
+  const FormulaList* disjuncts_;
+
   /* Constructs a disjunction. */
   Disjunction(const FormulaList& disjuncts);
 
@@ -816,14 +899,18 @@ private:
 };
 
 
+/* ====================================================================== */
+/* QuantifiedFormula */
+
 /*
  * Abstract quantified formula.
  */
 struct QuantifiedFormula : public Formula {
-  /* Quanitfied variables. */
-  const VariableList& parameters;
-  /* The quantified formula. */
-  const Formula& body;
+  /* Returns the quanitfied variables. */
+  const VariableList& parameters() const { return *parameters_; }
+
+  /* Returns the quantified formula. */
+  const Formula& body() const { return *body_; }
 
   /* Returns a formula that separates the given literal from anything
      definitely asserted by this formula. */
@@ -832,8 +919,17 @@ struct QuantifiedFormula : public Formula {
 protected:
   /* Constructs a quantified formula. */
   QuantifiedFormula(const VariableList& parameters, const Formula& body);
+
+private:
+  /* Quanitfied variables. */
+  const VariableList* parameters_;
+  /* The quantified formula. */
+  const Formula* body_;
 };
 
+
+/* ====================================================================== */
+/* ExistsFormula */
 
 /*
  * Existentially quantified formula.
@@ -881,6 +977,9 @@ protected:
 };
 
 
+/* ====================================================================== */
+/* ForallFormula */
+
 /*
  * Universally quantified formula.
  */
@@ -927,6 +1026,9 @@ protected:
 };
 
 
+/* ====================================================================== */
+/* AtomList */
+
 /*
  * List of atoms.
  */
@@ -950,6 +1052,9 @@ struct AtomList : public vector<const Atom*> {
 /* Atom list iterator. */
 typedef AtomList::const_iterator AtomListIter;
 
+
+/* ====================================================================== */
+/* NegationList */
 
 /*
  * List of negated atoms.
