@@ -1,7 +1,7 @@
 /*
  * Main program.
  *
- * $Id: vhpop.cc,v 1.8 2001-09-03 20:05:52 lorens Exp $
+ * $Id: vhpop.cc,v 1.9 2001-09-18 15:52:25 lorens Exp $
  */
 #include <iostream>
 #include <cstdio>
@@ -18,11 +18,13 @@
 extern int yyparse();
 /* File to parse. */
 extern FILE* yyin;
+/* Name of current file. */
+extern string current_file;
 /* Level of warnings. */
 extern int warning_level;
 
 /* Program name. */
-static const string PROGRAM_NAME = "tpop";
+string PROGRAM_NAME("tpop");
 
 /* Program options. */
 static struct option long_options[] = {
@@ -30,7 +32,9 @@ static struct option long_options[] = {
   { "ground", no_argument, NULL, 'g' },
   { "heuristic", required_argument, NULL, 'h' },
   { "limit", required_argument, NULL, 'l' },
+#ifdef TRANSFORMATIONAL
   { "trans", no_argument, NULL, 't' },
+#endif
   { "verbose", optional_argument, NULL, 'v' },
   { "version", no_argument, NULL, 'V' },
   { "warnings", optional_argument, NULL, 'w' },
@@ -47,7 +51,7 @@ static void display_help() {
        << "  -f f,  --flaw-order=f\t"
        << "use flaw selection order f;" << endl
        << "\t\t\t  f can be `LIFO' (default), `FIFO',"
-       << " `MC', `LC', `MW', or `LW'"
+       << " `MC', `LC', `MW', `LW', `ML', or `LL'"
        << endl
        << "  -g,    --ground\t"
        << "only use ground actions" << endl
@@ -56,8 +60,10 @@ static void display_help() {
        << "\t\t\t  h can be `MAX', `SUM', `SUMR' (default), or `UCPOP'" << endl
        << "  -l l,  --limit=l\t"
        << "search no more than l plans" << endl
+#ifdef TRANSFORMATIONAL
        << "  -t,    --trans\t"
        << "enable transformational plan operators" << endl
+#endif
        << "  -v[n], --verbose[=n]\t"
        << "use verbosity level n;" << endl
        << "\t\t\t  n is a number from 0 (verbose mode off) and up;" << endl
@@ -85,9 +91,10 @@ static void display_version() {
 
 /* Parses the given file, and returns true on success. */
 static bool read_file(const char* name) {
+  current_file = name;
   yyin = fopen(name, "r");
   if (yyin == NULL) {
-    perror("fopen");
+    perror(PROGRAM_NAME.c_str());
     return false;
   } else {
     bool success = (yyparse() == 0);
@@ -111,6 +118,8 @@ int main(int argc, char* argv[]) {
   size_t limit = 2000;
   /* Set default verbosity. */
   int verbosity = 0;
+  /* Set default warning level. */
+  warning_level = 1;
 
   /*
    * Get command line options.
@@ -136,6 +145,10 @@ int main(int argc, char* argv[]) {
 	flaw_order.set_most_work_first();
       } else if (strcasecmp(optarg, "LW") == 0) {
 	flaw_order.set_least_work_first();
+      } else if (strcasecmp(optarg, "ML") == 0) {
+	flaw_order.set_most_linkable_first();
+      } else if (strcasecmp(optarg, "LL") == 0) {
+	flaw_order.set_least_linkable_first();
       } else {
 	cerr << PROGRAM_NAME << ": invalid flaw selection order `" << optarg
 	     << "'" << endl
