@@ -13,12 +13,12 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: problems.cc,v 3.6 2002-11-05 04:42:06 lorens Exp $
+ * $Id: problems.cc,v 3.7 2002-12-16 17:41:30 lorens Exp $
  */
 #include "problems.h"
 #include "domains.h"
-#include "formulas.h"
 #include "types.h"
+#include <iostream>
 
 
 /* ====================================================================== */
@@ -41,7 +41,7 @@ Problem::ProblemMapIter Problem::end() {
 
 
 /* Returns the problem with the given name, or NULL if it is undefined. */
-const Problem* Problem::find(const string& name) {
+const Problem* Problem::find(const std::string& name) {
   ProblemMapIter pi = problems.find(name);
   return (pi != problems.end()) ? (*pi).second : NULL;
 }
@@ -59,10 +59,13 @@ void Problem::clear() {
 
 
 /* Constructs a problem. */
-Problem::Problem(const string& name, const Domain& domain)
+Problem::Problem(const std::string& name, const Domain& domain)
   : name_(name), domain_(&domain),
-    init_(new Effect(AtomList::EMPTY, NegationList::EMPTY, Effect::AT_END)),
+    init_(new Effect(Effect::AT_END)),
+    init_action_(GroundAction("", false)),
     goal_(&Formula::TRUE) {
+  init_action_.add_effect(*init_);
+  Formula::register_use(goal_);
   const Problem* p = find(name);
   if (p != NULL) {
     delete p;
@@ -77,6 +80,7 @@ Problem::~Problem() {
   for (NameMapIter ni = objects_.begin(); ni != objects_.end(); ni++) {
     delete (*ni).second;
   }
+  Formula::unregister_use(goal_);
 }
 
 
@@ -86,21 +90,25 @@ void Problem::add_object(Name& object) {
 }
 
 
-/* Sets the initial conditions of this problem. */
-void Problem::set_init(const Effect& effect) {
-  init_ = &effect;
+/* Adds an atomic formula to the initial conditions of this problem. */
+void Problem::add_init(const Atom& atom) {
+  init_->add_positive(atom);
 }
 
 
 /* Sets the goal of this problem. */
 void Problem::set_goal(const Formula& goal) {
-  goal_ = &goal;
+  if (goal_ != &goal) {
+    Formula::unregister_use(goal_);
+    goal_ = &goal;
+    Formula::register_use(goal_);
+  }
 }
 
 
 /* Returns the object with the given name, or NULL if it is
    undefined. */
-Name* Problem::find_object(const string& name) {
+Name* Problem::find_object(const std::string& name) {
   NameMapIter ni = objects_.find(name);
   return (ni != objects_.end()) ? (*ni).second : NULL;
 }
@@ -108,7 +116,7 @@ Name* Problem::find_object(const string& name) {
 
 /* Returns the object with the given name, or NULL if it is
    undefined. */
-const Name* Problem::find_object(const string& name) const {
+const Name* Problem::find_object(const std::string& name) const {
   NameMapIter ni = objects_.find(name);
   return (ni != objects_.end()) ? (*ni).second : NULL;
 }
@@ -139,14 +147,14 @@ void Problem::instantiated_actions(GroundActionList& actions) const {
 
 
 /* Output operator for problems. */
-ostream& operator<<(ostream& os, const Problem& p) {
+std::ostream& operator<<(std::ostream& os, const Problem& p) {
   os << "name: " << p.name();
-  os << endl << "domain: " << p.domain().name();
-  os << endl << "objects:";
+  os << std::endl << "domain: " << p.domain().name();
+  os << std::endl << "objects:";
   for (NameMapIter ni = p.objects_.begin(); ni != p.objects_.end(); ni++) {
     os << ' ' << *(*ni).second << " - " << (*ni).second->type();
   }
-  os << endl << "initial condition: " << p.init();
-  os << endl << "goal: " << p.goal();
+  os << std::endl << "initial condition: " << p.init();
+  os << std::endl << "goal: " << p.goal();
   return os;
 }
