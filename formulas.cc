@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 6.4 2003-07-21 19:58:01 lorens Exp $
+ * $Id: formulas.cc,v 6.5 2003-07-28 01:34:55 lorens Exp $
  */
 #include "formulas.h"
 #include "bindings.h"
@@ -1383,7 +1383,7 @@ const QuantifiedFormula& Exists::negation() const {
 
 /* Constructs a universally quantified formula. */
 Forall::Forall()
-  : QuantifiedFormula(TRUE) {}
+  : QuantifiedFormula(TRUE), universal_base_(NULL) {}
 
 
 /* Returns this formula subject to the given substitutions. */
@@ -1472,9 +1472,12 @@ const Formula& Forall::instantiation(const SubstitutionMap& subst,
 /* Returns the universal base of this formula. */
 const Formula& Forall::universal_base(const SubstitutionMap& subst,
 				      const Problem& problem) const {
+  if (universal_base_ != NULL) {
+    return *universal_base_;
+  }
   int n = parameters().size();
   if (n == 0) {
-    return body().universal_base(subst, problem);
+    universal_base_ = &body().universal_base(subst, problem);
   } else {
     SubstitutionMap args(subst);
     std::vector<ObjectList> arguments(n, ObjectList());
@@ -1483,11 +1486,12 @@ const Formula& Forall::universal_base(const SubstitutionMap& subst,
       problem.compatible_objects(arguments[i],
 				 problem.terms().type(parameters()[i]));
       if (arguments[i].empty()) {
+	universal_base_ = &TRUE;
 	return TRUE;
       }
       next_arg.push_back(arguments[i].begin());
     }
-    const Formula* result = &TRUE;
+    universal_base_ = &TRUE;
     std::stack<const Formula*> conjuncts;
     conjuncts.push(&body().universal_base(args, problem));
     register_use(conjuncts.top());
@@ -1498,8 +1502,8 @@ const Formula& Forall::universal_base(const SubstitutionMap& subst,
 	conjuncts.top()->universal_base(pargs, problem);
       conjuncts.push(&conjunct);
       if (i + 1 == n) {
-	result = &(*result && conjunct);
-	if (result->contradiction()) {
+	universal_base_ = &(*universal_base_ && conjunct);
+	if (universal_base_->contradiction()) {
 	  break;
 	}
 	for (int j = i; j >= 0; j--) {
@@ -1529,8 +1533,8 @@ const Formula& Forall::universal_base(const SubstitutionMap& subst,
       unregister_use(conjuncts.top());
       conjuncts.pop();
     }
-    return *result;
   }
+  return *universal_base_;
 }
 
 
@@ -1677,20 +1681,6 @@ const Condition& Condition::instantiation(const SubstitutionMap& subst,
   const Formula& f1 = at_start().instantiation(subst, problem);
   const Formula& f2 = over_all().instantiation(subst, problem);
   const Formula& f3 = at_end().instantiation(subst, problem);
-  if (&f1 == at_start_ && &f2 == over_all_ && &f3 == at_end_) {
-    return *this;
-  } else {
-    return make(f1, f2, f3);
-  }
-}
-
-
-/* Returns the universal base of this condition. */
-const Condition& Condition::universal_base(const SubstitutionMap& subst,
-					   const Problem& problem) const {
-  const Formula& f1 = at_start().universal_base(subst, problem);
-  const Formula& f2 = over_all().universal_base(subst, problem);
-  const Formula& f3 = at_end().universal_base(subst, problem);
   if (&f1 == at_start_ && &f2 == over_all_ && &f3 == at_end_) {
     return *this;
   } else {
