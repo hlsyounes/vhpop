@@ -2,7 +2,7 @@
 /*
  * PDDL parser.
  *
- * $Id: pddl.yy,v 1.14 2001-10-06 22:54:24 lorens Exp $
+ * $Id: pddl.yy,v 1.15 2001-10-07 00:04:38 lorens Exp $
  */
 %{
 #include <utility>
@@ -473,7 +473,7 @@ names : /* empty */
 goals : goal_list
           {
 	    $$ = &Formula::TRUE;
-	    for (FLCI fi = $1->begin(); fi != $1->end(); fi++) {
+	    for (FormulaListIter fi = $1->begin(); fi != $1->end(); fi++) {
 	      $$ = &(*$$ && **fi);
 	    }
 	  }
@@ -524,7 +524,7 @@ formula : atomic_term_formula
         | '(' AND formulas formula ')'
             {
 	      $$ = &Formula::TRUE;
-	      for (FLCI fi = $3->begin(); fi != $3->end(); fi++) {
+	      for (FormulaListIter fi = $3->begin(); fi != $3->end(); fi++) {
 		$$ = &(*$$ && **fi);
 	      }
 	      $$ = &(*$$ && *$4);
@@ -536,7 +536,7 @@ formula : atomic_term_formula
 			  "requirement.");
 	      }
 	      $$ = &Formula::FALSE;
-	      for (FLCI fi = $3->begin(); fi != $3->end(); fi++) {
+	      for (FormulaListIter fi = $3->begin(); fi != $3->end(); fi++) {
 		$$ = &(*$$ || **fi);
 	      }
 	      $$ = &(*$$ || *$4);
