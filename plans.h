@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.38 2002-01-04 21:08:43 lorens Exp $
+ * $Id: plans.h,v 1.39 2002-01-07 19:48:25 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -176,11 +176,14 @@ struct Plan : public LessThanComparable, public Printable, public gc {
   /* Checks if the given threat is separable. */
   int separable(const Unsafe& unsafe) const;
 
-  /* Checsk if the given threat is demotable. */
+  /* Checks if the given threat is demotable. */
   int demotable(const Unsafe& unsafe) const;
 
   /* Checks if the given threat is promotable. */
   int promotable(const Unsafe& unsafe) const;
+
+  /* Checks if the given open conditions is threatened. */
+  bool unsafe_open_condition(const OpenCondition& open_cond) const;
 
   /* Counts the number of refinements for the given disjunctive open
      condition. */

@@ -2,7 +2,7 @@
 /*
  * Heuristics.
  *
- * $Id: heuristics.h,v 1.18 2002-01-05 17:58:19 lorens Exp $
+ * $Id: heuristics.h,v 1.19 2002-01-07 19:48:12 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
@@ -254,9 +254,10 @@ struct InvalidFlawSelectionOrder : public Exception {
  * These are LC (least cost), MC (most cost), LW (least work), and MW
  * (most work).  It is required that a heuristic is specified in
  * conjunction with the use of any of these four strategies.  Finally,
- * we introduce two new flaw types.  These are 't' for static open
- * conditions, and 'l' for local open conditions.  Both select subsets
- * of 'o', so {l,o} and {t,o} reduce to {o}.
+ * we introduce three new flaw types.  These are 't' for static open
+ * conditions, 'u' for unsafe open conditions, and 'l' for local open
+ * conditions.  All three select subsets of 'o', so {t,o}, {u,o}, and
+ * {t,o} reduce to {o}.
  */
 struct SelectionCriterion {
   /* A selection order. */
@@ -275,6 +276,8 @@ struct SelectionCriterion {
   bool local_open_cond;
   /* Whether this criterion applies to static open conditions. */
   bool static_open_cond;
+  /* Whether this criterion applies to unsafe open conditions. */
+  bool unsafe_open_cond;
   /* The maximum number of refinements allowed for a flaw that this
      criterion applies to. */
   int max_refinements;
