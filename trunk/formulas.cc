@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 4.1 2002-07-22 22:41:37 lorens Exp $
+ * $Id: formulas.cc,v 4.2 2002-07-24 16:00:29 lorens Exp $
  */
 #include <typeinfo>
 #include <stack>
@@ -104,12 +104,6 @@ bool Term::less(const LessThanComparable& o) const {
 }
 
 
-/* Returns the hash value of this object. */
-size_t Term::hash_value() const {
-  return hash<string>()(name());
-}
-
-
 /* Prints this object on the given stream. */
 void Term::print(ostream& os) const {
   os << name();
@@ -150,6 +144,12 @@ bool Name::equals(const EqualityComparable& o) const {
 }
 
 
+/* Returns the hash value of this object. */
+size_t Name::hash_value() const {
+  return size_t(this);
+}
+
+
 /* ====================================================================== */
 /* Variable */
 
@@ -187,8 +187,13 @@ bool Variable::equivalent(const Term& t) const {
 
 /* Checks if this object equals the given object. */
 bool Variable::equals(const EqualityComparable& o) const {
-  const Variable* vt = dynamic_cast<const Variable*>(&o);
-  return vt != NULL && typeid(*this) == typeid(o) && name() == vt->name();
+  return this == &o;
+}
+
+
+/* Returns the hash value of this object. */
+size_t Variable::hash_value() const {
+  return size_t(this);
 }
 
 
@@ -215,6 +220,12 @@ bool StepVar::less(const LessThanComparable& o) const {
 bool StepVar::equals(const EqualityComparable& o) const {
   const StepVar* vt = dynamic_cast<const StepVar*>(&o);
   return vt != NULL && id() == vt->id() && name() == vt->name();
+}
+
+
+/* Returns the hash value of this object. */
+size_t StepVar::hash_value() const {
+  return 5*hash<string>()(name()) + id();
 }
 
 
@@ -583,7 +594,7 @@ bool Atom::equals(const Literal& o) const {
 /* Returns the hash value of this object. */
 size_t Atom::hash_value() const {
   hash<Hashable> h;
-  size_t val = hash<string>()(predicate().name());
+  size_t val = size_t(&predicate());
   for (TermListIter ti = terms().begin(); ti != terms().end(); ti++) {
     val = 5*val + h(**ti);
   }
