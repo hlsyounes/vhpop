@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 6.8 2003-08-24 18:42:22 lorens Exp $
+ * $Id: formulas.h,v 6.9 2003-08-24 21:20:21 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -831,19 +831,9 @@ const Condition& operator||(const Condition& c1, const Condition& c2);
 /* AtomList */
 
 /*
- * List of atoms.
+ * List of ground atoms.
  */
-struct AtomList : public std::vector<const Atom*> {
-};
-
-
-/* ====================================================================== */
-/* NegationList */
-
-/*
- * List of negated atoms.
- */
-struct NegationList : public std::vector<const Negation*> {
+struct AtomSet : public hashing::hash_set<const Atom*> {
 };
 
 
