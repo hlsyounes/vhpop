@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: reasons.h,v 3.4 2003-03-01 18:50:35 lorens Exp $
+ * $Id: reasons.h,v 3.5 2003-03-10 17:26:10 lorens Exp $
  */
 #ifndef REASONS_H
 #define REASONS_H
@@ -31,7 +31,7 @@ struct Step;
 
 
 /* ====================================================================== */
-/* Reason
+/* Reason */
 
 /*
  * Abstract reason.
