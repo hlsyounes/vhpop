@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 6.5 2003-09-01 19:34:21 lorens Exp $
+ * $Id: pddl.yy,v 6.6 2003-09-05 16:27:19 lorens Exp $
  */
 %{
 #include "requirements.h"
@@ -34,11 +34,6 @@
 
 /* Workaround for bug in Bison 1.35 that disables stack growth. */
 #define YYLTYPE_IS_TRIVIAL 1
-
-/* The lexer. */
-extern int yylex();
-/* Current line number. */
-extern size_t line_number;
 
 
 /*
@@ -85,14 +80,18 @@ private:
 };
 
 
+/* The lexer. */
+extern int yylex();
+/* Current line number. */
+extern size_t line_number;
 /* Name of current file. */
-std::string current_file; 
+extern std::string current_file;
 /* Level of warnings. */
-int warning_level;
+extern int warning_level;
 
 /* Whether the last parsing attempt succeeded. */
 static bool success = true;
-/* Domain being parsed, or NULL if no domain is being parsed. */
+/* Current domain. */
 static Domain* domain;
 /* Domains. */
 static std::map<std::string, Domain*> domains;
@@ -106,24 +105,38 @@ static Predicate predicate;
 static bool parsing_predicate;
 /* Whether predicate declaration is repeated. */
 static bool repeated_predicate;
+/* Function being parsed. */
+static Function function;
+/* Whether a function is being parsed. */
+static bool parsing_function;
+/* Whether function declaration is repeated. */
+static bool repeated_function;
 /* Action being parsed, or NULL if no action is being parsed. */
 static ActionSchema* action;
 /* Time of current effect. */
 static Effect::EffectTime effect_time;
 /* Condition for effect being parsed, or NULL if unconditional effect. */
 static const Condition* effect_condition; 
-/* Paramerers for atomic formula or function application being parsed. */
-static TermList term_parameters;
-/* Whether parsing an atom. */
-static bool parsing_atom;
-/* Quantified variables for effect or formula being parsed. */
-VariableList quantified;
 /* Current variable context. */
-static Context context; 
+static Context context;
 /* Predicate for atomic formula being parsed. */
 static Predicate atom_predicate;
 /* Whether the predicate of the currently parsed atom was undeclared. */
 static bool undeclared_atom_predicate;
+/* Whether parsing metric fluent. */
+static bool metric_fluent;
+/* Function for function application being parsed. */
+static Function appl_function;
+/* Whether the function of the currently parsed application was undeclared. */
+static bool undeclared_appl_function;
+/* Paramerers for atomic formula or function application being parsed. */
+static TermList term_parameters;
+/* Whether parsing an atom. */
+static bool parsing_atom;
+/* Whether parsing a function application. */
+static bool parsing_application;
+/* Quantified variables for effect or formula being parsed. */
+static VariableList quantified;
 /* Kind of name map being parsed. */
 static enum { TYPE_KIND, CONSTANT_KIND, OBJECT_KIND, VOID_KIND } name_kind;
 
@@ -138,6 +151,8 @@ static void make_problem(const std::string* name,
 			 const std::string* domain_name);
 /* Adds :typing to the requirements. */
 static void require_typing();
+/* Adds :fluents to the requirements. */
+static void require_fluents();
 /* Adds :disjunctive-preconditions to the requirements. */
 static void require_disjunction();
 /* Adds :duration-inequalities to the requirements. */
@@ -146,10 +161,12 @@ static void require_duration_inequalities();
 static Type make_type(const std::string* name);
 /* Returns the union of the given types. */
 static Type make_type(const TypeSet& types);
-/* Creates a predicate with the given name. */
-static void make_predicate(const std::string* name);
 /* Returns a simple term with the given name. */
 static Term make_term(const std::string* name);
+/* Creates a predicate with the given name. */
+static void make_predicate(const std::string* name);
+/* Creates a function with the given name. */
+static void make_function(const std::string* name);
 /* Creates an action with the given name. */
 static void make_action(const std::string* name, bool durative);
 /* Adds the current action to the current domain. */ 
@@ -163,16 +180,23 @@ static void add_names(const std::vector<const std::string*>* names, Type type);
 /* Adds variables to the current variable list. */
 static void add_variables(const std::vector<const std::string*>* names,
 			  Type type);
-/* Prepares for the parsning of an atomic formula. */ 
+/* Prepares for the parsing of an atomic formula. */ 
 static void prepare_atom(const std::string* name);
+/* Prepares for the parsing of a function application. */ 
+static void prepare_application(const std::string* name);
 /* Adds a term with the given name to the current atomic formula. */
 static void add_term(const std::string* name);
 /* Creates the atomic formula just parsed. */
 static const Atom* make_atom();
+/* Creates the function application just parsed. */
+static const Application* make_application();
+/* Creates a subtraction. */
+static const Expression* make_subtraction(const Expression& term,
+					  const Expression* opt_term);
 /* Creates an equality formula. */
-static const Formula* make_equality(const Term& t1, const Term& t2);
+static const Formula* make_equality(Term term1, Term term2);
 /* Creates a negation. */
-static const Formula* make_negation(const Formula& f);
+static const Formula* make_negation(const Formula& negand);
 /* Prepares for the parsing of an existentially quantified formula. */
 static void prepare_exists();
 /* Prepares for the parsing of a universally quantified formula. */
@@ -188,18 +212,18 @@ static void pop_forall_effect();
 %}
 
 %token DEFINE DOMAIN_TOKEN PROBLEM
-%token REQUIREMENTS
+%token REQUIREMENTS TYPES CONSTANTS PREDICATES FUNCTIONS
 %token STRIPS TYPING NEGATIVE_PRECONDITIONS DISJUNCTIVE_PRECONDITIONS EQUALITY
 %token EXISTENTIAL_PRECONDITIONS UNIVERSAL_PRECONDITIONS
 %token QUANTIFIED_PRECONDITIONS CONDITIONAL_EFFECTS FLUENTS ADL
 %token DURATIVE_ACTIONS DURATION_INEQUALITIES CONTINUOUS_EFFECTS
-%token TYPES CONSTANTS PREDICATES
-%token ACTION DURATIVE_ACTION DURATION PARAMETERS PRECONDITION CONDITION EFFECT
+%token ACTION PARAMETERS PRECONDITION EFFECT
+%token DURATIVE_ACTION DURATION CONDITION
 %token PDOMAIN OBJECTS INIT GOAL METRIC
 %token WHEN NOT AND OR IMPLY EXISTS FORALL
-%token OBJECT_TOKEN EITHER
 %token AT OVER START END ALL
 %token MINIMIZE MAXIMIZE TOTAL_TIME
+%token NUMBER_TOKEN OBJECT_TOKEN EITHER
 %token LE GE NAME DURATION_VAR VARIABLE NUMBER
 %token ILLEGAL_TOKEN
 
@@ -207,25 +231,29 @@ static void pop_forall_effect();
   const Condition* condition;
   const Formula* formula;
   const Atom* atom;
-  const std::string* str;
-  std::vector<const std::string*>* strs;
+  const Expression* expr;
+  const Application* appl;
   Term term;
   Type type;
   TypeSet* types;
+  const std::string* str;
+  std::vector<const std::string*>* strs;
   float num;
 }
 
 %type <condition> da_gd timed_gd timed_gds
 %type <formula> formula conjuncts disjuncts
-%type <atom> atomic_term_formula atomic_name_formula
-%type <strs> name_seq variable_seq
+%type <atom> atomic_name_formula atomic_term_formula
+%type <expr> f_exp opt_f_exp ground_f_exp opt_ground_f_exp
+%type <appl> ground_f_head f_head
 %type <term> term
+%type <strs> name_seq variable_seq
 %type <type> type_spec type
 %type <types> types
-%type <str> type_name predicate function_symbol name variable
+%type <str> type_name predicate function name variable
 %type <str> DEFINE DOMAIN_TOKEN PROBLEM
 %type <str> WHEN NOT AND OR IMPLY EXISTS FORALL
-%type <str> OBJECT_TOKEN EITHER
+%type <str> NUMBER_TOKEN OBJECT_TOKEN EITHER
 %type <str> AT OVER START END ALL
 %type <str> MINIMIZE MAXIMIZE TOTAL_TIME
 %type <str> NAME DURATION_VAR VARIABLE
@@ -244,7 +272,7 @@ domains_and_problems : /* empty */
 
 
 /* ====================================================================== */
-/* Domains. */
+/* Domain definitions. */
 
 domain_def : '(' define '(' domain name ')' { make_domain($5); }
                domain_body ')'
@@ -261,24 +289,57 @@ domain_body2 : types_def
              | domain_body3
              ;
 
-domain_body3 : predicates_def constants_def
-             | predicates_def constants_def actions_def
-             | domain_body4
+domain_body3 : constants_def
+             | predicates_def
+             | functions_def
+             | constants_def domain_body4
+             | predicates_def domain_body5
+             | functions_def domain_body6
+             | structure_defs
              ;
 
-domain_body4 : constants_def
-             | constants_def domain_body5
-             | domain_body5
+domain_body4 : predicates_def
+             | functions_def
+             | predicates_def domain_body7
+             | functions_def domain_body8
+             | structure_defs
              ;
 
-domain_body5 : predicates_def
-             | predicates_def actions_def
-             | actions_def
+domain_body5 : constants_def
+             | functions_def
+             | constants_def domain_body7
+             | functions_def domain_body9
+             | structure_defs
              ;
 
-actions_def : action_def
-            | actions_def action_def
-            ;
+domain_body6 : constants_def
+             | predicates_def
+             | constants_def domain_body8
+             | predicates_def domain_body9
+             | structure_defs
+             ;
+
+domain_body7 : functions_def 
+             | functions_def structure_defs
+             | structure_defs
+             ;
+
+domain_body8 : predicates_def
+             | predicates_def structure_defs
+             | structure_defs
+             ;
+
+domain_body9 : constants_def
+             | constants_def structure_defs
+             | structure_defs
+             ;
+
+structure_defs : structure_def
+               | structure_defs structure_def
+               ;
+
+structure_def : action_def
+              ;
 
 require_def : '(' REQUIREMENTS require_keys ')'
             ;
@@ -293,7 +354,7 @@ require_key : STRIPS { requirements->strips = true; }
                 { requirements->negative_preconditions = true; }
             | DISJUNCTIVE_PRECONDITIONS
                 { requirements->disjunctive_preconditions = true; }
-	    | EQUALITY { requirements->equality = true; }
+            | EQUALITY { requirements->equality = true; }
             | EXISTENTIAL_PRECONDITIONS
                 { requirements->existential_preconditions = true; }
             | UNIVERSAL_PRECONDITIONS
@@ -301,7 +362,7 @@ require_key : STRIPS { requirements->strips = true; }
             | QUANTIFIED_PRECONDITIONS
                 { requirements->quantified_preconditions(); }
             | CONDITIONAL_EFFECTS { requirements->conditional_effects = true; }
-            | FLUENTS { throw Exception("`:fluents' not supported"); }
+            | FLUENTS { requirements->fluents = true; }
             | ADL { requirements->adl(); }
             | DURATIVE_ACTIONS { requirements->durative_actions = true; }
             | DURATION_INEQUALITIES
@@ -310,39 +371,61 @@ require_key : STRIPS { requirements->strips = true; }
                 { throw Exception("`:continuous-effects' not supported"); }
             ;
 
-types_def : '(' TYPES { require_typing(); } name_map ')'
-              { name_kind = VOID_KIND; }
+types_def : '(' TYPES { require_typing(); name_kind = TYPE_KIND; }
+              typed_names ')' { name_kind = VOID_KIND; }
           ;
 
-constants_def : '(' CONSTANTS { name_kind = CONSTANT_KIND; } name_map ')'
+constants_def : '(' CONSTANTS { name_kind = CONSTANT_KIND; } typed_names ')'
                   { name_kind = VOID_KIND; }
               ;
 
-predicates_def : '(' PREDICATES atomic_formula_skeletons ')'
+predicates_def : '(' PREDICATES predicate_decls ')'
                ;
+
+functions_def : '(' FUNCTIONS { require_fluents(); } function_decls ')'
+              ;
 
 
 /* ====================================================================== */
-/* Predicates. */
+/* Predicate and function declarations. */
 
-atomic_formula_skeletons : atomic_formula_skeleton
-                         | atomic_formula_skeletons atomic_formula_skeleton
-                         ;
+predicate_decls : /* empty */
+                | predicate_decls predicate_decl
+                ;
 
-atomic_formula_skeleton : '(' predicate { make_predicate($2); }
-                            opt_variables ')' { parsing_predicate = false; }
-                        ;
+predicate_decl : '(' predicate { make_predicate($2); } variables ')'
+                   { parsing_predicate = false; }
+               ;
+
+function_decls : /* empty */
+               | function_decl_seq
+               | function_decl_seq function_type_spec function_decls
+               ;
+
+function_decl_seq : function_decl
+                  | function_decl_seq function_decl
+                  ;
+
+function_type_spec : '-' { require_typing(); } function_type
+                   ;
+
+function_decl : '(' function { make_function($2); } variables ')'
+                  { parsing_function = false; }
+              ;
 
 
 /* ====================================================================== */
 /* Actions. */
 
 action_def : '(' ACTION name { make_action($3, false); }
-               PARAMETERS '(' opt_variables ')' action_body ')'
-               { add_action(); }
+               parameters action_body ')' { add_action(); }
            | '(' DURATIVE_ACTION name { make_action($3, true); }
-               PARAMETERS '(' opt_variables ')' DURATION duration_constraint
-               da_body ')' { add_action(); }
+               parameters DURATION duration_constraint da_body ')'
+               { add_action(); }
+           ;
+
+parameters : /* empty */
+           | PARAMETERS '(' variables ')'
            ;
 
 action_body : precondition action_body2
@@ -377,18 +460,18 @@ duration_constraint : simple_duration_constraint
                         { require_duration_inequalities(); }
                     ;
 
-simple_duration_constraint : '(' LE duration_var NUMBER ')'
+simple_duration_constraint : '(' LE duration_var f_exp ')'
                                {
 				 require_duration_inequalities();
-				 action->set_max_duration($4);
+				 action->set_max_duration(*$4);
 			       }
-                           | '(' GE duration_var NUMBER ')'
+                           | '(' GE duration_var f_exp ')'
                                {
 				 require_duration_inequalities();
-				 action->set_min_duration($4);
+				 action->set_min_duration(*$4);
 			       }
-                           | '(' '=' duration_var NUMBER ')'
-                               { action->set_duration($4); }
+                           | '(' '=' duration_var f_exp ')'
+                               { action->set_duration(*$4); }
                            ;
 
 simple_duration_constraints : /* empty */
@@ -423,7 +506,7 @@ timed_gd : '(' at start formula ')'
 eff_formula : term_literal
             | '(' and eff_formulas ')'
             | '(' forall { prepare_forall_effect(); }
-                '(' opt_variables ')' eff_formula ')' { pop_forall_effect(); }
+                '(' variables ')' eff_formula ')' { pop_forall_effect(); }
             | '(' when formula
                 { prepare_conditional_effect(Condition::make(*$3, OVER_ALL)); }
                 one_eff_formula ')' { effect_condition = NULL; }
@@ -449,7 +532,7 @@ term_literals : /* empty */
 da_effect : timed_effect
           | '(' and da_effects ')'
           | '(' forall { prepare_forall_effect(); }
-              '(' opt_variables ')' da_effect ')' { pop_forall_effect(); }
+              '(' variables ')' da_effect ')' { pop_forall_effect(); }
           | '(' when da_gd { prepare_conditional_effect(*$3); }
               timed_effect ')' { effect_condition = NULL; }
           ;
@@ -466,7 +549,7 @@ timed_effect : '(' at start { effect_time = Effect::AT_START; }
 
 
 /* ====================================================================== */
-/* Problems. */
+/* Problem definitions. */
 
 problem_def : '(' define '(' problem name ')' '(' PDOMAIN name ')'
                 { make_problem($5, $9); } problem_body ')'
@@ -485,27 +568,23 @@ problem_body3 : init goal_spec
               | goal_spec
               ;
 
-object_decl : '(' OBJECTS { name_kind = OBJECT_KIND; } name_map ')'
+object_decl : '(' OBJECTS { name_kind = OBJECT_KIND; } typed_names ')'
+                { name_kind = VOID_KIND; }
             ;
 
-init : '(' INIT name_literals ')'
+init : '(' INIT init_elements ')'
      ;
 
-name_literals : name_literal
-              | name_literals name_literal
+init_elements : /* empty */
+              | init_elements init_element
               ;
 
-name_literal : atomic_name_formula { problem->add_init_atom(*$1); }
+init_element : atomic_name_formula { problem->add_init_atom(*$1); }
              | '(' not atomic_name_formula ')'
+                 { Formula::register_use($3); Formula::unregister_use($3); }
+             | '(' '=' ground_f_head NUMBER ')'
+                 { problem->add_init_value(*$3, $4); }
              ;
-
-atomic_name_formula : '(' predicate { prepare_atom($2); } names ')'
-                        { $$ = make_atom(); }
-                    ;
-
-names : /* empty */
-      | names name { add_term($2); }
-      ;
 
 goal_spec : goal
           | goal metric_spec
@@ -514,25 +593,11 @@ goal_spec : goal
 goal : '(' GOAL formula ')' { problem->set_goal(*$3); }
      ;
 
-metric_spec : '(' METRIC optimization ground_f_exp ')'
+metric_spec : '(' METRIC maximize { metric_fluent = true; } ground_f_exp ')'
+                { problem->set_metric(*$5, true); metric_fluent = false; }
+            | '(' METRIC minimize { metric_fluent = true; } ground_f_exp ')'
+                { problem->set_metric(*$5); metric_fluent = false; }
             ;
-
-optimization : MINIMIZE { delete $1; }
-             | MAXIMIZE { delete $1; }
-             ;
-
-ground_f_exp : '(' '+' ground_f_exp ground_f_exp ')'
-             | '(' '-' ground_f_exp ground_f_exp_opt ')'
-             | '(' '*' ground_f_exp ground_f_exp ')'
-             | '(' '/' ground_f_exp ground_f_exp ')'
-             | NUMBER {}
-             | '(' function_symbol names ')' { delete $2; }
-             | function_symbol { delete $1; }
-             ;
-
-ground_f_exp_opt : /* empty */
-                 | ground_f_exp
-                 ;
 
 
 /* ====================================================================== */
@@ -545,9 +610,9 @@ formula : atomic_term_formula { $$ = $1; }
         | '(' or { require_disjunction(); } disjuncts ')' { $$ = $4; }
         | '(' imply { require_disjunction(); } formula formula ')'
             { $$ = &(!*$4 || *$5); }
-        | '(' exists { prepare_exists(); } '(' opt_variables ')' formula ')'
+        | '(' exists { prepare_exists(); } '(' variables ')' formula ')'
             { $$ = make_exists(*$7); }
-        | '(' forall { prepare_forall(); } '(' opt_variables ')' formula ')'
+        | '(' forall { prepare_forall(); } '(' variables ')' formula ')'
             { $$ = make_forall(*$7); }
         ;
 
@@ -563,50 +628,88 @@ atomic_term_formula : '(' predicate { prepare_atom($2); } terms ')'
                         { $$ = make_atom(); }
                     ;
 
+atomic_name_formula : '(' predicate { prepare_atom($2); } names ')'
+                        { $$ = make_atom(); }
+                    ;
+
+
+/* ====================================================================== */
+/* Function expressions. */
+
+f_exp : NUMBER { $$ = new Value($1); }
+      | '(' '+' f_exp f_exp ')' { $$ = &Addition::make(*$3, *$4); }
+      | '(' '-' f_exp opt_f_exp ')' { $$ = make_subtraction(*$3, $4); }
+      | '(' '*' f_exp f_exp ')' { $$ = &Multiplication::make(*$3, *$4); }
+      | '(' '/' f_exp f_exp ')' { $$ = &Division::make(*$3, *$4); }
+      | f_head { $$ = $1; }
+      ;
+
+opt_f_exp : /* empty */ { $$ = NULL; }
+          | f_exp
+          ;
+
+f_head : '(' function { prepare_application($2); } terms ')'
+           { $$ = make_application(); }
+       | function { prepare_application($1); $$ = make_application(); }
+       ;
+
+ground_f_exp : NUMBER { $$ = new Value($1); }
+             | '(' '+' ground_f_exp ground_f_exp ')'
+                 { $$ = &Addition::make(*$3, *$4); }
+             | '(' '-' ground_f_exp opt_ground_f_exp ')'
+                 { $$ = make_subtraction(*$3, $4); }
+             | '(' '*' ground_f_exp ground_f_exp ')'
+                 { $$ = &Multiplication::make(*$3, *$4); }
+             | '(' '/' ground_f_exp ground_f_exp ')'
+                 { $$ = &Division::make(*$3, *$4); }
+             | ground_f_head { $$ = $1; }
+             ;
+
+opt_ground_f_exp : /* empty */ { $$ = NULL; }
+                 | ground_f_exp
+                 ;
+
+ground_f_head : '(' function { prepare_application($2); } names ')'
+                  { $$ = make_application(); }
+              | function { prepare_application($1); $$ = make_application(); }
+              ;
+
 
 /* ====================================================================== */
 /* Terms and types. */
 
 terms : /* empty */
-      | terms name {add_term($2); }
-      | terms variable {add_term($2); }
+      | terms name { add_term($2); }
+      | terms variable { add_term($2); }
+      ;
+
+names : /* empty */
+      | names name { add_term($2); }
       ;
 
 term : name { $$ = make_term($1); }
      | variable { $$ = make_term($1); }
      ;
 
-name_map : /* empty */
-         | typed_names
-	 ;
-
-variables : variable_seq { add_variables($1, OBJECT_TYPE); }
-          | variable_seq type_spec { add_variables($1, $2); } opt_variables
+variables : /* empty */
+          | variable_seq { add_variables($1, OBJECT_TYPE); }
+          | variable_seq type_spec { add_variables($1, $2); } variables
           ;
 
-opt_variables : /* empty */
-              | variables
-              ;
-
-variable_seq : variable
-                 { $$ = new std::vector<const std::string*>(1, $1); }
-             | variable_seq variable
-                 { $$ = $1; $$->push_back($2); }
+variable_seq : variable { $$ = new std::vector<const std::string*>(1, $1); }
+             | variable_seq variable { $$ = $1; $$->push_back($2); }
              ;
 
-typed_names : name_seq { add_names($1, OBJECT_TYPE); }
-            | name_seq type_spec { add_names($1, $2); } opt_typed_names
+typed_names : /* empty */
+            | name_seq { add_names($1, OBJECT_TYPE); }
+            | name_seq type_spec { add_names($1, $2); } typed_names
             ;
-
-opt_typed_names : /* empty */
-                | typed_names
-                ;
 
 name_seq : name { $$ = new std::vector<const std::string*>(1, $1); }
          | name_seq name { $$ = $1; $$->push_back($2); }
          ;
 
-type_spec : '-' type { $$ = $2; }
+type_spec : '-' { require_typing(); } type { $$ = $3; }
           ;
 
 type : object { $$ = OBJECT_TYPE; }
@@ -619,6 +722,13 @@ types : object { $$ = new TypeSet(); }
       | types object { $$ = $1; }
       | types type_name { $$ = $1; $$->insert(make_type($2)); }
       ;
+
+function_type : number
+              ;
+
+
+/* ====================================================================== */
+/* Tokens. */
 
 define : DEFINE { delete $1; }
        ;
@@ -650,12 +760,6 @@ exists : EXISTS { delete $1; }
 forall : FORALL { delete $1; }
        ;
 
-object : OBJECT_TOKEN { delete $1; }
-       ;
-
-either : EITHER { delete $1; }
-       ;
-
 at : AT { delete $1; }
    ;
 
@@ -674,6 +778,21 @@ all : ALL { delete $1; }
 duration_var : DURATION_VAR { delete $1; }
              ;
 
+minimize : MINIMIZE { delete $1; }
+         ;
+
+maximize : MAXIMIZE { delete $1; }
+         ;
+
+number : NUMBER_TOKEN { delete $1; }
+       ;
+
+object : OBJECT_TOKEN { delete $1; }
+       ;
+
+either : EITHER { delete $1; }
+       ;
+
 type_name : DEFINE | DOMAIN_TOKEN | PROBLEM
           | EITHER
           | AT | OVER | START | END | ALL
@@ -682,14 +801,14 @@ type_name : DEFINE | DOMAIN_TOKEN | PROBLEM
           ;
 
 predicate : type_name
-          | OBJECT_TOKEN
+          | OBJECT_TOKEN | NUMBER_TOKEN
           ;
 
-function_symbol : name
-                ;
+function : name
+         ;
 
 name : DEFINE | DOMAIN_TOKEN | PROBLEM
-     | OBJECT_TOKEN | EITHER
+     | NUMBER_TOKEN | OBJECT_TOKEN | EITHER
      | WHEN | NOT | AND | OR | IMPLY | EXISTS | FORALL
      | AT | OVER | START | END | ALL
      | MINIMIZE | MAXIMIZE | TOTAL_TIME
@@ -700,7 +819,6 @@ variable : VARIABLE
          ;
 
 %%
-
 
 /* Outputs an error message. */
 static void yyerror(const std::string& s) {
@@ -751,12 +869,20 @@ static void make_problem(const std::string* name,
 }
 
 
-
 /* Adds :typing to the requirements. */
 static void require_typing() {
   if (!requirements->typing) {
     yywarning("assuming `:typing' requirement");
     requirements->typing = true;
+  }
+}
+
+
+/* Adds :fluents to the requirements. */
+static void require_fluents() {
+  if (!requirements->fluents) {
+    yywarning("assuming `:fluents' requirement");
+    requirements->fluents = true;
   }
 }
 
@@ -849,6 +975,29 @@ static void make_predicate(const std::string* name) {
 }
 
 
+/* Creates a function with the given name. */
+static void make_function(const std::string* name) {
+  if (*name == TOTAL_TIME_NAME) {
+    yywarning("ignoring declaration of reserved function `total-time'");
+    repeated_function = true;
+    function = TOTAL_TIME_FUNCTION;
+    parsing_function = true;
+  } else {
+    repeated_function = false;
+    std::pair<Function, bool> f = domain->functions().find_function(*name);
+    if (!f.second) {
+      f.first = domain->functions().add_function(*name);
+    } else {
+      repeated_function = true;
+      yywarning("ignoring repeated declaration of function `" + *name + "'");
+    }
+    function = f.first;
+    parsing_function = true;
+  }
+  delete name;
+}
+
+
 /* Creates an action with the given name. */
 static void make_action(const std::string* name, bool durative) {
   if (durative) {
@@ -908,6 +1057,8 @@ static void add_names(const std::vector<const std::string*>* names,
     if (name_kind == TYPE_KIND) {
       if (*s == OBJECT_NAME) {
 	yywarning("ignoring declaration of reserved type `object'");
+      } else if (*s == NUMBER_NAME) {
+	yywarning("ignoring declaration of reserved type `number'");
       } else {
 	std::pair<Type, bool> t = domain->types().find_type(*s);
 	if (!t.second) {
@@ -960,11 +1111,15 @@ static void add_variables(const std::vector<const std::string*>* names,
       if (!repeated_predicate) {
 	domain->predicates().add_parameter(predicate, type);
       }
+    } else if (parsing_function) {
+      if (!repeated_function) {
+	domain->functions().add_parameter(function, type);
+      }
     } else {
       if (context.shallow_find(*s).second) {
 	yyerror("repetition of parameter `" + *s + "'");
       } else if (context.find(*s).second) {
-	yyerror("shadowing parameter `" + *s + "'");
+	yywarning("shadowing parameter `" + *s + "'");
       }
       Variable var;
       if (problem != NULL) {
@@ -985,7 +1140,7 @@ static void add_variables(const std::vector<const std::string*>* names,
 }
 
 
-/* Prepares for the parsning of an atomic formula. */ 
+/* Prepares for the parsing of an atomic formula. */ 
 static void prepare_atom(const std::string* name) {
   std::pair<Predicate, bool> p = domain->predicates().find_predicate(*name);
   if (!p.second) {
@@ -1006,6 +1161,36 @@ static void prepare_atom(const std::string* name) {
 }
 
 
+/* Prepares for the parsing of a function application. */ 
+static void prepare_application(const std::string* name) {
+  if (*name == TOTAL_TIME_NAME) {
+    appl_function = TOTAL_TIME_FUNCTION;
+    undeclared_appl_function = false;
+    if (!metric_fluent) {
+      yyerror("reserved function `total-time' not allowed here");
+    }
+  } else {
+    std::pair<Function, bool> f = domain->functions().find_function(*name);
+    if (!f.second) {
+      appl_function = domain->functions().add_function(*name);
+      undeclared_appl_function = true;
+      if (problem != NULL) {
+	yywarning("undeclared function `" + *name + "' used");
+      } else {
+	yywarning("implicit declaration of function `" + *name + "'");
+      }
+    } else {
+      appl_function = f.first;
+      undeclared_appl_function = false;
+    }
+    require_fluents();
+  }
+  term_parameters.clear();
+  parsing_application = true;
+  delete name;
+}
+
+
 /* Adds a term with the given name to the current atomic formula. */
 static void add_term(const std::string* name) {
   Term term = make_term(name);
@@ -1020,6 +1205,17 @@ static void add_term(const std::string* name) {
 	       && !domain->types().subtype(terms.type(term),
 					   predicates.parameter(atom_predicate,
 								n))) {
+      yyerror("type mismatch");
+    }
+  } else if (parsing_application) {
+    FunctionTable& functions = domain->functions();
+    size_t n = term_parameters.size();
+    if (undeclared_appl_function) {
+      functions.add_parameter(appl_function, terms.type(term));
+    } else if (functions.arity(appl_function) > n
+	       && !domain->types().subtype(terms.type(term),
+					   functions.parameter(appl_function,
+							       n))) {
       yyerror("type mismatch");
     }
   }
@@ -1042,36 +1238,62 @@ static const Atom* make_atom() {
 }
 
 
+/* Creates the function application just parsed. */
+static const Application* make_application() {
+  size_t n = term_parameters.size();
+  if (domain->functions().arity(appl_function) < n) {
+    yyerror("too many parameters passed to function `"
+	    + domain->functions().name(appl_function) + "'");
+  } else if (domain->functions().arity(appl_function) > n) {
+    yyerror("too few parameters passed to function `"
+	    + domain->functions().name(appl_function) + "'");
+  }
+  parsing_application = false;
+  return &Application::make(appl_function, term_parameters);
+}
+
+
+/* Creates a subtraction. */
+static const Expression* make_subtraction(const Expression& term,
+					  const Expression* opt_term) {
+  if (opt_term != NULL) {
+    return &Subtraction::make(term, *opt_term);
+  } else {
+    return &Subtraction::make(*new Value(0), term);
+  }
+}
+
+
 /* Creates an equality formula. */
-static const Formula* make_equality(const Term& t1, const Term& t2) {
+static const Formula* make_equality(Term term1, Term term2) {
   if (!requirements->equality) {
     yywarning("assuming `:equality' requirement");
     requirements->equality = true;
   }
   const TermTable& terms =
     (problem != NULL) ? problem->terms() : domain->terms();
-  if (domain->types().subtype(terms.type(t1), terms.type(t2))
-      || domain->types().subtype(terms.type(t2), terms.type(t1))) {
-    return &Equality::make(t1, t2);
+  if (domain->types().subtype(terms.type(term1), terms.type(term2))
+      || domain->types().subtype(terms.type(term2), terms.type(term1))) {
+    return &Equality::make(term1, term2);
   } else {
     return &Formula::FALSE;
   }
 }
 
 
-/* Creates a negation. */
-static const Formula* make_negation(const Formula& f) {
-  if (typeid(f) == typeid(Atom)) {
+/* Creates a negated formula. */
+static const Formula* make_negation(const Formula& negand) {
+  if (typeid(negand) == typeid(Atom)) {
     if (!requirements->negative_preconditions) {
       yywarning("assuming `:negative-preconditions' requirement");
       requirements->negative_preconditions = true;
     }
   } else if (!requirements->disjunctive_preconditions
-	     && typeid(f) != typeid(Equality)) {
+	     && typeid(negand) != typeid(Equality)) {
     yywarning("assuming `:disjunctive-preconditions' requirement");
     requirements->disjunctive_preconditions = true;
   }
-  return &!f;
+  return &!negand;
 }
 
 
