@@ -2,7 +2,7 @@
 /*
  * PDDL parser.
  *
- * $Id: pddl.yy,v 1.26 2002-01-09 20:17:45 lorens Exp $
+ * $Id: pddl.yy,v 1.27 2002-01-09 20:42:19 lorens Exp $
  */
 %{
 #include <typeinfo>
@@ -241,11 +241,11 @@ require_key : STRIPS
 	    | EQUALITY
                 { requirements->equality = true; }
             | EXISTENTIAL_PRECONDITIONS
-                { requirements->existential_preconditions = true; yyerror(":existential-preconditions not implemented"); }
+                { requirements->existential_preconditions = true; }
             | UNIVERSAL_PRECONDITIONS
-                { requirements->universal_preconditions = true; yyerror(":universal-preconditions not implemented"); }
+                { requirements->universal_preconditions = true; }
             | QUANTIFIED_PRECONDITIONS
-                { requirements->quantified_preconditions(); yyerror(":quantified-preconditions not implemented"); }
+                { requirements->quantified_preconditions(); }
             | CONDITIONAL_EFFECTS
                 { requirements->conditional_effects = true; }
             | ADL
@@ -579,7 +579,6 @@ formula : atomic_term_formula
             {
 	      free_variables.pop_frame();
 	      $$ = new ExistsFormula(*$5, *$7);
-	      yyerror(":existential-preconditions not implemented");
 	    }
         | '(' FORALL
             {
@@ -592,7 +591,6 @@ formula : atomic_term_formula
             {
 	      free_variables.pop_frame();
 	      $$ = new ForallFormula(*$5, *$7);
-	      yyerror(":universal-preconditions not implemented");
 	    }
         ;
 
