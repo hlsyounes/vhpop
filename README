@@ -1,4 +1,4 @@
-VHPOP 2.0
+VHPOP 2.1
 =========
 
 VHPOP is a versatile heuristic partial order planner loosely based on
@@ -166,10 +166,10 @@ Bugs and Missing Features
 Plans for Future Improvements
 -----------------------------
 
-* Improve memory efficiency.
-
 * Improve speed of reachability analysis.
 
-* Improve handling of variable bindings.
+* Add better support for plan optimization metric (currently ignored).
 
 * Allow secondary ordering criterion for flaw selection strategies.
+
+* Add support for numeric effects and preconditions (level 2 of PDDL+).
