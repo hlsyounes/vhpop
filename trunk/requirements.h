@@ -2,7 +2,7 @@
 /*
  * PDDL requirements.
  *
- * $Id: requirements.h,v 1.1 2001-07-29 18:10:36 lorens Exp $
+ * $Id: requirements.h,v 1.2 2001-12-27 20:08:59 lorens Exp $
  */
 #ifndef REQUIREMENTS_H
 #define REQUIREMENTS_H
@@ -32,27 +32,14 @@ struct Requirements : public gc {
   bool conditional_effects;
 
   /* Constructs a default requirements object. */
-  Requirements()
-    : strips(true), typing(false), disjunctive_preconditions(false),
-      equality(false), existential_preconditions(false),
-      universal_preconditions(false), conditional_effects(false) {
-  }
+  Requirements();
 
   /* Enables quantified preconditions. */
-  void quantified_preconditions() {
-    existential_preconditions = true;
-    universal_preconditions = true;
-  }
+  void quantified_preconditions();
 
   /* Enables ADL style actions. */
-  void adl() {
-    strips = true;
-    typing = true;
-    disjunctive_preconditions = true;
-    equality = true;
-    quantified_preconditions();
-    conditional_effects = true;
-  }
+  void adl();
 };
+
 
 #endif /* REQUIREMENTS_H */
