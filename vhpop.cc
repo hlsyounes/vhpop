@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 3.16 2002-06-13 23:05:15 lorens Exp $
+ * $Id: vhpop.cc,v 3.17 2002-06-26 23:20:39 lorens Exp $
  */
 #include "plans.h"
 #include "reasons.h"
@@ -24,9 +24,9 @@
 #include "domains.h"
 #include "problems.h"
 #include "debug.h"
-#include <cstdio>
-#include <cstdlib>
-#include <cerrno>
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
 #include <sys/time.h>
 #ifdef HAVE_GETOPT_LONG
 #include <getopt.h>
