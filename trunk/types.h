@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: types.h,v 3.6 2002-03-18 09:41:46 lorens Exp $
+ * $Id: types.h,v 3.7 2002-03-18 09:41:54 lorens Exp $
  */
 #ifndef TYPES_H
 #define TYPES_H
@@ -52,10 +52,13 @@ struct SimpleType : public LessThanComparable, public Type {
   /* Constructs a simple type with the given name. */
   explicit SimpleType(const string& name, const Type& supertype = OBJECT);
 
-  /* Returns the name of this type. */
+  /* Deletes this simple type. */
+  virtual ~SimpleType();
+
+  /* Returns the name of this simple type. */
   const string& name() const { return name_; }
 
-  /* Returns the supertype of this type. */
+  /* Returns the supertype of this simple type. */
   const Type& supertype() const { return *supertype_; }
 
   /* Checks if this type is a subtype of the given type. */
