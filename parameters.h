@@ -16,15 +16,13 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: parameters.h,v 3.2 2002-03-18 13:56:54 lorens Exp $
+ * $Id: parameters.h,v 3.3 2002-03-18 17:23:08 lorens Exp $
  */
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
 
 #include "support.h"
-
-struct Heuristic;
-struct FlawSelectionOrder;
+#include "heuristics.h"
 
 
 /* ====================================================================== */
@@ -56,11 +54,11 @@ struct Parameters {
   /* Search algorithm to use. */
   SearchAlgorithm search_algorithm;
   /* Plan selection heuristic. */
-  Heuristic& heuristic;
+  Heuristic heuristic;
   /* Weight to use with heuristic. */
   double weight;
   /* Flaw selecion order. */
-  FlawSelectionOrder& flaw_order;
+  FlawSelectionOrder flaw_order;
   /* Whether to reverse the order that open conditions are added. */
   bool reverse_open_conditions;
   /* Whether to use ground actions. */
