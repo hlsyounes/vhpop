@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 3.25 2002-07-05 07:39:44 lorens Exp $
+ * $Id: plans.cc,v 3.26 2002-07-07 09:02:03 lorens Exp $
  */
 #include <queue>
 #include <stack>
@@ -2360,9 +2360,6 @@ ostream& operator<<(ostream& os, const Plan& p) {
     }
   }
   if (verbosity < 2) {
-    if (verbosity > 0) {
-      os << ";Number of steps: " << p.num_steps();
-    }
     for (vector<const Step*>::const_iterator si = ordered_steps.begin();
 	 si != ordered_steps.end(); si++) {
       if (verbosity > 0 || si != ordered_steps.begin()) {

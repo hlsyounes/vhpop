@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 3.23 2002-07-06 22:28:14 lorens Exp $
+ * $Id: vhpop.cc,v 3.24 2002-07-07 09:02:07 lorens Exp $
  */
 #include <cstdio>
 #include <cstdlib>
@@ -374,6 +374,7 @@ int main(int argc, char* argv[]) {
 #ifdef DEBUG
 	    cerr << "Depth of solution: " << plan->depth() << endl;
 #endif
+	    cerr << "Number of steps: " << plan->num_steps() << endl;
 	  }
 	  cout << *plan << endl;
 	} else {
