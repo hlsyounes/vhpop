@@ -1,5 +1,5 @@
 /*
- * $Id: heuristics.cc,v 1.25 2002-01-12 18:32:02 lorens Exp $
+ * $Id: heuristics.cc,v 1.26 2002-01-24 03:43:33 lorens Exp $
  */
 #include <set>
 #include <typeinfo>
@@ -318,10 +318,16 @@ void Disjunction::heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
 
 
 /* Returns the heuristic value of this formula. */
-void QuantifiedFormula::heuristic_value(HeuristicValue& h,
-					const PlanningGraph& pg,
-					const Bindings* b) const {
-  throw Unimplemented("heuristic value of quantified formula not implemented");
+void ExistsFormula::heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
+				    const Bindings* b) const {
+  body.heuristic_value(h, pg, b);
+}
+
+
+/* Returns the heuristic value of this formula. */
+void ForallFormula::heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
+				    const Bindings* b) const {
+  throw Unimplemented("heuristic value of univerally quantified formula not implemented");
 }
 
 
