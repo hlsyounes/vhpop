@@ -1,7 +1,7 @@
 /*
  * Main program.
  *
- * $Id: vhpop.cc,v 1.12 2001-10-05 15:50:53 lorens Exp $
+ * $Id: vhpop.cc,v 1.13 2001-10-16 19:31:55 lorens Exp $
  */
 #include <iostream>
 #include <cstdio>
@@ -12,6 +12,7 @@
 #include "problems.h"
 #include "plans.h"
 #include "parameters.h"
+#include "debug.h"
 
 
 /* The parse function. */
@@ -23,6 +24,8 @@ extern string current_file;
 /* Level of warnings. */
 extern int warning_level;
 
+/* Verbosity level. */
+int verbosity;
 
 /* Program name. */
 string PROGRAM_NAME("tpop");
@@ -50,8 +53,7 @@ static void display_help() {
        << "options:" << endl
        << "  -f f,  --flaw-order=f\t"
        << "use flaw selection order f;" << endl
-       << "\t\t\t  f can be `LIFO' (default), `FIFO', `MC', `LC'," << endl
-       << "\t\t\t  `MW', `LW', `ML', or `LL'"
+       << "\t\t\t  ordering schemes can be combined by repeating the option"
        << endl
        << "  -g,    --ground-actions" << endl
        << "\t\t\tonly use ground actions" << endl
@@ -109,7 +111,7 @@ int main(int argc, char* argv[]) {
   /* Default planning parameters. */
   Parameters params;
   /* Set default verbosity. */
-  int verbosity = 0;
+  verbosity = 0;
   /* Set default warning level. */
   warning_level = 1;
 
@@ -177,6 +179,9 @@ int main(int argc, char* argv[]) {
       return -1;
     }
   }
+  params.flaw_order.set_heuristic(params.heuristic);
+  /* set the random seed. */
+  srand48(time(NULL));
 
   try {
     /*
@@ -232,7 +237,7 @@ int main(int argc, char* argv[]) {
       struct itimerval timer = { { 1000000, 900000 }, { 1000000, 900000 } };
       const Problem& problem = *(*i).second;
       setitimer(ITIMER_PROF, &timer, NULL);
-      const Plan* plan = Plan::plan(problem, params, verbosity);
+      const Plan* plan = Plan::plan(problem, params);
       getitimer(ITIMER_PROF, &timer);
       /* Planning time. */
       double t = 1000000.9

@@ -2,7 +2,7 @@
 /*
  * Domain descriptions.
  *
- * $Id: domains.h,v 1.21 2001-10-06 23:39:55 lorens Exp $
+ * $Id: domains.h,v 1.22 2001-10-16 19:31:17 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -99,9 +99,6 @@ struct Effect : public Printable, public gc {
   /* Returns this effect subject to the given substitutions. */
   const Effect& substitution(const SubstitutionList& subst) const;
 
-  /* Fills the provided lists with goals achievable by this effect. */
-  void achievable_goals(AtomList& goals, NegationList& neg_goals) const;
-
   /* Fills the provided sets with predicates achievable by the
      effect. */
   void achievable_predicates(hash_set<string>& preds,
@@ -136,10 +133,6 @@ struct EffectList : public Vector<const Effect*> {
   /* Returns this effect list subject to the given substitutions. */
   const EffectList& substitution(const SubstitutionList& subst) const;
 
-  /* Fills the provided lists with goals achievable by the effect in
-     this list. */
-  void achievable_goals(AtomList& goals, NegationList& neg_goals) const;
-
   /* Fills the provided sets with predicates achievable by the effects
      in this list. */
   void achievable_predicates(hash_set<string>& preds,
@@ -167,9 +160,6 @@ struct Action : public Printable, public gc {
      action. */
   virtual void instantiations(ActionList& actions,
 			      const Problem& problem) const = 0;
-
-  /* Fills the provided lists with goals achievable by this action. */
-  void achievable_goals(AtomList& goals, NegationList& neg_goals) const;
 
   /* Fills the provided sets with predicates achievable by this
      action. */
