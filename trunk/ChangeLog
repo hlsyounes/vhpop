@@ -1,3 +1,10 @@
+2002-12-17  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Effects with a false link condition must not be removed during
+	instantiation.  It is necessary to keep them so that interference
+	between concurrent actions can be properly detected.  This fixes a
+	bug that was introduced in the most recent code overhaul.
+
 2002-12-16  Håkan L. S. Younes  <lorens@cs.cmu.edu>
 
 	* Fixed memory leaks of actions effects, and formulas.
