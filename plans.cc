@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 3.12 2002-03-25 00:45:05 lorens Exp $
+ * $Id: plans.cc,v 3.13 2002-03-25 01:08:02 lorens Exp $
  */
 #include "plans.h"
 #include "heuristics.h"
@@ -1597,6 +1597,8 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
     }
     if (!add_goal(new_open_conds, new_num_open_conds, new_bindings,
 		  *cond_goal, step.id(), reason)) {
+      OpenConditionChain::register_use(new_open_conds);
+      OpenConditionChain::unregister_use(new_open_conds);
       return NULL;
     }
   }
@@ -1617,11 +1619,15 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
     }
     if (!add_goal(new_open_conds, new_num_open_conds, new_bindings,
 		  *precondition, step.id(), step_reason)) {
+      OpenConditionChain::register_use(new_open_conds);
+      OpenConditionChain::unregister_use(new_open_conds);
       return NULL;
     }
     if (params->domain_constraints) {
       bindings = bindings->add(step.id(), step.action(), *planning_graph);
       if (bindings == NULL) {
+	OpenConditionChain::register_use(new_open_conds);
+	OpenConditionChain::unregister_use(new_open_conds);
 	return NULL;
       }
     }
@@ -1643,6 +1649,8 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
     delete bindings;
   }
   if (tmp_bindings == NULL) {
+    OpenConditionChain::register_use(new_open_conds);
+    OpenConditionChain::unregister_use(new_open_conds);
     return NULL;
   }
   bindings = tmp_bindings;
@@ -1656,6 +1664,8 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
     if (bindings != bindings_) {
       delete bindings;
     }
+    OpenConditionChain::register_use(new_open_conds);
+    OpenConditionChain::unregister_use(new_open_conds);
     return NULL;
   }
 
