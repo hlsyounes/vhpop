@@ -1,5 +1,5 @@
 /*
- * $Id: domains.cc,v 1.7 2001-08-16 00:39:06 lorens Exp $
+ * $Id: domains.cc,v 1.8 2001-08-18 15:45:27 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -32,38 +32,61 @@ void Predicate::print(ostream& os) const {
 
 /* Constructs an unconditional single effect. */
 Effect::Effect(const Formula& add)
-  : forall(*(new VariableList())), condition(NULL),
+  : forall(VariableList::EMPTY), condition(Formula::TRUE),
     add_list(*(new FormulaList(&add))) {
 }
 
 
 /* Constructs an unconditional multiple effect. */
 Effect::Effect(const FormulaList& add_list)
-  : forall(*(new VariableList())), condition(NULL), add_list(add_list) {
+  : forall(VariableList::EMPTY), condition(Formula::TRUE), add_list(add_list) {
 }
 
 
 /* Constructs a conditional effect. */
-Effect::Effect(const Formula* condition, const FormulaList& add_list)
-  : forall(*(new VariableList())), condition(condition), add_list(add_list) {
+Effect::Effect(const Formula& condition, const FormulaList& add_list)
+  : forall(VariableList::EMPTY), condition(condition), add_list(add_list) {
+}
+
+
+/* Constructs a universally quantified unconditional effect. */
+Effect::Effect(const VariableList& forall, const FormulaList& add_list)
+  : forall(forall), condition(Formula::TRUE), add_list(add_list) {
 }
 
 
 /* Returns an instantiation of this effect. */
 const Effect& Effect::instantiation(size_t id) const {
-  const Formula* inst_condition =
-    (condition != NULL) ? &condition->instantiation(id) : NULL;
-  return *(new Effect(forall.instantiation(id), inst_condition,
+  return *(new Effect(forall.instantiation(id), condition.instantiation(id),
 		      add_list.instantiation(id)));
+}
+
+
+/* Returns an instantiation of this effect. */
+const Effect& Effect::instantiation(const SubstitutionList& subst,
+				    const Problem& problem) const {
+  if (forall.empty()) {
+    return *(new Effect(forall, condition.instantiation(subst, problem),
+			add_list.instantiation(subst, problem)));
+  } else {
+    SubstitutionList eff_subst;
+    for (SubstitutionList::const_iterator i = subst.begin();
+	 i != subst.end(); i++) {
+      const Substitution& s = **i;
+      if (!forall.contains(s.var)) {
+	eff_subst.push_back(&s);
+      }
+    }
+    return *(new Effect(forall, condition.instantiation(eff_subst, problem),
+			add_list.instantiation(eff_subst, problem)));
+  }
 }
 
 
 /* Returns this effect subject to the given substitutions. */
 const Effect& Effect::substitution(const SubstitutionList& subst) const {
   if (forall.empty()) {
-    const Formula* subst_condition =
-      (condition != NULL) ? &condition->substitution(subst) : NULL;
-    return *(new Effect(forall, subst_condition,
+    return *(new Effect(forall, condition.substitution(subst),
 			add_list.substitution(subst)));
   } else {
     SubstitutionList eff_subst;
@@ -74,9 +97,7 @@ const Effect& Effect::substitution(const SubstitutionList& subst) const {
 	eff_subst.push_back(&s);
       }
     }
-    const Formula* subst_condition =
-      (condition != NULL) ? &condition->substitution(eff_subst) : NULL;
-    return *(new Effect(forall, subst_condition,
+    return *(new Effect(forall, condition.substitution(eff_subst),
 			add_list.substitution(eff_subst)));
   }
 }
@@ -99,8 +120,8 @@ void Effect::achievable_predicates(hash_set<string>& preds,
 /* Prints this effect on the given stream. */
 void Effect::print(ostream& os) const {
   os << '[';
-  if (condition != NULL) {
-    os << *condition;
+  if (condition != Formula::TRUE) {
+    os << condition;
   }
   os << "->";
   if (add_list.size() == 1) {
@@ -122,6 +143,20 @@ const EffectList& EffectList::instantiation(size_t id) const {
   EffectList& effects = *(new EffectList());
   for (const_iterator i = begin(); i != end(); i++) {
     effects.push_back(&(*i)->instantiation(id));
+  }
+  return effects;
+}
+
+
+/* Returns an instantiation of this effect list. */
+const EffectList& EffectList::instantiation(const SubstitutionList& subst,
+					    const Problem& problem) const {
+  EffectList& effects = *(new EffectList());
+  for (const_iterator i = begin(); i != end(); i++) {
+    const Effect& e = (*i)->instantiation(subst, problem);
+    if (!(e.condition == Formula::FALSE || e.add_list.empty())) {
+      effects.push_back(&e);
+    }
   }
   return effects;
 }
@@ -205,8 +240,9 @@ void ActionSchema::instantiations(ActionList& actions,
   for (size_t i = 0; i < n; ) {
     args.push_back(new Substitution(*parameters[i], **next_arg[i]));
     const Formula& new_precond = precondition.instantiation(args, problem);
-    if (i + 1 == n || new_precond == Formula::FALSE) {
-      if (new_precond != Formula::FALSE) {
+    const EffectList& new_effects = effects.instantiation(args, problem);
+    if (i + 1 == n || new_precond == Formula::FALSE || new_effects.empty()) {
+      if (!(new_precond == Formula::FALSE || new_effects.empty())) {
 	/* consistent instantiation */
 	TermList& terms = *(new TermList());
 	for (SubstitutionList::const_iterator s = args.begin();
@@ -214,7 +250,7 @@ void ActionSchema::instantiations(ActionList& actions,
 	  terms.push_back(&(*s)->term);
 	}
 	actions.push_back(new GroundAction(name, terms, new_precond,
-					   effects.substitution(args)));
+					   new_effects));
       }
       for (int j = i; j >= 0; j--) {
 	args.pop_back();
