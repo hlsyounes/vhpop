@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.h,v 1.16 2002-01-25 18:23:35 lorens Exp $
+ * $Id: bindings.h,v 3.1 2002-03-18 09:23:24 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
@@ -40,22 +40,40 @@ struct Step;
 struct PlanningGraph;
 
 
+/* ====================================================================== */
+/* Binding */
+
 /*
  * Abstract variable binding.
  */
 struct Binding : public Printable, public gc {
-  /* A variable. */
-  const Variable& variable;
-  /* A term either bound to, or separated from the variable. */
-  const Term& term;
-  /* Reason for binding. */
-  const Reason& reason;
+  /* Returns the variable of this binding. */
+  const Variable& var() const { return *var_; }
+
+  /* Returns the term of this binding. */
+  const Term& term() const { return *term_; }
+
+  /* Returns the reason for this binding. */
+  const Reason& reason() const;
 
 protected:
   /* Constructs an abstract variable binding. */
-  Binding(const Variable& variable, const Term& term, const Reason& reason);
+  Binding(const Variable& var, const Term& term, const Reason& reason);
+
+private:
+  /* A variable. */
+  const Variable* var_;
+  /* A term either bound to, or separated from the variable. */
+  const Term* term_;
+#ifdef TRANSFORMATIONAL
+  /* Reason for this binding. */
+  const Reason* reason_;
+#endif
 };
 
+
+/* ====================================================================== */
+/* EqualityBinding */
 
 /*
  * Equality binding.
@@ -66,7 +84,7 @@ struct EqualityBinding : public Binding {
 
   /* Construct an equality binding, binding the given variable to the
      given term. */
-  EqualityBinding(const Variable& variable, const Term& term,
+  EqualityBinding(const Variable& var, const Term& term,
 		  const Reason& reason);
 
 protected:
@@ -74,6 +92,9 @@ protected:
   virtual void print(ostream& os) const;
 };
 
+
+/* ====================================================================== */
+/* InequalityBinding */
 
 /*
  * Inequality binding.
@@ -84,7 +105,7 @@ struct InequalityBinding : public Binding {
 
   /* Constructs an inequality binding, separating the given variable
      from the given term. */
-  InequalityBinding(const Variable& variable, const Term& term,
+  InequalityBinding(const Variable& var, const Term& term,
 		    const Reason& reason);
 
 protected:
@@ -197,15 +218,13 @@ struct StepDomain;
 typedef Chain<const StepDomain*> StepDomainChain;
 
 
+/* ====================================================================== */
+/* Bindings */
+
 /*
  * A collection of variable bindings.
  */
 struct Bindings : public Printable, public gc {
-  /* Equality bindings. */
-  const BindingChain* const equalities;
-  /* Inequality bindings. */
-  const BindingChain* const inequalities;
-
   /* Creates a binding collection with parameter constrains if pg is
      not NULL, or an empty binding collection otherwise. */
   static const Bindings& make_bindings(const Chain<const Step*>* steps,
@@ -220,6 +239,12 @@ struct Bindings : public Printable, public gc {
 
   /* Checks if the given formulas can be unified. */
   static bool unifiable(const Literal& l1, const Literal& l2);
+
+  /* Returns the equality bindings. */
+  const BindingChain* equalities() const;
+
+  /* Return the inequality bindings. */
+  const BindingChain* inequalities() const;
 
   /* Returns the binding for the given term, or the term itself if it
      is not bound to a single name. */
@@ -276,11 +301,17 @@ private:
   const size_t high_step_;
   /* Step domains. */
   const StepDomainChain* const step_domains_;
+#ifdef TRANSFORMATIONAL
+  /* Equality bindings. */
+  const BindingChain* equalities_;
+  /* Inequality bindings. */
+  const BindingChain* inequalities_;
+#endif
 
   /* Constructs a binding collection. */
-  Bindings(const BindingChain* equalities, const BindingChain* inequalities,
-	   const VarsetChain* varsets, size_t high_step,
-	   const StepDomainChain* step_domains);
+  Bindings(const VarsetChain* varsets, size_t high_step,
+	   const StepDomainChain* step_domains,
+	   const BindingChain* equalities, const BindingChain* inequalities);
 };
 
 #endif /* BINDINGS_H */
