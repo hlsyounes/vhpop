@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 3.3 2002-03-15 19:02:12 lorens Exp $
+ * $Id: plans.cc,v 3.4 2002-03-18 00:08:57 lorens Exp $
  */
 #include <queue>
 #include <algorithm>
@@ -1906,7 +1906,7 @@ remove_bindings(const BindingChain* bindings, const Link& link) {
     return NULL;
   } else {
     const BindingChain* tail = remove_bindings(bindings->tail, link);
-    if (bindings->head->reason.involves(link)) {
+    if (bindings->head->reason().involves(link)) {
       return tail;
     } else {
       return new BindingChain(bindings->head, tail);
@@ -1923,7 +1923,7 @@ remove_bindings(const BindingChain* bindings, const Step& step) {
     return NULL;
   } else {
     const BindingChain* tail = remove_bindings(bindings->tail, step);
-    if (bindings->head->reason.involves(step)) {
+    if (bindings->head->reason().involves(step)) {
       return tail;
     } else {
       return new BindingChain(bindings->head, tail);
@@ -1942,8 +1942,8 @@ pair<const Plan*, const OpenCondition*> Plan::unlink(const Link& link) const {
   size_t new_num_unsafes = num_unsafes;
   const OpenConditionChain* new_open_conds = open_conds;
   size_t new_num_open_conds = num_open_conds;
-  const BindingChain* equalities = bindings_.equalities;
-  const BindingChain* inequalities = bindings_.inequalities;
+  const BindingChain* equalities = bindings_.equalities();
+  const BindingChain* inequalities = bindings_.inequalities();
   const OrderingChain* new_orderings = orderings.orderings();
   const LinkChain* new_links = links;
   size_t new_num_links = num_links;
