@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 3.27 2002-12-16 17:43:21 lorens Exp $
+ * $Id: vhpop.cc,v 3.28 2003-03-01 18:39:02 lorens Exp $
  */
 #include "plans.h"
 #include "reasons.h"
@@ -78,7 +78,7 @@ static struct option long_options[] = {
   { "help", no_argument, NULL, '?' },
   { 0, 0, 0, 0 }
 };
-static const char OPTION_STRING[] = "d::f:gh:l:rs:t:T:v::Vw:W::?";
+static const char OPTION_STRING[] = "d::f:gh:l:rs:S:t:T:v::Vw:W::?";
 
 
 /* Displays help. */
@@ -99,11 +99,13 @@ static void display_help() {
 	    << "use heuristic h to rank plans" << std::endl
 	    << "  -l l,  --limit=l\t"
 	    << "search no more than l plans" << std::endl
-	    << "  -r,    --reverse-open-conditions" << std::endl
-	    << "\t\t\treverse the order that open conditions are added"
+	    << "  -r,    --random-open-conditions" << std::endl
+	    << "\t\t\tadd open conditions in random order"
 	    << std::endl
 	    << "  -s s,  --search-algorithm=s" << std::endl
 	    << "\t\t\tuse search algorithm s" << std::endl
+	    << "  -S s,  --seed=s\t"
+	    << "uses s as seed for random number generator" << std::endl
 	    << "  -t t,  --tolerance=t\t"
 	    << "use tolerance t with durative actions;" << std::endl
 	    << "\t\t\t  time stamps less than t appart are considered"
@@ -300,7 +302,7 @@ int main(int argc, char* argv[]) {
       }
       break;
     case 'r':
-      params.reverse_open_conditions = true;
+      params.random_open_conditions = true;
       break;
     case 's':
       try {
@@ -311,6 +313,9 @@ int main(int argc, char* argv[]) {
 		  << std::endl;
 	return -1;
       }
+      break;
+    case 'S':
+      srand(atoi(optarg));
       break;
     case 't':
       if (optarg == std::string("unlimited")) {
@@ -355,8 +360,6 @@ int main(int argc, char* argv[]) {
        i < params.flaw_orders.size() - params.search_limits.size(); i++) {
     params.search_limits.push_back(params.search_limits.back());
   }
-  /* set the random seed. */
-  srand(time(NULL));
 
   try {
     /*
