@@ -1,10 +1,11 @@
 /*
- * $Id: bindings.cc,v 1.11 2001-12-26 18:51:43 lorens Exp $
+ * $Id: bindings.cc,v 1.12 2001-12-27 19:58:15 lorens Exp $
  */
 #include "bindings.h"
-#include "formulas.h"
-#include "heuristics.h"
 #include "plans.h"
+#include "heuristics.h"
+#include "formulas.h"
+#include "types.h"
 
 
 const VariableSet& VariableSet::EMPTY = *(new VariableSet());

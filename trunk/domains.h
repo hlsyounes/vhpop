@@ -2,7 +2,7 @@
 /*
  * Domain descriptions.
  *
- * $Id: domains.h,v 1.29 2001-12-27 19:26:21 lorens Exp $
+ * $Id: domains.h,v 1.30 2001-12-27 19:59:58 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -334,5 +334,6 @@ private:
   /* Static predicates. */
   hash_set<string> static_predicates_;
 };
+
 
 #endif /* DOMAINS_H */
