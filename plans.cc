@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 4.6 2002-09-23 18:25:52 lorens Exp $
+ * $Id: plans.cc,v 4.7 2002-09-24 17:37:15 lorens Exp $
  */
 #include <queue>
 #include <stack>
@@ -206,7 +206,9 @@ static bool add_goal(const OpenConditionChain*& open_conds,
     } else {
       const Literal* literal = dynamic_cast<const Literal*>(goal);
       if (literal != NULL) {
-	if (!test_only) {
+	if (!test_only
+	    && !(params->strip_static_preconditions()
+		 && domain->static_predicate(literal->predicate()))) {
 	  open_conds =
 	    new OpenConditionChain(OpenCondition(step_id, *goal, reason),
 				   open_conds);
@@ -510,9 +512,6 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
     for (ActionSchemaMapIter ai = domain->actions().begin();
 	 ai != domain->actions().end(); ai++) {
       const ActionSchema* as = (*ai).second;
-      if (params->domain_constraints && !params->keep_static_preconditions) {
-	as = &as->strip_static(*domain);
-      }
       PredicateSet preds;
       PredicateSet neg_preds;
       as->achievable_predicates(preds, neg_preds);
