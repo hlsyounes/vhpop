@@ -1,7 +1,7 @@
 /*
  * Main program.
  *
- * $Id: vhpop.cc,v 1.10 2001-09-18 16:22:35 lorens Exp $
+ * $Id: vhpop.cc,v 1.11 2001-09-29 18:56:54 lorens Exp $
  */
 #include <iostream>
 #include <cstdio>
@@ -11,7 +11,7 @@
 #include "domains.h"
 #include "problems.h"
 #include "plans.h"
-#include "heuristics.h"
+#include "parameters.h"
 
 
 /* The parse function. */
@@ -23,21 +23,21 @@ extern string current_file;
 /* Level of warnings. */
 extern int warning_level;
 
+
 /* Program name. */
 string PROGRAM_NAME("tpop");
 
 /* Program options. */
 static struct option long_options[] = {
   { "flaw-order", required_argument, NULL, 'f' },
-  { "ground", no_argument, NULL, 'g' },
+  { "ground-actions", no_argument, NULL, 'g' },
   { "heuristic", required_argument, NULL, 'h' },
   { "limit", required_argument, NULL, 'l' },
-#ifdef TRANSFORMATIONAL
-  { "trans", no_argument, NULL, 't' },
-#endif
+  { "transformational", no_argument, NULL, 't' },
   { "verbose", optional_argument, NULL, 'v' },
   { "version", no_argument, NULL, 'V' },
-  { "warnings", optional_argument, NULL, 'w' },
+  { "weight", required_argument, NULL, 'w' },
+  { "warnings", optional_argument, NULL, 'W' },
   { "help", no_argument, NULL, '?' },
   { 0, 0, 0, 0 }
 };
@@ -53,24 +53,24 @@ static void display_help() {
        << "\t\t\t  f can be `LIFO' (default), `FIFO', `MC', `LC'," << endl
        << "\t\t\t  `MW', `LW', `ML', or `LL'"
        << endl
-       << "  -g,    --ground\t"
-       << "only use ground actions" << endl
+       << "  -g,    --ground-actions" << endl
+       << "\t\t\tonly use ground actions" << endl
        << "  -h h,  --heuristic=h\t"
        << "use heuristic h;" << endl
        << "\t\t\t  h can be `MAX', `SUM', `SUMR' (default), or `UCPOP'" << endl
        << "  -l l,  --limit=l\t"
        << "search no more than l plans" << endl
-#ifdef TRANSFORMATIONAL
-       << "  -t,    --trans\t"
-       << "enable transformational plan operators" << endl
-#endif
+       << "  -t,    --transformational" << endl
+       << "\t\t\tuse transformational planner" << endl
        << "  -v[n], --verbose[=n]\t"
        << "use verbosity level n;" << endl
        << "\t\t\t  n is a number from 0 (verbose mode off) and up;" << endl
        << "\t\t\t  default level is 1 if optional argument is left out" << endl
-       << "  -V     --version\t"
+       << "  -V,    --version\t"
        << "display version information and exit" << endl
-       << "  -w[n], --warnings[=n]\t"
+       << "  -w,    --weight=w\t"
+       << "weight to use with heuristic (default is 1)" << endl
+       << "  -W[n], --warnings[=n]\t"
        << "determines how warnings are treated;" << endl
        << "\t\t\t  0 supresses warnings; 1 displays warnings;" << endl
        << "\t\t\t  2 treats warnings as errors" << endl
@@ -106,16 +106,8 @@ static bool read_file(const char* name) {
 
 /* The main program. */
 int main(int argc, char* argv[]) {
-  /* Flaw selection order. */
-  FlawSelectionOrder flaw_order;
-  /* Set default heuristic. */
-  Heuristic heuristic;
-  /* Whether to just use ground actions. */
-  bool ground_actions = false;
-  /* Whether to allow transformational plan operators. */
-  bool transformations = false;
-  /* Search limit. */
-  size_t limit = 2000;
+  /* Default planning parameters. */
+  Parameters params;
   /* Set default verbosity. */
   int verbosity = 0;
   /* Set default warning level. */
@@ -126,62 +118,40 @@ int main(int argc, char* argv[]) {
    */
   while (1) {
     int option_index = 0;
-    int c = getopt_long(argc, argv, "f:gh:l:tv::Vw::?",
+    int c = getopt_long(argc, argv, "f:gh:l:tv::Vw:W::?",
 			long_options, &option_index);
     if (c == -1) {
       break;
     }
     switch (c) {
     case 'f':
-      if (strcasecmp(optarg, "LIFO") == 0) {
-	flaw_order.set_lifo();
-      } else if (strcasecmp(optarg, "FIFO") == 0) {
-	flaw_order.set_fifo();
-      } else if (strcasecmp(optarg, "MC") == 0) {
-	flaw_order.set_most_cost_first();
-      } else if (strcasecmp(optarg, "LC") == 0) {
-	flaw_order.set_least_cost_first();
-      } else if (strcasecmp(optarg, "MW") == 0) {
-	flaw_order.set_most_work_first();
-      } else if (strcasecmp(optarg, "LW") == 0) {
-	flaw_order.set_least_work_first();
-      } else if (strcasecmp(optarg, "ML") == 0) {
-	flaw_order.set_most_linkable_first();
-      } else if (strcasecmp(optarg, "LL") == 0) {
-	flaw_order.set_least_linkable_first();
-      } else {
-	cerr << PROGRAM_NAME << ": invalid flaw selection order `" << optarg
-	     << "'" << endl
+      try {
+	params.flaw_order = optarg;
+      } catch (const InvalidFlawSelectionOrder& e) {
+	cerr << PROGRAM_NAME << ": " << e << endl
 	     << "Try `" << PROGRAM_NAME << " --help' for more information."
 	     << endl;
 	return -1;
       }
       break;
     case 'g':
-      ground_actions = true;
+      params.ground_actions = true;
       break;
     case 'h':
-      if (strcasecmp(optarg, "MAX") == 0) {
-	heuristic.set_max();
-      } else if (strcasecmp(optarg, "SUM") == 0) {
-	heuristic.set_sum();
-      } else if (strcasecmp(optarg, "SUMR") == 0) {
-	heuristic.set_sum_reuse();
-      } else if (strcasecmp(optarg, "UCPOP") == 0) {
-	heuristic.set_ucpop();
-      } else {
-	cerr << PROGRAM_NAME << ": invalid heuristic `" << optarg << "'"
-	     << endl
+      try {
+	params.heuristic = optarg;
+      } catch (const InvalidHeuristic& e) {
+	cerr << PROGRAM_NAME << ": " << e << endl
 	     << "Try `" << PROGRAM_NAME << " --help' for more information."
 	     << endl;
 	return -1;
       }
       break;
     case 'l':
-      limit = atoi(optarg);
+      params.search_limit = atoi(optarg);
       break;
     case 't':
-      transformations = true;
+      params.transformational = true;
       break;
     case 'v':
       verbosity = (optarg != NULL) ? atoi(optarg) : 1;
@@ -190,6 +160,9 @@ int main(int argc, char* argv[]) {
       display_version();
       return 0;
     case 'w':
+      params.weight = atoi(optarg);
+      break;
+    case 'W':
       warning_level = (optarg != NULL) ? atoi(optarg) : 1;
       break;
     case ':':
@@ -259,9 +232,7 @@ int main(int argc, char* argv[]) {
       struct itimerval timer = { { 1000000, 900000 }, { 1000000, 900000 } };
       const Problem& problem = *(*i).second;
       setitimer(ITIMER_PROF, &timer, NULL);
-      const Plan* plan = Plan::plan(problem, flaw_order, heuristic,
-				    ground_actions, transformations, limit,
-				    verbosity);
+      const Plan* plan = Plan::plan(problem, params, verbosity);
       getitimer(ITIMER_PROF, &timer);
       /* Planning time. */
       double t = 1000000.9
@@ -286,11 +257,11 @@ int main(int argc, char* argv[]) {
 	cout << endl << "Problem has no solution." << endl;
       }
     }
-  } catch (const Unimplemented& ex) {
-    cerr << ex << endl;
+  } catch (const Exception& e) {
+    cerr << PROGRAM_NAME << ": " << e << endl;
     return -1;
   } catch (...) {
-    cerr << "fatal error" << endl;
+    cerr << PROGRAM_NAME << ": fatal error" << endl;
     return -1;
   }
 
