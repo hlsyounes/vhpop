@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 3.17 2002-06-26 23:20:39 lorens Exp $
+ * $Id: vhpop.cc,v 3.18 2002-06-26 23:34:25 lorens Exp $
  */
 #include "plans.h"
 #include "reasons.h"
@@ -29,6 +29,7 @@
 #include <errno.h>
 #include <sys/time.h>
 #ifdef HAVE_GETOPT_LONG
+#define _GNU_SOURCE
 #include <getopt.h>
 #else
 #include "getopt.h"
@@ -73,8 +74,7 @@ static const char OPTION_STRING[] = "d::f:gh:l:rs:tT:v::Vw:W::?";
 
 /* Displays help. */
 static void display_help() {
-  cout << PROGRAM_NAME << endl
-       << "usage: " << PROGRAM_NAME << " [options] [file ...]" << endl
+  cout << "usage: " << PACKAGE << " [options] [file ...]" << endl
        << "options:" << endl
        << "  -d[k], --domain-constraints=[k]" << endl
        << "\t\t\tuse parameter domain constraints;" << endl
@@ -114,14 +114,19 @@ static void display_help() {
        << "display this help and exit" << endl
        << "  file ...\t\t"
        << "files containing domain and problem descriptions;" << endl
-       << "\t\t\t  if none, descriptions are read from standard input" << endl;
+       << "\t\t\t  if none, descriptions are read from standard input" << endl
+       << endl
+       << "Report bugs to " PACKAGE_BUGREPORT "." << endl;
 }
 
 
 /* Displays version information. */
 static void display_version() {
-  cout << PROGRAM_NAME " " VERSION_NUMBER << " (" << __DATE__ << ")" << endl
-       << "Written by H\345kan L. S. Younes (lorens@cs.cmu.edu)." << endl;
+  cout << PACKAGE " " VERSION << endl
+       << "Copyright (C) 2002 Carnegie Mellon University" << endl
+       << PACKAGE " comes with NO WARRANTY," << endl
+       << "to the extent permitted by law." << endl
+       << "Written by H\345kan L. S. Younes." << endl;
 }
 
 
@@ -129,7 +134,7 @@ static void display_version() {
 static bool read_file(const char* name) {
   yyin = fopen(name, "r");
   if (yyin == NULL) {
-    cerr << PROGRAM_NAME << ':' << name << ": " << strerror(errno) << endl;
+    cerr << PACKAGE << ':' << name << ": " << strerror(errno) << endl;
     return false;
   } else {
     current_file = name;
@@ -196,8 +201,8 @@ int main(int argc, char* argv[]) {
       try {
 	params.flaw_order = optarg;
       } catch (const InvalidFlawSelectionOrder& e) {
-	cerr << PROGRAM_NAME << ": " << e << endl
-	     << "Try `" << PROGRAM_NAME << " --help' for more information."
+	cerr << PACKAGE << ": " << e << endl
+	     << "Try `" << PACKAGE << " --help' for more information."
 	     << endl;
 	return -1;
       }
@@ -209,8 +214,8 @@ int main(int argc, char* argv[]) {
       try {
 	params.heuristic = optarg;
       } catch (const InvalidHeuristic& e) {
-	cerr << PROGRAM_NAME << ": " << e << endl
-	     << "Try `" << PROGRAM_NAME << " --help' for more information."
+	cerr << PACKAGE << ": " << e << endl
+	     << "Try `" << PACKAGE << " --help' for more information."
 	     << endl;
 	return -1;
       }
@@ -225,8 +230,8 @@ int main(int argc, char* argv[]) {
       try {
 	params.set_search_algorithm(optarg);
       } catch (const InvalidSearchAlgorithm& e) {
-	cerr << PROGRAM_NAME << ": " << e << endl
-	     << "Try `" << PROGRAM_NAME << " --help' for more information."
+	cerr << PACKAGE << ": " << e << endl
+	     << "Try `" << PACKAGE << " --help' for more information."
 	     << endl;
 	return -1;
       }
@@ -258,7 +263,7 @@ int main(int argc, char* argv[]) {
       }
     case ':':
     default:
-      cerr << "Try `" << PROGRAM_NAME << " --help' for more information."
+      cerr << "Try `" << PACKAGE << " --help' for more information."
 	   << endl;
       return -1;
     }
@@ -357,10 +362,10 @@ int main(int argc, char* argv[]) {
       cout << "Time: " << max(0, int(1000.0*t + 0.5)) << endl;
     }
   } catch (const Exception& e) {
-    cerr << PROGRAM_NAME << ": " << e << endl;
+    cerr << PACKAGE << ": " << e << endl;
     return -1;
   } catch (...) {
-    cerr << PROGRAM_NAME << ": fatal error" << endl;
+    cerr << PACKAGE << ": fatal error" << endl;
     return -1;
   }
 
