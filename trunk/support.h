@@ -2,7 +2,7 @@
 /*
  * Auxiliary types and functions.
  *
- * $Id: support.h,v 1.9 2001-10-18 21:16:43 lorens Exp $
+ * $Id: support.h,v 1.10 2001-11-07 19:22:20 lorens Exp $
  */
 #ifndef SUPPORT_H
 #define SUPPORT_H
@@ -28,6 +28,10 @@ typedef single_client_traceable_alloc container_alloc;
  */
 template<typename T>
 struct Vector : public vector<T, container_alloc>, public gc {
+  Vector<T>() {}
+
+  Vector<T>(size_t n, T x)
+    : vector<T, container_alloc>(n, x) {}
 };
 
 
