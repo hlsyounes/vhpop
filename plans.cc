@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 4.3 2002-09-20 16:48:41 lorens Exp $
+ * $Id: plans.cc,v 4.4 2002-09-22 01:40:23 lorens Exp $
  */
 #include <queue>
 #include <stack>
@@ -141,12 +141,14 @@ void Step::set_reason(const Reason& reason) {
 /*
  * Less than function object for plan pointers.
  */
+namespace std {
 struct less<const Plan*>
   : public binary_function<const Plan*, const Plan*, bool> {
   bool operator()(const Plan* p1, const Plan* p2) const {
     return *p1 < *p2;
   }
 };
+}
 
 
 /*

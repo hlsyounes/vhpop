@@ -16,15 +16,23 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  * 
- * $Id: support.h,v 3.7 2002-06-28 20:13:44 lorens Exp $
+ * $Id: support.h,v 3.8 2002-09-22 01:40:04 lorens Exp $
  */
 #ifndef SUPPORT_H
 #define SUPPORT_H
 
 #include <iostream>
 #include <string>
+#if HAVE_HASH_MAP
 #include <hash_map>
+#include <hash_set>
+#else
+#include <ext/hash_map>
+#include <ext/hash_set>
+#endif
 #include "debug.h"
+
+using namespace std;
 
 
 /*
@@ -143,6 +151,7 @@ inline bool operator!=(const EqualityComparable& o1,
 /*
  * Equality function object for equality comparable object pointers.
  */
+namespace std {
 struct equal_to<const EqualityComparable*>
   : public binary_function<const EqualityComparable*,
 			   const EqualityComparable*, bool> {
@@ -151,6 +160,7 @@ struct equal_to<const EqualityComparable*>
     return *o1 == *o2;
   }
 };
+}
 
 
 /*
@@ -183,6 +193,7 @@ inline bool operator>(const LessThanComparable& o1,
 /*
  * Less than function object for less than comparable object pointers.
  */
+namespace std {
 struct less<const LessThanComparable*>
   : public binary_function<const LessThanComparable*,
 			   const LessThanComparable*, bool> {
@@ -191,6 +202,7 @@ struct less<const LessThanComparable*>
     return *o1 < *o2;
   }
 };
+}
 
 
 /*
@@ -208,31 +220,37 @@ protected:
 /*
  * Hash function object for hashable objects.
  */
+namespace std {
 struct hash<Hashable> {
   size_t operator()(const Hashable& o) const {
     return o.hash_value();
   }
 };
+}
 
 /*
  * Hash function object for hashable object pointers.
  */
+namespace std {
 struct hash<const Hashable*> {
   size_t operator()(const Hashable* o) const {
     return o->hash_value();
   }
 };
+}
 
 
 /*
  * Hash function object for strings.
  */
+namespace std {
 struct hash<string> {
   /* Hash function for strings. */
   size_t operator()(const string& s) const {
     return hash<char*>()(s.c_str());
   }
 };
+}
 
 
 /*
