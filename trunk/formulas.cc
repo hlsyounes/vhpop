@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 6.7 2003-08-24 18:42:26 lorens Exp $
+ * $Id: formulas.cc,v 6.8 2003-08-24 21:21:07 lorens Exp $
  */
 #include "formulas.h"
 #include "bindings.h"
@@ -215,7 +215,7 @@ const Formula& Constant::negation() const {
    definitely asserted by this formula. */
 const Formula& Literal::separator(const Literal& literal) const {
   BindingList mgu;
-  if (Bindings::unifiable(mgu, *this, 0, literal, 0)) {
+  if (Bindings::unifiable(mgu, *this, literal)) {
     Disjunction* disj = NULL;
     const Formula* first_d = &FALSE;
     for (BindingList::const_iterator bi = mgu.begin(); bi != mgu.end(); bi++) {
@@ -245,6 +245,36 @@ const Formula& Literal::separator(const Literal& literal) const {
 
 /* ====================================================================== */
 /* Atom */
+
+/* Tests if the two atoms are unifiable, assuming the second atom is
+   fully instantiated. */
+static bool unifiable_atoms(const Atom& a1, const Atom& a2) {
+  if (a1.predicate() != a2.predicate()) {
+    return false;
+  } else {
+    SubstitutionMap bind;
+    size_t n = a1.arity();
+    for (size_t i = 0; i < n; i++) {
+      Term t1 = a1.term(i);
+      if (is_object(t1)) {
+	if (t1 != a2.term(i)) {
+	  return false;
+	}
+      } else {
+	SubstitutionMap::const_iterator b = bind.find(t1);
+	if (b != bind.end()) {
+	  if ((*b).second != Object(a2.term(i))) {
+	    return false;
+	  }
+	} else {
+	  bind.insert(std::make_pair(t1, a2.term(i)));
+	}
+      }
+    }
+    return true;
+  }
+}
+
 
 /* Table of atomic formulas. */
 Atom::AtomTable Atom::atoms;
@@ -333,23 +363,50 @@ const Atom& Atom::substitution(const SubstitutionMap& subst) const {
 /* Returns an instantiation of this formula. */
 const Formula& Atom::instantiation(const SubstitutionMap& subst,
 				   const Problem& problem) const {
-  const Atom& f = substitution(subst);
-  if (problem.domain().predicates().static_predicate(predicate())) {
-    const AtomList& adds = problem.init();
-    for (AtomList::const_iterator gi = adds.begin(); gi != adds.end(); gi++) {
-      if (&f == *gi) {
-	register_use(&f);
-	unregister_use(&f);
-	return TRUE;
-      } else if (Bindings::unifiable(f, 0, **gi, 0)) {
-	return f;
+  TermList inst_terms;
+  bool substituted = false;
+  size_t objects = 0;
+  for (TermList::const_iterator ti = terms_.begin();
+       ti != terms_.end(); ti++) {
+    SubstitutionMap::const_iterator si =
+      is_variable(*ti) ? subst.find(*ti) : subst.end();
+    if (si != subst.end()) {
+      inst_terms.push_back((*si).second);
+      substituted = true;
+      objects++;
+    } else {
+      inst_terms.push_back(*ti);
+      if (is_object(*ti)) {
+	objects++;
       }
     }
-    register_use(&f);
-    unregister_use(&f);
-    return FALSE;
+  }
+  const Atom& inst_atom = substituted ? make(predicate(), inst_terms) : *this;
+  if (problem.domain().predicates().static_predicate(predicate())) {
+    if (objects == inst_terms.size()) {
+      if (problem.init_atoms().find(&inst_atom)
+	  != problem.init_atoms().end()) {
+	register_use(&inst_atom);
+	unregister_use(&inst_atom);
+	return TRUE;
+      } else {
+	register_use(&inst_atom);
+	unregister_use(&inst_atom);
+	return FALSE;
+      }
+    } else {
+      for (AtomSet::const_iterator ai = problem.init_atoms().begin();
+	   ai != problem.init_atoms().end(); ai++) {
+	if (unifiable_atoms(inst_atom, **ai)) {
+	  return inst_atom;
+	}
+      }
+      register_use(&inst_atom);
+      unregister_use(&inst_atom);
+      return FALSE;
+    }
   } else {
-    return f;
+    return inst_atom;
   }
 }
 
