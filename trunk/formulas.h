@@ -2,7 +2,7 @@
 /*
  * Formulas.
  *
- * $Id: formulas.h,v 1.11 2001-08-18 15:46:10 lorens Exp $
+ * $Id: formulas.h,v 1.12 2001-08-18 21:15:15 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -439,6 +439,9 @@ struct FormulaList : public gc, vector<const Formula*, container_alloc> {
   /* Returns the negation of this formula list. */
   const FormulaList& operator!() const;
 };
+
+/* A formula list const iterator. */
+typedef FormulaList::const_iterator FLCI;
 
 
 /*

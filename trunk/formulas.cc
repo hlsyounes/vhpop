@@ -1,5 +1,5 @@
 /*
- * $Id: formulas.cc,v 1.6 2001-08-18 15:46:06 lorens Exp $
+ * $Id: formulas.cc,v 1.7 2001-08-18 21:15:07 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -501,8 +501,7 @@ const Formula& AtomicFormula::instantiation(const SubstitutionList& subst,
   if (problem.domain.static_predicate(predicate)) {
     if (problem.init != NULL) {
       const FormulaList& adds = problem.init->add_list;
-      for (FormulaList::const_iterator fi = adds.begin();
-	   fi != adds.end(); fi++) {
+      for (FLCI fi = adds.begin(); fi != adds.end(); fi++) {
 	if (Bindings().unify(f, **fi)) {
 	  return TRUE;
 	}
@@ -744,8 +743,7 @@ const Conjunction& Conjunction::instantiation(size_t id) const {
 const Formula& Conjunction::instantiation(const SubstitutionList& subst,
 					  const Problem& problem) const {
   const Formula* c = &TRUE;
-  for (FormulaList::const_iterator fi = conjuncts.begin();
-       fi != conjuncts.end(); fi++) {
+  for (FLCI fi = conjuncts.begin(); fi != conjuncts.end(); fi++) {
     c = &(*c && (*fi)->instantiation(subst, problem));
   }
   return *c;
@@ -755,8 +753,7 @@ const Formula& Conjunction::instantiation(const SubstitutionList& subst,
 /* Returns this formula subject to the given substitutions. */
 const Formula& Conjunction::substitution(const SubstitutionList& subst) const {
   const Formula* c = &TRUE;
-  for (FormulaList::const_iterator fi = conjuncts.begin();
-       fi != conjuncts.end(); fi++) {
+  for (FLCI fi = conjuncts.begin(); fi != conjuncts.end(); fi++) {
     c = &(*c && (*fi)->substitution(subst));
   }
   return *c;
@@ -780,8 +777,7 @@ void Conjunction::achievable_predicates(hash_set<string>& preds,
 /* Prints this formula on the given stream. */
 void Conjunction::print(ostream& os) const {
   os << "(and";
-  for (FormulaList::const_iterator i = conjuncts.begin();
-       i != conjuncts.end(); i++) {
+  for (FLCI i = conjuncts.begin(); i != conjuncts.end(); i++) {
     os << ' ' << **i;
   }
   os << ")";
@@ -798,8 +794,7 @@ bool Conjunction::equals(const Formula& f) const {
 /* Returns the negation of this formula. */
 const Formula& Conjunction::negation() const {
   const Formula* d = &FALSE;
-  for (FormulaList::const_iterator fi = conjuncts.begin();
-       fi != conjuncts.end(); fi++) {
+  for (FLCI fi = conjuncts.begin(); fi != conjuncts.end(); fi++) {
     d = &(*d || !**fi);
   }
   return *d;
@@ -816,8 +811,7 @@ const Disjunction& Disjunction::instantiation(size_t id) const {
 const Formula& Disjunction::instantiation(const SubstitutionList& subst,
 					  const Problem& problem) const {
   const Formula* d = &TRUE;
-  for (FormulaList::const_iterator fi = disjuncts.begin();
-       fi != disjuncts.end(); fi++) {
+  for (FLCI fi = disjuncts.begin(); fi != disjuncts.end(); fi++) {
     d = &(*d || (*fi)->instantiation(subst, problem));
   }
   return *d;
@@ -827,8 +821,7 @@ const Formula& Disjunction::instantiation(const SubstitutionList& subst,
 /* Returns this formula subject to the given substitutions. */
 const Formula& Disjunction::substitution(const SubstitutionList& subst) const {
   const Formula* d = &FALSE;
-  for (FormulaList::const_iterator fi = disjuncts.begin();
-       fi != disjuncts.end(); fi++) {
+  for (FLCI fi = disjuncts.begin(); fi != disjuncts.end(); fi++) {
     d = &(*d || (*fi)->substitution(subst));
   }
   return *d;
@@ -852,8 +845,7 @@ void Disjunction::achievable_predicates(hash_set<string>& preds,
 /* Prints this formula on the given stream. */
 void Disjunction::print(ostream& os) const {
   os << "(or";
-  for (FormulaList::const_iterator i = disjuncts.begin();
-       i != disjuncts.end(); i++) {
+  for (FLCI i = disjuncts.begin(); i != disjuncts.end(); i++) {
     os << ' ' << **i;
   }
   os << ")";
@@ -870,8 +862,7 @@ bool Disjunction::equals(const Formula& f) const {
 /* Returns the negation of this formula. */
 const Formula& Disjunction::negation() const {
   const Formula* c = &TRUE;
-  for (FormulaList::const_iterator fi = disjuncts.begin();
-       fi != disjuncts.end(); fi++) {
+  for (FLCI fi = disjuncts.begin(); fi != disjuncts.end(); fi++) {
     c = &(*c && !**fi);
   }
   return *c;

@@ -1,5 +1,5 @@
 /*
- * $Id: domains.cc,v 1.9 2001-08-18 17:01:10 lorens Exp $
+ * $Id: domains.cc,v 1.10 2001-08-18 21:12:28 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -128,8 +128,7 @@ void Effect::print(ostream& os) const {
     os << *add_list.front();
   } else {
     os << "(and";
-    for (FormulaList::const_iterator i = add_list.begin();
-	 i != add_list.end(); i++) {
+    for (FLCI i = add_list.begin(); i != add_list.end(); i++) {
       os << ' ' << **i;
     }
     os << ")";
