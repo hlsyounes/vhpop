@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.h,v 3.7 2002-03-23 19:10:30 lorens Exp $
+ * $Id: plans.h,v 3.8 2002-04-08 09:57:24 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -400,6 +400,7 @@ private:
   bool equivalent(const Plan& p) const;
 
   friend bool operator<(const Plan& p1, const Plan& p2);
+  friend ostream& operator<<(ostream& os, const Plan& p);
 };
 
 /* Less than operator for plans. */

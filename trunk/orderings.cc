@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.cc,v 3.11 2002-04-06 14:12:22 lorens Exp $
+ * $Id: orderings.cc,v 3.12 2002-04-08 09:56:57 lorens Exp $
  */
 #include "orderings.h"
 #include "plans.h"
@@ -391,6 +391,15 @@ bool BinaryOrderings::possibly_after(size_t id1, StepTime t1,
 }
 
 
+/* Checks if the two steps are possibly concurrent. */
+bool BinaryOrderings::possibly_concurrent(size_t id1, StepTime t1,
+					  size_t id2, StepTime t2) const {
+  size_t i = (*id_map1_.find(id1)).second;
+  size_t j = (*id_map1_.find(id2)).second;
+  return !order(i, j) && !order(j, i);
+}
+
+
 /* Returns the the ordering collection with the given additions. */
 const Orderings* BinaryOrderings::refine(const Ordering& new_ordering) const {
   if (new_ordering.before_id() != 0
@@ -661,6 +670,15 @@ bool TemporalOrderings::possibly_after(size_t id1, StepTime t1,
     size_t j = time_node(id2, t2);
     return distance(j + 1, i + 1) > 0.0f;
   }
+}
+
+
+/* Checks if the two steps are possibly concurrent. */
+bool TemporalOrderings::possibly_concurrent(size_t id1, StepTime t1,
+					    size_t id2, StepTime t2) const {
+  size_t i = time_node(id1, t1);
+  size_t j = time_node(id2, t2);
+  return !order(i, j) && !order(j, i);
 }
 
 

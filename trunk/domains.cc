@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.cc,v 3.10 2002-03-25 00:44:40 lorens Exp $
+ * $Id: domains.cc,v 3.11 2002-04-08 09:56:41 lorens Exp $
  */
 #include "bindings.h"
 #include "domains.h"
@@ -75,6 +75,7 @@ void Predicate::print(ostream& os) const {
 Effect::Effect(const AtomList& add_list, const NegationList& del_list,
 	       EffectTime when)
   : forall(VariableList::EMPTY), condition(Formula::TRUE),
+    link_condition(Formula::TRUE),
     add_list(add_list), del_list(del_list), when(when) {
 }
 
@@ -84,6 +85,7 @@ Effect::Effect(const Formula& condition,
 	       const AtomList& add_list, const NegationList& del_list,
 	       EffectTime when)
   : forall(VariableList::EMPTY), condition(condition),
+    link_condition(Formula::TRUE),
     add_list(add_list), del_list(del_list), when(when) {
 }
 
@@ -92,7 +94,7 @@ Effect::Effect(const Formula& condition,
 Effect::Effect(const VariableList& forall,
 	       const AtomList& add_list, const NegationList& del_list,
 	       EffectTime when)
-  : forall(forall), condition(Formula::TRUE),
+  : forall(forall), condition(Formula::TRUE), link_condition(Formula::TRUE),
     add_list(add_list), del_list(del_list), when(when) {
 }
 
@@ -101,7 +103,16 @@ Effect::Effect(const VariableList& forall,
 Effect::Effect(const VariableList& forall, const Formula& condition,
 	       const AtomList& add_list, const NegationList& del_list,
 	       EffectTime when)
-  : forall(forall), condition(condition),
+  : forall(forall), condition(condition), link_condition(Formula::TRUE),
+    add_list(add_list), del_list(del_list), when(when) {}
+
+
+/* Constructs a universally quantified conditional effect with a
+   link condition. */
+Effect::Effect(const VariableList& forall, const Formula& condition,
+	       const AtomList& add_list, const NegationList& del_list,
+	       EffectTime when, const Formula& link_condition)
+  : forall(forall), condition(condition), link_condition(link_condition),
     add_list(add_list), del_list(del_list), when(when) {}
 
 
@@ -109,7 +120,7 @@ Effect::Effect(const VariableList& forall, const Formula& condition,
 const Effect& Effect::instantiation(size_t id) const {
   return *(new Effect(forall.instantiation(id), condition.instantiation(id),
 		      add_list.instantiation(id), del_list.instantiation(id),
-		      when));
+		      when, link_condition.instantiation(id)));
 }
 
 
@@ -119,10 +130,12 @@ void Effect::instantiations(EffectList& effects, const SubstitutionList& subst,
   if (forall.empty()) {
     const Formula& new_condition = condition.instantiation(subst, problem);
     if (!new_condition.contradiction()) {
-      effects.push_back(new Effect(new_condition,
+      effects.push_back(new Effect(forall, new_condition,
 				   add_list.substitution(subst),
 				   del_list.substitution(subst),
-				   when));
+				   when,
+				   link_condition.instantiation(subst,
+								problem)));
     }
   } else {
     SubstitutionList args;
@@ -148,10 +161,12 @@ void Effect::instantiations(EffectList& effects, const SubstitutionList& subst,
       const Formula& new_condition = condition.instantiation(args, problem);
       if (i + 1 == n || new_condition.contradiction()) {
 	if (!new_condition.contradiction()) {
-	  effects.push_back(new Effect(new_condition,
+	  effects.push_back(new Effect(VariableList::EMPTY, new_condition,
 				       add_list.substitution(args),
 				       del_list.substitution(args),
-				       when));
+				       when,
+				       link_condition.instantiation(args,
+								    problem)));
 	}
 	for (int j = i; j >= 0; j--) {
 	  args.pop_back();
@@ -182,7 +197,7 @@ const Effect& Effect::substitution(const SubstitutionList& subst) const {
     return *(new Effect(forall, condition.substitution(subst),
 			add_list.substitution(subst),
 			del_list.substitution(subst),
-			when));
+			when, link_condition.substitution(subst)));
   } else {
     SubstitutionList eff_subst;
     for (SubstListIter si = subst.begin(); si != subst.end(); si++) {
@@ -194,7 +209,7 @@ const Effect& Effect::substitution(const SubstitutionList& subst) const {
     return *(new Effect(forall, condition.substitution(eff_subst),
 			add_list.substitution(eff_subst),
 			del_list.substitution(eff_subst),
-			when));
+			when, link_condition.substitution(eff_subst)));
   }
 }
 
@@ -212,6 +227,12 @@ void Effect::achievable_predicates(hash_set<string>& preds,
 }
 
 
+/* Returns a copy of this effect with a new link condition. */
+const Effect& Effect::new_link_condition(const Formula& cond) const {
+  return *(new Effect(forall, condition, add_list, del_list, when, cond));
+}
+
+
 /* Prints this object on the given stream. */
 void Effect::print(ostream& os) const {
   os << '(';
@@ -226,6 +247,10 @@ void Effect::print(ostream& os) const {
   os << '[';
   if (!condition.tautology()) {
     os << condition;
+  }
+  os << ',';
+  if (!link_condition.tautology()) {
+    os << link_condition;
   }
   os << "->";
   if (add_list.size() + del_list.size() == 1) {
@@ -366,10 +391,8 @@ const EffectList& EffectList::stengthen(const Formula& condition) const {
 	  }
 	}
       }
-      cond = &(*cond && ei.condition);
-      if (cond != &ei.condition) {
-	effects[i] = new Effect(ei.forall, *cond, ei.add_list, ei.del_list,
-				ei.when);
+      if (!cond->tautology()) {
+	effects[i] = &ei.new_link_condition(*cond);
       }
     }
   }
@@ -385,10 +408,9 @@ const EffectList& EffectList::stengthen(const Formula& condition) const {
     } else {
       literal = ei.del_list.back();
     }
-    const Formula& cond = ei.condition && condition.separate(*literal);
-    if (&cond != &ei.condition) {
-      effects[i] = new Effect(ei.forall, cond, ei.add_list, ei.del_list,
-			      ei.when);
+    const Formula& cond = condition.separate(*literal);
+    if (!cond.tautology()) {
+      effects[i] = &ei.new_link_condition(cond);
     }
   }
 

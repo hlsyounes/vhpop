@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 3.17 2002-04-04 17:06:30 lorens Exp $
+ * $Id: plans.cc,v 3.18 2002-04-08 09:57:07 lorens Exp $
  */
 #include "plans.h"
 #include "heuristics.h"
@@ -326,6 +326,9 @@ static void link_threats(const UnsafeChain*& unsafes, size_t& num_unsafes,
       const EffectList& effects = s.effects();
       for (EffectListIter ei = effects.begin(); ei != effects.end(); ei++) {
 	const Effect& e = **ei;
+	if (e.link_condition.contradiction()) {
+	  continue;
+	}
 	StepTime et = end_time(e);
 	if ((link.from_id() == s.id() && lt1 == et)
 	    || orderings.possibly_before(link.from_id(), lt1, s.id(), et)
@@ -372,6 +375,9 @@ static void step_threats(const UnsafeChain*& unsafes, size_t& num_unsafes,
       const EffectList& effects = step.effects();
       for (EffectListIter ei = effects.begin(); ei != effects.end(); ei++) {
 	const Effect& e = **ei;
+	if (e.link_condition.contradiction()) {
+	  continue;
+	}
 	StepTime et = end_time(e);
 	if (orderings.possibly_before(l.from_id(), lt1, step.id(), et)
 	    && orderings.possibly_after(l.to_id(), lt2, step.id(), et)) {
@@ -875,7 +881,8 @@ int Plan::separable(const Unsafe& unsafe) const {
 	}
       }
     }
-    const Formula& effect_cond = unsafe.effect().condition;
+    const Formula& effect_cond =
+      unsafe.effect().condition && unsafe.effect().link_condition;
     if (!effect_cond.tautology()) {
       if (!effect_forall.empty()) {
 	SubstitutionList forall_subst;
@@ -923,7 +930,8 @@ void Plan::separate(PlanList& plans, const Unsafe& unsafe) const {
       }
     }
   }
-  const Formula& effect_cond = unsafe.effect().condition;
+  const Formula& effect_cond =
+    unsafe.effect().condition && unsafe.effect().link_condition;
   if (!effect_cond.tautology()) {
     if (!effect_forall.empty()) {
       SubstitutionList forall_subst;
@@ -1519,8 +1527,8 @@ int Plan::link_possible(size_t step_id, const Action& action,
    */
   const OpenConditionChain* new_open_conds = NULL;
   size_t new_num_open_conds = 0;
-  const Formula* cond_goal = NULL;
-  if (!effect.condition.tautology()) {
+  const Formula* cond_goal = &(effect.condition && effect.link_condition);
+  if (!cond_goal->tautology()) {
     if (!effect_forall.empty()) {
       SubstitutionList forall_subst;
       for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
@@ -1529,9 +1537,7 @@ int Plan::link_possible(size_t step_id, const Action& action,
 	  forall_subst.push_back(subst);
 	}
       }
-      cond_goal = &effect.condition.substitution(forall_subst);
-    } else {
-      cond_goal = &effect.condition;
+      cond_goal = &cond_goal->substitution(forall_subst);
     }
     if (!add_goal(new_open_conds, new_num_open_conds, new_bindings, *cond_goal,
 		  step_id, Reason::DUMMY, true)) {
@@ -1587,8 +1593,8 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
    */
   const OpenConditionChain* new_open_conds = open_conds()->remove(open_cond);
   size_t new_num_open_conds = num_open_conds() - 1;
-  const Formula* cond_goal = NULL;
-  if (!effect.condition.tautology()) {
+  const Formula* cond_goal = &(effect.condition && effect.link_condition);
+  if (!cond_goal->tautology()) {
     if (!effect_forall.empty()) {
       SubstitutionList forall_subst;
       for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
@@ -1597,9 +1603,7 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
 	  forall_subst.push_back(subst);
 	}
       }
-      cond_goal = &effect.condition.substitution(forall_subst);
-    } else {
-      cond_goal = &effect.condition;
+      cond_goal = &cond_goal->substitution(forall_subst);
     }
     if (!add_goal(new_open_conds, new_num_open_conds, new_bindings,
 		  *cond_goal, step.id(), reason)) {
@@ -2139,6 +2143,116 @@ struct StepSorter {
 };
 
 
+/* Find interfering steps. */
+static const Orderings&
+disable_interference(const vector<const Step*>& ordered_steps,
+		     const LinkChain* links,
+		     const Orderings& orderings, const Bindings& bindings) {
+  const Orderings* new_orderings = &orderings;
+  size_t n = ordered_steps.size();
+  for (size_t i = 0; i < n; i++) {
+    for (size_t j = i + 1; j < n; j++) {
+      const Step& si = *ordered_steps[i];
+      const Step& sj = *ordered_steps[j];
+      if (new_orderings->possibly_concurrent(si.id(), STEP_START,
+					     sj.id(), STEP_START)
+	  || new_orderings->possibly_concurrent(si.id(), STEP_START,
+						sj.id(), STEP_END)
+	  || new_orderings->possibly_concurrent(si.id(), STEP_END,
+						sj.id(), STEP_START)
+	  || new_orderings->possibly_concurrent(si.id(), STEP_END,
+						sj.id(), STEP_END)) {
+	cout << si.id() << " and " << sj.id() << " possibly concurrent"
+	     << endl;
+	bool interference = false;
+	for (const LinkChain* lc = links;
+	     lc != NULL && !interference; lc = lc->tail) {
+	  const Link& l = lc->head;
+	  StepTime lt = end_time(l.condition());
+	  if (l.to_id() == sj.id()) {
+	    // is effect of si interfering with link condition?
+	    const EffectList& effects = si.effects();
+	    for (EffectListIter ei = effects.begin();
+		 ei != effects.end() && !interference; ei++) {
+	      const Effect e = **ei;
+	      if (e.link_condition.contradiction()) {
+		// effect could interfere with condition
+		StepTime et = end_time(e);
+		if (new_orderings->possibly_concurrent(si.id(), et,
+						       l.to_id(), lt)) {
+		  if (typeid(l.condition()) == typeid(Negation)) {
+		    const AtomList& adds = e.add_list;
+		    for (AtomListIter fi = adds.begin();
+			 fi != adds.end() && !interference; fi++) {
+		      const Atom& atom = **fi;
+		      if (bindings.affects(atom, l.condition())) {
+			interference = true;
+		      }
+		    }
+		  } else {
+		    const NegationList& dels = e.del_list;
+		    for (NegationListIter fi = dels.begin();
+			 fi != dels.end() && !interference; fi++) {
+		      const Negation& neg = **fi;
+		      if (bindings.affects(neg, l.condition())) {
+			interference = true;
+		      }
+		    }
+		  }
+		}
+	      }
+	    }
+	  } else if (l.to_id() == si.id()) {
+	    // is effect of sj interfering with link condition?
+	    const EffectList& effects = sj.effects();
+	    for (EffectListIter ei = effects.begin();
+		 ei != effects.end() && !interference; ei++) {
+	      const Effect e = **ei;
+	      if (e.link_condition.contradiction()) {
+		// effect could interfere with condition
+		StepTime et = end_time(e);
+		if (new_orderings->possibly_concurrent(sj.id(), et,
+						       l.to_id(), lt)) {
+		  if (typeid(l.condition()) == typeid(Negation)) {
+		    const AtomList& adds = e.add_list;
+		    for (AtomListIter fi = adds.begin();
+			 fi != adds.end() && !interference; fi++) {
+		      const Atom& atom = **fi;
+		      if (bindings.affects(atom, l.condition())) {
+			interference = true;
+		      }
+		    }
+		  } else {
+		    const NegationList& dels = e.del_list;
+		    for (NegationListIter fi = dels.begin();
+			 fi != dels.end() && !interference; fi++) {
+		      const Negation& neg = **fi;
+		      if (bindings.affects(neg, l.condition())) {
+			interference = true;
+		      }
+		    }
+		  }
+		}
+	      }
+	    }
+	  }
+	}
+	if (interference) {
+	  cout << si.id() << " and " << sj.id() << " interfering" << endl;
+	  // if durative, then order both start and end relative eachother
+	  // ...
+	  // otherwise just add ordering constraint between si and sj
+	  new_orderings = new_orderings->refine(Ordering(si.id(), STEP_START,
+							 sj.id(), STEP_START,
+							 Reason::DUMMY));
+	}
+      }
+    }
+  }
+  return *new_orderings;
+}
+
+
 /* Output operator for plans. */
 ostream& operator<<(ostream& os, const Plan& p) {
   const Step* init = NULL;
@@ -2161,6 +2275,16 @@ ostream& operator<<(ostream& os, const Plan& p) {
   hash_map<size_t, float> end_dist;
   float max_dist = p.orderings().goal_distances(start_dist, end_dist) + 1.0f;
   sort(ordered_steps.begin(), ordered_steps.end(), StepSorter(start_dist));
+  // make sure nothing scheduled at the same time is interfering
+  const Orderings& new_orderings =
+    disable_interference(ordered_steps, p.links(),
+			 p.orderings(), *p.bindings_);
+  if (&new_orderings != &p.orderings()) {
+    start_dist.clear();
+    end_dist.clear();
+    max_dist = new_orderings.goal_distances(start_dist, end_dist) + 1.0f;
+    sort(ordered_steps.begin(), ordered_steps.end(), StepSorter(start_dist));
+  }
   if (verbosity < 2) {
     if (verbosity > 0) {
       os << ";Number of steps: " << p.num_steps();
@@ -2180,6 +2304,7 @@ ostream& operator<<(ostream& os, const Plan& p) {
       if (s.action()->durative) {
 	os << '[' << (start_dist[s.id()] - end_dist[s.id()]) << ']';
       }
+      os << s.id();
     }
   } else {
     os << "Initial  :";
