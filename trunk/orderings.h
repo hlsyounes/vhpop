@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.h,v 6.3 2003-08-28 15:33:31 lorens Exp $
+ * $Id: orderings.h,v 6.4 2003-09-08 21:28:07 lorens Exp $
  */
 #ifndef ORDERINGS_H
 #define ORDERINGS_H
@@ -93,6 +93,9 @@ private:
  * Collection of ordering constraints.
  */
 struct Orderings {
+  /* Minimum distance between two ordered steps. */
+  static float threshold;
+
   /* Register use of this object. */
   static void register_use(const Orderings* o) {
     if (o != NULL) {
@@ -126,13 +129,18 @@ struct Orderings {
 
   /* Returns the ordering collection with the given additions. */
   virtual const Orderings* refine(const Ordering& new_ordering,
-				  const Step& new_step) const = 0;
+				  const Step& new_step,
+				  const PlanningGraph* pg,
+				  const Bindings* bindings) const = 0;
 
   /* Fills the given tables with distances for each step from the
      start step, and returns the greatest distance. */
-  virtual float
-  schedule(std::map<size_t, float>& start_times,
-	   std::map<size_t, float>& end_times) const = 0;
+  virtual float schedule(std::map<size_t, float>& start_times,
+			 std::map<size_t, float>& end_times) const = 0;
+
+  /* Returns the makespan of this ordering collection. */
+  virtual float makespan(const std::map<std::pair<size_t, StepTime>,
+			 float>& min_times) const = 0;
 
 protected:
   /* Constructs an empty ordering collection. */
@@ -187,12 +195,18 @@ struct BinaryOrderings : public Orderings {
 
   /* Returns the ordering collection with the given additions. */
   virtual const BinaryOrderings* refine(const Ordering& new_ordering,
-					 const Step& new_step) const;
+					const Step& new_step,
+					const PlanningGraph* pg,
+					const Bindings* bindings) const;
 
   /* Fills the given tables with distances for each step from the
      start step, and returns the greatest distance. */
   virtual float schedule(std::map<size_t, float>& start_times,
 			 std::map<size_t, float>& end_times) const;
+
+  /* Returns the makespan of this ordering collection. */
+  virtual float makespan(const std::map<std::pair<size_t, StepTime>,
+			 float>& min_times) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -206,9 +220,15 @@ private:
   /* Constructs a copy of this ordering collection. */
   BinaryOrderings(const BinaryOrderings& o);
 
-  /* Schedules the given instruction. */
+  /* Schedules the given instruction with the given constraints. */
   float schedule(std::map<size_t, float>& start_times,
 		 std::map<size_t, float>& end_times, size_t step_id) const;
+
+  /* Schedules the given instruction with the given constraints. */
+  float schedule(std::map<size_t, float>& start_times,
+		 std::map<size_t, float>& end_times, size_t step_id,
+		 const std::map<std::pair<size_t, StepTime>,
+		 float>& min_times) const;
 
   /* Returns true iff the first step is ordered before the second step. */
   bool before(size_t id1, size_t id2) const;
@@ -232,9 +252,6 @@ struct FloatVector;
  * Collection of temporal ordering constraints.
  */
 struct TemporalOrderings : public Orderings {
-  /* Minimum distance between two ordered steps. */
-  static float threshold;
-
   /* Constructs an empty ordering collection. */
   TemporalOrderings();
 
@@ -249,17 +266,27 @@ struct TemporalOrderings : public Orderings {
   virtual bool possibly_after(size_t id1, StepTime t1,
 			      size_t id2, StepTime t2) const;
 
+  /* Returns the the ordering collection with the given additions. */
+  const TemporalOrderings* refine(size_t step_id,
+				  float min_start, float min_end) const;
+
   /* Returns the ordering collection with the given addition. */
   virtual const TemporalOrderings* refine(const Ordering& new_ordering) const;
 
   /* Returns the ordering collection with the given additions. */
   virtual const TemporalOrderings* refine(const Ordering& new_ordering,
-					  const Step& new_step) const;
+					  const Step& new_step,
+					  const PlanningGraph* pg,
+					  const Bindings* bindings) const;
 
   /* Fills the given tables with distances for each step from the
      start step, and returns the greatest distance. */
   virtual float schedule(std::map<size_t, float>& start_times,
 			 std::map<size_t, float>& end_times) const;
+
+  /* Returns the makespan of this ordering collection. */
+  virtual float makespan(const std::map<std::pair<size_t, StepTime>,
+			 float>& min_times) const;
 
 protected:
   /* Prints this opbject on the given stream. */
@@ -271,10 +298,6 @@ private:
 
   /* Constructs a copy of this ordering collection. */
   TemporalOrderings(const TemporalOrderings& o);
-
-  /* Schedules the given instruction. */
-  float schedule(std::map<size_t, float>& start_times,
-		 std::map<size_t, float>& end_times, size_t step_id) const;
 
   /* Returns the time node for the given step. */
   size_t time_node(size_t id, StepTime t) const {
@@ -290,7 +313,7 @@ private:
 
   /* Updates the transitive closure given a new ordering constraint. */
   bool fill_transitive(std::map<size_t, FloatVector*>& own_data,
-		       const Ordering& ordering);
+		       size_t i, size_t j, float dist);
 };
 
 
