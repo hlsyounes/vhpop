@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 6.9 2003-09-05 16:28:34 lorens Exp $
+ * $Id: plans.cc,v 6.10 2003-09-08 21:29:08 lorens Exp $
  */
 #include "mathport.h"
 #include "plans.h"
@@ -1020,11 +1020,29 @@ int Plan::separate(PlanList& plans, const Unsafe& unsafe,
   if (added) {
     const Bindings* bindings = bindings_->add(new_bindings, test_only);
     if (bindings != NULL) {
-      if (test_only) {
-	plans.push_back(new Plan(steps(), num_steps(), links(), num_links(),
-				 orderings(), *bindings,
-				 unsafes()->remove(unsafe), num_unsafes() - 1,
-				 new_open_conds, new_num_open_conds, this));
+      if (!test_only) {
+	const Orderings* new_orderings = orderings_;
+	if (!goal->tautology()) {
+	  const TemporalOrderings* to =
+	    dynamic_cast<const TemporalOrderings*>(new_orderings);
+	  if (to != NULL) {
+	    HeuristicValue h, hs;
+	    goal->heuristic_value(h, hs, *planning_graph, unsafe.step_id(),
+				  params->ground_actions ? NULL : bindings);
+	    new_orderings = to->refine(unsafe.step_id(),
+				       hs.makespan(), h.makespan());
+	  }
+	}
+	if (new_orderings != NULL) {
+	  plans.push_back(new Plan(steps(), num_steps(), links(), num_links(),
+				   *new_orderings, *bindings,
+				   unsafes()->remove(unsafe),
+				   num_unsafes() - 1,
+				   new_open_conds, new_num_open_conds, this));
+	} else {
+	  Bindings::register_use(bindings);
+	  Bindings::unregister_use(bindings);
+	}
       }
       count++;
     }
@@ -1597,7 +1615,23 @@ int Plan::make_link(PlanList& plans, const Step& step, const Effect& effect,
     StepTime gt = start_time(open_cond.when());
     const Orderings* new_orderings =
       orderings().refine(Ordering(step.id(), et, open_cond.step_id(), gt),
-			 step);
+			 step, planning_graph,
+			 params->ground_actions ? NULL : bindings);
+    if (new_orderings != NULL && !cond_goal->tautology()) {
+      const TemporalOrderings* to =
+	dynamic_cast<const TemporalOrderings*>(new_orderings);
+      if (to != NULL) {
+	HeuristicValue h, hs;
+	cond_goal->heuristic_value(h, hs, *planning_graph, step.id(),
+				   params->ground_actions ? NULL : bindings);
+	const Orderings* tmp_orderings = to->refine(step.id(), hs.makespan(),
+						    h.makespan());
+	if (tmp_orderings != new_orderings) {
+	  delete new_orderings;
+	  new_orderings = tmp_orderings;
+	}
+      }
+    }
     if (new_orderings == NULL) {
       if (bindings != bindings_) {
 	delete bindings;
@@ -1771,7 +1805,7 @@ std::ostream& operator<<(std::ostream& os, const Plan& p) {
   }
   std::map<size_t, float> start_times;
   std::map<size_t, float> end_times;
-  p.orderings().schedule(start_times, end_times);
+  float makespan = p.orderings().schedule(start_times, end_times);
   sort(ordered_steps.begin(), ordered_steps.end(), StepSorter(start_times));
   /*
    * Now make sure that nothing scheduled at the same time is
@@ -1792,12 +1826,15 @@ std::ostream& operator<<(std::ostream& os, const Plan& p) {
     if (&new_orderings != &p.orderings()) {
       start_times.clear();
       end_times.clear();
-      new_orderings.schedule(start_times, end_times);
+      makespan = new_orderings.schedule(start_times, end_times);
       sort(ordered_steps.begin(), ordered_steps.end(),
 	   StepSorter(start_times));
       Orderings::register_use(&new_orderings);
       Orderings::unregister_use(&new_orderings);
     }
+  }
+  if (verbosity > 0) {
+    std::cerr << "Makespan: " << makespan << std::endl;
   }
   if (verbosity < 2) {
     for (std::vector<const Step*>::const_iterator si = ordered_steps.begin();
