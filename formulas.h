@@ -2,7 +2,7 @@
 /*
  * Formulas.
  *
- * $Id: formulas.h,v 1.19 2001-10-06 03:56:26 lorens Exp $
+ * $Id: formulas.h,v 1.20 2001-10-06 04:24:36 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -256,6 +256,8 @@ struct hash<const Formula*> {
 
 struct Problem;
 struct FormulaList;
+struct AtomList;
+
 
 /*
  * Abstract formula.
@@ -283,7 +285,7 @@ struct Formula : public Printable {
   }
 
   /* Fills the provided lists with goals achievable by this formula. */
-  virtual void achievable_goals(FormulaList& goals,
+  virtual void achievable_goals(AtomList& goals,
 				FormulaList& neg_goals) const {
   }
 
@@ -372,7 +374,7 @@ struct FormulaList : public gc, vector<const Formula*, container_alloc> {
 
   /* Fills the provided lists with goals achievable by the formulas in
      this list. */
-  void achievable_goals(FormulaList& goals, FormulaList& neg_goals) const;
+  void achievable_goals(AtomList& goals, FormulaList& neg_goals) const;
 
   /* Fills the provided sets with predicates achievable by the
      formulas in this list. */
@@ -425,7 +427,7 @@ struct Atom : public Formula {
 		    Heuristic h) const;
 
   /* Fills the provided lists with goals achievable by this formula. */
-  virtual void achievable_goals(FormulaList& goals,
+  virtual void achievable_goals(AtomList& goals,
 				FormulaList& neg_goals) const;
 
   /* Fills the provided sets with predicates achievable by this
@@ -494,7 +496,7 @@ struct Negation : public Formula {
   virtual const Formula& substitution(const SubstitutionList& subst) const;
 
   /* Fills the provided lists with goals achievable by this formula. */
-  virtual void achievable_goals(FormulaList& goals,
+  virtual void achievable_goals(AtomList& goals,
 				FormulaList& neg_goals) const;
 
   /* Fills the provided sets with predicates achievable by this
@@ -636,7 +638,7 @@ struct Conjunction : public Formula {
 		    Heuristic h) const;
 
   /* Fills the provided lists with goals achievable by this formula. */
-  virtual void achievable_goals(FormulaList& goals,
+  virtual void achievable_goals(AtomList& goals,
 				FormulaList& neg_goals) const;
 
   /* Fills the provided sets with predicates achievable by this
@@ -691,7 +693,7 @@ struct Disjunction : public Formula {
 		    Heuristic h) const;
 
   /* Fills the provided lists with goals achievable by this formula. */
-  virtual void achievable_goals(FormulaList& goals,
+  virtual void achievable_goals(AtomList& goals,
 				FormulaList& neg_goals) const;
 
   /* Fills the provided sets with predicates achievable by this

@@ -1,5 +1,5 @@
 /*
- * $Id: formulas.cc,v 1.14 2001-10-06 03:56:15 lorens Exp $
+ * $Id: formulas.cc,v 1.15 2001-10-06 04:24:30 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -461,7 +461,7 @@ FormulaList::substitution(const SubstitutionList& subst) const {
 
 /* Fills the provided lists with goals achievable by the formulas in
    this list. */
-void FormulaList::achievable_goals(FormulaList& goals,
+void FormulaList::achievable_goals(AtomList& goals,
 				   FormulaList& neg_goals) const {
   for (const_iterator i = begin(); i != end(); i++) {
     (*i)->achievable_goals(goals, neg_goals);
@@ -570,8 +570,7 @@ Cost Atom::cost(const hash_map<const Formula*, Cost>& atom_cost,
 
 
 /* Fills the provided lists with goals achievable by this formula. */
-void Atom::achievable_goals(FormulaList& goals,
-			    FormulaList& neg_goals) const {
+void Atom::achievable_goals(AtomList& goals, FormulaList& neg_goals) const {
   goals.push_back(this);
 }
 
@@ -668,7 +667,7 @@ const Formula& Negation::substitution(const SubstitutionList& subst) const {
 
 
 /* Fills the provided lists with goals achievable by this formula. */
-void Negation::achievable_goals(FormulaList& goals,
+void Negation::achievable_goals(AtomList& goals,
 				FormulaList& neg_goals) const {
   neg_goals.push_back(this);
 }
@@ -886,7 +885,7 @@ Cost Conjunction::cost(const hash_map<const Formula*, Cost>& atom_cost,
 
 
 /* Fills the provided lists with goals achievable by this formula. */
-void Conjunction::achievable_goals(FormulaList& goals,
+void Conjunction::achievable_goals(AtomList& goals,
 				   FormulaList& neg_goals) const {
   conjuncts.achievable_goals(goals, neg_goals);
 }
@@ -976,7 +975,7 @@ Cost Disjunction::cost(const hash_map<const Formula*, Cost>& atom_cost,
 
 
 /* Fills the provided lists with goals achievable by this formula. */
-void Disjunction::achievable_goals(FormulaList& goals,
+void Disjunction::achievable_goals(AtomList& goals,
 				   FormulaList& neg_goals) const {
   disjuncts.achievable_goals(goals, neg_goals);
 }
