@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 2.1 2002-02-07 19:05:29 lorens Exp $
+ * $Id: plans.cc,v 2.2 2002-02-08 05:16:00 lorens Exp $
  */
 #include <queue>
 #include <algorithm>
@@ -626,6 +626,18 @@ bool Plan::less(const LessThanComparable& o) const {
 }
 
 
+struct StepSorter {
+  StepSorter(hash_map<size_t, size_t>& dist)
+    : dist(dist) {}
+
+  bool operator()(const Step* s1, const Step* s2) const {
+    return dist[s1->id] > dist[s2->id];
+  }
+
+  hash_map<size_t, size_t>& dist;
+};
+
+
 /* Prints this object on the given stream. */
 void Plan::print(ostream& os) const {
   const Step* init = NULL;
@@ -640,20 +652,24 @@ void Plan::print(ostream& os) const {
       goal = &step;
     } else if (seen_steps.find(step.id) == seen_steps.end()) {
       seen_steps.insert(step.id);
-      StepList::iterator si = ordered_steps.begin();
-      for (; si != ordered_steps.end(); si++) {
-	if (orderings.before(step.id, (*si)->id)) {
-	  break;
-	}
-      }
-      ordered_steps.insert(si, &step);
+      ordered_steps.push_back(&step);
     }
   }
+  hash_map<size_t, size_t> dist;
+  size_t max_dist = orderings.goal_distances(dist) + 1;
+  sort(ordered_steps.begin(), ordered_steps.end(), StepSorter(dist));
   if (verbosity < 2) {
-    os << num_steps;
+    if (verbosity > 0) {
+      os << "Number of steps: " << num_steps;
+    }
     for (StepListIter si = ordered_steps.begin();
 	 si != ordered_steps.end(); si++) {
-      os << ' ' << (*si)->step_formula()->instantiation(bindings_);
+      if (verbosity > 0 || si != ordered_steps.begin()) {
+	os << endl;
+      }
+      const Step& s = **si;
+      os << (max_dist - dist[s.id]) << ": "
+	 << s.step_formula()->instantiation(bindings_);
     }
   } else {
     os << "Initial  :";
