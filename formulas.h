@@ -2,7 +2,7 @@
 /*
  * Formulas.
  *
- * $Id: formulas.h,v 1.23 2001-10-07 00:04:31 lorens Exp $
+ * $Id: formulas.h,v 1.24 2001-10-08 01:57:35 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -217,7 +217,7 @@ struct Problem;
 /*
  * Abstract formula.
  */
-struct Formula : public EqualityComparable, public Printable, public gc {
+struct Formula : public Hashable, public Printable, public gc {
   /* The true formula. */
   static const Formula& TRUE;
   /* The false formula. */
@@ -245,16 +245,15 @@ struct Formula : public EqualityComparable, public Printable, public gc {
   virtual bool equivalent(const Formula& f) const = 0;
 
 protected:
-  /* Returns the negation of this formula. */
-  virtual const Formula& negation() const = 0;
-
-  /* Returns the hash value of this formula. */
+  /* Returns the hash value of this object. */
   virtual size_t hash_value() const {
     return 0;
   }
 
+  /* Returns the negation of this formula. */
+  virtual const Formula& negation() const = 0;
+
   friend const Formula& operator!(const Formula& f);
-  friend struct hash<Formula>;
 };
 
 /* Negation operator for formulas. */
@@ -267,15 +266,6 @@ const Formula& operator&&(const Formula& f1, const Formula& f2);
 
 /* Disjunction operator for formulas. */
 const Formula& operator||(const Formula& f1, const Formula& f2);
-    
-/*
- * Hash function object for formulas.
- */
-struct hash<Formula> {
-  size_t operator()(const Formula& f) const {
-    return f.hash_value();
-  }
-};
 
 
 /*
@@ -349,14 +339,14 @@ protected:
   /* Checks if this object equals the given object. */
   virtual bool equals(const EqualityComparable& o) const;
 
+  /* Returns the hash value of this object. */
+  virtual size_t hash_value() const;
+
   /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
 
   /* Returns the negation of this formula. */
   virtual const Formula& negation() const;
-
-  /* Returns the hash value of this formula. */
-  virtual size_t hash_value() const;
 };
 
 
@@ -414,14 +404,14 @@ protected:
   /* Checks if this object equals the given object. */
   virtual bool equals(const EqualityComparable& o) const;
 
+  /* Returns the hash value of this object. */
+  virtual size_t hash_value() const;
+
   /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
 
   /* Returns the negation of this formula. */
   virtual const Formula& negation() const;
-
-  /* Returns the hash value of this formula. */
-  virtual size_t hash_value() const;
 };
 
 
