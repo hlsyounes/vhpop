@@ -1,7 +1,7 @@
 /*
  * Main program.
  *
- * $Id: vhpop.cc,v 1.22 2002-01-04 20:25:58 lorens Exp $
+ * $Id: vhpop.cc,v 1.23 2002-01-05 13:48:39 lorens Exp $
  */
 #include <iostream>
 #include <cstdio>
@@ -64,18 +64,14 @@ static void display_help() {
        << "  -d,    --domain-constraints" << endl
        << "\t\t\tuse parameter domain constraints" << endl
        << "  -f f,  --flaw-order=f\t"
-       << "use flaw selection order f;" << endl
-       << "\t\t\t  ordering schemes can be combined by repeating the option"
-       << endl
+       << "use flaw selection order f" << endl
        << "  -g,    --ground-actions" << endl
-       << "\t\t\tonly use ground actions" << endl
+       << "\t\t\tuse ground actions" << endl
        << "  -h h,  --heuristic=h\t"
-       << "use heuristic h;" << endl
-       << "\t\t\t  h can be `MAX', `SUM' (default), `SUMR', `OC', or `UCPOP'"
-       << endl
+       << "use heuristic h to rank plans" << endl
        << "  -l l,  --limit=l\t"
        << "search no more than l plans" << endl
-       << "  -s s,  --search-algorithm" << endl
+       << "  -s s,  --search-algorithm=s" << endl
        << "\t\t\tuse search algorithm s" << endl
        << "  -t,    --transformational" << endl
        << "\t\t\tuse transformational planner" << endl
@@ -97,7 +93,7 @@ static void display_help() {
        << "display this help and exit" << endl
        << "  file ...\t\t"
        << "files containing domain and problem descriptions;" << endl
-       << "\t\t\t  if none given, use standard input" << endl;
+       << "\t\t\t  if none, descriptions are read from standard input" << endl;
 }
 
 
