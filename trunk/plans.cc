@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 3.21 2002-06-29 17:18:45 lorens Exp $
+ * $Id: plans.cc,v 3.22 2002-06-30 14:57:12 lorens Exp $
  */
 #include <queue>
 #include <stack>
@@ -107,7 +107,7 @@ Step::Step(size_t id, const EffectList& effects, const Reason& reason)
 Step::Step(size_t id, const Action& action, const Reason& reason)
   : id_(id), action_(&action),
     effects_(&((typeid(action) == typeid(ActionSchema))
-	       ? action.effects.instantiation(id) : action.effects)) {
+	       ? action.effects().instantiation(id) : action.effects())) {
 #ifdef TRANSFORMATIONAL
   reason_ = &reason;
 #endif
@@ -320,7 +320,7 @@ static void link_threats(const UnsafeChain*& unsafes, size_t& num_unsafes,
       for (EffectListIter ei = effects.begin(); ei != effects.end(); ei++) {
 	const Effect& e = **ei;
 	if (!domain->requirements.durative_actions
-	    && e.link_condition.contradiction()) {
+	    && e.link_condition().contradiction()) {
 	  continue;
 	}
 	StepTime et = end_time(e);
@@ -328,7 +328,7 @@ static void link_threats(const UnsafeChain*& unsafes, size_t& num_unsafes,
 	    || orderings.possibly_before(link.from_id(), lt1, s.id(), et)
 	    || orderings.possibly_after(link.to_id(), lt2, s.id(), et)) {
 	  if (typeid(link.condition()) == typeid(Negation)) {
-	    const AtomList& adds = e.add_list;
+	    const AtomList& adds = e.add_list();
 	    for (AtomListIter fi = adds.begin(); fi != adds.end(); fi++) {
 	      const Atom& atom = **fi;
 	      if (bindings.affects(atom, link.condition())) {
@@ -338,7 +338,7 @@ static void link_threats(const UnsafeChain*& unsafes, size_t& num_unsafes,
 	      }
 	    }
 	  } else if (!(link.from_id() == s.id() && lt1 == et)) {
-	    const NegationList& dels = e.del_list;
+	    const NegationList& dels = e.del_list();
 	    for (NegationListIter fi = dels.begin(); fi != dels.end(); fi++) {
 	      const Negation& neg = **fi;
 	      if (bindings.affects(neg, link.condition())) {
@@ -370,14 +370,14 @@ static void step_threats(const UnsafeChain*& unsafes, size_t& num_unsafes,
       for (EffectListIter ei = effects.begin(); ei != effects.end(); ei++) {
 	const Effect& e = **ei;
 	if (!domain->requirements.durative_actions
-	    && e.link_condition.contradiction()) {
+	    && e.link_condition().contradiction()) {
 	  continue;
 	}
 	StepTime et = end_time(e);
 	if (orderings.possibly_before(l.from_id(), lt1, step.id(), et)
 	    && orderings.possibly_after(l.to_id(), lt2, step.id(), et)) {
 	  if (typeid(l.condition()) == typeid(Negation)) {
-	    const AtomList& adds = e.add_list;
+	    const AtomList& adds = e.add_list();
 	    for (AtomListIter fi = adds.begin(); fi != adds.end(); fi++) {
 	      const Atom& atom = **fi;
 	      if (bindings.affects(atom, l.condition())) {
@@ -387,7 +387,7 @@ static void step_threats(const UnsafeChain*& unsafes, size_t& num_unsafes,
 	      }
 	    }
 	  } else {
-	    const NegationList& dels = e.del_list;
+	    const NegationList& dels = e.del_list();
 	    for (NegationListIter fi = dels.begin(); fi != dels.end(); fi++) {
 	      const Negation& neg = **fi;
 	      if (bindings.affects(neg, l.condition())) {
@@ -868,7 +868,7 @@ int Plan::separable(const Unsafe& unsafe) const {
 				       unsafe.step_id(), et)))
       && bindings_->affects(unifier,
 			    unsafe.effect_add(), link.condition())) {
-    const VariableList& effect_forall = unsafe.effect().forall;
+    const VariableList& effect_forall = unsafe.effect().forall();
     const Formula* goal = &Formula::FALSE;
     for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
       const Substitution& subst = *si;
@@ -880,7 +880,7 @@ int Plan::separable(const Unsafe& unsafe) const {
       }
     }
     const Formula& effect_cond =
-      unsafe.effect().condition && unsafe.effect().link_condition;
+      unsafe.effect().condition() && unsafe.effect().link_condition();
     if (!effect_cond.tautology()) {
       if (!effect_forall.empty()) {
 	SubstitutionList forall_subst;
@@ -917,7 +917,7 @@ int Plan::separable(const Unsafe& unsafe) const {
 void Plan::separate(PlanList& plans, const Unsafe& unsafe) const {
   SubstitutionList unifier;
   bindings_->affects(unifier, unsafe.effect_add(), unsafe.link().condition());
-  const VariableList& effect_forall = unsafe.effect().forall;
+  const VariableList& effect_forall = unsafe.effect().forall();
   const Formula* goal = &Formula::FALSE;
   for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
     const Substitution& subst = *si;
@@ -929,7 +929,7 @@ void Plan::separate(PlanList& plans, const Unsafe& unsafe) const {
     }
   }
   const Formula& effect_cond =
-    unsafe.effect().condition && unsafe.effect().link_condition;
+    unsafe.effect().condition() && unsafe.effect().link_condition();
   if (!effect_cond.tautology()) {
     if (!effect_forall.empty()) {
       SubstitutionList forall_subst;
@@ -1044,14 +1044,14 @@ bool Plan::unsafe_open_condition(const OpenCondition& open_cond) const {
 	  if (orderings().possibly_before(s.id(), et,
 					  open_cond.step_id(), gt)) {
 	    if (typeid(goal) == typeid(Negation)) {
-	      const AtomList& adds = e.add_list;
+	      const AtomList& adds = e.add_list();
 	      for (AtomListIter fi = adds.begin(); fi != adds.end(); fi++) {
 		if (bindings_->affects(**fi, goal)) {
 		  return true;
 		}
 	      }
 	    } else {
-	      const NegationList& dels = e.del_list;
+	      const NegationList& dels = e.del_list();
 	      for (NegationListIter fi = dels.begin();
 		   fi != dels.end(); fi++) {
 		if (bindings_->affects(**fi, goal)) {
@@ -1234,7 +1234,7 @@ bool Plan::addable_steps(int& refinements, const Literal& literal,
   if (!actions.empty()) {
     for (ActionListIter ai = actions.begin(); ai != actions.end(); ai++) {
       const Action& action = **ai;
-      if (!count_new_links(count, high_step_id_ + 1, action, action.effects,
+      if (!count_new_links(count, high_step_id_ + 1, action, action.effects(),
 			   literal, step_id, limit)) {
 	return false;
       }
@@ -1324,7 +1324,7 @@ bool Plan::count_new_links(int& count, size_t step_id, const Action& action,
     if (step_id > high_step_id_
 	|| orderings().possibly_before(step_id, et, oc_step_id, gt)) {
       if (typeid(goal) == typeid(Atom)) {
-	const AtomList& adds = effect.add_list;
+	const AtomList& adds = effect.add_list();
 	for (AtomListIter gi = adds.begin(); gi != adds.end(); gi++) {
 	  SubstitutionList mgu;
 	  if (bindings_->unify(mgu, goal, **gi)) {
@@ -1335,7 +1335,7 @@ bool Plan::count_new_links(int& count, size_t step_id, const Action& action,
 	  }
 	}
       } else {
-	const NegationList& dels = effect.del_list;
+	const NegationList& dels = effect.del_list();
 	for (NegationListIter gi = dels.begin(); gi != dels.end(); gi++) {
 	  SubstitutionList mgu;
 	  if (bindings_->unify(mgu, goal, **gi)) {
@@ -1374,7 +1374,7 @@ void Plan::new_link(PlanList& plans, const Step& step, const Literal& literal,
       const Link& link = new_links->head;
       const Reason& reason = EstablishReason::make(*params, link);
       if (typeid(goal) == typeid(Atom)) {
-	const AtomList& adds = effect.add_list;
+	const AtomList& adds = effect.add_list();
 	for (AtomListIter gi = adds.begin(); gi != adds.end(); gi++) {
 	  SubstitutionList mgu;
 	  if (bindings_->unify(mgu, goal, **gi)) {
@@ -1386,7 +1386,7 @@ void Plan::new_link(PlanList& plans, const Step& step, const Literal& literal,
 	  }
 	}
       } else {
-	const NegationList& dels = effect.del_list;
+	const NegationList& dels = effect.del_list();
 	for (NegationListIter gi = dels.begin(); gi != dels.end(); gi++) {
 	  SubstitutionList mgu;
 	  if (bindings_->unify(mgu, goal, **gi)) {
@@ -1412,7 +1412,7 @@ int Plan::cw_link_possible(const EffectList& effects,
   const Formula* goals = &Formula::TRUE;
   for (EffectListIter ei = effects.begin(); ei != effects.end(); ei++) {
     const Effect& effect = **ei;
-    const AtomList& adds = effect.add_list;
+    const AtomList& adds = effect.add_list();
     for (AtomListIter gi = adds.begin(); gi != adds.end(); gi++) {
       SubstitutionList mgu;
       if (bindings_->unify(mgu, goal, **gi)) {
@@ -1454,7 +1454,7 @@ void Plan::new_cw_link(PlanList& plans, const Step& step,
   const EffectList& effs = step.effects();
   for (EffectListIter ei = effs.begin(); ei != effs.end(); ei++) {
     const Effect& effect = **ei;
-    const AtomList& adds = effect.add_list;
+    const AtomList& adds = effect.add_list();
     for (AtomListIter gi = adds.begin(); gi != adds.end(); gi++) {
       SubstitutionList mgu;
       if (bindings_->unify(mgu, goal, **gi)) {
@@ -1509,7 +1509,7 @@ int Plan::link_possible(size_t step_id, const Action& action,
   /*
    * Add bindings needed to unify effect and goal.
    */
-  const VariableList& effect_forall = effect.forall;
+  const VariableList& effect_forall = effect.forall();
   BindingList new_bindings;
   for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
     const Substitution& subst = *si;
@@ -1523,7 +1523,7 @@ int Plan::link_possible(size_t step_id, const Action& action,
    */
   const OpenConditionChain* new_open_conds = NULL;
   size_t new_num_open_conds = 0;
-  const Formula* cond_goal = &(effect.condition && effect.link_condition);
+  const Formula* cond_goal = &(effect.condition() && effect.link_condition());
   if (!cond_goal->tautology()) {
     if (!effect_forall.empty()) {
       SubstitutionList forall_subst;
@@ -1547,7 +1547,7 @@ int Plan::link_possible(size_t step_id, const Action& action,
   const Bindings* bindings = bindings_;
   if (step_id > high_step_id_) {
     if (!add_goal(new_open_conds, new_num_open_conds, new_bindings,
-		  action.precondition, step_id, Reason::DUMMY, true)) {
+		  action.precondition(), step_id, Reason::DUMMY, true)) {
       return 0;
     }
     if (params->domain_constraints) {
@@ -1575,7 +1575,7 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
   /*
    * Add bindings needed to unify effect and goal.
    */
-  const VariableList& effect_forall = effect.forall;
+  const VariableList& effect_forall = effect.forall();
   BindingList new_bindings;
   for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
     const Substitution& subst = *si;
@@ -1589,7 +1589,7 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
    */
   const OpenConditionChain* new_open_conds = open_conds()->remove(open_cond);
   size_t new_num_open_conds = num_open_conds() - 1;
-  const Formula* cond_goal = &(effect.condition && effect.link_condition);
+  const Formula* cond_goal = &(effect.condition() && effect.link_condition());
   if (!cond_goal->tautology()) {
     if (!effect_forall.empty()) {
       SubstitutionList forall_subst;
@@ -1619,9 +1619,9 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
     const Reason& step_reason = AddStepReason::make(*params, step.id());
     const Formula* precondition;
     if (typeid(*step.action()) == typeid(ActionSchema)) {
-      precondition = &step.action()->precondition.instantiation(step.id());
+      precondition = &step.action()->precondition().instantiation(step.id());
     } else {
-      precondition = & step.action()->precondition;
+      precondition = & step.action()->precondition();
     }
     if (!add_goal(new_open_conds, new_num_open_conds, new_bindings,
 		  *precondition, step.id(), step_reason)) {
@@ -2178,13 +2178,13 @@ disable_interference(const vector<const Step*>& ordered_steps,
 	    for (EffectListIter ei = effects.begin();
 		 ei != effects.end() && !interference; ei++) {
 	      const Effect e = **ei;
-	      if (e.link_condition.contradiction()) {
+	      if (e.link_condition().contradiction()) {
 		// effect could interfere with condition
 		StepTime et = end_time(e);
 		if (new_orderings->possibly_concurrent(si.id(), et,
 						       l.to_id(), lt)) {
 		  if (typeid(l.condition()) == typeid(Negation)) {
-		    const AtomList& adds = e.add_list;
+		    const AtomList& adds = e.add_list();
 		    for (AtomListIter fi = adds.begin();
 			 fi != adds.end() && !interference; fi++) {
 		      const Atom& atom = **fi;
@@ -2193,7 +2193,7 @@ disable_interference(const vector<const Step*>& ordered_steps,
 		      }
 		    }
 		  } else {
-		    const NegationList& dels = e.del_list;
+		    const NegationList& dels = e.del_list();
 		    for (NegationListIter fi = dels.begin();
 			 fi != dels.end() && !interference; fi++) {
 		      const Negation& neg = **fi;
@@ -2211,13 +2211,13 @@ disable_interference(const vector<const Step*>& ordered_steps,
 	    for (EffectListIter ei = effects.begin();
 		 ei != effects.end() && !interference; ei++) {
 	      const Effect e = **ei;
-	      if (e.link_condition.contradiction()) {
+	      if (e.link_condition().contradiction()) {
 		// effect could interfere with condition
 		StepTime et = end_time(e);
 		if (new_orderings->possibly_concurrent(sj.id(), et,
 						       l.to_id(), lt)) {
 		  if (typeid(l.condition()) == typeid(Negation)) {
-		    const AtomList& adds = e.add_list;
+		    const AtomList& adds = e.add_list();
 		    for (AtomListIter fi = adds.begin();
 			 fi != adds.end() && !interference; fi++) {
 		      const Atom& atom = **fi;
@@ -2226,7 +2226,7 @@ disable_interference(const vector<const Step*>& ordered_steps,
 		      }
 		    }
 		  } else {
-		    const NegationList& dels = e.del_list;
+		    const NegationList& dels = e.del_list();
 		    for (NegationListIter fi = dels.begin();
 			 fi != dels.end() && !interference; fi++) {
 		      const Negation& neg = **fi;
@@ -2311,7 +2311,7 @@ ostream& operator<<(ostream& os, const Plan& p) {
       } else {
 	os << *s.step_formula();
       }
-      if (s.action()->durative) {
+      if (s.action()->durative()) {
 	os << '[' << (end_times[s.id()] - start_times[s.id()]) << ']';
       }
     }
@@ -2319,7 +2319,7 @@ ostream& operator<<(ostream& os, const Plan& p) {
     os << "Initial  :";
     const EffectList& effects = init->effects();
     for (EffectListIter ei = effects.begin(); ei != effects.end(); ei++) {
-      const AtomList& atoms = (*ei)->add_list;
+      const AtomList& atoms = (*ei)->add_list();
       for (AtomListIter ai = atoms.begin(); ai != atoms.end(); ai++) {
 	os << ' ' << **ai;
       }

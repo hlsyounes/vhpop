@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 3.20 2002-06-28 20:13:48 lorens Exp $
+ * $Id: pddl.yy,v 3.21 2002-06-30 14:57:07 lorens Exp $
  */
 %{
 #include <typeinfo>
@@ -401,15 +401,17 @@ eff_formula : term_literal
 		  } else {
 		    for (size_t i = 0; i < $7->size(); i++) {
 		      const Effect& e = *(*$7)[i];
-		      if (e.forall.empty()) {
-			(*$7)[i] = new Effect(*$5, e.condition,
-					      e.add_list, e.del_list, e.when);
+		      if (e.forall().empty()) {
+			(*$7)[i] = new Effect(*$5, e.condition(),
+					      e.add_list(), e.del_list(),
+					      e.when());
 		      } else {
 			VariableList& forall = *(new VariableList(*$5));
-			copy(e.forall.begin(), e.forall.end(),
+			copy(e.forall().begin(), e.forall().end(),
 			     back_inserter(forall));
-			(*$7)[i] = new Effect(forall, e.condition,
-					      e.add_list, e.del_list, e.when);
+			(*$7)[i] = new Effect(forall, e.condition(),
+					      e.add_list(), e.del_list(),
+					      e.when());
 		      }
 		    }
 		    $$ = $7;
@@ -568,15 +570,17 @@ da_effect : timed_effect
 		} else {
 		  for (size_t i = 0; i < $7->size(); i++) {
 		    const Effect& e = *(*$7)[i];
-		    if (e.forall.empty()) {
-		      (*$7)[i] = new Effect(*$5, e.condition,
-					    e.add_list, e.del_list, e.when);
+		    if (e.forall().empty()) {
+		      (*$7)[i] = new Effect(*$5, e.condition(),
+					    e.add_list(), e.del_list(),
+					    e.when());
 		    } else {
 		      VariableList& forall = *(new VariableList(*$5));
-		      copy(e.forall.begin(), e.forall.end(),
+		      copy(e.forall().begin(), e.forall().end(),
 			   back_inserter(forall));
-		      (*$7)[i] = new Effect(forall, e.condition,
-					    e.add_list, e.del_list, e.when);
+		      (*$7)[i] = new Effect(forall, e.condition(),
+					    e.add_list(), e.del_list(),
+					    e.when());
 		    }
 		  }
 		  $$ = $7;
@@ -595,8 +599,9 @@ da_effect : timed_effect
 		} else {
 		  for (size_t i = 0; i < $4->size(); i++) {
 		    const Effect& e = *(*$4)[i];
-		    (*$4)[i] = new Effect(e.forall, *$3,
-					  e.add_list, e.del_list, e.when);
+		    (*$4)[i] = new Effect(e.forall(), *$3,
+					  e.add_list(), e.del_list(),
+					  e.when());
 		  }
 		  $$ = $4;
 		}
@@ -1254,8 +1259,8 @@ static void add_predicate(const Predicate& predicate) {
  * Adds an action schema to the current domain.
  */
 static void add_action(const ActionSchema& action) {
-  if (domain->find_action(action.name) != NULL) {
-    yywarning("ignoring repeated declaration of action `" + action.name
+  if (domain->find_action(action.name()) != NULL) {
+    yywarning("ignoring repeated declaration of action `" + action.name()
 	      + "' in domain `" + domain->name() + "'");
     delete &action;
   } else {

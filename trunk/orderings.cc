@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.cc,v 3.19 2002-06-28 20:14:00 lorens Exp $
+ * $Id: orderings.cc,v 3.20 2002-06-30 14:57:17 lorens Exp $
  */
 #include "orderings.h"
 #include "plans.h"
@@ -32,7 +32,7 @@
 /* Returns the step time corresponding to the end time of the given
    effect. */
 StepTime end_time(const Effect& e) {
-  if (e.when == Effect::AT_START) {
+  if (e.when() == Effect::AT_START) {
     return STEP_START;
   } else {
     return STEP_END;
@@ -558,9 +558,9 @@ TemporalOrderings::TemporalOrderings(const StepChain* steps,
       distance_.push_back(fv);
       FloatVector::register_use(fv);
       fv = new FloatVector(4*n + 4, INFINITY);
-      (*fv)[4*n + 3] = -(threshold + step.action()->min_duration);
-      (*fv)[2*n + 1] = step.action()->max_duration;
-      (*fv)[2*n + 2] = -step.action()->min_duration;
+      (*fv)[4*n + 3] = -(threshold + step.action()->min_duration());
+      (*fv)[2*n + 1] = step.action()->max_duration();
+      (*fv)[2*n + 2] = -step.action()->min_duration();
       own_data.insert(make_pair(distance_.size(), fv));
       distance_.push_back(fv);
       FloatVector::register_use(fv);
@@ -680,9 +680,9 @@ TemporalOrderings::refine(const Ordering& new_ordering,
       orderings.distance_.push_back(fv);
       FloatVector::register_use(fv);
       fv = new FloatVector(4*n + 4, INFINITY);
-      (*fv)[4*n + 3] = -(threshold + new_step.action()->min_duration);
-      (*fv)[2*n + 1] = new_step.action()->max_duration;
-      (*fv)[2*n + 2] = -new_step.action()->min_duration;
+      (*fv)[4*n + 3] = -(threshold + new_step.action()->min_duration());
+      (*fv)[2*n + 1] = new_step.action()->max_duration();
+      (*fv)[2*n + 2] = -new_step.action()->min_duration();
       own_data.insert(make_pair(orderings.distance_.size(), fv));
       orderings.distance_.push_back(fv);
       FloatVector::register_use(fv);
