@@ -1,5 +1,5 @@
 /*
- * $Id: heuristics.cc,v 1.14 2001-12-31 16:59:13 lorens Exp $
+ * $Id: heuristics.cc,v 1.15 2002-01-01 17:59:53 lorens Exp $
  */
 #include <set>
 #include <cmath>
@@ -611,30 +611,30 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
       rank.push_back(plan.serial_no());
       break;
     case OC:
-      rank.push_back(plan.num_open_conds());
+      rank.push_back(plan.num_open_conds);
       break;
     case UC:
-      rank.push_back(plan.num_unsafes());
+      rank.push_back(plan.num_unsafes);
       break;
     case BUC:
-      rank.push_back((plan.num_unsafes() > 0) ? 1 : 0);
+      rank.push_back((plan.num_unsafes > 0) ? 1 : 0);
       break;
     case S_PLUS_OC:
-      rank.push_back(plan.num_steps + weight*plan.num_open_conds());
+      rank.push_back(plan.num_steps + weight*plan.num_open_conds);
       break;
     case UCPOP:
       rank.push_back(plan.num_steps
-		     + weight*(plan.num_open_conds() + plan.num_unsafes()));
+		     + weight*(plan.num_open_conds + plan.num_unsafes));
       break;
     case SUM:
     case SUM_COST:
     case SUM_WORK:
       if (!sum_done) {
-	for (const OpenConditionChain* occ = plan.open_conds();
+	const Bindings* bindings = plan.bindings();
+	for (const OpenConditionChain* occ = plan.open_conds;
 	     occ != NULL; occ = occ->tail) {
 	  HeuristicValue v;
-	  occ->head->condition().heuristic_value(v, *planning_graph,
-						 plan.bindings());
+	  occ->head->condition().heuristic_value(v, *planning_graph, bindings);
 	  sum_cost = sum(sum_cost, v.sum_cost());
 	  sum_work = sum(sum_work, v.sum_work());
 	}
@@ -701,10 +701,11 @@ bool FlawSelectionOrder::needs_planning_graph() const {
 
 /* Selects an open condition from the given list. */
 const Flaw&
-FlawSelectionOrder::select(const Chain<const Unsafe*>* unsafes,
-			   const Chain<const OpenCondition*>* open_conds,
-			   const PlanningGraph* pg, const Domain& domain,
-			   const Bindings* bindings) const {
+FlawSelectionOrder::select(const Plan& plan, const Domain& domain,
+			   const PlanningGraph* pg) const {
+  const UnsafeChain* unsafes = plan.unsafes;
+  const OpenConditionChain* open_conds = plan.open_conds;
+  const Bindings* bindings = plan.bindings();
   if (open_conds == NULL || (!static_first_ && unsafes != NULL)) {
     return *unsafes->head;
   }

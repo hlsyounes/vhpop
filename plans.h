@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.33 2001-12-31 16:59:11 lorens Exp $
+ * $Id: plans.h,v 1.34 2002-01-01 17:59:56 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -128,6 +128,14 @@ struct Plan : public LessThanComparable, public Printable, public gc {
   const LinkChain* const links;
   /* Number of causal links. */
   const size_t num_links;
+  /* Chain of potentially threatened links. */
+  const UnsafeChain* const unsafes;
+  /* Number of potentially threatened links. */
+  const size_t num_unsafes;
+  /* Chain of open conditions. */
+  const OpenConditionChain* const open_conds;
+  /* Number of open conditions. */
+  const size_t num_open_conds;
 
   /* Returns plan for given problem. */
   static const Plan* plan(const Problem& problem, const Parameters& params);
@@ -135,20 +143,19 @@ struct Plan : public LessThanComparable, public Printable, public gc {
   /* Checks if this plan is complete. */
   bool complete() const;
 
+  /* Returns the bindings of this plan. */
+  const Bindings* bindings() const;
+
+  /* Returns the primary rank of this plan, where a lower rank
+     signifies a better plan. */
+  double primary_rank() const;
+
   /* Returns the serial number of this plan. */
   size_t serial_no() const;
 
-  /* Returns the open conditions of this plan. */
-  const OpenConditionChain* open_conds() const;
-
-  /* Returns the number of open conditions of this plan. */
-  size_t num_open_conds() const;
-
-  /* Returns the number of unsafe links of this plan. */
-  size_t num_unsafes() const;
-
-  /* Returns the bindings of this plan. */
-  const Bindings* bindings() const;
+  /* Fills the provided list with possible refinements that repair the
+     given flaw. */
+  void refinements(PlanList& plans, const Flaw& flaw) const;
 
 protected:
   /* Checks if this object is less than the given object. */
@@ -163,14 +170,6 @@ private:
 
   /* Highest step id that has been used so far. */
   size_t high_step_id_;
-  /* Chain of potentially threatened links. */
-  const UnsafeChain* const unsafes_;
-  /* Number of potentially threatened links. */
-  const size_t num_unsafes_;
-  /* Chain of open conditions. */
-  const OpenConditionChain* const open_conds_;
-  /* Number of open conditions. */
-  const size_t num_open_conds_;
   /* Binding constraints of this plan. */
   const Bindings& bindings_;
   /* Ordering constraints of this plan. */
@@ -182,7 +181,7 @@ private:
   /* Rank of this plan. */
   mutable vector<double> rank_;
   /* Plan id (serial number). */
-  mutable size_t id;
+  mutable size_t id_;
 
   /* Returns the initial plan representing the given problem, or NULL
      if goals of problem are inconsistent. */
@@ -196,23 +195,26 @@ private:
        const Bindings& bindings, const Orderings& orderings,
        const Plan* parent, PlanType type = NORMAL_PLAN);
 
-  /* Returns the primary rank of this plan, where a lower rank
-     signifies a better plan. */
-  double primary_rank() const;
-
+  /* Returns the next flaw to work on. */
   const Flaw& get_flaw() const;
 
-  void refinements(PlanList& new_plans) const;
+  /* Returns the refinements for the next flaw to work on. */
+  void refinements(PlanList& plans) const;
 
-  void handle_unsafe(PlanList& new_plans, const Unsafe& unsafe) const;
+  /* Handles an unsafe link. */
+  void handle_unsafe(PlanList& plans, const Unsafe& unsafe) const;
 
+  /* Handles an unsafe link through separation. */
   void separate(PlanList& new_plans, const Unsafe& unsafe) const;
 
+  /* Handles an unsafe link through demotion. */
   void demote(PlanList& new_plans, const Unsafe& unsafe) const;
 
+  /* Handles an unsafe link through promotion. */
   void promote(PlanList& new_plans, const Unsafe& unsasfe) const;
 
-  void new_ordering(PlanList& new_plans, const Ordering& ordering,
+  /* Adds a plan to the given plan list with an ordering added. */
+  void new_ordering(PlanList& plans, size_t before_id, size_t after_id,
 		    const Unsafe& unsafe) const;
 
   void relink(PlanList& new_plans, const Link& link) const;
