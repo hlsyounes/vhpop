@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.25 2001-10-07 00:04:34 lorens Exp $
+ * $Id: plans.cc,v 1.26 2001-10-08 03:09:00 lorens Exp $
  */
 #include <queue>
 #include <hash_set>
@@ -520,11 +520,7 @@ const Plan* Plan::make_initial_plan(const Problem& problem) {
   /*
    * Create step representing initial conditions of problem.
    */
-  EffectList& init = *(new EffectList());
-  if (problem.init != NULL) {
-    /* Add initial conditions of problem as effects. */
-    init.push_back(problem.init);
-  }
+  EffectList& init = *(new EffectList(&problem.init));
   /* Initial step. */
   const Step& init_step = *(new Step(0, Formula::TRUE, init, init_reason));
 

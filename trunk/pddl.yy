@@ -2,7 +2,7 @@
 /*
  * PDDL parser.
  *
- * $Id: pddl.yy,v 1.15 2001-10-07 00:04:38 lorens Exp $
+ * $Id: pddl.yy,v 1.16 2001-10-08 03:08:48 lorens Exp $
  */
 %{
 #include <utility>
@@ -417,7 +417,7 @@ problem : '(' DEFINE '(' PROBLEM NAME ')' '(' PDOMAIN NAME ')'
           problem_body ')'
             {
 	      new Problem(problem_name, *pdomain, *problem_objects,
-			  problem_init, *problem_goal);
+			  *problem_init, *problem_goal);
 	    }
         ;
 
@@ -425,8 +425,14 @@ problem_body : '(' object_decl problem_body2
              | problem_body2
              ;
 
-problem_body2 : '(' init goals { problem_init = $2; problem_goal = $3; }
-              | goals          { problem_init = NULL; problem_goal = $1; }
+problem_body2 : '(' init goals
+                  { problem_init = $2; problem_goal = $3; }
+              | goals
+                  {
+		    problem_init = new Effect(*(new AtomList()),
+					      *(new NegationList()));
+		    problem_goal = $1;
+		  }
               ;
 
 object_decl : OBJECTS

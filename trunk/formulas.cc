@@ -1,5 +1,5 @@
 /*
- * $Id: formulas.cc,v 1.20 2001-10-08 01:57:40 lorens Exp $
+ * $Id: formulas.cc,v 1.21 2001-10-08 03:08:57 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -435,14 +435,12 @@ const Formula& Atom::instantiation(const SubstitutionList& subst,
 				   const Problem& problem) const {
   const Formula& f = substitution(subst);
   if (problem.domain.static_predicate(predicate)) {
-    if (problem.init != NULL) {
-      const AtomList& adds = problem.init->add_list;
-      for (AtomListIter gi = adds.begin(); gi != adds.end(); gi++) {
-	if (f == **gi) {
-	  return TRUE;
-	} else if (Bindings().unify(f, **gi)) {
-	  return f;
-	}
+    const AtomList& adds = problem.init.add_list;
+    for (AtomListIter gi = adds.begin(); gi != adds.end(); gi++) {
+      if (f == **gi) {
+	return TRUE;
+      } else if (Bindings().unify(f, **gi)) {
+	return f;
       }
     }
     return FALSE;

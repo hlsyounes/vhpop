@@ -2,7 +2,7 @@
 /*
  * Problem descriptions.
  *
- * $Id: problems.h,v 1.6 2001-10-06 23:28:15 lorens Exp $
+ * $Id: problems.h,v 1.7 2001-10-08 03:09:06 lorens Exp $
  */
 #ifndef PROBLEMS_H
 #define PROBLEMS_H
@@ -33,9 +33,8 @@ struct Problem : public Printable, public gc {
   const Domain& domain;
   /* Problem objects. */
   const NameMap& objects;
-  /* Initial condition of problem, or NULL if problem lacks initial
-     condition. */
-  const Effect* const init;
+  /* Initial condition of problem. */
+  const Effect& init;
   /* Goal of problem. */
   const Formula& goal;
 
@@ -62,7 +61,7 @@ struct Problem : public Printable, public gc {
 
   /* Constructs a problem. */
   Problem(const string& name, const Domain& domain, const NameMap& objects,
-	  const Effect* init, const Formula& goal)
+	  const Effect& init, const Formula& goal)
     : name(name), domain(domain), objects(objects), init(init), goal(goal) {
     problems[name] = this;
   }
