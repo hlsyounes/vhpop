@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 3.24 2002-07-02 16:42:24 lorens Exp $
+ * $Id: plans.cc,v 3.25 2002-07-05 07:39:44 lorens Exp $
  */
 #include <queue>
 #include <stack>
@@ -702,7 +702,10 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
 	  } while (current_plan != NULL && current_plan->duplicate());
 	}
       } else {
-	current_plan = NULL;
+	if (!isinf(next_f_limit)) {
+	  current_plan = NULL;
+	}
+	break;
       }
     }
     if (current_plan != NULL && current_plan->complete()) {
