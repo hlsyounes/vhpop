@@ -1,5 +1,5 @@
 /*
- * $Id: formulas.cc,v 1.4 2001-08-12 06:53:22 lorens Exp $
+ * $Id: formulas.cc,v 1.5 2001-08-12 16:30:46 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -64,11 +64,6 @@ struct TrueFormula : public Formula {
     return *this;
   }
 
-  /* Checks if this formula involves the given predicate. */
-  virtual bool involves(const string& predicate) const {
-    return false;
-  }
-
   /* Roughly corresponds to the number of open conditions this formula
      will give rise to. */
   virtual size_t cost() const {
@@ -117,11 +112,6 @@ struct FalseFormula : public Formula {
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const {
     return *this;
-  }
-
-  /* Checks if this formula involves the given predicate. */
-  virtual bool involves(const string& predicate) const {
-    return false;
   }
 
   /* Roughly corresponds to the number of open conditions this formula
@@ -435,10 +425,10 @@ void FormulaList::achievable_goals(FormulaList& goals) const {
 }
 
 
-/* Fills the provided list with predicates achievable by the formulas
+/* Fills the provided sets with predicates achievable by the formulas
    in this list. */
-void FormulaList::achievable_predicates(vector<string>& preds,
-					vector<string>& neg_preds) const {
+void FormulaList::achievable_predicates(hash_set<string>& preds,
+					hash_set<string>& neg_preds) const {
   for (const_iterator i = begin(); i != end(); i++) {
     (*i)->achievable_predicates(preds, neg_preds);
   }
@@ -511,19 +501,26 @@ AtomicFormula::substitution(const SubstitutionList& subst) const {
 }
 
 
+/* Checks if this formula negates the given formula. */
+bool AtomicFormula::negates(const Formula& f) const {
+  const Negation* negation = dynamic_cast<const Negation*>(&f);
+  return negation != NULL && negation->negates(*this);
+}
+
+
 /* Fills the provided list with goals achievable by this formula. */
 void AtomicFormula::achievable_goals(FormulaList& goals) const {
   goals.push_back(this);
 }
 
 
-/* Fills the provided list with predicates achievable by this
+/* Fills the provided sets with predicates achievable by this
    formula. */
-void AtomicFormula::achievable_predicates(vector<string>& preds,
-					  vector<string>& neg_preds) const {
+void AtomicFormula::achievable_predicates(hash_set<string>& preds,
+					  hash_set<string>& neg_preds) const {
   for (TermList::const_iterator ti = terms.begin(); ti != terms.end(); ti++) {
     if (typeid(**ti) != typeid(Name)) {
-      preds.push_back(predicate);
+      preds.insert(predicate);
       return;
     }
   }
@@ -578,16 +575,22 @@ const Formula& Negation::substitution(const SubstitutionList& subst) const {
 }
 
 
+/* Checks if this formula negates the given formula. */
+bool Negation::negates(const Formula& f) const {
+  return atom == f;
+}
+
+
 /* Fills the provided list with goals achievable by this formula. */
 void Negation::achievable_goals(FormulaList& goals) const {
   goals.push_back(this);
 }
 
 
-/* Fills the provided list with predicates achievable by this
+/* Fills the provided sets with predicates achievable by this
    formula. */
-void Negation::achievable_predicates(vector<string>& preds,
-				     vector<string>& neg_preds) const {
+void Negation::achievable_predicates(hash_set<string>& preds,
+				     hash_set<string>& neg_preds) const {
   atom.achievable_predicates(neg_preds, preds);
 }
 
@@ -745,10 +748,10 @@ void Conjunction::achievable_goals(FormulaList& goals) const {
 }
 
 
-/* Fills the provided list with predicates achievable by this
+/* Fills the provided sets with predicates achievable by this
    formula. */
-void Conjunction::achievable_predicates(vector<string>& preds,
-					vector<string>& neg_preds) const {
+void Conjunction::achievable_predicates(hash_set<string>& preds,
+					hash_set<string>& neg_preds) const {
   conjuncts.achievable_predicates(preds, neg_preds);
 }
 
@@ -817,10 +820,10 @@ void Disjunction::achievable_goals(FormulaList& goals) const {
 }
 
 
-/* Fills the provided list with predicates achievable by this
+/* Fills the provided sets with predicates achievable by this
    formula. */
-void Disjunction::achievable_predicates(vector<string>& preds,
-					vector<string>& neg_preds) const {
+void Disjunction::achievable_predicates(hash_set<string>& preds,
+					hash_set<string>& neg_preds) const {
   disjuncts.achievable_predicates(preds, neg_preds);
 }
 
@@ -854,11 +857,11 @@ const Formula& Disjunction::negation() const {
 }
 
 
-/* Fills the provided list with predicates achievable by this
+/* Fills the provided sets with predicates achievable by this
    formula. */
 void
-QuantifiedFormula::achievable_predicates(vector<string>& preds,
-					 vector<string>& neg_preds) const {
+QuantifiedFormula::achievable_predicates(hash_set<string>& preds,
+					 hash_set<string>& neg_preds) const {
   body.achievable_predicates(preds, neg_preds);
 }
 
