@@ -1,5 +1,5 @@
 /*
- * $Id: domains.cc,v 1.28 2001-12-27 19:13:10 lorens Exp $
+ * $Id: domains.cc,v 1.29 2002-01-07 13:59:52 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -312,6 +312,13 @@ const Atom& ActionSchema::action_formula() const {
    action schema. */
 void ActionSchema::instantiations(GroundActionList& actions,
 				  const Problem& problem) const {
+  size_t n = parameters.size();
+  SubstitutionList args;
+  if (n == 0) {
+    actions.push_back(new GroundAction(name, *(new NameList()), precondition,
+				       effects.instantiation(args, problem)));
+    return;
+  }
   Vector<NameList*> arguments;
   Vector<NameListIter> next_arg;
   for (VarListIter vi = parameters.begin(); vi != parameters.end(); vi++) {
@@ -322,8 +329,6 @@ void ActionSchema::instantiations(GroundActionList& actions,
     }
     next_arg.push_back(arguments.back()->begin());
   }
-  SubstitutionList args;
-  size_t n = parameters.size();
   for (size_t i = 0; i < n; ) {
     args.push_back(new Substitution(*parameters[i], **next_arg[i]));
     const Formula& new_precond = precondition.instantiation(args, problem);
