@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.12 2001-09-03 20:06:28 lorens Exp $
+ * $Id: plans.h,v 1.13 2001-09-03 20:21:02 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -10,6 +10,7 @@
 #include <vector>
 #include <stack>
 #include <utility>
+#include <typeinfo>
 #include "support.h"
 #include "domains.h"
 #include "problems.h"
@@ -186,8 +187,12 @@ struct Step : public gc {
   /* Constructs a step instantiated from an action. */
   Step(size_t id, const Action& action, const Reason& reason)
     : id(id), action(&action.action_formula(id)),
-      precondition(action.precondition.instantiation(id)),
-      effects(action.effects.instantiation(id)), reason(reason) {
+      precondition((typeid(action) == typeid(ActionSchema))
+		   ? action.precondition.instantiation(id)
+		   : action.precondition),
+      effects((typeid(action) == typeid(ActionSchema))
+	      ? action.effects.instantiation(id) : action.effects),
+      reason(reason) {
   }
 
   /* Returns a copy of this step with a new reason. */
