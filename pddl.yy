@@ -2,11 +2,11 @@
 /*
  * PDDL parser.
  *
- * $Id: pddl.yy,v 1.3 2001-07-29 18:14:50 lorens Exp $
+ * $Id: pddl.yy,v 1.4 2001-08-10 04:42:19 lorens Exp $
  */
 %{
 #include <utility>
-#include <stdlib.h>
+#include <cstdlib>
 #include "requirements.h"
 #include "domains.h"
 #include "problems.h"
@@ -25,12 +25,14 @@ static const Type* find_type(const string& name);
 static const Name* find_constant(const string& name);
 static const Predicate* find_predicate(const string& name);
 static void add_names(const vector<string>& names,
-		      const Type& type = SimpleType::OBJECT_TYPE);
+		      const Type& type = SimpleType::OBJECT);
 static void add_predicate(const string& name, const VariableList& parameters);
 static void add_action(const ActionSchema& action);
 static void add_variable(const Variable& var);
 static const Formula& make_atomic_formula(const string& predicate,
 					  const TermList& terms);
+static TermList& add_name(TermList& terms, const string& name);
+static const Type& make_type(const string& name);
 
 
 /*
@@ -50,16 +52,16 @@ struct Context {
   }
 
   const Variable* shallow_find(const string& name) const {
-    VariableMap::const_iterator i = frames_.back().find(name);
-    return (i != frames_.back().end()) ? (*i).second : NULL;
+    VariableMap::const_iterator vi = frames_.back().find(name);
+    return (vi != frames_.back().end()) ? (*vi).second : NULL;
   }
 
   const Variable* find(const string& name) const {
-    for (vector<VariableMap>::const_reverse_iterator i = frames_.rbegin();
-	 i != frames_.rend(); i++) {
-      VariableMap::const_iterator j = (*i).find(name);
-      if (j != (*i).end()) {
-	return (*j).second;
+    for (vector<VariableMap>::const_reverse_iterator fi = frames_.rbegin();
+	 fi != frames_.rend(); fi++) {
+      VariableMap::const_iterator vi = (*fi).find(name);
+      if (vi != (*fi).end()) {
+	return (*vi).second;
       }
     }
     return NULL;
@@ -242,10 +244,10 @@ require_key : STRIPS
 
 types_def : TYPES
               {
+		context = "domain '" + domain_name + "'";
 		if (!requirements->typing) {
 		  yywarning("assuming ':typing' requirement.");
 		}
-		context = "domain '" + domain_name + "'";
 		name_map_type = "type";
 	      }
             name_map ')'
@@ -282,9 +284,7 @@ atomic_formula_skeleton : '(' predicate
  */
 
 action_def : '(' ACTION NAME PARAMETERS
-               {
-		 free_variables.push_frame();
-	       }
+               { free_variables.push_frame(); }
              '(' opt_variables ')'
                {
 		 context = ("action '" + *$3 + "' of domain '" +
@@ -347,13 +347,9 @@ one_eff_formula : term_literal
                 ;
 
 atomic_effs_forall_body : atomic_effs
-                            {
-			      $$ = new Effect(*eff_forall, NULL, *$1);
-			    }
+                            { $$ = new Effect(*eff_forall, NULL, *$1); }
                         | '(' WHEN formula atomic_effs ')'
-                            {
-			      $$ = new Effect(*eff_forall, $3, *$4);
-			    }
+                            { $$ = new Effect(*eff_forall, $3, *$4); }
                         ;
 
 atomic_effs : term_literal
@@ -385,7 +381,8 @@ problem : '(' DEFINE '(' PROBLEM NAME ')' '(' PDOMAIN NAME ')'
 	      if (pdomain != NULL) {
 		requirements = new Requirements(pdomain->requirements);
 	      } else {
-		yyerror("undeclared domain used in problem '" + *$5 + "'");
+		context = "problem '" + *$5 + "'";
+		yyerror("undeclared domain used");
 		requirements = new Requirements();
 	      }
 	      domain_types = NULL;
@@ -418,9 +415,7 @@ object_decl : '(' OBJECTS
             ;
 
 init : INIT
-         {
-	   context = "initial conditions of problem '" + problem_name + "'";
-	 }
+         { context = "initial conditions of problem '" + problem_name + "'"; }
        atomic_name_formulas ')'
          { $$ = new Effect(*$3); }
      ;
@@ -440,22 +435,7 @@ atomic_name_formula : '(' predicate
 names : /* empty */
           { $$ = new TermList(); }
       | names NAME
-          {
-	    const Name* c = find_constant(*$2);
-	    if (c == NULL) {
-	      const Predicate* predicate = find_predicate(current_predicate);
-	      if (predicate == NULL || predicate->arity() <= $1->size()) {
-		c = new Name(*$2);
-	      } else {
-		c = new Name(*$2, predicate->parameters[$1->size()]->type);
-	      }
-	      (*problem_objects)[*$2] = c;
-	      yywarning("implicit declaration of object '" + *$2 +
-			"' in " + context);
-	    }
-	    $1->push_back(c);
-	    $$ = $1;
-	  }
+          { $$ = &add_name(*$1, *$2); }
       ;
 
 goals : goal_list
@@ -558,33 +538,12 @@ predicate : NAME
 terms : /* empty */
           { $$ = new TermList(); }
       | terms NAME
-          {
-	    const Name* c = find_constant(*$2);
-	    if (c == NULL) {
-	      const Predicate* predicate = find_predicate(current_predicate);
-	      if (predicate == NULL || predicate->arity() <= $1->size()) {
-		c = new Name(*$2);
-	      } else {
-		c = new Name(*$2, predicate->parameters[$1->size()]->type);
-	      }
-	      if (domain_constants != NULL) {
-		(*domain_constants)[*$2] = c;
-		yywarning("implicit declaration of constant '" + *$2 +
-			  "' in " + context);
-	      } else {
-		(*problem_objects)[*$2] = c;
-		yywarning("implicit declaration of object '" + *$2 +
-			  "' in " + context);
-	      }
-	    }
-	    $1->push_back(c);
-	    $$ = $1;
-	  }
+          { $$ = &add_name(*$1, *$2); }
       | terms VARIABLE
           {
 	    const Variable* v = free_variables.find(*$2);
 	    if (v == NULL) {
-	      yyerror("free variable '" + *$2 + "'  in " + context);
+	      yyerror("free variable '" + *$2 + "'");
 	      v = new Variable(*$2);
 	    }
 	    $1->push_back(v);
@@ -617,16 +576,16 @@ variables : { variables = new VariableList(); } vars { $$ = variables; }
 
 vars : variable_seq
          {
-	   for (vector<string>::const_iterator i = $1->begin();
-		i != $1->end(); i++) {
-	     add_variable(*(new Variable(*i)));
+	   for (vector<string>::const_iterator si = $1->begin();
+		si != $1->end(); si++) {
+	     add_variable(*(new Variable(*si)));
 	   }
 	 }
      | variable_seq type_spec 
          {
-	   for (vector<string>::const_iterator i = $1->begin();
-		i != $1->end(); i++) {
-	     add_variable(*(new Variable(*i, *$2)));
+	   for (vector<string>::const_iterator si = $1->begin();
+		si != $1->end(); si++) {
+	     add_variable(*(new Variable(*si, *$2)));
 	   }
 	 }
        opt_vars
@@ -647,25 +606,8 @@ types : type
 type_spec : '-' type { $$ = $2; }
           ;
 
-type : NAME
-         {
-	   const Type* t = find_type(*$1);
-	   if (t == NULL) {
-	     const SimpleType* st = new SimpleType(*$1);
-	     $$ = st;
-	     if (domain_types != NULL) {
-	       (*domain_types)[*$1] = st;
-	       yywarning("implicit declaration of type '" + *$1 +
-			 "' in " + context);
-	     } else {
-	       yyerror("undeclared type '" + *$1 + "' used in " + context);
-	     }
-	   } else {
-	     $$ = t;
-	   }
-	 }
-     | '(' EITHER types ')'
-         { $$ = $3; }
+type : NAME                 { $$ = &make_type(*$1); }
+     | '(' EITHER types ')' { $$ = $3; }
      ;
 
 %%
@@ -687,7 +629,7 @@ static string tostring(unsigned int n) {
  * Outputs an error message.
  */
 static void yyerror(const string& s) {
-  cerr << "line " << line_number << ": " << s << endl;
+  cerr << "line " << line_number << ": " << s << " in " << context << endl;
   success = false;
 }
 
@@ -697,7 +639,7 @@ static void yyerror(const string& s) {
  */
 static void yywarning(const string& s) {
   if (warning_level > 0) {
-    cerr << "line " << line_number << ": " << s << endl;
+    cerr << "line " << line_number << ": " << s << " in " << context << endl;
     if (warning_level > 1) {
       success = false;
     }
@@ -712,8 +654,8 @@ static const Type* find_type(const string& name) {
   if (pdomain != NULL) {
     return pdomain->find_type(name);
   } else if (domain_types != NULL) {
-    TypeMap::const_iterator i = domain_types->find(name);
-    return (i != domain_types->end()) ? (*i).second : NULL;
+    TypeMap::const_iterator ti = domain_types->find(name);
+    return (ti != domain_types->end()) ? (*ti).second : NULL;
   } else {
     return NULL;
   }
@@ -729,12 +671,12 @@ static const Name* find_constant(const string& name) {
     c = pdomain->find_constant(name);
   }
   if (c == NULL && domain_constants != NULL) {
-    NameMap::const_iterator i = domain_constants->find(name);
-    c = (i != domain_constants->end()) ? (*i).second : NULL;
+    NameMap::const_iterator ni = domain_constants->find(name);
+    c = (ni != domain_constants->end()) ? (*ni).second : NULL;
   }
   if (c == NULL && problem_objects != NULL) {
-    NameMap::const_iterator i = problem_objects->find(name);
-    c = (i != problem_objects->end()) ? (*i).second : NULL;
+    NameMap::const_iterator ni = problem_objects->find(name);
+    c = (ni != problem_objects->end()) ? (*ni).second : NULL;
   }
   return c;
 }
@@ -748,8 +690,8 @@ static const Predicate* find_predicate(const string& name) {
   if (pdomain != NULL) {
     return pdomain->find_predicate(name);
   } else if (domain_predicates != NULL) {
-    PredicateMap::const_iterator i = domain_predicates->find(name);
-    return (i != domain_predicates->end()) ? (*i).second : NULL;
+    PredicateMap::const_iterator pi = domain_predicates->find(name);
+    return (pi != domain_predicates->end()) ? (*pi).second : NULL;
   } else {
     return NULL;
   }
@@ -760,21 +702,22 @@ static const Predicate* find_predicate(const string& name) {
  * Adds types, constants, or objects to the current domain or problem.
  */
 static void add_names(const vector<string>& names, const Type& type) {
-  for (vector<string>::const_iterator i = names.begin();
-       i != names.end(); i++) {
+  for (vector<string>::const_iterator si = names.begin();
+       si != names.end(); si++) {
+    const string& s = *si;
     if (name_map_type == "type") {
-      if (find_type(*i) == NULL) {
-	(*domain_types)[*i] = new SimpleType(*i, type);
+      if (find_type(s) == NULL) {
+	(*domain_types)[s] = new SimpleType(s, type);
       } else {
 	yywarning("ignoring repeated declaration of " + name_map_type +
-		  " '" + *i + "' in " + context);
+		  " '" + s + "'");
       }
     } else {
-      NameMap::const_iterator ni = name_map->find(*i);
+      NameMap::const_iterator ni = name_map->find(s);
       if (ni == name_map->end()) {
-	(*name_map)[*i] = new Name(*i, type);
+	(*name_map)[s] = new Name(s, type);
       } else {
-	(*name_map)[*i] = new Name(*i, (*ni).second->type + type);
+	(*name_map)[s] = new Name(s, (*ni).second->type + type);
       }
     }
   }
@@ -813,9 +756,9 @@ static void add_action(const ActionSchema& action) {
 static void add_variable(const Variable& var) {
   if (unique_variables) {
     if (free_variables.shallow_find(var.name) != NULL) {
-      yyerror("repetition of parameter '" + var.name + "' in " + context);
+      yyerror("repetition of parameter '" + var.name + "'");
     } else if (free_variables.find(var.name) != NULL) {
-      yyerror("shadowing parameter '" + var.name + "' in " + context);
+      yyerror("shadowing parameter '" + var.name + "'");
     }
     free_variables.insert(&var);
   }
@@ -837,7 +780,7 @@ static const Formula& make_atomic_formula(const string& predicate,
     } else {
       yyerror(tostring(terms.size()) + " parameter" +
 	      string((terms.size() == 1) ? "" : "s") +
-	      " passed to predicate '=' expecting 2 in " + context);
+	      " passed to predicate '=' expecting 2");
     }
   } else {
     const Predicate* p = find_predicate(predicate);
@@ -848,17 +791,58 @@ static const Formula& make_atomic_formula(const string& predicate,
 	  params.push_back(new Variable("?x" + tostring(i + 1)));
 	}
 	(*domain_predicates)[predicate] = new Predicate(predicate, params);
-	yywarning("implicit declaration of predicate '" + predicate +
-		  "' in " + context);
+	yywarning("implicit declaration of predicate '" + predicate + "'");
       } else {
-	yyerror("undeclared predicate '" + predicate + "' used in " + context);
+	yyerror("undeclared predicate '" + predicate + "' used");
       }
     } else if (p->arity() != terms.size()) {
       yyerror(tostring(terms.size()) + " parameter" +
 	      string((terms.size() == 1) ? "" : "s") +
 	      " passed to predicate '" + predicate +
-	      "' expecting " + tostring(p->arity()) + " in " + context);
+	      "' expecting " + tostring(p->arity()));
     }
   }
   return *(new AtomicFormula(predicate, terms));
+}
+
+
+/*
+ * Adds a name to the given name term list.
+ */
+static TermList& add_name(TermList& terms, const string& name) {
+  const Name* c = find_constant(name);
+  if (c == NULL) {
+    const Predicate* predicate = find_predicate(current_predicate);
+    if (predicate == NULL || predicate->arity() <= terms.size()) {
+      c = new Name(name);
+    } else {
+      c = new Name(name, predicate->parameters[terms.size()]->type);
+    }
+    if (domain_constants != NULL) {
+      (*domain_constants)[name] = c;
+      yywarning("implicit declaration of constant '" + name + "'");
+    } else {
+      (*problem_objects)[name] = c;
+      yywarning("implicit declaration of object '" + name + "'");
+    }
+  }
+  terms.push_back(c);
+  return terms;
+}
+
+
+static const Type& make_type(const string& name) {
+  const Type* t = find_type(name);
+  if (t == NULL) {
+    const SimpleType& st = *(new SimpleType(name));
+    if (domain_types != NULL) {
+      (*domain_types)[name] = &st;
+      yywarning("implicit declaration of type '" + name + "'");
+    } else {
+      yyerror("undeclared type '" + name + "' used");
+    }
+    return st;
+  } else {
+    return *t;
+  }
 }
