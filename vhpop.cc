@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 2.1 2002-02-01 00:15:33 lorens Exp $
+ * $Id: vhpop.cc,v 2.2 2002-02-01 00:32:19 lorens Exp $
  */
 #include <iostream>
 #include <cstdio>
@@ -131,12 +131,12 @@ static void display_version() {
 
 /* Parses the given file, and returns true on success. */
 static bool read_file(const char* name) {
-  current_file = name;
   yyin = fopen(name, "r");
   if (yyin == NULL) {
     cerr << PROGRAM_NAME << ':' << name << ": " << sys_errlist[errno] << endl;
     return false;
   } else {
+    current_file = name;
     bool success = (yyparse() == 0);
     fclose(yyin);
     return success;
