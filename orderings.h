@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.h,v 3.15 2002-09-22 23:14:27 lorens Exp $
+ * $Id: orderings.h,v 3.16 2002-09-27 21:09:55 lorens Exp $
  */
 #ifndef ORDERINGS_H
 #define ORDERINGS_H
@@ -155,8 +155,8 @@ struct Orderings {
 
   /* Fills the given tables with distances for each step from the
      start step, and returns the greatest distance. */
-  virtual float schedule(hash_map<size_t, float>& start_times,
-			 hash_map<size_t, float>& end_times) const;
+  float schedule(hash_map<size_t, float>& start_times,
+		 hash_map<size_t, float>& end_times) const;
 
 protected:
   /* A step id map. */
