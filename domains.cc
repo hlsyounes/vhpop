@@ -1,5 +1,5 @@
 /*
- * $Id: domains.cc,v 1.26 2001-12-25 20:10:38 lorens Exp $
+ * $Id: domains.cc,v 1.27 2001-12-26 18:51:59 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -64,7 +64,7 @@ void Effect::instantiations(EffectList& effects, const SubstitutionList& subst,
 			    const Problem& problem) const {
   if (forall.empty()) {
     const Formula& new_condition = condition.instantiation(subst, problem);
-    if (new_condition != Formula::FALSE) {
+    if (!new_condition.contradiction()) {
       effects.push_back(new Effect(new_condition,
 				   add_list.substitution(subst),
 				   del_list.substitution(subst)));
@@ -91,8 +91,8 @@ void Effect::instantiations(EffectList& effects, const SubstitutionList& subst,
     for (size_t i = 0; i < n; ) {
       args.push_back(new Substitution(*forall[i], **next_arg[i]));
       const Formula& new_condition = condition.instantiation(args, problem);
-      if (i + 1 == n || new_condition == Formula::FALSE) {
-	if (new_condition != Formula::FALSE) {
+      if (i + 1 == n || new_condition.contradiction()) {
+	if (!new_condition.contradiction()) {
 	  effects.push_back(new Effect(new_condition,
 				       add_list.substitution(args),
 				       del_list.substitution(args)));
@@ -146,10 +146,10 @@ const Effect& Effect::substitution(const SubstitutionList& subst) const {
 void Effect::achievable_predicates(hash_set<string>& preds,
 				   hash_set<string>& neg_preds) const {
   for (AtomListIter gi = add_list.begin(); gi != add_list.end(); gi++) {
-    preds.insert((*gi)->predicate);
+    preds.insert((*gi)->predicate());
   }
   for (NegationListIter gi = del_list.begin(); gi != del_list.end(); gi++) {
-    neg_preds.insert((*gi)->atom.predicate);
+    neg_preds.insert((*gi)->predicate());
   }
 }
 
@@ -157,7 +157,7 @@ void Effect::achievable_predicates(hash_set<string>& preds,
 /* Prints this object on the given stream. */
 void Effect::print(ostream& os) const {
   os << '[';
-  if (condition != Formula::TRUE) {
+  if (!condition.tautology()) {
     os << condition;
   }
   os << "->";
@@ -199,16 +199,15 @@ const EffectList& EffectList::instantiation(const SubstitutionList& subst,
     (*ei)->instantiations(effects, subst, problem);
   }
   for (const_iterator ei = effects.begin(); ei != effects.end(); ei++) {
-    if ((*ei)->condition == Formula::TRUE) {
+    if ((*ei)->condition.tautology()) {
       AtomList add_list = (*ei)->add_list;
       for (const_iterator ej = effects.begin(); ej != effects.end(); ej++) {
-	if ((*ej)->condition == Formula::TRUE) {
+	if ((*ej)->condition.tautology()) {
 	  NegationList del_list = (*ej)->del_list;
 	  for (NegationListIter gi = del_list.begin();
 	       gi != del_list.end(); gi++) {
 	    if (member_if(add_list.begin(), add_list.end(),
-			  bind1st(equal_to<const EqualityComparable*>(),
-				  &(*gi)->atom))) {
+			  bind1st(equal_to<const Literal*>(), &(*gi)->atom))) {
 	      /* conflicting effects */
 	      effects.clear();
 	      return effects;
@@ -280,8 +279,8 @@ void ActionSchema::instantiations(GroundActionList& actions,
   for (size_t i = 0; i < n; ) {
     args.push_back(new Substitution(*parameters[i], **next_arg[i]));
     const Formula& new_precond = precondition.instantiation(args, problem);
-    if (i + 1 == n || new_precond == Formula::FALSE) {
-      if (new_precond != Formula::FALSE) {
+    if (i + 1 == n || new_precond.contradiction()) {
+      if (!new_precond.contradiction()) {
 	const EffectList& new_effects = effects.instantiation(args, problem);
 	if (!new_effects.empty()) {
 	  /* consistent instantiation */
@@ -345,7 +344,7 @@ void ActionSchema::print(ostream& os) const {
     }
   }
   os << ") ";
-  if (precondition != Formula::TRUE) {
+  if (!precondition.tautology()) {
     os << precondition;
   } else {
     os << "nil";
@@ -382,7 +381,7 @@ void GroundAction::print(ostream& os) const {
     os << **ni;
   }
   os << ") ";
-  if (precondition != Formula::TRUE) {
+  if (!precondition.tautology()) {
     os << precondition;
   } else {
     os << "nil";

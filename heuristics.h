@@ -2,19 +2,16 @@
 /*
  * Heuristics.
  *
- * $Id: heuristics.h,v 1.9 2001-12-23 22:08:47 lorens Exp $
+ * $Id: heuristics.h,v 1.10 2001-12-26 18:51:56 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
 
 #include "support.h"
 #include "chain.h"
+#include "formulas.h"
 
 
-struct Formula;
-struct Atom;
-struct Negation;
-struct NameList;
 struct ActionList;
 struct Action;
 struct Domain;
@@ -140,7 +137,7 @@ struct PlanningGraph : public gc {
 
   /* Fills the provided list with actions that achieve the given
      formula. */
-  void achieves_formula(ActionList& actions, const Formula& f) const;
+  void achieves_formula(ActionList& actions, const Literal& f) const;
 
   /* Returns the parameter domain for the given action, or NULL if the
      parameter domain is empty. */
@@ -149,21 +146,21 @@ struct PlanningGraph : public gc {
 private:
   /* Atom value map. */
   struct AtomValueMap
-    : public HashMap<const Atom*, HeuristicValue, hash<const Hashable*>,
-		     equal_to<const EqualityComparable*> > {
+    : public HashMap<const Atom*, HeuristicValue, hash<const Literal*>,
+		     equal_to<const Literal*> > {
   };
 
   /* Iterator for AtomValueMap. */
   typedef AtomValueMap::const_iterator AtomValueMapIter;
 
-  /* Mapping of formulas to actions. */
-  struct FormulaActionsMap
-    : public HashMultimap<const Formula*, const Action*, hash<const Hashable*>,
-			  equal_to<const EqualityComparable*> > {
+  /* Mapping of literals to actions. */
+  struct LiteralActionsMap
+    : public HashMultimap<const Literal*, const Action*, hash<const Literal*>,
+			  equal_to<const Literal*> > {
   };
 
-  /* Iterator for FormulaActionsMap. */
-  typedef FormulaActionsMap::const_iterator FormulaActionsMapIter;
+  /* Iterator for LiteralActionsMap. */
+  typedef LiteralActionsMap::const_iterator LiteralActionsMapIter;
 
   /* Mapping of predicate names to ground atoms. */
   struct PredicateAtomsMap : public HashMultimap<string, const Atom*> {
@@ -184,7 +181,7 @@ private:
   /* Negated atom values. */
   AtomValueMap negation_values;
   /* Maps formulas to actions that achieve those formulas. */
-  FormulaActionsMap achieves;
+  LiteralActionsMap achieves;
   /* Maps predicates to ground atoms. */
   PredicateAtomsMap predicate_atoms;
   /* Maps predicates to negated ground atoms. */
