@@ -1,5 +1,5 @@
 /*
- * $Id: problems.cc,v 1.4 2001-10-06 23:28:57 lorens Exp $
+ * $Id: problems.cc,v 1.5 2001-10-08 03:09:03 lorens Exp $
  */
 #include "problems.h"
 #include "domains.h"
@@ -53,8 +53,6 @@ void Problem::print(ostream& os) const {
       os << " - " << (*ni).second->type;
     }
   }
-  if (init != NULL) {
-    os << endl << "initial condition: " << *init;
-  }
+  os << endl << "initial condition: " << init;
   os << endl << "goal: " << goal;
 }
