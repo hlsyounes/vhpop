@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: problems.h,v 6.3 2003-08-27 17:00:50 lorens Exp $
+ * $Id: problems.h,v 6.4 2003-08-27 17:03:51 lorens Exp $
  */
 #ifndef PROBLEMS_H
 #define PROBLEMS_H
@@ -36,14 +36,11 @@ struct Problem {
   struct ProblemMap : public std::map<std::string, const Problem*> {
   };
 
-  /* Iterator for problem tables. */
-  typedef ProblemMap::const_iterator ProblemMapIter;
-
   /* Returns a const_iterator pointing to the first problem. */
-  static ProblemMapIter begin();
+  static ProblemMap::const_iterator begin();
 
   /* Returns a const_iterator pointing beyond the last problem. */
-  static ProblemMapIter end();
+  static ProblemMap::const_iterator end();
 
   /* Returns the problem with the given name, or NULL if it is undefined. */
   static const Problem* find(const std::string& name);
