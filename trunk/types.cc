@@ -1,5 +1,5 @@
 /*
- * $Id: types.cc,v 1.7 2001-12-22 19:48:56 lorens Exp $
+ * $Id: types.cc,v 1.8 2001-12-25 18:15:44 lorens Exp $
  */
 #include "types.h"
 
@@ -15,22 +15,29 @@ struct Subtype : public binary_function<const Type*, const Type*, bool> {
 };
 
 
-/*
- * Comparison predicate for simple types.
- */
-struct less<const SimpleType*>
-  : public binary_function<const SimpleType*, const SimpleType*, bool> {
-  bool operator()(const SimpleType* t1, const SimpleType* t2) const {
-    return t1->name < t2->name;
-  }
-};
-
+/* ====================================================================== */
+/* Type */
 
 /* Checks if this type is the object type. */
 bool Type::object() const {
   return this == &SimpleType::OBJECT;
 }
 
+
+/* Type union. */
+const Type& operator+(const Type& t1, const Type& t2) {
+  return t1.add(t2);
+}
+
+
+/* Type subtraction. */
+const Type& operator-(const Type& t1, const Type& t2) {
+  return t1.subtract(t2);
+}
+
+
+/* ====================================================================== */
+/* SimpleType */
 
 /* The object type. */
 const SimpleType& SimpleType::OBJECT = *(new SimpleType("object"));
@@ -59,6 +66,13 @@ bool SimpleType::subtype(const Type& t) const {
 }
 
 
+/* Checks if this object is less than the given object. */
+bool SimpleType::less(const LessThanComparable& o) const {
+  const SimpleType& st = dynamic_cast<const SimpleType&>(o);
+  return name < st.name;
+}
+
+
 /* Checks if this object equals the given object. */
 bool SimpleType::equals(const EqualityComparable& o) const {
   const SimpleType* st = dynamic_cast<const SimpleType*>(&o);
@@ -83,7 +97,8 @@ const Type& SimpleType::add(const Type& t) const {
     } else {
 	TypeList& new_types = *(new TypeList(this));
 	new_types.push_back(st);
-	sort(new_types.begin(), new_types.end(), less<const SimpleType*>());
+	sort(new_types.begin(), new_types.end(),
+	     std::less<const LessThanComparable*>());
 	return *(new UnionType(new_types));
     }
   } else {
@@ -98,6 +113,9 @@ const Type& SimpleType::subtract(const Type& t) const {
   return subtype(t) ? OBJECT : *this;
 }
 
+
+/* ====================================================================== */
+/* UnionType */
 
 /* Constructs the type that is the union of the given types.
    N.B. Assumes type list is sorted. */
@@ -146,7 +164,8 @@ const Type& UnionType::add(const Type& t) const {
       if (new_types.size() == 1) {
 	return *new_types.back();
       } else {
-	sort(new_types.begin(), new_types.end(), less<const SimpleType*>());
+	sort(new_types.begin(), new_types.end(),
+	     less<const LessThanComparable*>());
 	return *(new UnionType(new_types));
       }
     }
@@ -157,13 +176,15 @@ const Type& UnionType::add(const Type& t) const {
 		   bind1st(Subtype(), &t));
     remove_copy_if(ut.types.begin(), ut.types.end(), back_inserter(new_types),
 		   bind1st(Subtype(), this));
-    sort(new_types.begin(), new_types.end(), less<const SimpleType*>());
+    sort(new_types.begin(), new_types.end(),
+	 less<const LessThanComparable*>());
     if (new_types.empty()) {
       return SimpleType::OBJECT;
     } else if (new_types.size() == 1) {
       return *new_types.back();
     } else {
-      sort(new_types.begin(), new_types.end(), less<const SimpleType*>());
+      sort(new_types.begin(), new_types.end(),
+	   less<const LessThanComparable*>());
       return *(new UnionType(new_types));
     }
   }
@@ -183,8 +204,21 @@ const Type& UnionType::subtract(const Type& t) const {
     } else if (new_types.size() == 1) {
       return *new_types.back();
     } else {
-      sort(new_types.begin(), new_types.end(), less<const SimpleType*>());
+      sort(new_types.begin(), new_types.end(),
+	   less<const LessThanComparable*>());
       return *(new UnionType(new_types));
     }
   }
 }
+
+
+/* ====================================================================== */
+/* TypeList */
+
+/* Constructs an empty type list. */
+TypeList::TypeList() {}
+
+
+/* Constructs a type list with a single type. */
+TypeList::TypeList(const SimpleType* type)
+  : Vector<const SimpleType*>(1, type) {}
