@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: parameters.h,v 3.1 2002-03-18 13:52:41 lorens Exp $
+ * $Id: parameters.h,v 3.2 2002-03-18 13:56:54 lorens Exp $
  */
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
@@ -27,6 +27,9 @@ struct Heuristic;
 struct FlawSelectionOrder;
 
 
+/* ====================================================================== */
+/* InvalidSearchAlgorithm */
+
 /*
  * An invalid search algorithm exception.
  */
@@ -35,6 +38,9 @@ struct InvalidSearchAlgorithm : public Exception {
   InvalidSearchAlgorithm(const string& name);
 };
 
+
+/* ====================================================================== */
+/* Parameters */
 
 /*
  * Planning parameters.
@@ -72,5 +78,6 @@ struct Parameters {
   /* Selects a search algorithm from a name. */
   void set_search_algorithm(const string& name);
 };
+
 
 #endif /* PARAMETERS_H */
