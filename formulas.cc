@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 3.1 2002-03-10 14:33:07 lorens Exp $
+ * $Id: formulas.cc,v 3.2 2002-03-10 23:12:34 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -387,6 +387,12 @@ Constant::Constant(bool value)
   : value_(value) {}
 
 
+/* Checks if this formula asserts the given atom. */
+bool Constant::asserts(const Atom& atom) const {
+  return false;
+}
+
+
 /* Returns an instantiation of this formula. */
 const Constant& Constant::instantiation(size_t id) const {
   return *this;
@@ -474,6 +480,13 @@ const string& Atom::predicate() const {
 /* Returns the terms of this literal. */
 const TermList& Atom::terms() const {
   return terms_;
+}
+
+
+/* Checks if this formula asserts the given atom. */
+bool Atom::asserts(const Atom& atom) const {
+  return (*this == atom
+	  && (when == atom.when || when == OVER_ALL || atom.when == OVER_ALL));
 }
 
 
@@ -589,6 +602,12 @@ const TermList& Negation::terms() const {
 }
 
 
+/* Checks if this formula asserts the given atom. */
+bool Negation::asserts(const Atom& atom) const {
+  return false;
+}
+
+
 /* Returns an instantiation of this formula. */
 const Negation& Negation::instantiation(size_t id) const {
   return *(new Negation(atom.instantiation(id)));
@@ -654,6 +673,12 @@ const Literal& Negation::negation() const {
 /* Constructs a binding literal. */
 BindingLiteral::BindingLiteral(const Term& term1, const Term& term2)
   : term1(term1), term2(term2) {}
+
+
+/* Checks if this formula asserts the given atom. */
+bool BindingLiteral::asserts(const Atom& atom) const {
+  return false;
+}
 
 
 /* ====================================================================== */
@@ -823,6 +848,17 @@ Conjunction::Conjunction(const FormulaList& conjuncts)
   : conjuncts(conjuncts) {}
 
 
+/* Checks if this formula asserts the given atom. */
+bool Conjunction::asserts(const Atom& atom) const {
+  for (FormulaListIter fi = conjuncts.begin(); fi != conjuncts.end(); fi++) {
+    if ((*fi)->asserts(atom)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
 /* Returns an instantiation of this formula. */
 const Conjunction& Conjunction::instantiation(size_t id) const {
   return *(new Conjunction(conjuncts.instantiation(id)));
@@ -912,6 +948,17 @@ const Formula& Conjunction::negation() const {
 /* Constructs a disjunction. */
 Disjunction::Disjunction(const FormulaList& disjuncts)
   : disjuncts(disjuncts) {}
+
+
+/* Checks if this formula asserts the given atom. */
+bool Disjunction::asserts(const Atom& atom) const {
+  for (FormulaListIter fi = disjuncts.begin(); fi != disjuncts.end(); fi++) {
+    if (!(*fi)->asserts(atom)) {
+      return false;
+    }
+  }
+  return true;
+}
 
 
 /* Returns an instantiation of this formula. */
@@ -1004,6 +1051,12 @@ const Formula& Disjunction::negation() const {
 QuantifiedFormula::QuantifiedFormula(const VariableList& parameters,
 				     const Formula& body)
   : parameters(parameters), body(body) {}
+
+
+/* Checks if this formula asserts the given atom. */
+bool QuantifiedFormula::asserts(const Atom& atom) const {
+  return body.asserts(atom);
+}
 
 
 /* ====================================================================== */

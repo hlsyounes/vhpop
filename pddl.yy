@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 3.1 2002-03-10 14:35:03 lorens Exp $
+ * $Id: pddl.yy,v 3.2 2002-03-10 23:12:43 lorens Exp $
  */
 %{
 #include "requirements.h"
@@ -377,7 +377,7 @@ action_body2 : /* empty */ { action_effs = &EffectList::EMPTY; }
              | effect      { action_effs = $1; }
             ;
 
-precondition : PRECONDITION { formula_time = Formula::AT_START; }
+precondition : PRECONDITION { formula_time = Formula::OVER_ALL; }
                formula { $$ = $3; }
              ;
 
@@ -421,7 +421,7 @@ eff_formula : term_literal
 		    $$ = $7;
 		  }
 		}
-            | '(' WHEN { formula_time = Formula::AT_START; }
+            | '(' WHEN { formula_time = Formula::OVER_ALL; }
               formula one_eff_formula ')'
                 {
 		  if (!requirements->conditional_effects) {
@@ -612,14 +612,18 @@ da_effects : /* empty */
            | da_effects da_effect
                { copy($2->begin(), $2->end(), back_inserter(*$1)); $$ = $1; }
 
-timed_effect : '(' AT START one_eff_formula ')'
+timed_effect : '(' AT START
+                 { formula_time = Formula::AT_START; }
+               one_eff_formula ')'
                  {
-		   $$ = new EffectList(new Effect(*$4->first, *$4->second,
+		   $$ = new EffectList(new Effect(*$5->first, *$5->second,
 						  Effect::AT_START));
 		 }
-             | '(' AT END one_eff_formula ')'
+             | '(' AT END
+                 { formula_time = Formula::AT_END; }
+               one_eff_formula ')'
                  {
-		   $$ = new EffectList(new Effect(*$4->first, *$4->second,
+		   $$ = new EffectList(new Effect(*$5->first, *$5->second,
 						  Effect::AT_END));
 		 }
              ;

@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 3.1 2002-03-10 14:33:17 lorens Exp $
+ * $Id: formulas.h,v 3.2 2002-03-10 23:12:39 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -225,6 +225,8 @@ struct VariableList : public Vector<const Variable*> {
 typedef VariableList::const_iterator VarListIter;
 
 
+struct Atom;
+
 /*
  * Abstract formula.
  */
@@ -245,6 +247,9 @@ struct Formula : public Printable, public gc {
 
   /* Checks if this formula is either a tautology or contradiction. */
   bool constant() const;
+
+  /* Checks if this formula asserts the given atom. */
+  virtual bool asserts(const Atom& atom) const = 0;
 
   /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(size_t id) const = 0;
@@ -320,6 +325,9 @@ typedef FormulaList::const_iterator FormulaListIter;
  * A formula with a constant truth value.
  */
 struct Constant : public Formula {
+  /* Checks if this formula asserts the given atom. */
+  virtual bool asserts(const Atom& atom) const;
+
   /* Returns an instantiation of this formula. */
   virtual const Constant& instantiation(size_t id) const;
 
@@ -451,6 +459,9 @@ struct Atom : public Literal {
   /* Returns the terms of this literal. */
   virtual const TermList& terms() const;
 
+  /* Checks if this formula asserts the given atom. */
+  virtual bool asserts(const Atom& atom) const;
+
   /* Returns an instantiation of this formula. */
   virtual const Atom& instantiation(size_t id) const;
 
@@ -515,6 +526,9 @@ struct Negation : public Literal {
   /* Returns the terms of this literal. */
   virtual const TermList& terms() const;
 
+  /* Checks if this formula asserts the given atom. */
+  virtual bool asserts(const Atom& atom) const;
+
   /* Returns an instantiation of this formula. */
   virtual const Negation& instantiation(size_t id) const;
 
@@ -565,6 +579,9 @@ struct BindingLiteral : public Formula {
   const Term& term1;
   /* Second term of binding literal. */
   const Term& term2;
+
+  /* Checks if this formula asserts the given atom. */
+  virtual bool asserts(const Atom& atom) const;
 
 protected:
   /* Constructs a binding literal. */
@@ -671,6 +688,9 @@ struct Conjunction : public Formula {
   /* The conjuncts. */
   const FormulaList& conjuncts;
 
+  /* Checks if this formula asserts the given atom. */
+  virtual bool asserts(const Atom& atom) const;
+
   /* Returns an instantiation of this formula. */
   virtual const Conjunction& instantiation(size_t id) const;
 
@@ -722,6 +742,9 @@ private:
 struct Disjunction : public Formula {
   /* The disjuncts. */
   const FormulaList& disjuncts;
+
+  /* Checks if this formula asserts the given atom. */
+  virtual bool asserts(const Atom& atom) const;
 
   /* Returns an instantiation of this formula. */
   virtual const Disjunction& instantiation(size_t id) const;
@@ -776,6 +799,9 @@ struct QuantifiedFormula : public Formula {
   const VariableList& parameters;
   /* The quantified formula. */
   const Formula& body;
+
+  /* Checks if this formula asserts the given atom. */
+  virtual bool asserts(const Atom& atom) const;
 
 protected:
   /* Constructs a quantified formula. */
