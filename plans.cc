@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.1 2001-05-03 15:41:02 lorens Exp $
+ * $Id: plans.cc,v 1.2 2001-05-04 00:17:50 lorens Exp $
  */
 #include <queue>
 #include <hash_set>
@@ -371,7 +371,7 @@ const Plan* Plan::plan(const Problem& problem, Heuristic heuristic,
       /*
        * This is a new plan.
        */
-      num_visited_plans++;
+      num_visited_plans += 1 + current_plan->early_cost_;
       if (verbosity > 1) {
 	cout << endl << "!!!!CURRENT PLAN:" << endl << *current_plan << endl;
       }
@@ -383,7 +383,7 @@ const Plan* Plan::plan(const Problem& problem, Heuristic heuristic,
       for (PlanList::const_iterator i = refinements.begin();
 	   i != refinements.end(); i++) {
 	plans.push(*i);
-	num_generated_plans++;
+	num_generated_plans += 1 + (*i)->early_cost_;
 	if (verbosity > 2) {
 	  cout << endl << "####CHILD with rank " << (*i)->primary_rank()
 	       << ',' << (*i)->secondary_rank() << ':' << endl
@@ -1122,14 +1122,24 @@ void Plan::link_preconditions(PlanList& new_plans) const {
   vector<const OpenCondition*> dynamic;
   const Plan* new_plan = this;
   PlanList generated_plans;
+  size_t early_cost = 0;
   for (const OpenConditionChain* oc = open_conds_;
        oc != old_open_conds_; oc = oc->tail) {
     const OpenCondition& open_cond = *oc->head;
     if (static_open_condition(open_cond)) {
       generated_plans.clear();
       new_plan->reuse_step(generated_plans, open_cond, true);
-      if (generated_plans.size() == 1) {
+      size_t n = generated_plans.size();
+      if (n == 1) {
+	/* static precondition can be linked unambiguously */
 	new_plan = generated_plans.back();
+	early_cost++;
+      } else if (n == 0) {
+	/* static precondition cannot be linked, so the plan can never
+           be fulfilled */
+	new_plans.pop_back();
+	cout << "STATIC FAILURE" << endl;
+	return;
       }
     } else {
       dynamic.push_back(&open_cond);
@@ -1140,6 +1150,7 @@ void Plan::link_preconditions(PlanList& new_plans) const {
        safely replace this plan with the new plan. */
     assert(new_plans.back() == this);
     new_plans.pop_back();
+    new_plan->early_cost_ = early_cost;
     new_plans.push_back(new_plan);
   }
   if (early_linking > 1) {
