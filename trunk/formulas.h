@@ -1,8 +1,8 @@
 /* -*-C++-*- */
 /*
- * Types, terms, and formulas.
+ * Formulas.
  *
- * $Id: formulas.h,v 1.6 2001-05-15 13:53:33 lorens Exp $
+ * $Id: formulas.h,v 1.7 2001-07-29 17:57:58 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -12,129 +12,7 @@
 #include <hash_map>
 #include <vector>
 #include "support.h"
-
-
-/*
- * Abstract type.
- */
-struct Type : public gc {
-  /* Deletes this type. */
-  virtual ~Type() {
-  }
-
-  /* Checks if this type is object type. */
-  bool object() const;
-
-  /* Checks if this type is compatible with the given type. */
-  bool compatible(const Type& t) const {
-    return subtype(t) || t.subtype(*this);
-  }
-
-  /* Checks if this type is a subtype of the given type. */
-  virtual bool subtype(const Type& t) const = 0;
-
-protected:
-  /* Prints this type on the given stream. */
-  virtual void print(ostream& os) const = 0;
-
-  friend ostream& operator<<(ostream& os, const Type& t);
-};
-
-/* Output operator for types. */
-inline ostream& operator<<(ostream& os, const Type& t) {
-  t.print(os);
-  return os;
-}
-
-
-/*
- * List of types.
- */
-typedef vector<const Type*, container_alloc> TypeList;
-
-
-/*
- * Union type.
- */
-struct UnionType : public Type {
-  /* Constituent types. */
-  const TypeList& types;
-
-  /* Constructs the type that is the union of the given types. */
-  UnionType(const TypeList& types)
-    : types(types) {
-  }
-
-  /* Checks if this type is a subtype of the given type. */
-  virtual bool subtype(const Type& t) const {
-    for (TypeList::const_iterator i = types.begin(); i != types.end(); i++) {
-      if ((*i)->subtype(t)) {
-	return true;
-      }
-    }
-    return false;
-  }
-
-protected:
-  /* Prints this type on the given stream. */
-  virtual void print(ostream& os) const;
-};
-
-
-/*
- * Simple type.
- */
-struct SimpleType : public Type {
-  /* The object type. */
-  static const SimpleType& OBJECT_TYPE;
-
-  /* Name of type. */
-  const string name;
-  /* Supertype */
-  const Type& super_type;
-
-  /* Constructs a simple type with the given name. */
-  SimpleType(const string& name, const Type& super_type = OBJECT_TYPE)
-    : name(name), super_type(name == "object" ? *this : super_type) {
-  }
-
-  /* Checks if this type is a subtype of the given type. */
-  virtual bool subtype(const Type& t) const {
-    if (t.object()) {
-      return true;
-    } else {
-      const SimpleType* st = dynamic_cast<const SimpleType*>(&t);
-      if (st != NULL) {
-	return name == st->name || (!object() && super_type.subtype(t));
-      } else {
-	const UnionType& ut = dynamic_cast<const UnionType&>(t);
-	for (TypeList::const_iterator i = ut.types.begin();
-	     i != ut.types.end(); i++) {
-	  if (subtype(**i)) {
-	    return true;
-	  }
-	}
-	return false;
-      }
-    }
-  }
-
-protected:
-  /* Prints this type on the given stream. */
-  virtual void print(ostream& os) const;
-};
-
-/* Checks if this type is object type. */
-inline bool Type::object() const {
-  return this == &SimpleType::OBJECT_TYPE;
-}
-
-
-/*
- * Table of types.
- */
-typedef hash_map<string, const SimpleType*, hash<string>, equal_to<string>,
-  container_alloc> TypeMap;
+#include "types.h"
 
 
 struct Term;
@@ -143,13 +21,37 @@ struct Variable;
 /*
  * Variable substitution.
  */
-typedef pair<const Variable*, const Term*> Substitution;
+struct Substitution : public gc {
+  /* Variable to get substituted. */
+  const Variable& var;
+  /* Term to substitute with. */
+  const Term& term;
+
+  /* Constructs a substitution. */
+  Substitution(const Variable& var, const Term& term)
+    : var(var), term(term) {
+  }
+
+private:
+  /* Prints this substitution on the given stream. */
+  virtual void print(ostream& os) const;
+
+  friend ostream& operator<<(ostream& os, const Substitution& s);
+};
+
+/* Output operator for substitutions. */
+inline ostream& operator<<(ostream& os, const Substitution& s) {
+  s.print(os);
+  return os;
+}
 
 
 /*
  * List of substitutions.
  */
-typedef vector<Substitution, container_alloc> SubstitutionList;
+struct SubstitutionList : public gc,
+			  vector<const Substitution*, container_alloc> {
+};
 
 
 /*
@@ -171,22 +73,16 @@ struct Term : public gc {
   }
 
   /* Returns an instantiation of this term. */
-  virtual const Term& instantiation(size_t id) const {
-    return *this;
-  }
+  virtual const Term& instantiation(size_t id) const = 0;
 
   /* Returns this term subject to the given substitutions. */
-  virtual const Term& substitution(const SubstitutionList& subst) const {
-    return *this;
-  }
+  virtual const Term& substitution(const SubstitutionList& subst) const = 0;
 
   /* Checks if this term is equivalent to the given term; two terms
      are equivalent if they both are the same name, or if they are
      variables (variable names only matter for equality and not for
      equivalence). */
-  virtual bool equivalent(const Term& t) const {
-    return name == t.name;
-  }
+  virtual bool equivalent(const Term& t) const = 0;
 
 protected:
   /* Prints this term on the given stream. */
@@ -225,6 +121,24 @@ struct Name : public Term {
     : Term(name, type) {
   }
 
+  /* Returns an instantiation of this term. */
+  virtual const Name& instantiation(size_t id) const {
+    return *this;
+  }
+
+  /* Returns this term subject to the given substitutions. */
+  virtual const Name& substitution(const SubstitutionList& subst) const {
+    return *this;
+  }
+
+  /* Checks if this term is equivalent to the given term; two terms
+     are equivalent if they both are the same name, or if they are
+     variables (variable names only matter for equality and not for
+     equivalence). */
+  virtual bool equivalent(const Term& t) const {
+    return *this == t;
+  }
+
 protected:
   /* Checks if this term equals the given term. */
   virtual bool equals(const Term& t) const {
@@ -250,9 +164,9 @@ struct Variable : public Term {
   virtual const Term& substitution(const SubstitutionList& subst) const {
     for (SubstitutionList::const_iterator i = subst.begin();
 	 i != subst.end(); i++) {
-      const Substitution& s = *i;
-      if (*this == *s.first) {
-	return *s.second;
+      const Substitution& s = **i;
+      if (*this == s.var) {
+	return s.term;
       }
     }
     return *this;
@@ -307,7 +221,7 @@ inline const Variable& Variable::instantiation(size_t id) const {
 /*
  * List of terms.
  */
-struct TermList : public gc, public vector<const Term*, container_alloc> {
+struct TermList : public gc, vector<const Term*, container_alloc> {
   /* Constructs an empty term list. */
   TermList() {
   }
@@ -370,21 +284,23 @@ struct TermList : public gc, public vector<const Term*, container_alloc> {
 /*
  * List of names.
  */
-typedef vector<const Name*, container_alloc> NameList;
+struct NameList : public gc, vector<const Name*, container_alloc> {
+};
 
 
 /*
  * Table of names.
  */
-typedef hash_map<string, const Name*, hash<string>, equal_to<string>,
-  container_alloc> NameMap;
+struct NameMap : public gc,
+		 hash_map<string, const Name*, hash<string>, equal_to<string>,
+		 container_alloc> {
+};
 
 
 /*
  * List of variables.
  */
-struct VariableList : public gc,
-		      public vector<const Variable*, container_alloc> {
+struct VariableList : public gc, vector<const Variable*, container_alloc> {
   /* Constructs an empty variable list. */
   VariableList() {
   }
@@ -429,6 +345,8 @@ struct VariableList : public gc,
   }
 };
 
+
+struct Problem;
 
 /*
  * Abstract formula.
@@ -475,9 +393,7 @@ struct Formula : public gc {
   virtual size_t cost() const = 0;
 
   /* Checks if this formula is consistent. */
-  virtual bool consistent() const {
-    return true;
-  }
+  virtual bool consistent(const Problem& problem) const = 0;
 
 protected:
   /* Prints this formula on the given stream. */
@@ -510,8 +426,7 @@ inline bool operator!=(const Formula& f1, const Formula& f2) {
 /*
  * List of formulas.
  */
-struct FormulaList : public gc,
-		     public vector<const Formula*, container_alloc> {
+struct FormulaList : public gc, vector<const Formula*, container_alloc> {
   /* Constructs an empty formula list. */
   FormulaList() {
   }
@@ -656,6 +571,9 @@ struct AtomicFormula : public Formula {
     return 1;
   }
 
+  /* Checks if this formula is consistent. */
+  virtual bool consistent(const Problem& problem) const;
+
 protected:
   /* Prints this atomic formula on the given stream. */
   virtual void print(ostream& os) const;
@@ -724,6 +642,11 @@ struct Negation : public Formula {
     return 1;
   }
 
+  /* Checks if this formula is consistent. */
+  virtual bool consistent(const Problem& problem) const {
+    return !atom.consistent(problem);
+  }
+
 protected:
   /* Prints this negation on the given stream. */
   virtual void print(ostream& os) const;
@@ -789,7 +712,7 @@ struct Equality : public Formula {
   }
 
   /* Checks if this formula is consistent. */
-  virtual bool consistent() const {
+  virtual bool consistent(const Problem& problem) const {
     return term1 == term2;
   }
 
@@ -850,7 +773,7 @@ struct Inequality : public Formula {
   }
 
   /* Checks if this formula is consistent. */
-  virtual bool consistent() const {
+  virtual bool consistent(const Problem& problem) const {
     return term1 != term2;
   }
 
@@ -911,6 +834,17 @@ struct Conjunction : public Formula {
     return conjuncts.cost();
   }
 
+  /* Checks if this formula is consistent. */
+  virtual bool consistent(const Problem& problem) const {
+    for (FormulaList::const_iterator c = conjuncts.begin();
+	 c != conjuncts.end(); c++) {
+      if (!(*c)->consistent(problem)) {
+	return false;
+      }
+    }
+    return true;
+  }
+
 protected:
   /* Prints this conjunction on the given stream. */
   virtual void print(ostream& os) const;
@@ -961,6 +895,18 @@ struct Disjunction : public Formula {
   virtual size_t cost() const {
     return 1;
   }
+
+  /* Checks if this formula is consistent. */
+  virtual bool consistent(const Problem& problem) const {
+    for (FormulaList::const_iterator c = disjuncts.begin();
+	 c != disjuncts.end(); c++) {
+      if ((*c)->consistent(problem)) {
+	return true;
+      }
+    }
+    return false;
+  }
+
 protected:
   /* Prints this disjunction on the given stream. */
   virtual void print(ostream& os) const;
@@ -1018,6 +964,12 @@ struct ExistsFormula : public Formula {
   virtual size_t cost() const {
     return 1;
   }
+
+  /* Checks if this formula is consistent. */
+  virtual bool consistent(const Problem& problem) const {
+    return body.consistent(problem);
+  }
+
 protected:
   /* Prints this formula on the given stream. */
   virtual void print(ostream& os) const;
@@ -1072,6 +1024,12 @@ struct ForallFormula : public Formula {
   virtual size_t cost() const {
     return 1;
   }
+
+  /* Checks if this formula is consistent. */
+  virtual bool consistent(const Problem& problem) const {
+    return body.consistent(problem);
+  }
+
 protected:
   /* Prints this formula on the given stream. */
   virtual void print(ostream& os) const;
