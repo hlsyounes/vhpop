@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.h,v 1.21 2002-01-25 21:50:25 lorens Exp $
+ * $Id: heuristics.h,v 1.22 2002-01-26 03:32:24 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
@@ -208,7 +208,7 @@ struct InvalidHeuristic : public Exception {
  * UC gives priority to plans with few threatened links.
  * BUC gives priority to plans with no threatened links.
  * S+OC uses h(p) = |S(p)| + w*|OC(p)|.
- * UCPOP uses h(p) = |S(p)| + w*(|OC(p)| + |UC(p)|.
+ * UCPOP uses h(p) = |S(p)| + w*(|OC(p)| + |UC(p)|).
  * ADD_COST uses the additive cost heuristic.
  * ADD_WORK uses the additive work heuristic.
  * ADD uses h(p) = |S(p)| + w*ADD_COST.
