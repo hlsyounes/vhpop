@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 6.8 2003-12-05 21:03:31 lorens Exp $
+ * $Id: pddl.yy,v 6.9 2003-12-05 23:17:07 lorens Exp $
  */
 %{
 #include "requirements.h"
@@ -24,7 +24,6 @@
 #include "domains.h"
 #include "formulas.h"
 #include "types.h"
-#include "exceptions.h"
 #include "mathport.h"
 #include <typeinfo>
 #include <utility>
@@ -373,7 +372,7 @@ require_key : STRIPS { requirements->strips = true; }
             | DURATION_INEQUALITIES
                 { requirements->duration_inequalities = true; }
             | CONTINUOUS_EFFECTS
-                { throw Exception("`:continuous-effects' not supported"); }
+                { yyerror("`:continuous-effects' not supported"); }
             | TIMED_INITIAL_LITERALS
                 {
 		  requirements->durative_actions = true;
