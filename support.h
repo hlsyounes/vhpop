@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  * 
- * $Id: support.h,v 3.5 2002-03-29 10:04:15 lorens Exp $
+ * $Id: support.h,v 3.6 2002-05-27 22:00:44 lorens Exp $
  */
 #ifndef SUPPORT_H
 #define SUPPORT_H
@@ -94,7 +94,7 @@ inline bool member_if(I first, I last, P pred) {
 
 
 /*
- * A hash multimap using a traceable allocator.
+ * A hash multimap.
  */
 template<typename K, typename T,
 	 typename H = hash<K>, typename E = equal_to<K> >
