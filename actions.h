@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: actions.h,v 6.1 2003-08-24 22:11:32 lorens Exp $
+ * $Id: actions.h,v 6.2 2003-08-24 23:10:29 lorens Exp $
  */
 #ifndef ACTIONS_H
 #define ACTIONS_H
@@ -156,9 +156,6 @@ private:
 struct ActionSchemaMap : public std::map<std::string, const ActionSchema*> {
 };
 
-/* Iterator for action schema table. */
-typedef ActionSchemaMap::const_iterator ActionSchemaMapIter;
-
 
 /* ====================================================================== */
 /* GroundAction */
@@ -194,9 +191,6 @@ private:
  */
 struct GroundActionList : public std::vector<const GroundAction*> {
 };
-
-/* Iterator for ground action lists. */
-typedef GroundActionList::const_iterator GroundActionListIter;
 
 
 #endif /* ACTIONS_H */
