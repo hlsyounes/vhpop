@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: tokens.ll,v 2.1 2002-01-30 22:43:32 lorens Exp $
+ * $Id: tokens.ll,v 2.2 2002-02-03 18:57:33 lorens Exp $
  */
 %{
 struct Type;
@@ -48,7 +48,7 @@ static int make_string(const char* s, int token);
 
 %%
 
-[()\-]                       return yytext[0];
+[()+\-\*/]                   return yytext[0];
 define                       return make_string(yytext, DEFINE);
 domain                       return make_string(yytext, DOMAIN);
 problem                      return make_string(yytext, PROBLEM);
@@ -78,6 +78,7 @@ problem                      return make_string(yytext, PROBLEM);
 :objects                     return OBJECTS;
 :init                        return INIT;
 :goal                        return GOAL;
+:metric                      return METRIC;
 when                         return make_string(yytext, WHEN);
 not                          return make_string(yytext, NOT);
 and                          return make_string(yytext, AND);
@@ -86,6 +87,9 @@ imply                        return make_string(yytext, IMPLY);
 exists                       return make_string(yytext, EXISTS);
 forall                       return make_string(yytext, FORALL);
 either                       return make_string(yytext, EITHER);
+minimize                     return make_string(yytext, MINIMIZE);
+maximize                     return make_string(yytext, MAXIMIZE);
+total-time                   return make_string(yytext, TOTAL_TIME);
 [A-Za-z]([A-Za-z0-9\-_])*    return make_string(yytext, NAME);
 =                            return EQUALS;
 \?[A-Za-z]([A-Z0-9a-z\-_])*  return make_string(yytext, VARIABLE);
