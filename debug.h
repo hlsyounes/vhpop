@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: debug.h,v 6.1 2003-03-23 11:45:58 lorens Exp $
+ * $Id: debug.h,v 6.2 2003-07-21 01:58:45 lorens Exp $
  */
 #ifndef DEBUG_H
 #define DEBUG_H
@@ -31,6 +31,8 @@ extern int verbosity;
 #ifdef DEBUG_MEMORY
 extern size_t created_formulas;
 extern size_t deleted_formulas;
+extern size_t created_conditions;
+extern size_t deleted_conditions;
 extern size_t created_name_sets;
 extern size_t deleted_name_sets;
 extern size_t created_action_domains;
