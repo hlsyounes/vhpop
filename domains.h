@@ -2,7 +2,7 @@
 /*
  * Domain descriptions.
  *
- * $Id: domains.h,v 1.3 2001-05-04 17:55:49 lorens Exp $
+ * $Id: domains.h,v 1.4 2001-05-11 22:11:28 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -97,6 +97,26 @@ struct Effect : public gc {
 			add_list.instantiation(id)));
   }
 
+  /* Returns an effect subject to the given substitutions. */
+  const Effect& substitution(const SubstitutionList& subst) const {
+    SubstitutionList eff_subst;
+    if (forall.empty()) {
+      eff_subst = subst;
+    } else {
+      for (SubstitutionList::const_iterator i = subst.begin();
+	   i != subst.end(); i++) {
+	const Substitution& s = *i;
+	if (!forall.contains(*s.first)) {
+	  eff_subst.push_back(s);
+	}
+      }
+    }
+    const Formula* subst_condition =
+      (condition != NULL) ? &condition->substitution(eff_subst) : NULL;
+    return *(new Effect(forall, subst_condition,
+			add_list.substitution(eff_subst)));
+  }
+
   /* Checks if the add list of this effect matches the given formula. */
   bool matches(const Formula& f) const {
     return add_list.matches(f);
@@ -140,6 +160,15 @@ struct EffectList : public gc,
     EffectList& effects = *(new EffectList());
     for (const_iterator i = begin(); i != end(); i++) {
       effects.push_back(&(*i)->instantiation(id));
+    }
+    return effects;
+  }
+
+  /* Returns this effect list subject to the given substitutions. */
+  const EffectList& substitution(const SubstitutionList& subst) const {
+    EffectList& effects = *(new EffectList());
+    for (const_iterator i = begin(); i != end(); i++) {
+      effects.push_back(&(*i)->substitution(subst));
     }
     return effects;
   }
