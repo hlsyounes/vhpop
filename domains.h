@@ -16,13 +16,14 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.h,v 6.2 2003-07-21 02:03:07 lorens Exp $
+ * $Id: domains.h,v 6.3 2003-07-28 21:31:48 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
 
 #include <config.h>
 #include "requirements.h"
+#include "effects.h"
 #include "formulas.h"
 #include "terms.h"
 #include "predicates.h"
@@ -31,106 +32,6 @@
 #include <map>
 
 struct Problem;
-
-
-/* ====================================================================== */
-/* Effect */
-
-struct EffectList;
-
-/*
- * Effect definition.
- */
-struct Effect {
-  /* Possible temporal annotations for effects. */
-  typedef enum { AT_START, AT_END } EffectTime;
-
-  /* Constructs an empty effect. */
-  explicit Effect(EffectTime when);
-
-  /* Deletes this effect. */
-  ~Effect();
-
-  /* Adds a universally quantified variable to this effect. */
-  void add_forall(Variable parameter);
-
-  /* Sets the condition of this effect. */
-  void set_condition(const Condition& condition);
-
-  /* Sets the link condition of this effect. */
-  void set_link_condition(const Condition& link_condition) const;
-
-  /* Adds an atom to the add list of this effect. */
-  void add_positive(const Atom& atom);
-
-  /* Adds a negated atom to the delete list of this effect. */
-  void add_negative(const Negation& negation);
-
-  /* Returns the universally quantified variables for this effect. */
-  const VariableList& forall() const { return forall_; }
-
-  /* Returns the condition for this effect. */
-  const Condition& condition() const { return *condition_; }
-
-  /* Returns the condition that must hold for this effect to be
-     considered for linking. */
-  const Condition& link_condition() const { return *link_condition_; }
-
-  /* Returns the add list for this effect. */
-  const AtomList& add_list() const { return add_list_; }
-
-  /* Returns the delete list for this effect. */
-  const NegationList& del_list() const { return del_list_; }
-
-  /* Returns the temporal annotation for this effect. */
-  EffectTime when() const { return when_; }
-
-  /* Fills the provided list with instantiations of this effect. */
-  void instantiations(EffectList& effects, size_t& useful,
-		      const SubstitutionMap& subst,
-		      const Problem& problem) const;
-
-  /* Fills the provided sets with predicates achievable by the
-     effect. */
-  void achievable_predicates(PredicateSet& preds,
-			     PredicateSet& neg_preds) const;
-
-  /* Prints this effect on the given stream. */
-  void print(std::ostream& os, const PredicateTable& predicates,
-	     const TermTable& terms) const;
-
-private:
-  /* List of universally quantified variables for this effect. */
-  VariableList forall_;
-  /* Condition for this effect, or TRUE if unconditional effect. */
-  const Condition* condition_;
-  /* Condition that must hold for this effect to be considered for linking. */
-  mutable const Condition* link_condition_;
-  /* Add list for this effect. */
-  AtomList add_list_;
-  /* Delete list for this effect. */
-  NegationList del_list_;
-  /* Temporal annotation for this effect. */
-  EffectTime when_;
-
-  /* Returns an instantiation of this effect. */
-  const Effect* instantiation(const SubstitutionMap& args,
-			      const Problem& problem,
-			      const Condition& condition) const;
-};
-
-
-/* ====================================================================== */
-/* EffectList */
-
-/*
- * List of effect definitions.
- */
-struct EffectList : public std::vector<const Effect*> {
-};
-
-/* Iterator for effect lists. */
-typedef EffectList::const_iterator EffectListIter;
 
 
 /* ====================================================================== */
