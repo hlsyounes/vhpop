@@ -16,11 +16,12 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.h,v 3.10 2002-05-27 00:16:45 lorens Exp $
+ * $Id: orderings.h,v 3.11 2002-05-28 22:18:12 lorens Exp $
  */
 #ifndef ORDERINGS_H
 #define ORDERINGS_H
 
+#include "support.h"
 #include "chain.h"
 #include <hash_map>
 
@@ -111,24 +112,7 @@ typedef CollectibleChain<Ordering> OrderingChain;
 /*
  * Collection of ordering constraints.
  */
-struct Orderings {
-  /* Register use of the given ordering collection. */
-  static void register_use(const Orderings* o) {
-    if (o != NULL) {
-      o->ref_count_++;
-    }
-  }
-
-  /* Unregister use of the given ordering collection. */
-  static void unregister_use(const Orderings* o) {
-    if (o != NULL) {
-      o->ref_count_--;
-      if (o->ref_count_ == 0) {
-	delete o;
-      }
-    }
-  }
-
+struct Orderings : public Collectible, public Printable {
   /* Deletes this ordering collection. */
   virtual ~Orderings();
 
@@ -185,19 +169,7 @@ protected:
   virtual float schedule(hash_map<size_t, float>& start_times,
 			 hash_map<size_t, float>& end_times,
 			 size_t step_id, StepTime t = STEP_START) const = 0;
-
-  /* Prints this ordering collection on the given stream. */
-  virtual void print(ostream& os) const = 0;
-
-private:
-  /* Reference counter. */
-  mutable size_t ref_count_;
-
-  friend ostream& operator<<(ostream& os, const Orderings& o);
 };
-
-/* Output operator for ordering collections. */
-ostream& operator<<(ostream& os, const Orderings& o);
 
 
 /* ====================================================================== */
@@ -244,7 +216,7 @@ protected:
 			 hash_map<size_t, float>& end_times,
 			 size_t step_id, StepTime t = STEP_START) const;
 
-  /* Prints this ordering collection on the given stream. */
+  /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
 
 private:
@@ -312,7 +284,7 @@ protected:
 			 hash_map<size_t, float>& end_times,
 			 size_t step_id, StepTime t = STEP_START) const;
 
-  /* Prints this ordering collection on the given stream. */
+  /* Prints this opbject on the given stream. */
   virtual void print(ostream& os) const;
 
 private:

@@ -16,12 +16,13 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: problems.h,v 3.1 2002-03-18 09:32:55 lorens Exp $
+ * $Id: problems.h,v 3.2 2002-05-28 22:19:10 lorens Exp $
  */
 #ifndef PROBLEMS_H
 #define PROBLEMS_H
 
 #include "support.h"
+#include "formulas.h"
 
 struct Type;
 struct Domain;
@@ -48,12 +49,6 @@ struct Problem : public Printable {
   const string name;
   /* Problem domain. */
   const Domain& domain;
-  /* Problem objects. */
-  const NameMap& objects;
-  /* Initial condition of problem. */
-  const Effect& init;
-  /* Goal of problem. */
-  const Formula& goal;
 
   /* Returns a const_iterator pointing to the first problem. */
   static ProblemMapIter begin();
@@ -68,15 +63,29 @@ struct Problem : public Printable {
   static void clear();
 
   /* Constructs a problem. */
-  Problem(const string& name, const Domain& domain, const NameMap& objects,
-	  const Effect& init, const Formula& goal);
+  Problem(const string& name, const Domain& domain);
 
   /* Deletes a problem. */
   virtual ~Problem();
 
+  /* Adds an object to this problem. */
+  void add_object(const Name& object);
+
+  /* Sets the initial conditions of this problem. */
+  void set_init(const Effect& effect);
+
+  /* Sets the goal of this problem. */
+  void set_goal(const Formula& goal);
+
   /* Returns the object with the given name, or NULL if it is
      undefined. */
   const Name* find_object(const string& name) const;
+
+  /* Returns the initial conditions of this problem. */
+  const Effect& init() const { return *init_; }
+
+  /* Returns the goal of this problem. */
+  const Formula& goal() const { return *goal_; }
 
   /* Fills the provided name list with objects (including constants
      declared in the domain) that are compatible with the given
@@ -94,6 +103,13 @@ protected:
 private:
   /* Table of defined problems. */
   static ProblemMap problems;
+
+  /* Problem objects. */
+  NameMap objects_;
+  /* Initial condition of problem. */
+  const Effect* init_;
+  /* Goal of problem. */
+  const Formula* goal_;
 };
 
 

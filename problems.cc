@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: problems.cc,v 3.3 2002-03-18 09:31:49 lorens Exp $
+ * $Id: problems.cc,v 3.4 2002-05-28 22:19:12 lorens Exp $
  */
 #include "problems.h"
 #include "domains.h"
@@ -59,10 +59,10 @@ void Problem::clear() {
 
 
 /* Constructs a problem. */
-Problem::Problem(const string& name, const Domain& domain,
-		 const NameMap& objects, const Effect& init,
-		 const Formula& goal)
-  : name(name), domain(domain), objects(objects), init(init), goal(goal) {
+Problem::Problem(const string& name, const Domain& domain)
+  : name(name), domain(domain),
+    init_(new Effect(AtomList::EMPTY, NegationList::EMPTY, Effect::AT_END)),
+    goal_(&Formula::TRUE) {
   const Problem* p = find(name);
   if (p != NULL) {
     delete p;
@@ -74,18 +74,35 @@ Problem::Problem(const string& name, const Domain& domain,
 /* Deletes a problem. */
 Problem::~Problem() {
   problems.erase(name);
-  for (NameMapIter ni = objects.begin(); ni != objects.end(); ni++) {
+  for (NameMapIter ni = objects_.begin(); ni != objects_.end(); ni++) {
     delete (*ni).second;
   }
-  delete &objects;
+}
+
+
+/* Adds an object to this problem. */
+void Problem::add_object(const Name& object) {
+  objects_[object.name()] = &object;
+}
+
+
+/* Sets the initial conditions of this problem. */
+void Problem::set_init(const Effect& effect) {
+  init_ = &effect;
+}
+
+
+/* Sets the goal of this problem. */
+void Problem::set_goal(const Formula& goal) {
+  goal_ = &goal;
 }
 
 
 /* Returns the object with the given name, or NULL if it is
    undefined. */
 const Name* Problem::find_object(const string& name) const {
-  NameMapIter ni = objects.find(name);
-  return (ni != objects.end()) ? (*ni).second : NULL;
+  NameMapIter ni = objects_.find(name);
+  return (ni != objects_.end()) ? (*ni).second : NULL;
 }
 
 
@@ -93,8 +110,8 @@ const Name* Problem::find_object(const string& name) const {
    declared in the domain) that are compatible with the given type. */
 void Problem::compatible_objects(NameList& objects, const Type& t) const {
   domain.compatible_constants(objects, t);
-  for (NameMapIter ni = this->objects.begin();
-       ni != this->objects.end(); ni++) {
+  for (NameMapIter ni = this->objects_.begin();
+       ni != this->objects_.end(); ni++) {
     const Name& name = *(*ni).second;
     if (name.type().subtype(t)) {
       objects.push_back(&name);
@@ -118,9 +135,9 @@ void Problem::print(ostream& os) const {
   os << "name: " << name;
   os << endl << "domain: " << domain.name;
   os << endl << "objects:";
-  for (NameMapIter ni = objects.begin(); ni != objects.end(); ni++) {
+  for (NameMapIter ni = objects_.begin(); ni != objects_.end(); ni++) {
     os << ' ' << *(*ni).second << " - " << (*ni).second->type();
   }
-  os << endl << "initial condition: " << init;
-  os << endl << "goal: " << goal;
+  os << endl << "initial condition: " << init_;
+  os << endl << "goal: " << goal_;
 }
