@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.11 2001-08-12 16:31:13 lorens Exp $
+ * $Id: plans.cc,v 1.12 2001-08-18 15:46:28 lorens Exp $
  */
 #include <queue>
 #include <hash_set>
@@ -650,8 +650,8 @@ void Plan::separate(PlanList& new_plans, const Unsafe& unsafe) const {
       }
     }
   }
-  const Formula* effect_cond = unsafe.effect.condition;
-  if (effect_cond != NULL) {
+  const Formula& effect_cond = unsafe.effect.condition;
+  if (effect_cond != Formula::TRUE) {
     const Formula* cond_goal;
     if (!effect_forall.empty()) {
       SubstitutionList forall_subst;
@@ -662,9 +662,9 @@ void Plan::separate(PlanList& new_plans, const Unsafe& unsafe) const {
 	  forall_subst.push_back(&s);
 	}
       }
-      cond_goal = &effect_cond->substitution(forall_subst);
+      cond_goal = &effect_cond.substitution(forall_subst);
     } else {
-      cond_goal = effect_cond;
+      cond_goal = &effect_cond;
     }
     goal = &(*goal || *cond_goal);
   }
@@ -1271,7 +1271,7 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
   const OpenConditionChain* old_open_conds = open_conds;
   size_t num_open_conds = num_open_conds_ - 1;
   const Formula* cond_goal = NULL;
-  if (effect.condition != NULL) {
+  if (effect.condition != Formula::TRUE) {
     if (!effect_forall.empty()) {
       SubstitutionList forall_subst;
       for (SubstitutionList::const_iterator i = unifier.begin();
@@ -1281,9 +1281,9 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
 	  forall_subst.push_back(&s);
 	}
       }
-      cond_goal = &effect.condition->substitution(forall_subst);
+      cond_goal = &effect.condition.substitution(forall_subst);
     } else {
-      cond_goal = effect.condition;
+      cond_goal = &effect.condition;
     }
     if (!add_goal(open_conds, num_open_conds, new_bindings, *cond_goal,
 		  step.id, establish_reason, links)) {
