@@ -1,3 +1,7 @@
+2002-07-24  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Fixed test for durative actions in ipc3-vhpop script.
+
 2002-07-22  Håkan L. S. Younes  <lorens@cs.cmu.edu>
 
 	* Changed string comparisons to pointer comparisons for simple
