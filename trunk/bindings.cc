@@ -1,5 +1,5 @@
 /*
- * $Id: bindings.cc,v 1.6 2001-10-30 16:00:58 lorens Exp $
+ * $Id: bindings.cc,v 1.7 2001-10-30 18:41:09 lorens Exp $
  */
 #include "bindings.h"
 #include "formulas.h"
@@ -491,7 +491,7 @@ const Bindings& Bindings::make_bindings(const StepChain* steps,
       }
     }
   }
-  return *(new Bindings(NULL, NULL, NULL, step_domains));
+  return *(new Bindings(NULL, NULL, NULL, 0, step_domains));
 }
 
 
@@ -515,7 +515,7 @@ const Bindings* Bindings::make_bindings(const StepChain* steps,
 
 /* Checks if the given formulas can be unified. */
 bool Bindings::unifiable(const Formula& f1, const Formula& f2) {
-  return Bindings(NULL, NULL, NULL, NULL).unify(f1, f2);
+  return Bindings(NULL, NULL, NULL, 0, NULL).unify(f1, f2);
 }
 
 
@@ -735,6 +735,10 @@ const Bindings* Bindings::add(const BindingList& new_bindings) const {
   const BindingChain* inequalities = this->inequalities;
   /* Varsets for new binding collection */
   const VarsetChain* varsets = varsets_;
+  /* Highest step id of variable in varsets. */
+  size_t high_step = high_step_;
+  /* Variables above previous high step. */
+  VariableSet high_step_vars;
   /* Step domains for new binding collection */
   const StepDomainChain* step_domains = step_domains_;
 
@@ -750,9 +754,27 @@ const Bindings* Bindings::add(const BindingList& new_bindings) const {
        * Adding equality binding.
        */
       /* Varset for variable. */
-      const Varset* vs1 = find_varset(varsets, eq->variable);
+      const Varset* vs1;
+      const StepVar* sv = dynamic_cast<const StepVar*>(&eq->variable);
+      if (sv == NULL || sv->id <= high_step_
+	  || high_step_vars.find(sv) != high_step_vars.end()) {
+	vs1 = find_varset(varsets, eq->variable);
+      } else {
+	high_step = sv->id;
+	high_step_vars.insert(sv);
+	vs1 = NULL;
+      }
       /* Varset for term. */
-      const Varset* vs2 = find_varset(varsets, eq->term);
+      const Varset* vs2;
+      sv = dynamic_cast<const StepVar*>(&eq->term);
+      if (sv == NULL || sv->id <= high_step_
+	  || high_step_vars.find(sv) != high_step_vars.end()) {
+	vs2 = find_varset(varsets, eq->term);
+      } else {
+	high_step = sv->id;
+	high_step_vars.insert(sv);
+	vs2 = NULL;
+      }
       /* Combined varset, or NULL if binding is inconsistent with
          current bindings. */
       const Varset* comb;
@@ -895,9 +917,27 @@ const Bindings* Bindings::add(const BindingList& new_bindings) const {
       const InequalityBinding& neq =
 	dynamic_cast<const InequalityBinding&>(*bind);
       /* Varset for variable. */
-      const Varset* vs1 = find_varset(varsets, neq.variable);
+      const Varset* vs1;
+      const StepVar* sv = dynamic_cast<const StepVar*>(&neq.variable);
+      if (sv == NULL || sv->id <= high_step_
+	  || high_step_vars.find(sv) != high_step_vars.end()) {
+	vs1 = find_varset(varsets, neq.variable);
+      } else {
+	high_step = sv->id;
+	high_step_vars.insert(sv);
+	vs1 = NULL;
+      }
       /* Varset for term. */
-      const Varset* vs2 = find_varset(varsets, neq.term);
+      const Varset* vs2;
+      sv = dynamic_cast<const StepVar*>(&neq.term);
+      if (sv == NULL || sv->id <= high_step_
+	  || high_step_vars.find(sv) != high_step_vars.end()) {
+	vs2 = find_varset(varsets, neq.term);
+      } else {
+	high_step = sv->id;
+	high_step_vars.insert(sv);
+	vs2 = NULL;
+      }
       if (vs1 == vs2) {
 	/* The terms are already bound to eachother. */
 	return NULL;
@@ -987,7 +1027,8 @@ const Bindings* Bindings::add(const BindingList& new_bindings) const {
     }
   }
   /* New bindings are consistent with the current bindings. */
-  return new Bindings(equalities, inequalities, varsets, step_domains);
+  return new Bindings(equalities, inequalities, varsets, high_step,
+		      step_domains);
 }
 
 
@@ -1013,15 +1054,18 @@ const Bindings* Bindings::add(const Step& step,
   const StepDomainChain* step_domains = new StepDomainChain(step_domain,
 							    step_domains_);
   const VarsetChain* varsets = varsets_;
+  size_t high_step = high_step_;
   for (size_t c = 0; c < step_domain->width(); c++) {
     if (step_domain->projection_size(c) == 1) {
       const VariableChain* cd_set =
 	new VariableChain(step_domain->parameters[c], NULL);
       varsets = new VarsetChain(new Varset(*step_domain->projection(c).begin(),
 					   cd_set, NULL), varsets);
+      high_step = max(high_step, step.id);
     }
   }
-  return new Bindings(equalities, inequalities, varsets, step_domains);
+  return new Bindings(equalities, inequalities, varsets, high_step,
+		      step_domains);
 }
 
 
