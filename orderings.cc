@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.cc,v 6.8 2003-12-05 23:16:26 lorens Exp $
+ * $Id: orderings.cc,v 6.9 2003-12-10 03:45:48 lorens Exp $
  */
 #include "orderings.h"
 #include "plans.h"
@@ -326,7 +326,7 @@ float BinaryOrderings::schedule(std::map<size_t, float>& start_times,
       max_dist = ed;
     }
   }
-  return max_dist/threshold;
+  return max_dist;
 }
 
 
@@ -350,7 +350,7 @@ BinaryOrderings::makespan(const std::map<std::pair<size_t, StepTime>,
       max_dist = (*md).second;
     }
   }
-  return max_dist/threshold;
+  return max_dist;
 }
 
 
