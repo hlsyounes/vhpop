@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 3.1 2002-03-10 14:34:20 lorens Exp $
+ * $Id: heuristics.cc,v 3.2 2002-03-10 23:12:17 lorens Exp $
  */
 #include <set>
 #include <typeinfo>
@@ -570,10 +570,13 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
 		 gi != effect.add_list.end(); gi++) {
 	      const Atom& atom = **gi;
 	      if (achieves.find(make_pair(&atom, &action)) == achieves.end()) {
-		achieves.insert(make_pair(&atom, &action));
-		if (verbosity > 4) {
-		  cout << "  " << action.action_formula() << " achieves "
-		       << atom << endl;
+		if (!(effect.condition.tautology()
+		      && action.precondition.asserts(atom))) {
+		  achieves.insert(make_pair(&atom, &action));
+		  if (verbosity > 4) {
+		    cout << "  " << action.action_formula() << " achieves "
+			 << atom << endl;
+		  }
 		}
 	      }
 	      AtomValueMapIter vi = new_atom_values.find(&atom);
