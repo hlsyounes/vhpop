@@ -2,7 +2,7 @@
 /*
  * Domain descriptions.
  *
- * $Id: domains.h,v 1.8 2001-08-12 06:58:07 lorens Exp $
+ * $Id: domains.h,v 1.9 2001-08-12 16:32:25 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -98,17 +98,13 @@ struct Effect : public gc {
   /* Returns this effect subject to the given substitutions. */
   const Effect& substitution(const SubstitutionList& subst) const;
 
-  /* Checks if the add list of this effect involves the given
-     predicate. */
-  bool involves(const string& predicate) const;
-
   /* Fills the provided list with goals achievable by this effect. */
   void achievable_goals(FormulaList& goals) const;
 
-  /* Fills the provided list with predicates achievable by the
+  /* Fills the provided sets with predicates achievable by the
      effect. */
-  void achievable_predicates(vector<string>& preds,
-			     vector<string>& neg_preds) const;
+  void achievable_predicates(hash_set<string>& preds,
+			     hash_set<string>& neg_preds) const;
 
 private:
   /* Prints this effect on the given stream. */
@@ -155,25 +151,14 @@ struct EffectList : public gc, vector<const Effect*, container_alloc> {
     return effects;
   }
 
-  /* Checks if any of the effects in this list involves the given
-     predicate. */
-  bool involves(const string& predicate) const {
-    for (const_iterator i = begin(); i != end(); i++) {
-      if ((*i)->involves(predicate)) {
-	return true;
-      }
-    }
-    return false;
-  }
-
   /* Fills the provided list with goals achievable by the effect in
      this list. */
   void achievable_goals(FormulaList& goals) const;
 
-  /* Fills the provided list with predicates achievable by the effects
+  /* Fills the provided sets with predicates achievable by the effects
      in this list. */
-  void achievable_predicates(vector<string>& preds,
-			     vector<string>& neg_preds) const;
+  void achievable_predicates(hash_set<string>& preds,
+			     hash_set<string>& neg_preds) const;
 };
 
 
@@ -207,10 +192,10 @@ struct Action : public gc {
   /* Fills the provided list with goals achievable by this action. */
   void achievable_goals(FormulaList& goals) const;
 
-  /* Fills the provided list with predicates achievable by this
+  /* Fills the provided sets with predicates achievable by this
      action. */
-  void achievable_predicates(vector<string>& preds,
-			     vector<string>& neg_preds) const;
+  void achievable_predicates(hash_set<string>& preds,
+			     hash_set<string>& neg_preds) const;
 
 protected:
   /* Constructs an action. */
