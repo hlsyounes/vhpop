@@ -1,12 +1,45 @@
 /*
- * $Id: problems.cc,v 1.1 2001-05-03 15:27:21 lorens Exp $
+ * $Id: problems.cc,v 1.2 2001-07-29 18:08:05 lorens Exp $
  */
-#include "domains.h"
 #include "problems.h"
+#include "domains.h"
+#include "formulas.h"
 
 
 /* Table of defined problems. */
 Problem::ProblemMap Problem::problems = Problem::ProblemMap();
+
+
+/* Returns the object with the given name, or NULL if it is
+   undefined. */
+const Name* Problem::find_object(const string& name) const {
+  NameMap::const_iterator i = objects.find(name);
+  return (i != objects.end()) ? (*i).second : NULL;
+}
+
+
+/* Fills the provided name list with objects (including constants
+   declared in the domain) that are compatible with the given type. */
+void Problem::compatible_objects(NameList& objects, const Type& t) const {
+  domain.compatible_constants(objects, t);
+  for (NameMap::const_iterator i = this->objects.begin();
+       i != this->objects.end(); i++) {
+    const Name& name = *(*i).second;
+    if (name.type.compatible(t)) {
+      objects.push_back(&name);
+    }
+  }
+}
+
+
+/* Fills the provided action list with ground actions instantiated
+   from the action schemas of the domain. */
+void Problem::instantiated_actions(ActionList& actions) const {
+  for (ActionMap::const_iterator i = domain.actions.begin();
+       i != domain.actions.end(); i++) {
+    (*i).second->instantiations(actions, *this);
+  }
+}
 
 
 /* Prints this problem on the given stream. */
@@ -14,8 +47,7 @@ void Problem::print(ostream& os) const {
   os << "name: " << name;
   os << endl << "domain: " << domain.name;
   os << endl << "objects:";
-  for (NameMap::const_iterator i = objects_.begin();
-       i != objects_.end(); i++) {
+  for (NameMap::const_iterator i = objects.begin(); i != objects.end(); i++) {
     os << ' ' << *(*i).second;
     if (&(*i).second->type != &SimpleType::OBJECT_TYPE) {
       os << " - " << (*i).second->type;
