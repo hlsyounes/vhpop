@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.h,v 6.5 2003-09-08 21:26:39 lorens Exp $
+ * $Id: heuristics.h,v 6.6 2003-12-05 21:46:11 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
@@ -35,6 +35,7 @@ struct Flaw;
 struct Unsafe;
 struct OpenCondition;
 struct Plan;
+struct Parameters;
 
 
 /* ====================================================================== */
@@ -63,14 +64,14 @@ struct HeuristicValue {
 
   /* Constructs a zero heuristic value. */
   HeuristicValue()
-    : add_cost_(0), add_work_(0), makespan_(0.0f) {}
+    : add_cost_(0.0f), add_work_(0), makespan_(0.0f) {}
 
   /* Constructs a heuristic value. */
-  HeuristicValue(int add_cost, int add_work, float makespan)
+  HeuristicValue(float add_cost, int add_work, float makespan)
     : add_cost_(add_cost), add_work_(add_work), makespan_(makespan) {}
 
   /* Returns the cost according to the additive heurisitc. */
-  int add_cost() const { return add_cost_; }
+  float add_cost() const { return add_cost_; }
 
   /* Returns the work according to the additive heuristic. */
   int add_work() const { return add_work_; }
@@ -87,8 +88,8 @@ struct HeuristicValue {
   /* Adds the given heuristic value to this heuristic value. */
   HeuristicValue& operator+=(const HeuristicValue& v);
 
-  /* Increments the cost of this heuristic value. */
-  void increment_cost();
+  /* Increases the cost of this heuristic value. */
+  void increase_cost(float x);
 
   /* Increments the work of this heuristic value. */
   void increment_work();
@@ -98,19 +99,19 @@ struct HeuristicValue {
 
 private:
   /* Cost according to additive heuristic. */
-  int add_cost_;
+  float add_cost_;
   /* Work according to additive heuristic. */
   int add_work_;
   /* Value according to the makespan heursitic. */
   float makespan_;
 };
-
+#if 0
 /* Equality operator for heuristic values. */
 bool operator==(const HeuristicValue& v1, const HeuristicValue& v2);
-
+#endif
 /* Inequality operator for heuristic values. */
 bool operator!=(const HeuristicValue& v1, const HeuristicValue& v2);
-
+#if 0
 /* Less than operator for heuristic values. */
 bool operator<(const HeuristicValue& v1, const HeuristicValue& v2);
 
@@ -122,7 +123,7 @@ bool operator<=(const HeuristicValue& v1, const HeuristicValue& v2);
 
 /* Greater than or equal to operator for heuristic values. */
 bool operator>=(const HeuristicValue& v1, const HeuristicValue& v2);
-
+#endif
 /* Returns the componentwise minimum heuristic value, given two
    heuristic values. */
 HeuristicValue min(const HeuristicValue& v1, const HeuristicValue& v2);
@@ -139,7 +140,7 @@ std::ostream& operator<<(std::ostream& os, const HeuristicValue& v);
  */
 struct PlanningGraph {
   /* Constructs a planning graph. */
-  PlanningGraph(const Problem& problem, bool domain_constraints);
+  PlanningGraph(const Problem& problem, const Parameters& params);
 
   /* Deletes this planning graph. */
   ~PlanningGraph();
@@ -354,7 +355,7 @@ private:
     /* Index of criterion used to select this flaw. */
     int criterion;
     /* Rank of this flaw if selected by a ranking criterion. */
-    int rank;
+    float rank;
     /* Counts the length of a streak, for use with random order. */
     int streak;
   };
