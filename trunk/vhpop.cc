@@ -15,13 +15,13 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 3.20 2002-06-29 17:11:54 lorens Exp $
+ * $Id: vhpop.cc,v 3.21 2002-07-02 14:42:19 lorens Exp $
  */
 #include <cstdio>
 #include <cstdlib>
 #include <cerrno>
 #include <sys/time.h>
-#ifdef HAVE_GETOPT_LONG
+#if HAVE_GETOPT_LONG
 #define _GNU_SOURCE
 #include <getopt.h>
 #else
@@ -180,6 +180,8 @@ int main(int argc, char* argv[]) {
 
   /* Default planning parameters. */
   Parameters params;
+  bool no_flaw_order = true;
+  bool no_search_limit = true;
   /* Set default verbosity. */
   verbosity = 0;
   /* Set default warning level. */
@@ -202,7 +204,11 @@ int main(int argc, char* argv[]) {
       break;
     case 'f':
       try {
-	params.flaw_order = optarg;
+	if (no_flaw_order) {
+	  params.flaw_orders.clear();
+	  no_flaw_order = false;
+	}
+	params.flaw_orders.push_back(FlawSelectionOrder(optarg));
       } catch (const InvalidFlawSelectionOrder& e) {
 	cerr << PACKAGE << ": " << e << endl
 	     << "Try `" << PACKAGE << " --help' for more information."
@@ -224,7 +230,11 @@ int main(int argc, char* argv[]) {
       }
       break;
     case 'l':
-      params.search_limit = atoi(optarg);
+      if (no_search_limit) {
+	params.search_limits.clear();
+	no_search_limit = false;
+      }
+      params.search_limits.push_back(atoi(optarg));
       break;
     case 'r':
       params.reverse_open_conditions = true;
@@ -270,6 +280,10 @@ int main(int argc, char* argv[]) {
 	   << endl;
       return -1;
     }
+  }
+  for (size_t i = 0;
+       i < params.flaw_orders.size() - params.search_limits.size(); i++) {
+    params.search_limits.push_back(params.search_limits.back());
   }
   /* set the random seed. */
   srand(time(NULL));
