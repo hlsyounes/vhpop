@@ -1,5 +1,5 @@
 /*
- * $Id: heuristics.cc,v 1.6 2001-10-18 21:16:03 lorens Exp $
+ * $Id: heuristics.cc,v 1.7 2001-10-25 17:59:26 lorens Exp $
  */
 #include <set>
 #include "heuristics.h"
@@ -246,7 +246,13 @@ PlanningGraph::PlanningGraph(const Problem& problem) {
    */
   for (AtomListIter gi = problem.init.add_list.begin();
        gi != problem.init.add_list.end(); gi++) {
-    atom_values.insert(make_pair(*gi, HeuristicValue::ZERO_COST_UNIT_WORK));
+    const Atom& atom = **gi;
+    if (problem.domain.static_predicate(atom.predicate)) {
+      atom_values.insert(make_pair(&atom, HeuristicValue::ZERO));
+    } else {
+      atom_values.insert(make_pair(&atom,
+				   HeuristicValue::ZERO_COST_UNIT_WORK));
+    }
   }
 
   /*
@@ -597,6 +603,9 @@ FlawSelectionOrder::select(const Chain<const OpenCondition*>* open_conds,
     return NULL;
   }
   const OpenCondition* best_oc = open_conds->head;
+  if (primary_ == NONE && secondary_ == LIFO) {
+    return best_oc;
+  }
   HeuristicValue best_value = best_oc->condition.heuristic_value(pg, bindings);
   int streak = 1;
   for (const OpenConditionChain* oci = open_conds->tail;
