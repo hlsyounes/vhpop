@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.27 2001-12-26 18:51:38 lorens Exp $
+ * $Id: plans.h,v 1.28 2001-12-28 19:58:53 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -10,30 +10,12 @@
 #include <vector>
 #include <stack>
 #include <utility>
-#include <typeinfo>
 #include "support.h"
 #include "domains.h"
 #include "problems.h"
 #include "bindings.h"
 
-
-struct Link;
-struct Step;
-
-/*
- * Abstract reason.
- */
-struct Reason : public Printable, public gc {
-  /* Checks if this reason involves the given link. */
-  virtual bool involves(const Link& link) const {
-    return false;
-  }
-
-  /* Checks if this reason involves the given step. */
-  virtual bool involves(const Step& step) const {
-    return false;
-  }
-};
+struct Reason;
 
 
 /*
