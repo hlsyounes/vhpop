@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.cc,v 3.12 2002-06-11 20:24:51 lorens Exp $
+ * $Id: bindings.cc,v 3.13 2002-06-12 18:34:48 lorens Exp $
  */
 #include <typeinfo>
 #include "bindings.h"
@@ -43,7 +43,7 @@ typedef VariableSet::const_iterator VariableSetIter;
 /* ====================================================================== */
 /* VariableChain */
 
-typedef Chain<const Variable*> VariableChain;
+typedef CollectibleChain<const Variable*> VariableChain;
 
 
 /* ====================================================================== */
@@ -53,10 +53,33 @@ typedef Chain<const Variable*> VariableChain;
  * Variable codesignation, and non-codesignation.
  */
 struct Varset {
+  /* Constructs a varset. */
+  Varset(const Name* constant, const VariableChain* cd_set,
+	 const VariableChain* ncd_set)
+    : constant_(constant), cd_set_(cd_set), ncd_set_(ncd_set) {
+    VariableChain::register_use(cd_set_);
+    VariableChain::register_use(ncd_set_);
+  }
+
+  /* Constructs a varset. */
+  Varset(const Varset& vs)
+    : constant_(vs.constant_), cd_set_(vs.cd_set_), ncd_set_(vs.ncd_set_) {
+    VariableChain::register_use(cd_set_);
+    VariableChain::register_use(ncd_set_);
+  }
+
+  /* Deletes this varset. */
+  ~Varset() {
+    VariableChain::unregister_use(cd_set_);
+    VariableChain::unregister_use(ncd_set_);
+  }
+
   /* The constant of this varset, or NULL. */
   const Name* constant() const { return constant_; }
+
   /* The codesignation list. */
   const VariableChain* cd_set() const { return cd_set_; }
+
   /* The non-codesignation list. */
   const VariableChain* ncd_set() const { return ncd_set_; }
 
@@ -145,6 +168,8 @@ struct Varset {
     for (const VariableChain* vc = vs.cd_set(); vc != NULL; vc = vc->tail) {
       const Variable& var = *vc->head;
       if (excludes(var)) {
+	VariableChain::register_use(comb_cd);
+	VariableChain::unregister_use(comb_cd);
 	return NULL;
       } else {
 	comb_cd = new VariableChain(&var, comb_cd);
@@ -154,6 +179,10 @@ struct Varset {
     for (const VariableChain* vc = vs.ncd_set(); vc != NULL; vc = vc->tail) {
       const Variable& var = *vc->head;
       if (includes(var)) {
+	VariableChain::register_use(comb_cd);
+	VariableChain::unregister_use(comb_cd);
+	VariableChain::register_use(comb_ncd);
+	VariableChain::unregister_use(comb_ncd);
 	return NULL;
       } else if (!excludes(var)) {
 	comb_ncd = new VariableChain(&var, comb_ncd);
@@ -205,12 +234,6 @@ struct Varset {
       vsc = new VarsetChain(Varset(constant, cd_set, ncd_set), vsc);
       return &vsc->head;
     }
-  }
-
-  /* Constructs a varset. */
-  Varset(const Name* constant, const VariableChain* cd_set,
-	 const VariableChain* ncd_set)
-    : constant_(constant), cd_set_(cd_set), ncd_set_(ncd_set) {
   }
 
 private:
