@@ -13,13 +13,14 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.cc,v 3.6 2002-03-28 23:34:27 lorens Exp $
+ * $Id: orderings.cc,v 3.7 2002-03-29 10:04:04 lorens Exp $
  */
 #include "orderings.h"
 #include "plans.h"
 #include "reasons.h"
 #include "domains.h"
 #include "formulas.h"
+#include "debug.h"
 #define __USE_ISOC99 1
 #include <cmath>
 
@@ -111,7 +112,7 @@ struct BoolVector : public vector<bool> {
   /* Constructs a vector with n copies of b. */
   BoolVector(size_t n, bool b)
     : vector<bool>(n, b), ref_count_(0) {
-#ifdef DEBUG
+#ifdef DEBUG_MEMORY
     created_collectibles++;
 #endif
   }
@@ -119,12 +120,12 @@ struct BoolVector : public vector<bool> {
   /* Constructs a copy of the given vector. */
   BoolVector(const BoolVector& v)
     : vector<bool>(v), ref_count_(0) {
-#ifdef DEBUG
+#ifdef DEBUG_MEMORY
     created_collectibles++;
 #endif
   }
 
-#ifdef DEBUG
+#ifdef DEBUG_MEMORY
   /* Deletes this vector. */
   ~BoolVector() {
     deleted_collectibles++;
@@ -164,7 +165,7 @@ struct FloatVector : public vector<float> {
   /* Constructs a vector with n copies of b. */
   FloatVector(size_t n, float f)
     : vector<float>(n, f), ref_count_(0) {
-#ifdef DEBUG
+#ifdef DEBUG_MEMORY
     created_collectibles++;
 #endif
   }
@@ -172,12 +173,12 @@ struct FloatVector : public vector<float> {
   /* Constructs a copy of the given vector. */
   FloatVector(const FloatVector& v)
     : vector<float>(v), ref_count_(0) {
-#ifdef DEBUG
+#ifdef DEBUG_MEMORY
     created_collectibles++;
 #endif
   }
 
-#ifdef DEBUG
+#ifdef DEBUG_MEMORY
   /* Deletes this vector. */
   ~FloatVector() {
     deleted_collectibles++;
@@ -262,20 +263,20 @@ void Orderings::set_order(hash_map<size_t, BoolVector*>& own_data,
 			  size_t r, size_t c) {
   if (r != c) {
     size_t i = max(r, c) - 1;
-    BoolVector* v;
+    BoolVector* bv;
     hash_map<size_t, BoolVector*>::const_iterator vi = own_data.find(i);
     if (vi == own_data.end()) {
-      const BoolVector* old_v = order_[i];
-      v = new BoolVector(*old_v);
-      BoolVector::unregister_use(old_v);
-      order_[i] = v;
-      BoolVector::register_use(v);
-      own_data.insert(make_pair(i, v));
+      const BoolVector* old_bv = order_[i];
+      bv = new BoolVector(*old_bv);
+      BoolVector::unregister_use(old_bv);
+      order_[i] = bv;
+      BoolVector::register_use(bv);
+      own_data.insert(make_pair(i, bv));
     } else {
-      v = (*vi).second;
+      bv = (*vi).second;
     }
     size_t j = (r < c) ? r : 2*i - c + 1;
-    (*v)[j] = true;
+    (*bv)[j] = true;
   }
 }
 
@@ -285,24 +286,18 @@ void Orderings::set_order(hash_map<size_t, BoolVector*>& own_data,
 float Orderings::goal_distances(hash_map<size_t, float>& start_dist,
 				hash_map<size_t, float>& end_dist) const {
   float max_dist = 0;
-  for (size_t i = 0; i < size(); i++) {
+  size_t n = size();
+  for (size_t i = 0; i < n; i++) {
     max_dist = max(max_dist, goal_distance(start_dist, end_dist, id_map2_[i]));
   }
   return max_dist;
 }
 
 
-/* Prints this ordering collection on the given stream. */
-void Orderings::print(ostream& os) const {
-  os << "{";
-  for (size_t r = 0; r < size(); r++) {
-    for (size_t c = 0; c < size(); c++) {
-      if (order(r, c)) {
-	os << ' ' << id_map2_[r] << '<' << id_map2_[c];
-      }
-    }
-  }
-  os << " }";
+/* Output operator for ordering collections. */
+ostream& operator<<(ostream& os, const Orderings& o) {
+  o.print(os);
+  return os;
 }
 
 
@@ -331,10 +326,10 @@ BinaryOrderings::BinaryOrderings(const StepChain* steps,
   size_t n = size();
   hash_map<size_t, BoolVector*> own_data;
   for (size_t i = 1; i < n; i++) {
-    BoolVector* v = new BoolVector(2*i, false);
-    own_data.insert(make_pair(order_.size(), v));
-    order_.push_back(v);
-    BoolVector::register_use(v);
+    BoolVector* bv = new BoolVector(2*i, false);
+    own_data.insert(make_pair(order_.size(), bv));
+    order_.push_back(bv);
+    BoolVector::register_use(bv);
   }
   for (const OrderingChain* o = orderings; o != NULL; o = o->tail) {
     fill_transitive(own_data, o->head);
@@ -385,27 +380,6 @@ bool BinaryOrderings::possibly_after(size_t id1, StepTime t1,
 }
 
 
-/* Computes the flexibility of this ordering collection as defined in
-   "Reviving Partial Order Planning" (Nguyen & Kambhampati 2001). */
-float BinaryOrderings::flexibility() const {
-  if (size() == 0) {
-    return 0.0f;
-  } else {
-    size_t unordered = 0;
-    for (size_t i = 0; i < size(); i++) {
-      for (size_t j = 0; j < size(); j++) {
-	if (i != j) {
-	  if (!order(i, j) && !order(j, i)) {
-	    unordered++;
-	  }
-	}
-      }
-    }
-    return float(unordered)/size();
-  }
-}
-
-
 /* Returns the the ordering collection with the given additions. */
 const Orderings* BinaryOrderings::refine(const Ordering& new_ordering) const {
   if (new_ordering.before_id() != 0
@@ -441,10 +415,10 @@ const Orderings* BinaryOrderings::refine(const Ordering& new_ordering,
       orderings.id_map2_.push_back(new_step.id());
       size_t n = size();
       if (n > 0) {
-	BoolVector* v = new BoolVector(2*n, false);
-	own_data.insert(make_pair(orderings.order_.size(), v));
-	orderings.order_.push_back(v);
-	BoolVector::register_use(v);
+	BoolVector* bv = new BoolVector(2*n, false);
+	own_data.insert(make_pair(orderings.order_.size(), bv));
+	orderings.order_.push_back(bv);
+	BoolVector::register_use(bv);
       }
     }
     if (new_ordering.before_id() != 0
@@ -464,6 +438,28 @@ const Orderings* BinaryOrderings::refine(const Ordering& new_ordering,
 }
 
 
+/* Computes the flexibility of this ordering collection as defined in
+   "Reviving Partial Order Planning" (Nguyen & Kambhampati 2001). */
+float BinaryOrderings::flexibility() const {
+  size_t n = size();
+  if (n == 0) {
+    return 0.0f;
+  } else {
+    size_t unordered = 0;
+    for (size_t r = 0; r < n; r++) {
+      for (size_t c = 0; c < n; c++) {
+	if (r != c) {
+	  if (!order(r, c) && !order(c, r)) {
+	    unordered++;
+	  }
+	}
+      }
+    }
+    return float(unordered)/n;
+  }
+}
+
+
 /* Returns the distance of the given step to the goal step, and also
    enters it into the given distance table. */
 float BinaryOrderings::goal_distance(hash_map<size_t, float>& start_dist,
@@ -475,7 +471,8 @@ float BinaryOrderings::goal_distance(hash_map<size_t, float>& start_dist,
   } else {
     float sd = 1.0f;
     size_t i = (*id_map1_.find(step_id)).second;
-    for (size_t j = 0; j < size(); j++) {
+    size_t n = size();
+    for (size_t j = 0; j < n; j++) {
       if (i != j && order(i, j)) {
 	sd = max(sd, 1.0f + goal_distance(start_dist, end_dist, id_map2_[j]));
       }
@@ -484,6 +481,21 @@ float BinaryOrderings::goal_distance(hash_map<size_t, float>& start_dist,
     end_dist.insert(make_pair(step_id, sd));
     return sd;
   }
+}
+
+
+/* Prints this ordering collection on the given stream. */
+void BinaryOrderings::print(ostream& os) const {
+  os << "{";
+  size_t n = size();
+  for (size_t r = 0; r < n; r++) {
+    for (size_t c = 0; c < n; c++) {
+      if (order(r, c)) {
+	os << ' ' << id_map2_[r] << '<' << id_map2_[c];
+      }
+    }
+  }
+  os << " }";
 }
 
 
@@ -520,21 +532,13 @@ void BinaryOrderings::fill_transitive(hash_map<size_t, BoolVector*>& own_data,
 /* TemporalOrderings */
 
 #if 0
-static void print_distance_matrix(const vector<const FloatVector*>& d,
-				  const vector<const BoolVector*>& o) {
+static void print_distance_matrix(const vector<const FloatVector*>& d) {
   size_t n = d.size();
   for (size_t r = 0; r < n; r++) {
     for (size_t c = 0; c < n; c++) {
       size_t i = max(r, c);
       size_t j = (r <= c) ? r : 2*i - c;
-      cout << '\t' << (*d[i])[j] << ':';
-      if (r != c) {
-	i = max(r, c);
-	j = (r < c) ? r : 2*i - c + 1;
-	cout << (*o[i])[j];
-      } else {
-	cout << 0;
-      }
+      cout << '\t' << (*d[i])[j];
     }
     cout << endl;
   }
@@ -563,18 +567,18 @@ TemporalOrderings::TemporalOrderings(const StepChain* steps,
   size_t n = size();
   hash_map<size_t, BoolVector*> own_data1;
   for (size_t i = 1; i < 2*n; i++) {
-    BoolVector* v = new BoolVector(2*i, false);
-    own_data1.insert(make_pair(order_.size(), v));
-    order_.push_back(v);
-    BoolVector::register_use(v);
+    BoolVector* bv = new BoolVector(2*i, false);
+    own_data1.insert(make_pair(order_.size(), bv));
+    order_.push_back(bv);
+    BoolVector::register_use(bv);
   }
   hash_map<size_t, FloatVector*> own_data2;
   for (size_t i = 0; i < 2*n; i++) {
-    FloatVector* v = new FloatVector(2*i + 1, INFINITY);
-    (*v)[i] = 0.0f;
-    own_data2.insert(make_pair(distance_.size(), v));
-    distance_.push_back(v);
-    FloatVector::register_use(v);
+    FloatVector* fv = new FloatVector(2*i + 1, INFINITY);
+    (*fv)[i] = 0.0f;
+    own_data2.insert(make_pair(distance_.size(), fv));
+    distance_.push_back(fv);
+    FloatVector::register_use(fv);
   }
   for (const OrderingChain* o = orderings; o != NULL; o = o->tail) {
     fill_transitive(own_data1, own_data2, o->head);
@@ -682,15 +686,15 @@ const Orderings* TemporalOrderings::refine(const Ordering& new_ordering,
       orderings.id_map2_.push_back(new_step.id());
       size_t n = size();
       if (n > 0) {
-	BoolVector* v = new BoolVector(4*n, false);
-	own_data1.insert(make_pair(orderings.order_.size(), v));
-	orderings.order_.push_back(v);
-	BoolVector::register_use(v);
+	BoolVector* bv = new BoolVector(4*n, false);
+	own_data1.insert(make_pair(orderings.order_.size(), bv));
+	orderings.order_.push_back(bv);
+	BoolVector::register_use(bv);
       }
-      BoolVector* v = new BoolVector(4*n + 2, false);
-      own_data1.insert(make_pair(orderings.order_.size(), v));
-      orderings.order_.push_back(v);
-      BoolVector::register_use(v);
+      BoolVector* bv = new BoolVector(4*n + 2, false);
+      own_data1.insert(make_pair(orderings.order_.size(), bv));
+      orderings.order_.push_back(bv);
+      BoolVector::register_use(bv);
       FloatVector* fv = new FloatVector(4*n + 1, INFINITY);
       (*fv)[2*n] = 0.0f;
       own_data2.insert(make_pair(orderings.distance_.size(), fv));
@@ -726,6 +730,28 @@ const Orderings* TemporalOrderings::refine(const Ordering& new_ordering,
 }
 
 
+/* Computes the flexibility of this ordering collection as defined in
+   "Reviving Partial Order Planning" (Nguyen & Kambhampati 2001). */
+float TemporalOrderings::flexibility() const {
+  size_t n = size();
+  if (n == 0) {
+    return 0.0f;
+  } else {
+    size_t unordered = 0;
+    for (size_t r = 0; r < 2*n; r++) {
+      for (size_t c = 0; c < 2*n; c++) {
+	if (r != c) {
+	  if (!order(r, c) && !order(c, r)) {
+	    unordered++;
+	  }
+	}
+      }
+    }
+    return float(unordered)/(2*n);
+  }
+}
+
+
 /* Returns the distance of the given step to the goal step, and also
    enters it into the given distance table. */
 float TemporalOrderings::goal_distance(hash_map<size_t, float>& start_dist,
@@ -745,7 +771,8 @@ float TemporalOrderings::goal_distance(hash_map<size_t, float>& start_dist,
 
   float sd = 1.0f;
   size_t i = time_node(step_id, t);
-  for (size_t j = 0; j < 2*size(); j++) {
+  size_t n = size();
+  for (size_t j = 0; j < 2*n; j++) {
     if (i != j) {
       if (t == STEP_START && i + 1 == j && !order(i, j)) {
 	sd = max(sd, (-distance(j, i) + goal_distance(start_dist, end_dist,
@@ -767,6 +794,22 @@ float TemporalOrderings::goal_distance(hash_map<size_t, float>& start_dist,
 }
 
 
+/* Prints this ordering collection on the given stream. */
+void TemporalOrderings::print(ostream& os) const {
+  os << "{";
+  size_t n = size();
+  for (size_t r = 0; r < 2*n; r++) {
+    for (size_t c = 0; c < 2*n; c++) {
+      if (order(r, c)) {
+	os << ' ' << id_map2_[r/2] << '[' << ((r % 2 == 0) ? 's' : 'e') << ']'
+	   << '<' << id_map2_[c/2] << '[' << ((c % 2 == 0) ? 's' : 'e') << ']';
+      }
+    }
+  }
+  os << " }";
+}
+
+
 /* Returns the entry at (r,c) in the matrix representing the minimal
    network for the ordering constraints. */
 float TemporalOrderings::distance(size_t r, size_t c) const {
@@ -781,20 +824,20 @@ float TemporalOrderings::distance(size_t r, size_t c) const {
 void TemporalOrderings::set_distance(hash_map<size_t, FloatVector*>& own_data,
 				     size_t r, size_t c, float d) {
   size_t i = max(r, c);
-  FloatVector* v;
+  FloatVector* fv;
   hash_map<size_t, FloatVector*>::const_iterator vi = own_data.find(i);
   if (vi == own_data.end()) {
-    const FloatVector* old_v = distance_[i];
-    v = new FloatVector(*old_v);
-    FloatVector::unregister_use(old_v);
-    distance_[i] = v;
-    FloatVector::register_use(v);
-    own_data.insert(make_pair(i, v));
+    const FloatVector* old_fv = distance_[i];
+    fv = new FloatVector(*old_fv);
+    FloatVector::unregister_use(old_fv);
+    distance_[i] = fv;
+    FloatVector::register_use(fv);
+    own_data.insert(make_pair(i, fv));
   } else {
-    v = (*vi).second;
+    fv = (*vi).second;
   }
   size_t j = (r <= c) ? r : 2*i - c;
-  (*v)[j] = d;
+  (*fv)[j] = d;
 }
 
 

@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.cc,v 3.10 2002-03-25 00:44:26 lorens Exp $
+ * $Id: bindings.cc,v 3.11 2002-03-29 10:04:25 lorens Exp $
  */
 #include <typeinfo>
 #include "bindings.h"
@@ -23,6 +23,7 @@
 #include "domains.h"
 #include "formulas.h"
 #include "types.h"
+#include "debug.h"
 
 
 const VariableSet& VariableSet::EMPTY = *(new VariableSet());
@@ -605,7 +606,7 @@ const Bindings* Bindings::make_bindings(const StepChain* steps,
 
 /* Checks if the given formulas can be unified. */
 bool Bindings::unifiable(const Literal& l1, const Literal& l2) {
-#ifdef DEBUG
+#ifdef DEBUG_MEMORY
   created_collectibles--;
   deleted_collectibles--;
 #endif
@@ -617,7 +618,7 @@ bool Bindings::unifiable(const Literal& l1, const Literal& l2) {
    unifier is added to the provided substitution list. */
 bool Bindings::unifiable(SubstitutionList& mgu,
 			 const Literal& l1, const Literal& l2) {
-#ifdef DEBUG
+#ifdef DEBUG_MEMORY
   created_collectibles--;
   deleted_collectibles--;
 #endif

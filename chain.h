@@ -16,10 +16,12 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: chain.h,v 3.2 2002-03-24 23:55:37 lorens Exp $
+ * $Id: chain.h,v 3.3 2002-03-29 10:04:30 lorens Exp $
  */
 #ifndef CHAIN_H
 #define CHAIN_H
+
+#include "debug.h"
 
 
 /*
@@ -79,11 +81,6 @@ struct Chain {
 };
 
 
-#ifdef DEBUG
-extern size_t created_chains;
-extern size_t deleted_chains;
-#endif
-
 /*
  * Template chain class.
  */
@@ -114,7 +111,7 @@ struct CollectibleChain {
   /* Constructs a chain with the given head and tail. */
   CollectibleChain<T>(const T& head, const CollectibleChain<T>* tail)
     : head(head), tail(tail), ref_count_(0) {
-#ifdef DEBUG
+#ifdef DEBUG_MEMORY
     created_chains++;
 #endif
     register_use(tail);
@@ -122,7 +119,7 @@ struct CollectibleChain {
 
   /* Deletes this chain. */
   ~CollectibleChain<T>() {
-#ifdef DEBUG
+#ifdef DEBUG_MEMORY
     deleted_chains++;
 #endif
     unregister_use(tail);
