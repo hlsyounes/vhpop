@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.cc,v 6.6 2003-08-28 16:48:25 lorens Exp $
+ * $Id: bindings.cc,v 6.7 2003-08-28 16:50:57 lorens Exp $
  */
 #include "bindings.h"
 #include "plans.h"
@@ -699,15 +699,15 @@ bool Bindings::unify(const Literal& l1, size_t id1,
 bool Bindings::unify(BindingList& mgu,
 		     const Literal& l1, size_t id1,
 		     const Literal& l2, size_t id2) const {
-  if (typeid(l1) != typeid(l2)) {
+  if (id1 == 0 && id2 == 0) {
+    /* Both literals are fully instantiated. */
+    return &l1 == &l2;
+  } else if (typeid(l1) != typeid(l2)) {
     /* Not the same type of literal. */
     return false;
   } else if (l1.predicate() != l2.predicate()) {
     /* The predicates do not match. */
     return false;
-  } else if (id1 == 0 && id2 == 0) {
-    /* Both literals are fully instantiated. */
-    return &l1 == &l2;
   } else if (id1 == 0 || id2 == 0) {
     /* One of the literals is fully instantiated. */
     const Literal* ll;

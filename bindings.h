@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.h,v 6.5 2003-08-28 15:31:48 lorens Exp $
+ * $Id: bindings.h,v 6.6 2003-08-28 16:48:32 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
@@ -217,12 +217,14 @@ struct Bindings {
   }
 
   /* Checks if the given formulas can be unified. */
-  static bool unifiable(const Literal& l1, const Literal& l2);
+  static bool unifiable(const Literal& l1, size_t id1,
+			const Literal& l2, size_t id2);
 
   /* Checks if the given formulas can be unified; the most general
      unifier is added to the provided substitution list. */
   static bool unifiable(BindingList& mgu,
-			const Literal& l1, const Literal& l2);
+			const Literal& l1, size_t id1,
+			const Literal& l2, size_t id2);
 
   /* Deletes this binding collection. */
   ~Bindings();

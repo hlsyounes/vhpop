@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 6.9 2003-08-27 16:59:33 lorens Exp $
+ * $Id: formulas.cc,v 6.10 2003-08-28 16:49:00 lorens Exp $
  */
 #include "formulas.h"
 #include "bindings.h"
@@ -215,7 +215,7 @@ const Formula& Constant::negation() const {
    definitely asserted by this formula. */
 const Formula& Literal::separator(const Literal& literal) const {
   BindingList mgu;
-  if (Bindings::unifiable(mgu, *this, literal)) {
+  if (Bindings::unifiable(mgu, *this, 1, literal, 1)) {
     Disjunction* disj = NULL;
     const Formula* first_d = &FALSE;
     for (BindingList::const_iterator bi = mgu.begin(); bi != mgu.end(); bi++) {
