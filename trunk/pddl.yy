@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 4.2 2002-07-24 14:45:38 lorens Exp $
+ * $Id: pddl.yy,v 4.3 2002-09-20 16:37:08 lorens Exp $
  */
 %{
 #include <typeinfo>
@@ -100,7 +100,8 @@ string current_file;
 /* Level of warnings. */
 int warning_level;
 
-static const Variable DURATION_VARIABLE = Variable("?duration");
+static const Variable DURATION_VARIABLE =
+  Variable("?duration", SimpleType::OBJECT);
 static bool success = true;
 static const Domain* pdomain;
 static Domain* domain;
@@ -887,7 +888,7 @@ terms : /* empty */
 	    const Variable* v = free_variables.find(*$2);
 	    if (v == NULL) {
 	      yyerror("free variable `" + *$2 + "'");
-	      v = new Variable(*$2);
+	      v = new Variable(*$2, SimpleType::OBJECT);
 	    }
 	    $1->push_back(v);
 	    $$ = $1;
