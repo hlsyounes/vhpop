@@ -1,5 +1,5 @@
 /*
- * $Id: domains.cc,v 1.6 2001-08-12 16:31:56 lorens Exp $
+ * $Id: domains.cc,v 1.7 2001-08-16 00:39:06 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -114,6 +114,27 @@ void Effect::print(ostream& os) const {
     os << ")";
   }
   os << ']';
+}
+
+
+/* Returns an instantiation of this effect list. */
+const EffectList& EffectList::instantiation(size_t id) const {
+  EffectList& effects = *(new EffectList());
+  for (const_iterator i = begin(); i != end(); i++) {
+    effects.push_back(&(*i)->instantiation(id));
+  }
+  return effects;
+}
+
+
+/* Returns this effect list subject to the given substitutions. */
+const EffectList&
+EffectList::substitution(const SubstitutionList& subst) const {
+  EffectList& effects = *(new EffectList());
+  for (const_iterator i = begin(); i != end(); i++) {
+    effects.push_back(&(*i)->substitution(subst));
+  }
+  return effects;
 }
 
 
@@ -248,6 +269,19 @@ void ActionSchema::print(ostream& os) const {
 }
 
 
+/* Tests if this action equals the given action. */
+bool ActionSchema::equals(const Action& a) const {
+  const ActionSchema* as = dynamic_cast<const ActionSchema*>(&a);
+  return as != NULL && name == as->name;
+}
+
+
+/* Returns the hash value of this action. */
+size_t ActionSchema::hash_value() const {
+  return hash<string>()(name);
+}
+
+
 /* Constructs a ground action, assuming arguments are names. */
 GroundAction::GroundAction(const string& name, const TermList& arguments,
 			   const Formula& precondition,
@@ -257,17 +291,17 @@ GroundAction::GroundAction(const string& name, const TermList& arguments,
 }
 
 
-/* Tests if this action equals the given action. */
-bool GroundAction::equals(const Action& a) const {
-  const GroundAction* ga = dynamic_cast<const GroundAction*>(&a);
-  return ga != NULL && formula == ga->formula;
+/* Returns a formula representing this action. */
+const AtomicFormula& GroundAction::action_formula(size_t id) const {
+  return formula;
 }
 
 
-/* Returns the hash value of this action. */
-size_t GroundAction::hash_value() const {
-  // should include arguments in hash
-  return hash<string>()(formula.predicate);
+/* Fills the provided action list with all instantiations of this
+   action. */
+void GroundAction::instantiations(ActionList& actions,
+				  const Problem& problem) const {
+  actions.push_back(this);
 }
 
 
@@ -296,6 +330,20 @@ void GroundAction::print(ostream& os) const {
     os << **i;
   }
   os << ")" << ')';
+}
+
+
+/* Tests if this action equals the given action. */
+bool GroundAction::equals(const Action& a) const {
+  const GroundAction* ga = dynamic_cast<const GroundAction*>(&a);
+  return ga != NULL && formula == ga->formula;
+}
+
+
+/* Returns the hash value of this action. */
+size_t GroundAction::hash_value() const {
+  // should include arguments in hash
+  return hash<string>()(formula.predicate);
 }
 
 
