@@ -2,7 +2,7 @@
 /*
  * Domain descriptions.
  *
- * $Id: domains.h,v 1.7 2001-08-11 06:16:40 lorens Exp $
+ * $Id: domains.h,v 1.8 2001-08-12 06:58:07 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -98,16 +98,17 @@ struct Effect : public gc {
   /* Returns this effect subject to the given substitutions. */
   const Effect& substitution(const SubstitutionList& subst) const;
 
-  /* Checks if the add list of this effect matches the given
-     formula. */
-  bool matches(const Formula& f) const;
-
   /* Checks if the add list of this effect involves the given
      predicate. */
   bool involves(const string& predicate) const;
 
   /* Fills the provided list with goals achievable by this effect. */
   void achievable_goals(FormulaList& goals) const;
+
+  /* Fills the provided list with predicates achievable by the
+     effect. */
+  void achievable_predicates(vector<string>& preds,
+			     vector<string>& neg_preds) const;
 
 private:
   /* Prints this effect on the given stream. */
@@ -154,17 +155,6 @@ struct EffectList : public gc, vector<const Effect*, container_alloc> {
     return effects;
   }
 
-  /* Checks if any of the effects in this list matches the given
-     formula. */
-  bool matches(const Formula& f) const {
-    for (const_iterator i = begin(); i != end(); i++) {
-      if ((*i)->matches(f)) {
-	return true;
-      }
-    }
-    return false;
-  }
-
   /* Checks if any of the effects in this list involves the given
      predicate. */
   bool involves(const string& predicate) const {
@@ -178,11 +168,12 @@ struct EffectList : public gc, vector<const Effect*, container_alloc> {
 
   /* Fills the provided list with goals achievable by the effect in
      this list. */
-  void achievable_goals(FormulaList& goals) const {
-    for (const_iterator i = begin(); i != end(); i++) {
-      (*i)->achievable_goals(goals);
-    }
-  }
+  void achievable_goals(FormulaList& goals) const;
+
+  /* Fills the provided list with predicates achievable by the effects
+     in this list. */
+  void achievable_predicates(vector<string>& preds,
+			     vector<string>& neg_preds) const;
 };
 
 
@@ -205,11 +196,6 @@ struct Action : public gc {
   virtual ~Action() {
   }
 
-  /* Checks if any effect of this action can achive the given goal. */
-  bool applicable(const Formula& goal) const {
-    return effects.matches(goal);
-  }
-
   /* Returns a formula representing this action. */
   virtual const AtomicFormula& action_formula(size_t id) const = 0;
 
@@ -219,9 +205,12 @@ struct Action : public gc {
 			      const Problem& problem) const = 0;
 
   /* Fills the provided list with goals achievable by this action. */
-  void achievable_goals(FormulaList& goals) const {
-    effects.achievable_goals(goals);
-  }
+  void achievable_goals(FormulaList& goals) const;
+
+  /* Fills the provided list with predicates achievable by this
+     action. */
+  void achievable_predicates(vector<string>& preds,
+			     vector<string>& neg_preds) const;
 
 protected:
   /* Constructs an action. */
@@ -290,16 +279,6 @@ inline ostream& operator<<(ostream& os, const Action& a) {
  * List of action definitions.
  */
 struct ActionList : public gc, vector<const Action*, container_alloc> {
-  /* Fills the provided action list with actions that can achive the
-     give goal. */
-  void applicable_actions(ActionList& actions, const Formula& goal) const {
-    for (const_iterator i = begin(); i != end(); i++) {
-      const Action& a = **i;
-      if (a.applicable(goal)) {
-	actions.push_back(&a);
-      }
-    }
-  }
 };
 
 
