@@ -1,5 +1,5 @@
 /*
- * $Id: formulas.cc,v 1.26 2001-10-30 21:33:20 lorens Exp $
+ * $Id: formulas.cc,v 1.27 2001-12-23 15:38:05 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -44,37 +44,37 @@ void StepVar::print(ostream& os) const {
 
 
 /*
- * Class representing the true formula.
+ * A formula with a constant truth value.
  */
-struct TrueFormula : public Formula {
+struct Constant : public Formula {
   /* Returns an instantiation of this formula. */
-  virtual const Formula& instantiation(size_t id) const {
+  virtual const Constant& instantiation(size_t id) const {
     return *this;
   }
 
   /* Returns an instantiation of this formula. */
-  virtual const Formula& instantiation(const Bindings& bindings) const {
+  virtual const Constant& instantiation(const Bindings& bindings) const {
     return *this;
   }
 
   /* Returns an instantiation of this formula. */
-  virtual const Formula& instantiation(const SubstitutionList& subst,
-				       const Problem& problem) const {
+  virtual const Constant& instantiation(const SubstitutionList& subst,
+					const Problem& problem) const {
     return *this;
   }
 
   /* Returns this formula subject to the given substitutions. */
-  virtual const Formula& substitution(const SubstitutionList& subst) const {
+  virtual const Constant& substitution(const SubstitutionList& subst) const {
     return *this;
   }
 
   /* Returns this formula with static predicates assumed true. */
-  virtual const Formula& strip_static(const Domain& domain) const {
+  virtual const Constant& strip_static(const Domain& domain) const {
     return *this;
   }
 
   /* Returns this formula with equalities/inequalities assumed true. */
-  virtual const Formula& strip_equality() const {
+  virtual const Constant& strip_equality() const {
     return *this;
   }
 
@@ -99,89 +99,21 @@ protected:
 
   /* Prints this object on the given stream. */
   virtual void print(ostream& os) const {
-    os << "TRUE";
+    os << (value ? "TRUE" : "FALSE");
   }
 
   /* Returns a negation of this formula. */
   virtual const Formula& negation() const {
-    return FALSE;
+    return value ? FALSE : TRUE;
   }
 
 private:
-  TrueFormula() {
-  }
+  /* Value of this constant. */
+  const bool value;
 
-  friend struct Formula;
-};
-
-
-/*
- * Class representing the false formula.
- */
-struct FalseFormula : public Formula {
-  /* Returns an instantiation of this formula. */
-  virtual const Formula& instantiation(size_t id) const {
-    return *this;
-  }
-
-  /* Returns an instantiation of this formula. */
-  virtual const Formula& instantiation(const Bindings& bindings) const {
-    return *this;
-  }
-
-  /* Returns an instantiation of this formula. */
-  virtual const Formula& instantiation(const SubstitutionList& subst,
-				       const Problem& problem) const {
-    return *this;
-  }
-
-  /* Returns this formula subject to the given substitutions. */
-  virtual const Formula& substitution(const SubstitutionList& subst) const {
-    return *this;
-  }
-
-  /* Returns this formula with static predicates assumed true. */
-  virtual const Formula& strip_static(const Domain& domain) const {
-    return *this;
-  }
-
-  /* Returns this formula with equalities/inequalities assumed true. */
-  virtual const Formula& strip_equality() const {
-    return *this;
-  }
-
-  /* Returns the heuristic value of this formula. */
-  virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
-					 const Bindings* b) const {
-    return HeuristicValue::INFINITE;
-  }
-
-  /* Checks if this formula is equivalent to the given formula.  Two
-     formulas is equivalent if they only differ in the choice of
-     variable names. */
-  virtual bool equivalent(const Formula& f) const {
-    return equals(f);
-  }
-
-protected:
-  /* Checks if this object equals the given object. */
-  virtual bool equals(const EqualityComparable& o) const {
-    return this == &o;
-  }
-
-  /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const {
-    os << "FALSE";
-  }
-
-  /* Returns a negation of this formula. */
-  virtual const Formula& negation() const {
-    return TRUE;
-  }
-
-private:
-  FalseFormula() {
-  }
+  /* Constructs a constant formula. */
+  Constant(bool value)
+    : value(value) {}
 
   friend struct Formula;
 };
@@ -349,9 +281,9 @@ const VariableList& VariableList::instantiation(size_t id) const {
 
 
 /* The true formula. */
-const Formula& Formula::TRUE = *(new TrueFormula());
+const Formula& Formula::TRUE = *(new Constant(true));
 /* The false formula. */
-const Formula& Formula::FALSE = *(new FalseFormula());
+const Formula& Formula::FALSE = *(new Constant(false));
 
 
 /* Conjunction operator for formulas. */
@@ -473,7 +405,7 @@ const Formula& Atom::instantiation(const Bindings& bindings) const {
 /* Returns an instantiation of this formula. */
 const Formula& Atom::instantiation(const SubstitutionList& subst,
 				   const Problem& problem) const {
-  const Formula& f = substitution(subst);
+  const Atom& f = substitution(subst);
   if (problem.domain.static_predicate(predicate)) {
     const AtomList& adds = problem.init.add_list;
     for (AtomListIter gi = adds.begin(); gi != adds.end(); gi++) {
@@ -485,7 +417,12 @@ const Formula& Atom::instantiation(const SubstitutionList& subst,
     }
     return FALSE;
   } else {
-    return f;
+    const Type* type = problem.domain.find_type(predicate);
+    if (type != NULL) {
+      return f.terms[0]->type.subtype(*type) ? TRUE : FALSE;
+    } else {
+      return f;
+    }
   }
 }
 
@@ -498,12 +435,17 @@ const Atom& Atom::substitution(const SubstitutionList& subst) const {
 
 /* Returns this formula with static predicates assumed true. */
 const Formula& Atom::strip_static(const Domain& domain) const {
-  return domain.static_predicate(predicate) ? TRUE : *this;
+  if (domain.static_predicate(predicate)
+      || domain.find_type(predicate) != NULL) {
+    return TRUE;
+  } else {
+    return *this;
+  }
 }
 
 
 /* Returns this formula with equalities/inequalities assumed true. */
-const Formula& Atom::strip_equality() const {
+const Atom& Atom::strip_equality() const {
   return *this;
 }
 
@@ -602,12 +544,17 @@ const Negation& Negation::substitution(const SubstitutionList& subst) const {
 
 /* Returns this formula with static predicates assumed true. */
 const Formula& Negation::strip_static(const Domain& domain) const {
-  return domain.static_predicate(atom.predicate) ? FALSE : *this;
+  if (domain.static_predicate(atom.predicate)
+      || domain.find_type(atom.predicate) != NULL) {
+    return FALSE;
+  } else {
+    return *this;
+  }
 }
 
 
 /* Returns this formula with equalities/inequalities assumed true. */
-const Formula& Negation::strip_equality() const {
+const Negation& Negation::strip_equality() const {
   return *this;
 }
 

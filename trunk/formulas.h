@@ -2,7 +2,7 @@
 /*
  * Formulas.
  *
- * $Id: formulas.h,v 1.29 2001-10-30 21:33:25 lorens Exp $
+ * $Id: formulas.h,v 1.30 2001-12-23 15:38:09 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -30,8 +30,7 @@ struct Substitution : public Printable, public gc {
 
   /* Constructs a substitution. */
   Substitution(const Variable& var, const Term& term)
-    : var(var), term(term) {
-  }
+    : var(var), term(term) {}
 
 protected:
   /* Prints this object on the given stream. */
@@ -62,8 +61,7 @@ struct Term
 
   /* Constructs an abstract term with the given name. */
   Term(const string& name, const Type& type)
-    : name(name), type(type) {
-  }
+    : name(name), type(type) {}
 
   /* Returns an instantiation of this term. */
   virtual const Term& instantiation(size_t id) const = 0;
@@ -97,8 +95,7 @@ protected:
 struct Name : public Term {
   /* Constructs a name. */
   Name(const string& name, const Type& type = SimpleType::OBJECT)
-    : Term(name, type) {
-  }
+    : Term(name, type) {}
 
   /* Returns an instantiation of this term. */
   virtual const Name& instantiation(size_t id) const;
@@ -123,8 +120,7 @@ protected:
 struct Variable : public Term {
   /* Constructs a variable with the given name. */
   Variable(const string& name, const Type& type = SimpleType::OBJECT)
-    : Term(name, type) {
-  }
+    : Term(name, type) {}
 
   /* Returns an instantiation of this term. */
   virtual const Variable& instantiation(size_t id) const;
@@ -163,8 +159,7 @@ protected:
 private:
   /* Constructs an instantiated variable. */
   StepVar(const Variable& var, size_t id)
-    : Variable(var), id(id) {
-  }
+    : Variable(var), id(id) {}
 
   friend const Variable& Variable::instantiation(size_t id) const;
 };
@@ -175,8 +170,7 @@ private:
  */
 struct TermList : public Vector<const Term*> {
   /* Constructs an empty term list. */
-  TermList() {
-  }
+  TermList() {}
 
   /* Returns an instantiation of this term list. */
   const TermList& instantiation(size_t id) const;
@@ -220,8 +214,7 @@ struct VariableList : public Vector<const Variable*> {
   static const VariableList& EMPTY;
 
   /* Constructs an empty variable list. */
-  VariableList() {
-  }
+  VariableList() {}
 
   /* Checks if this variable list contains the given variable. */
   bool contains(const Variable& v) const;
@@ -320,8 +313,7 @@ const Formula& operator||(const Formula& f1, const Formula& f2);
  */
 struct FormulaList : public Vector<const Formula*> {
   /* Constructs an empty formula list. */
-  FormulaList() {
-  }
+  FormulaList() {}
 
   /* Constructs a formula list with a single formula. */
   FormulaList(const Formula* formula) {
@@ -353,8 +345,7 @@ struct Atom : public Formula {
 
   /* Constructs an atomic formula. */
   Atom(const string& predicate, const TermList& terms)
-    : predicate(predicate), terms(terms) {
-  }
+    : predicate(predicate), terms(terms) {}
 
   /* Returns an instantiation of this formula. */
   virtual const Atom& instantiation(size_t id) const;
@@ -373,7 +364,7 @@ struct Atom : public Formula {
   virtual const Formula& strip_static(const Domain& domain) const;
 
   /* Returns this formula with equalities/inequalities assumed true. */
-  virtual const Formula& strip_equality() const;
+  virtual const Atom& strip_equality() const;
 
   /* Returns the heuristic value of this formula. */
   virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
@@ -404,8 +395,7 @@ protected:
  */
 struct AtomList : public Vector<const Atom*> {
   /* Constructs an empty atom list. */
-  AtomList() {
-  }
+  AtomList() {}
 
   /* Constructs an atom list with a single atom. */
   AtomList(const Atom* atom) {
@@ -431,8 +421,7 @@ struct Negation : public Formula {
 
   /* Constructs a negated atom. */
   Negation(const Atom& atom)
-    : atom(atom) {
-  }
+    : atom(atom) {}
 
   /* Returns an instantiation of this formula. */
   virtual const Negation& instantiation(size_t id) const;
@@ -451,7 +440,7 @@ struct Negation : public Formula {
   virtual const Formula& strip_static(const Domain& domain) const;
 
   /* Returns this formula with equalities/inequalities assumed true. */
-  virtual const Formula& strip_equality() const;
+  virtual const Negation& strip_equality() const;
 
   /* Returns the heuristic value of this formula. */
   virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
@@ -482,8 +471,7 @@ protected:
  */
 struct NegationList : public Vector<const Negation*> {
   /* Constructs an empty negation list. */
-  NegationList() {
-  }
+  NegationList() {}
 
   /* Constructs a negation list with a single negated atom. */
   NegationList(const Atom* atom) {
@@ -512,8 +500,7 @@ struct Equality : public Formula {
 
   /* Constructs an equality. */
   Equality(const Term& term1, const Term& term2)
-    : term1(term1), term2(term2) {
-  }
+    : term1(term1), term2(term2) {}
 
   /* Returns the instantiation of this formula. */
   virtual const Equality& instantiation(size_t id) const;
@@ -567,8 +554,7 @@ struct Inequality : public Formula {
 
   /* Constructs an inequality. */
   Inequality(const Term& term1, const Term& term2)
-    : term1(term1), term2(term2) {
-  }
+    : term1(term1), term2(term2) {}
 
   /* Returns an instantiation of this formula. */
   virtual const Inequality& instantiation(size_t id) const;
@@ -658,8 +644,7 @@ protected:
 private:
   /* Constructs a conjunction. */
   Conjunction(const FormulaList& conjuncts)
-    : conjuncts(conjuncts) {
-  }
+    : conjuncts(conjuncts) {}
 
   friend const Formula& operator&&(const Formula& f1, const Formula& f2);
 };
@@ -713,8 +698,7 @@ protected:
 private:
   /* Constructs a disjunction. */
   Disjunction(const FormulaList& disjuncts)
-    : disjuncts(disjuncts) {
-  }
+    : disjuncts(disjuncts) {}
 
   friend const Formula& operator||(const Formula& f1, const Formula& f2);
 };
@@ -735,8 +719,7 @@ struct QuantifiedFormula : public Formula {
 
 protected:
   QuantifiedFormula(const VariableList& parameters, const Formula& body)
-    : parameters(parameters), body(body) {
-  }
+    : parameters(parameters), body(body) {}
 };
 
 
@@ -746,8 +729,7 @@ protected:
 struct ExistsFormula : public QuantifiedFormula {
   /* Constructs an existentially quantified formula. */
   ExistsFormula(const VariableList& parameters, const Formula& body)
-    : QuantifiedFormula(parameters, body) {
-  }
+    : QuantifiedFormula(parameters, body) {}
 
   /* Returns an instantiation of this formula. */
   virtual const ExistsFormula& instantiation(size_t id) const;
@@ -791,8 +773,7 @@ protected:
 struct ForallFormula : public QuantifiedFormula {
   /* Constructs a universally quantified formula. */
   ForallFormula(const VariableList& parameters, const Formula& body)
-    : QuantifiedFormula(parameters, body) {
-  }
+    : QuantifiedFormula(parameters, body) {}
 
   /* Returns an instantiation of this formula. */
   virtual const ForallFormula& instantiation(size_t id) const;
