@@ -2,7 +2,7 @@
 /*
  * Planning parameters.
  *
- * $Id: parameters.h,v 1.5 2002-01-03 12:40:15 lorens Exp $
+ * $Id: parameters.h,v 1.6 2002-01-06 21:30:39 lorens Exp $
  */
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
@@ -45,6 +45,8 @@ struct Parameters : public gc {
   bool ground_actions;
   /* Whether to use parameter domain constraints. */
   bool domain_constraints;
+  /* Whether to keep static preconditions when using domain constraints. */
+  bool keep_static_preconditions;
   /* Whether to use transformational planner. */
   bool transformational;
 
