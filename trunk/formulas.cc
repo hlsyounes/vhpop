@@ -1,5 +1,5 @@
 /*
- * $Id: formulas.cc,v 1.19 2001-10-07 00:04:40 lorens Exp $
+ * $Id: formulas.cc,v 1.20 2001-10-08 01:57:40 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -356,7 +356,7 @@ bool equal_to<const Formula*>::operator()(const Formula* f1,
 }
 
 size_t hash<const Formula*>::operator()(const Formula* f) const {
-  return hash<Formula>()(*f);
+  return hash<Hashable>()(*f);
 }
 
 
@@ -502,7 +502,7 @@ const Formula& Atom::negation() const {
 }
 
 
-/* Returns the hash value of this formula. */
+/* Returns the hash value of this object. */
 size_t Atom::hash_value() const {
   hash<Hashable> h;
   size_t val = hash<string>()(predicate);
@@ -580,9 +580,9 @@ const Formula& Negation::negation() const {
 }
 
 
-/* Returns the hash value of this formula. */
+/* Returns the hash value of this object. */
 size_t Negation::hash_value() const {
-  return 2*hash<Formula>()(atom);
+  return 5*hash<Hashable>()(atom);
 }
 
 
