@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 3.11 2002-04-03 16:33:51 lorens Exp $
+ * $Id: vhpop.cc,v 3.12 2002-04-04 17:07:22 lorens Exp $
  */
 #include "plans.h"
 #include "parameters.h"
@@ -29,10 +29,9 @@
 #include <cerrno>
 #include <sys/time.h>
 #ifdef HAVE_GETOPT_LONG
-#define _GNU_SOURCE
 #include <getopt.h>
 #else
-#include <unistd.h>
+#include "getopt.h"
 #endif
 
 
@@ -49,7 +48,6 @@ extern int warning_level;
 int verbosity;
 
 
-#ifdef HAVE_GETOPT_LONG
 /* Program options. */
 static struct option long_options[] = {
   { "domain-constraints", optional_argument, NULL, 'd' },
@@ -70,7 +68,6 @@ static struct option long_options[] = {
   { "help", no_argument, NULL, '?' },
   { 0, 0, 0, 0 }
 };
-#endif
 static const char OPTION_STRING[] = "d::f:gh:l:rs:tT:v::Vw:W::?";
 
 
@@ -175,13 +172,9 @@ int main(int argc, char* argv[]) {
    * Get command line options.
    */
   while (1) {
-#ifdef HAVE_GETOPT_LONG
     int option_index = 0;
     int c = getopt_long(argc, argv, OPTION_STRING,
 			long_options, &option_index);
-#else
-    int c = getopt(argc, argv, OPTION_STRING);
-#endif
     if (c == -1) {
       break;
     }
