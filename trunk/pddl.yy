@@ -2,7 +2,7 @@
 /*
  * PDDL parser.
  *
- * $Id: pddl.yy,v 1.6 2001-08-18 15:47:24 lorens Exp $
+ * $Id: pddl.yy,v 1.7 2001-08-18 19:53:04 lorens Exp $
  */
 %{
 #include <utility>
@@ -474,7 +474,8 @@ formula : atomic_term_formula
             { $$ = $1 }
         | '(' NOT formula ')'
             {
-	      if (!requirements->disjunctive_preconditions) {
+	      if (!requirements->disjunctive_preconditions
+		  && dynamic_cast<const Equality*>($3) == NULL) {
 		yywarning("assuming ':disjunctive-preconditions' "
 			  "requirement.");
 	      }
