@@ -13,10 +13,10 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: support.cc,v 1.9 2002-06-26 23:23:04 lorens Exp $
+ * $Id: support.cc,v 1.10 2002-06-28 20:14:07 lorens Exp $
  */
 
-#include <stdlib.h>
+#include <cstdlib>
 #include "support.h"
 
 

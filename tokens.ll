@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: tokens.ll,v 3.7 2002-06-28 11:55:15 lorens Exp $
+ * $Id: tokens.ll,v 3.8 2002-06-28 20:13:56 lorens Exp $
  */
 %{
 struct Type;
@@ -34,7 +34,7 @@ struct Effect;
 struct EffectList;
 struct ActionSchema;
 
-#include <ctype.h>
+#include <cctype>
 #include <utility>
 #include <string>
 #include <vector>

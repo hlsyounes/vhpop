@@ -13,12 +13,12 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.cc,v 3.12 2002-05-26 23:40:30 lorens Exp $
+ * $Id: domains.cc,v 3.13 2002-06-28 20:14:03 lorens Exp $
  */
+#include <stack>
 #include "bindings.h"
 #include "domains.h"
 #include "problems.h"
-#include <stack>
 
 
 /* ====================================================================== */
@@ -26,7 +26,7 @@
 
 /* Constructs a predicate with the given name. */
 Predicate::Predicate(const string& name)
-  : name(name) {}
+  : name_(name) {}
 
 
 /* Deletes this predicate. */
@@ -58,13 +58,15 @@ void Predicate::add_parameter(const Type& type) {
 }
 
 
-/* Prints this object on the given stream. */
-void Predicate::print(ostream& os) const {
-  os << '(' << name;
-  for (TypeListIter ti = parameters_.begin(); ti != parameters_.end(); ti++) {
-    os << " x? - " << **ti;
+/* Output operator for predicates. */
+ostream& operator<<(ostream& os, const Predicate& p) {
+  os << '(' << p.name();
+  size_t n = p.arity();
+  for (size_t i = 0; i < n; i++) {
+    os << " x? - " << p.type(i);
   }
   os << ')';
+  return os;
 }
 
 
@@ -692,7 +694,7 @@ void Domain::clear() {
 
 /* Constructs an empty domain with the given name. */
 Domain::Domain(const string& name)
-  : name(name) {
+  : name_(name) {
   const Domain* d = find(name);
   if (d != NULL) {
     delete d;
@@ -703,7 +705,7 @@ Domain::Domain(const string& name)
 
 /* Deletes a domain. */
 Domain::~Domain() {
-  domains.erase(name);
+  domains.erase(name());
   for (ActionSchemaMapIter ai = actions_.begin(); ai != actions_.end(); ai++) {
     delete (*ai).second;
   }
@@ -752,8 +754,8 @@ void Domain::add_constant(const Name& constant) {
 
 /* Adds a predicate to this domain. */
 void Domain::add_predicate(const Predicate& predicate) {
-  predicates_.insert(make_pair(predicate.name, &predicate));
-  static_predicates_.insert(predicate.name);
+  predicates_.insert(make_pair(predicate.name(), &predicate));
+  static_predicates_.insert(predicate.name());
 }
 
 
@@ -820,26 +822,28 @@ bool Domain::static_predicate(const string& predicate) const {
 }
 
 
-/* Prints this object on the given stream. */
-void Domain::print(ostream& os) const {
-  os << "name: " << name;
+/* Output operator for domains. */
+ostream& operator<<(ostream& os, const Domain& d) {
+  os << "name: " << d.name();
   os << endl << "types:";
-  for (TypeMapIter ti = types_.begin(); ti != types_.end(); ti++) {
+  for (TypeMapIter ti = d.types_.begin(); ti != d.types_.end(); ti++) {
     if (!(*ti).second->object()) {
       os << ' ' << *(*ti).second << " - " << (*ti).second->supertype();
     }
   }
   os << endl << "constants:";
-  for (NameMapIter ni = constants_.begin(); ni != constants_.end(); ni++) {
+  for (NameMapIter ni = d.constants_.begin(); ni != d.constants_.end(); ni++) {
     os << ' ' << *(*ni).second << " - " << (*ni).second->type();
   }
   os << endl << "predicates:";
-  for (PredicateMapIter pi = predicates_.begin();
-       pi != predicates_.end(); pi++) {
+  for (PredicateMapIter pi = d.predicates_.begin();
+       pi != d.predicates_.end(); pi++) {
     os << endl << "  " << *(*pi).second;
   }
   os << endl << "actions:";
-  for (ActionSchemaMapIter ai = actions_.begin(); ai != actions_.end(); ai++) {
+  for (ActionSchemaMapIter ai = d.actions_.begin();
+       ai != d.actions_.end(); ai++) {
     os << endl << "  " << *(*ai).second;
   }
+  return os;
 }

@@ -16,16 +16,16 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.h,v 3.10 2002-05-26 23:40:15 lorens Exp $
+ * $Id: domains.h,v 3.11 2002-06-28 20:13:33 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
 
+#include <hash_set>
 #include "support.h"
 #include "requirements.h"
 #include "types.h"
 #include "formulas.h"
-#include <hash_set>
 
 struct Problem;
 
@@ -35,15 +35,15 @@ struct Problem;
 /*
  * Predicate declaration.
  */
-struct Predicate : public Printable {
-  /* Name of this predicate. */
-  const string name;
-
+struct Predicate {
   /* Constructs a predicate with the given name. */
   Predicate(const string& name);
 
   /* Deletes this predicate. */
-  virtual ~Predicate();
+  ~Predicate();
+
+  /* Returns the name of this predicate. */
+  const string& name() const { return name_; }
 
   /* Returns the arity of this predicate. */
   size_t arity() const;
@@ -54,10 +54,6 @@ struct Predicate : public Printable {
   /* Adds a parameter to this predicate. */
   void add_parameter(const Type& type);
 
-protected:
-  /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const;
-
 private:
   /* List of types. */
   struct TypeList : vector<const Type*> {
@@ -66,10 +62,29 @@ private:
   /* Iterator for type list. */
   typedef TypeList::const_iterator TypeListIter;
 
+  /* Name of this predicate. */
+  string name_;
   /* Parameter types. */
   TypeList parameters_;
 };
 
+/* Output operator for predicates. */
+ostream& operator<<(ostream& os, const Predicate& p);
+
+
+/* ====================================================================== */
+/* PredicateMap */
+
+/* Table of predicate declarations. */
+struct PredicateMap : public hash_map<string, const Predicate*> {
+};
+
+/* Iterator for predicate table. */
+typedef PredicateMap::const_iterator PredicateMapIter;
+
+
+/* ====================================================================== */
+/* Effect */
 
 struct EffectList;
 
@@ -300,6 +315,9 @@ private:
 };
 
 
+/* ====================================================================== */
+/* GroundActionList */
+
 /*
  * List of ground actions.
  */
@@ -323,10 +341,13 @@ struct TypeMap : hash_map<string, const SimpleType*> {
 typedef TypeMap::const_iterator TypeMapIter;
 
 
+/* ====================================================================== */
+/* Domain */
+
 /*
  * Domain definition.
  */
-struct Domain : public Printable {
+struct Domain {
   /* Table of domain definitions. */
   struct DomainMap : public hash_map<string, const Domain*> {
   };
@@ -334,8 +355,6 @@ struct Domain : public Printable {
   /* Iterator for domain tables. */
   typedef DomainMap::const_iterator DomainMapIter;
 
-  /* Name of this domain. */
-  const string name;
   /* Requirements for this domain. */
   Requirements requirements;
 
@@ -355,7 +374,10 @@ struct Domain : public Printable {
   Domain(const string& name);
 
   /* Deletes a domain. */
-  virtual ~Domain();
+  ~Domain();
+
+  /* Returns the name of this domain. */
+  const string& name() const { return name_; }
 
   /* Domain actions. */
   const ActionSchemaMap& actions() const;
@@ -395,21 +417,12 @@ struct Domain : public Printable {
   /* Tests if the given predicate is static. */
   bool static_predicate(const string& predicate) const;
 
-protected:
-  /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const;
-
 private:
-  /* Table of predicate declarations. */
-  struct PredicateMap : public hash_map<string, const Predicate*> {
-  };
-
-  /* Iterator for predicate table. */
-  typedef PredicateMap::const_iterator PredicateMapIter;
-
   /* Table of all defined domains. */
   static DomainMap domains;
 
+  /* Name of this domain. */
+  string name_;
   /* Domain types. */
   TypeMap types_;
   /* Domain constants. */
@@ -420,7 +433,12 @@ private:
   ActionSchemaMap actions_;
   /* Static predicates. */
   hash_set<string> static_predicates_;
+
+  friend ostream& operator<<(ostream& os, const Domain& d);
 };
+
+/* Output operator for domains. */
+ostream& operator<<(ostream& os, const Domain& d);
 
 
 #endif /* DOMAINS_H */
