@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.2 2001-05-04 00:16:08 lorens Exp $
+ * $Id: plans.h,v 1.3 2001-05-04 03:20:40 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -363,13 +363,17 @@ private:
   /* Heristic to use for estimating cost of plan. */
   static Heuristic heuristic;
   /* Whether to allow early linking. */
-  static unsigned early_linking;
+  static unsigned int early_linking;
   /* Whether to allow transformational plan operators. */
   static bool transformations;
   /* Verbosity. */
   static unsigned int verbosity;
   /* Domain of problem currently being solved. */
   static const Domain* domain;
+  /* Number of visited plans. */
+  static size_t num_visited_plans;
+  /* Number of generated plans. */
+  static size_t num_generated_plans;
 
   /* Chain of steps (could contain same step several times, if it is
      in plan for more than one reason). */
@@ -434,6 +438,9 @@ private:
       rank1_(*(new (GC) int(-1))), rank2_(*(new (GC) int(-1))),
       hardest_open_cond_(*(new (GC) (const OpenCondition*)(NULL))),
       early_cost_(*new (GC) size_t(0)) {
+    if (type_ != INTERMEDIATE_PLAN) {
+      num_generated_plans++;
+    }
   }
 
   const Flaw& get_flaw() const;
