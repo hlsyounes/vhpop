@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 1.38 2002-01-25 18:23:50 lorens Exp $
+ * $Id: formulas.h,v 3.1 2002-03-10 14:33:17 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -229,6 +229,9 @@ typedef VariableList::const_iterator VarListIter;
  * Abstract formula.
  */
 struct Formula : public Printable, public gc {
+  /* Possible temporal annotations for formulas. */
+  typedef enum { AT_START, AT_END, OVER_ALL } FormulaTime;
+
   /* The true formula. */
   static const Formula& TRUE;
   /* The false formula. */
@@ -261,6 +264,11 @@ struct Formula : public Printable, public gc {
 
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
+			       const Bindings* b = NULL) const = 0;
+
+  /* Returns the heuristic value of this formula. */
+  virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
+			       const PlanningGraph& pg,
 			       const Bindings* b = NULL) const = 0;
 
   /* Checks if this formula is equivalent to the given formula.  Two
@@ -332,6 +340,11 @@ struct Constant : public Formula {
   virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
 			       const Bindings* b) const;
 
+  /* Returns the heuristic value of this formula. */
+  virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
+			       const PlanningGraph& pg,
+			       const Bindings* b) const;
+
   /* Checks if this formula is equivalent to the given formula.  Two
      formulas are equivalent if they only differ in the choice of
      variable names. */
@@ -359,6 +372,9 @@ private:
  * An abstract literal.
  */
 struct Literal : public Formula {
+  /* Temporal annotation for this formula. */
+  const FormulaTime when;
+
   /* Returns the predicate of this literal. */
   virtual const string& predicate() const = 0;
 
@@ -369,6 +385,9 @@ struct Literal : public Formula {
   virtual const Formula& strip_static(const Domain& domain) const;
 
 protected:
+  /* Constructs a literal. */
+  explicit Literal(FormulaTime when);
+
   /* Checks if this object equals the given object. */
   virtual bool equals(const Literal& o) const = 0;
 
@@ -424,7 +443,7 @@ struct hash<const Literal*> {
  */
 struct Atom : public Literal {
   /* Constructs an atomic formula. */
-  Atom(const string& predicate, const TermList& terms);
+  Atom(const string& predicate, const TermList& terms, FormulaTime when);
 
   /* Returns the predicate of this literal. */
   virtual const string& predicate() const;
@@ -448,6 +467,11 @@ struct Atom : public Literal {
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
 			       const Bindings* b = NULL) const;
+
+  /* Returns the heuristic value of this formula. */
+  virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
+			       const PlanningGraph& pg,
+			       const Bindings* b) const;
 
   /* Checks if this formula is equivalent to the given formula.  Two
      formulas are equivalent if they only differ in the choice of
@@ -483,7 +507,7 @@ struct Negation : public Literal {
   const Atom& atom;
 
   /* Constructs a negated atom. */
-  Negation(const Atom& atom);
+  explicit Negation(const Atom& atom);
 
   /* Returns the predicate of this literal. */
   virtual const string& predicate() const;
@@ -507,6 +531,11 @@ struct Negation : public Literal {
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
 			       const Bindings* b = NULL) const;
+
+  /* Returns the heuristic value of this formula. */
+  virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
+			       const PlanningGraph& pg,
+			       const Bindings* b) const;
 
   /* Checks if this formula is equivalent to the given formula.  Two
      formulas are equivalent if they only differ in the choice of
@@ -570,6 +599,11 @@ struct Equality : public BindingLiteral {
   virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
 			       const Bindings* b = NULL) const;
 
+  /* Returns the heuristic value of this formula. */
+  virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
+			       const PlanningGraph& pg,
+			       const Bindings* b) const;
+
   /* Checks if this formula is equivalent to the given formula.  Two
      formulas are equivalent if they only differ in the choice of
      variable names. */
@@ -611,6 +645,11 @@ struct Inequality : public BindingLiteral {
   virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
 			       const Bindings* b = NULL) const;
 
+  /* Returns the heuristic value of this formula. */
+  virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
+			       const PlanningGraph& pg,
+			       const Bindings* b) const;
+
   /* Checks if this formula is equivalent to the given formula.  Two
      formulas are equivalent if they only differ in the choice of
      variable names. */
@@ -651,6 +690,11 @@ struct Conjunction : public Formula {
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
 			       const Bindings* b = NULL) const;
+
+  /* Returns the heuristic value of this formula. */
+  virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
+			       const PlanningGraph& pg,
+			       const Bindings* b) const;
 
   /* Checks if this formula is equivalent to the given formula.  Two
      formulas are equivalent if they only differ in the choice of
@@ -698,6 +742,11 @@ struct Disjunction : public Formula {
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
 			       const Bindings* b = NULL) const;
+
+  /* Returns the heuristic value of this formula. */
+  virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
+			       const PlanningGraph& pg,
+			       const Bindings* b) const;
 
   /* Checks if this formula is equivalent to the given formula.  Two
      formulas are equivalent if they only differ in the choice of
@@ -761,6 +810,11 @@ struct ExistsFormula : public QuantifiedFormula {
   virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
 			       const Bindings* b = NULL) const;
 
+  /* Returns the heuristic value of this formula. */
+  virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
+			       const PlanningGraph& pg,
+			       const Bindings* b) const;
+
   /* Checks if this formula is equivalent to the given formula.  Two
      formulas are equivalent if they only differ in the choice of
      variable names. */
@@ -801,6 +855,11 @@ struct ForallFormula : public QuantifiedFormula {
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
 			       const Bindings* b = NULL) const;
+
+  /* Returns the heuristic value of this formula. */
+  virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
+			       const PlanningGraph& pg,
+			       const Bindings* b) const;
 
   /* Checks if this formula is equivalent to the given formula.  Two
      formulas are equivalent if they only differ in the choice of

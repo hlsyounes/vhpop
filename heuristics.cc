@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 1.30 2002-01-26 04:21:36 lorens Exp $
+ * $Id: heuristics.cc,v 3.1 2002-03-10 14:34:20 lorens Exp $
  */
 #include <set>
 #include <typeinfo>
@@ -44,17 +44,22 @@ formula_value(const Formula& formula, size_t step_id, const Plan& plan,
   if (reuse) {
     const Literal* literal = dynamic_cast<const Literal*>(&formula);
     if (literal != NULL) {
+      StepTime gt = start_time(*literal);
       if (!domain.static_predicate(literal->predicate())) {
 	hash_set<size_t> seen_steps;
 	for (const StepChain* sc = plan.steps; sc != NULL; sc = sc->tail) {
 	  const Step& step = *sc->head;
-	  if (step.id != 0 && seen_steps.find(step.id) == seen_steps.end()) {
+	  if (step.id != 0 && seen_steps.find(step.id) == seen_steps.end()
+	      && plan.orderings.possibly_before(step.id, STEP_START,
+						step_id, gt)) {
 	    seen_steps.insert(step.id);
-	    if (plan.orderings.possibly_before(step.id, step_id)) {
-	      const EffectList& effs = step.effects;
-	      for (EffectListIter ei = effs.begin(); ei != effs.end(); ei++) {
+	    const EffectList& effs = step.effects;
+	    for (EffectListIter ei = effs.begin(); ei != effs.end(); ei++) {
+	      const Effect& e = **ei;
+	      StepTime et = end_time(e);
+	      if (plan.orderings.possibly_before(step.id, et, step_id, gt)) {
 		if (typeid(*literal) == typeid(Atom)) {
-		  const AtomList& adds = (*ei)->add_list;
+		  const AtomList& adds = e.add_list;
 		  for (AtomListIter fi = adds.begin();
 		       fi != adds.end(); fi++) {
 		    if ((bindings != NULL && bindings->unify(*literal, **fi))
@@ -64,7 +69,7 @@ formula_value(const Formula& formula, size_t step_id, const Plan& plan,
 		    }
 		  }
 		} else {
-		  const NegationList& dels = (*ei)->del_list;
+		  const NegationList& dels = e.del_list;
 		  for (NegationListIter fi = dels.begin();
 		       fi != dels.end(); fi++) {
 		    if ((bindings != NULL && bindings->unify(*literal, **fi))
@@ -286,6 +291,14 @@ void Constant::heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
 
 
 /* Returns the heuristic value of this formula. */
+void Constant::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
+			       const PlanningGraph& pg,
+			       const Bindings* b) const {
+  hs = h = HeuristicValue::ZERO;
+}
+
+
+/* Returns the heuristic value of this formula. */
 void Atom::heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
 			   const Bindings* b) const {
   h = pg.heuristic_value(*this, b);
@@ -293,9 +306,27 @@ void Atom::heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
 
 
 /* Returns the heuristic value of this formula. */
+void Atom::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
+			   const PlanningGraph& pg,
+			   const Bindings* b) const {
+  h = pg.heuristic_value(*this, b);
+  hs = (when != AT_END) ? h : HeuristicValue::ZERO;
+}
+
+
+/* Returns the heuristic value of this formula. */
 void Negation::heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
 			       const Bindings* b) const {
   h = pg.heuristic_value(*this, b);
+}
+
+
+/* Returns the heuristic value of this formula. */
+void Negation::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
+			       const PlanningGraph& pg,
+			       const Bindings* b) const {
+  h = pg.heuristic_value(*this, b);
+  hs = (when != AT_END) ? h : HeuristicValue::ZERO;
 }
 
 
@@ -311,6 +342,19 @@ void Equality::heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
 }
 
 
+/* Returns the heuristic vaue of this formula. */
+void Equality::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
+			       const PlanningGraph& pg,
+			       const Bindings* b) const {
+  if (b == NULL) {
+    hs = h = HeuristicValue::ZERO;
+  } else {
+    hs = h = (b->consistent_with(*this)
+	      ? HeuristicValue::ZERO : HeuristicValue::INFINITE);
+  }
+}
+
+
 /* Returns the heuristic value of this formula. */
 void Inequality::heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
 				 const Bindings* b) const {
@@ -319,6 +363,19 @@ void Inequality::heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
   } else {
     h = (b->consistent_with(*this)
 	 ? HeuristicValue::ZERO : HeuristicValue::INFINITE);
+  }
+}
+
+
+/* Returns the heuristic value of this formula. */
+void Inequality::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
+				 const PlanningGraph& pg,
+				 const Bindings* b) const {
+  if (b == NULL) {
+    hs = h = HeuristicValue::ZERO;
+  } else {
+    hs = h = (b->consistent_with(*this)
+	      ? HeuristicValue::ZERO : HeuristicValue::INFINITE);
   }
 }
 
@@ -337,6 +394,21 @@ void Conjunction::heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
 
 
 /* Returns the heuristic value of this formula. */
+void Conjunction::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
+				  const PlanningGraph& pg,
+				  const Bindings* b) const {
+  hs = h = HeuristicValue::ZERO;
+  for (FormulaListIter fi = conjuncts.begin();
+       fi != conjuncts.end() && !h.infinite(); fi++) {
+    HeuristicValue hi, hsi;
+    (*fi)->heuristic_value(hi, hsi, pg, b);
+    h += hi;
+    hs += hsi;
+  }
+}
+
+
+/* Returns the heuristic value of this formula. */
 void Disjunction::heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
 				  const Bindings* b) const {
   h = HeuristicValue::INFINITE;
@@ -350,6 +422,21 @@ void Disjunction::heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
 
 
 /* Returns the heuristic value of this formula. */
+void Disjunction::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
+				  const PlanningGraph& pg,
+				  const Bindings* b) const {
+  hs = h = HeuristicValue::INFINITE;
+  for (FormulaListIter fi = disjuncts.begin();
+       fi != disjuncts.end() && !h.zero(); fi++) {
+    HeuristicValue hi, hsi;
+    (*fi)->heuristic_value(hi, hsi, pg, b);
+    h = min(h, hi);
+    hs = min(hs, hsi);
+  }
+}
+
+
+/* Returns the heuristic value of this formula. */
 void ExistsFormula::heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
 				    const Bindings* b) const {
   body.heuristic_value(h, pg, b);
@@ -357,7 +444,23 @@ void ExistsFormula::heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
 
 
 /* Returns the heuristic value of this formula. */
+void ExistsFormula::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
+				    const PlanningGraph& pg,
+				    const Bindings* b) const {
+  body.heuristic_value(h, hs, pg, b);
+}
+
+
+/* Returns the heuristic value of this formula. */
 void ForallFormula::heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
+				    const Bindings* b) const {
+  throw Unimplemented("heuristic value of univerally quantified formula not implemented");
+}
+
+
+/* Returns the heuristic value of this formula. */
+void ForallFormula::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
+				    const PlanningGraph& pg,
 				    const Bindings* b) const {
   throw Unimplemented("heuristic value of univerally quantified formula not implemented");
 }
@@ -425,10 +528,12 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
 	 ai != actions.end(); ai++) {
       const GroundAction& action = **ai;
       HeuristicValue pre_value;
-      action.precondition.heuristic_value(pre_value, *this);
-      if (!pre_value.infinite()) {
+      HeuristicValue start_value;
+      action.precondition.heuristic_value(pre_value, start_value, *this);
+      if (!start_value.infinite()) {
 	/* Precondition is achievable at this level. */
-	if (applicable_actions.find(&action) == applicable_actions.end()) {
+	if (!pre_value.infinite()
+	    && applicable_actions.find(&action) == applicable_actions.end()) {
 	  /* First time this action is applicable. */
 	  applicable_actions.insert(&action);
 	  if (domain_constraints && !action.arguments.empty()) {
@@ -444,11 +549,18 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
 	for (EffectListIter ei = action.effects.begin();
 	     ei != action.effects.end(); ei++) {
 	  const Effect& effect = **ei;
+	  if (effect.when == Effect::AT_END && pre_value.infinite()) {
+	    continue;
+	  }
 	  HeuristicValue cond_value;
 	  effect.condition.heuristic_value(cond_value, *this);
 	  if (!cond_value.infinite()) {
 	    /* Effect condition is achievable at this level. */
-	    cond_value += pre_value;
+	    if (effect.when == Effect::AT_START) {
+	      cond_value += start_value;
+	    } else {
+	      cond_value += pre_value;
+	    }
 	    cond_value.add_cost(1);
 
 	    /*
@@ -903,8 +1015,10 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
     case MAX_WORK:
       if (!max_done) {
 	max_done = true;
-	hash_map<size_t, size_t> dist;
-	max_cost = max_steps = plan.orderings.goal_distances(dist);
+	hash_map<size_t, float> start_dist;
+	hash_map<size_t, float> end_dist;
+	max_cost = max_steps =
+	  int(plan.orderings.goal_distances(start_dist, end_dist) + 0.5);
 	for (const OpenConditionChain* occ = plan.open_conds;
 	     occ != NULL; occ = occ->tail) {
 	  const OpenCondition& open_cond = *occ->head;
@@ -912,7 +1026,8 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
 	    formula_value(open_cond.condition(), open_cond.step_id, plan,
 			  domain, *planning_graph);
 	  max_cost = max(max_cost,
-			 int(dist[open_cond.step_id]) + v.max_cost());
+			 int(start_dist[open_cond.step_id] + 0.5)
+			 + v.max_cost());
 	  max_work = sum(max_work, v.max_work());
 	}
       }
@@ -941,8 +1056,10 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
     case MAXR_WORK:
       if (!maxr_done) {
 	maxr_done = true;
-	hash_map<size_t, size_t> dist;
-	maxr_cost = max_steps = plan.orderings.goal_distances(dist);
+	hash_map<size_t, float> start_dist;
+	hash_map<size_t, float> end_dist;
+	maxr_cost = max_steps =
+	  int(plan.orderings.goal_distances(start_dist, end_dist) + 0.5);
 	for (const OpenConditionChain* occ = plan.open_conds;
 	     occ != NULL; occ = occ->tail) {
 	  const OpenCondition& open_cond = *occ->head;
@@ -950,7 +1067,8 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
 	    formula_value(open_cond.condition(), open_cond.step_id, plan,
 			  domain, *planning_graph, true);
 	  maxr_cost = max(maxr_cost,
-			  int(dist[open_cond.step_id]) + v.max_cost());
+			  int(start_dist[open_cond.step_id] + 0.5)
+			  + v.max_cost());
 	  maxr_work = sum(maxr_work, v.max_work());
 	}
       }

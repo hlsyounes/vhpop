@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.h,v 1.33 2002-01-25 18:23:48 lorens Exp $
+ * $Id: domains.h,v 3.1 2002-03-10 14:31:48 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -74,6 +74,9 @@ struct EffectList;
  * Effect definition.
  */
 struct Effect : public Printable, public gc {
+  /* Possible temporal annotations for effects. */
+  typedef enum { AT_START, AT_END } EffectTime;
+
   /* List of universally quantified variables for this effect. */
   const VariableList& forall;
   /* Condition for this effect, or TRUE if unconditional effect. */
@@ -82,21 +85,27 @@ struct Effect : public Printable, public gc {
   const AtomList& add_list;
   /* Delete list for this effect. */
   const NegationList& del_list;
+  /* Temporal annotation for this effect. */
+  const EffectTime when;
 
   /* Constructs an unconditional effect. */
-  Effect(const AtomList& add_list, const NegationList& del_list);
+  Effect(const AtomList& add_list, const NegationList& del_list,
+	 EffectTime when);
 
   /* Constructs a conditional effect. */
   Effect(const Formula& condition,
-	 const AtomList& add_list, const NegationList& del_list);
+	 const AtomList& add_list, const NegationList& del_list,
+	 EffectTime when);
 
   /* Constructs a universally quantified unconditional effect. */
   Effect(const VariableList& forall,
-	 const AtomList& add_list, const NegationList& del_list);
+	 const AtomList& add_list, const NegationList& del_list,
+	 EffectTime when);
 
   /* Constructs a universally quantified conditional effect. */
   Effect(const VariableList& forall, const Formula& condition,
-	 const AtomList& add_list, const NegationList& del_list);
+	 const AtomList& add_list, const NegationList& del_list,
+	 EffectTime when);
 
   /* Returns an instantiation of this effect. */
   const Effect& instantiation(size_t id) const;
@@ -162,6 +171,12 @@ struct Action : public Printable, public gc {
   const Formula& precondition;
   /* List of action effects. */
   const EffectList& effects;
+  /* Whether this is a durative action. */
+  bool durative;
+  /* Minimum duration of this action. */
+  float min_duration;
+  /* Maximum duration of this action. */
+  float max_duration;
 
   /* Returns a formula representing this action. */
   virtual const Atom& action_formula() const = 0;
@@ -175,6 +190,10 @@ protected:
   /* Constructs an action. */
   Action(const string& name, const Formula& precondition,
 	 const EffectList& effects);
+
+  /* Constructs a durative action. */
+  Action(const string& name, const Formula& precondition,
+	 const EffectList& effects, float min_duration, float max_duration);
 };
 
 
@@ -201,6 +220,11 @@ struct ActionSchema : public Action {
   /* Constructs an action schema. */
   ActionSchema(const string& name, const VariableList& parameters,
 	       const Formula& precondition, const EffectList& effects);
+
+  /* Constructs an action schema for a durative action. */
+  ActionSchema(const string& name, const VariableList& parameters,
+	       const Formula& precondition, const EffectList& effects,
+	       float min_duration, float max_duration);
 
   /* Returns a formula representing this action. */
   virtual const Atom& action_formula() const;
@@ -239,6 +263,11 @@ struct GroundAction : public Action {
   /* Constructs a ground action, assuming arguments are names. */
   GroundAction(const string& name, const NameList& arguments,
 	       const Formula& precondition, const EffectList& effects);
+
+  /* Constructs a ground durative action, assuming arguments are names. */
+  GroundAction(const string& name, const NameList& arguments,
+	       const Formula& precondition, const EffectList& effects,
+	       float min_duration, float max_duration);
 
   /* Returns a formula representing this action. */
   virtual const Atom& action_formula() const;

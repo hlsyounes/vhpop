@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.cc,v 2.1 2002-02-07 19:05:42 lorens Exp $
+ * $Id: domains.cc,v 3.1 2002-03-10 14:31:29 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -52,39 +52,44 @@ void Predicate::print(ostream& os) const {
 /* Effect */
 
 /* Constructs an unconditional effect. */
-Effect::Effect(const AtomList& add_list, const NegationList& del_list)
+Effect::Effect(const AtomList& add_list, const NegationList& del_list,
+	       EffectTime when)
   : forall(VariableList::EMPTY), condition(Formula::TRUE),
-    add_list(add_list), del_list(del_list) {
+    add_list(add_list), del_list(del_list), when(when) {
 }
 
 
 /* Constructs a conditional effect. */
 Effect::Effect(const Formula& condition,
-	       const AtomList& add_list, const NegationList& del_list)
+	       const AtomList& add_list, const NegationList& del_list,
+	       EffectTime when)
   : forall(VariableList::EMPTY), condition(condition),
-    add_list(add_list), del_list(del_list) {
+    add_list(add_list), del_list(del_list), when(when) {
 }
 
 
 /* Constructs a universally quantified unconditional effect. */
 Effect::Effect(const VariableList& forall,
-	       const AtomList& add_list, const NegationList& del_list)
+	       const AtomList& add_list, const NegationList& del_list,
+	       EffectTime when)
   : forall(forall), condition(Formula::TRUE),
-    add_list(add_list), del_list(del_list) {
+    add_list(add_list), del_list(del_list), when(when) {
 }
 
 
 /* Constructs a universally quantified conditional effect. */
 Effect::Effect(const VariableList& forall, const Formula& condition,
-	       const AtomList& add_list, const NegationList& del_list)
+	       const AtomList& add_list, const NegationList& del_list,
+	       EffectTime when)
   : forall(forall), condition(condition),
-    add_list(add_list), del_list(del_list) {}
+    add_list(add_list), del_list(del_list), when(when) {}
 
 
 /* Returns an instantiation of this effect. */
 const Effect& Effect::instantiation(size_t id) const {
   return *(new Effect(forall.instantiation(id), condition.instantiation(id),
-		      add_list.instantiation(id), del_list.instantiation(id)));
+		      add_list.instantiation(id), del_list.instantiation(id),
+		      when));
 }
 
 
@@ -96,7 +101,8 @@ void Effect::instantiations(EffectList& effects, const SubstitutionList& subst,
     if (!new_condition.contradiction()) {
       effects.push_back(new Effect(new_condition,
 				   add_list.substitution(subst),
-				   del_list.substitution(subst)));
+				   del_list.substitution(subst),
+				   when));
     }
   } else {
     SubstitutionList args;
@@ -124,7 +130,8 @@ void Effect::instantiations(EffectList& effects, const SubstitutionList& subst,
 	if (!new_condition.contradiction()) {
 	  effects.push_back(new Effect(new_condition,
 				       add_list.substitution(args),
-				       del_list.substitution(args)));
+				       del_list.substitution(args),
+				       when));
 	}
 	for (int j = i; j >= 0; j--) {
 	  args.pop_back();
@@ -154,7 +161,8 @@ const Effect& Effect::substitution(const SubstitutionList& subst) const {
   if (forall.empty()) {
     return *(new Effect(forall, condition.substitution(subst),
 			add_list.substitution(subst),
-			del_list.substitution(subst)));
+			del_list.substitution(subst),
+			when));
   } else {
     SubstitutionList eff_subst;
     for (SubstListIter si = subst.begin(); si != subst.end(); si++) {
@@ -165,7 +173,8 @@ const Effect& Effect::substitution(const SubstitutionList& subst) const {
     }
     return *(new Effect(forall, condition.substitution(eff_subst),
 			add_list.substitution(eff_subst),
-			del_list.substitution(eff_subst)));
+			del_list.substitution(eff_subst),
+			when));
   }
 }
 
@@ -185,6 +194,15 @@ void Effect::achievable_predicates(hash_set<string>& preds,
 
 /* Prints this object on the given stream. */
 void Effect::print(ostream& os) const {
+  os << '(';
+  switch (when) {
+  case AT_START:
+    os << "at start ";
+    break;
+  case AT_END:
+    os << "at end ";
+    break;
+  }
   os << '[';
   if (!condition.tautology()) {
     os << condition;
@@ -206,7 +224,7 @@ void Effect::print(ostream& os) const {
     }
     os << ")";
   }
-  os << ']';
+  os << ']' << ')';
 }
 
 
@@ -274,14 +292,25 @@ void EffectList::achievable_predicates(hash_set<string>& preds,
 /* Constructs an action. */
 Action::Action(const string& name, const Formula& precondition,
 	       const EffectList& effects)
-  : name(name), precondition(precondition), effects(effects) {}
+  : name(name), precondition(precondition), effects(effects), durative(false),
+    min_duration(0.0f), max_duration(0.0f) {}
+
+
+/* Constructs an action. */
+Action::Action(const string& name, const Formula& precondition,
+	       const EffectList& effects,
+	       float min_duration, float max_duration)
+  : name(name), precondition(precondition), effects(effects), durative(true),
+    min_duration(min_duration), max_duration(max_duration) {}
 
 
 /* Fills the provided sets with predicates achievable by this
    action. */
 void Action::achievable_predicates(hash_set<string>& preds,
 				   hash_set<string>& neg_preds) const {
-  effects.achievable_predicates(preds, neg_preds);
+  if (min_duration <= max_duration) {
+    effects.achievable_predicates(preds, neg_preds);
+  }
 }
 
 
@@ -294,12 +323,20 @@ ActionSchema::ActionSchema(const string& name, const VariableList& parameters,
 			   const EffectList& effects)
   : Action(name, precondition, effects), parameters(parameters) {}
 
+/* Constructs an action schema for a durative action. */
+ActionSchema::ActionSchema(const string& name, const VariableList& parameters,
+			   const Formula& precondition,
+			   const EffectList& effects,
+			   float min_duration, float max_duration)
+  : Action(name, precondition, effects, min_duration, max_duration),
+    parameters(parameters) {}
+
 
 /* Returns a formula representing this action. */
 const Atom& ActionSchema::action_formula() const {
   TermList& terms = *(new TermList());
   copy(parameters.begin(), parameters.end(), back_inserter(terms));
-  return *(new Atom(name, terms));
+  return *(new Atom(name, terms, Formula::AT_START));
 }
 
 
@@ -307,11 +344,22 @@ const Atom& ActionSchema::action_formula() const {
    action schema. */
 void ActionSchema::instantiations(GroundActionList& actions,
 				  const Problem& problem) const {
+  if (min_duration > max_duration) {
+    return;
+  }
+
   size_t n = parameters.size();
   if (n == 0) {
     SubstitutionList args;
-    actions.push_back(new GroundAction(name, *(new NameList()), precondition,
-				       effects.instantiation(args, problem)));
+    if (durative) {
+      actions.push_back(new GroundAction(name, *(new NameList()), precondition,
+					 effects.instantiation(args, problem),
+					 min_duration, max_duration));
+    } else {
+      actions.push_back(new GroundAction(name, *(new NameList()), precondition,
+					 effects.instantiation(args,
+							       problem)));
+    }
     return;
   }
   Vector<NameList*> arguments;
@@ -345,8 +393,14 @@ void ActionSchema::instantiations(GroundActionList& actions,
 	    const Name& name = dynamic_cast<const Name&>((*si)->term);
 	    names.push_back(&name);
 	  }
-	  actions.push_back(new GroundAction(name, names, new_precond,
-					     new_effects));
+	  if (durative) {
+	    actions.push_back(new GroundAction(name, names, new_precond,
+					       new_effects,
+					       min_duration, max_duration));
+	  } else {
+	    actions.push_back(new GroundAction(name, names, new_precond,
+					       new_effects));
+	  }
 	}
       }
       for (int j = i; j >= 0; j--) {
@@ -375,8 +429,14 @@ void ActionSchema::instantiations(GroundActionList& actions,
 /* Returns this action schema with all static preconditions assumed
    true. */
 const ActionSchema& ActionSchema::strip_static(const Domain& domain) const {
-  return *(new ActionSchema(name, parameters,
-			    precondition.strip_static(domain), effects));
+  if (durative) {
+    return *(new ActionSchema(name, parameters,
+			      precondition.strip_static(domain), effects,
+			      min_duration, max_duration));
+  } else {
+    return *(new ActionSchema(name, parameters,
+			      precondition.strip_static(domain), effects));
+  }
 }
 
 
@@ -420,12 +480,21 @@ GroundAction::GroundAction(const string& name, const NameList& arguments,
     formula_(NULL) {}
 
 
+/* Constructs a ground durative action, assuming arguments are names. */
+GroundAction::GroundAction(const string& name, const NameList& arguments,
+			   const Formula& precondition,
+			   const EffectList& effects,
+			   float min_duration, float max_duration)
+  : Action(name, precondition, effects, min_duration, max_duration),
+    arguments(arguments), formula_(NULL) {}
+
+
 /* Returns a formula representing this action. */
 const Atom& GroundAction::action_formula() const {
   if (formula_ == NULL) {
     TermList& terms = *(new TermList());
     copy(arguments.begin(), arguments.end(), back_inserter(terms));
-    formula_ = new Atom(name, terms);
+    formula_ = new Atom(name, terms, Formula::AT_START);
   }
   return *formula_;
 }
