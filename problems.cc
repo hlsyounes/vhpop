@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: problems.cc,v 3.1 2002-03-18 09:31:16 lorens Exp $
+ * $Id: problems.cc,v 3.2 2002-03-18 09:31:37 lorens Exp $
  */
 #include "problems.h"
 #include "domains.h"
@@ -74,6 +74,10 @@ Problem::Problem(const string& name, const Domain& domain,
 /* Deletes a problem. */
 Problem::~Problem() {
   problems.erase(name);
+  for (NameMapIter ni = objects.begin(); ni != objects.end(); ni++) {
+    delete (*ni).second;
+  }
+  delete &objects;
 }
 
 
