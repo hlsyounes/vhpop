@@ -2,7 +2,7 @@
 /*
  * Formulas.
  *
- * $Id: formulas.h,v 1.14 2001-09-03 20:04:21 lorens Exp $
+ * $Id: formulas.h,v 1.15 2001-09-04 23:01:45 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -234,6 +234,8 @@ struct VariableList : public gc, vector<const Variable*, container_alloc> {
   bool operator!=(const VariableList& variables) const;
 };
 
+typedef VariableList::const_iterator VLCI;
+
 
 struct Formula;
 
@@ -277,12 +279,6 @@ struct Formula : public gc {
 
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const = 0;
-
-  /* Checks if this formula negates the given formula.  N.B. Only
-     works for atomic formulas and negated atomic formulas. */
-  virtual bool negates(const Formula& f) const {
-    return false;
-  }
 
   /* Returns the heuristic cost of this formula. */
   virtual Cost cost(const hash_map<const Formula*, Cost>& atom_cost,
@@ -430,9 +426,6 @@ struct AtomicFormula : public Formula {
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
 
-  /* Checks if this atomic formula negates the given formula. */
-  virtual bool negates(const Formula& f) const;
-
   /* Returns the heuristic cost of this formula. */
   virtual Cost cost(const hash_map<const Formula*, Cost>& atom_cost,
 		    Heuristic h) const;
@@ -477,9 +470,6 @@ struct Negation : public Formula {
 
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
-
-  /* Checks if this is a negation of the given formula. */
-  virtual bool negates(const Formula& f) const;
 
   /* Fills the provided lists with goals achievable by this formula. */
   virtual void achievable_goals(FormulaList& goals,

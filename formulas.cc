@@ -1,5 +1,5 @@
 /*
- * $Id: formulas.cc,v 1.9 2001-09-03 20:04:38 lorens Exp $
+ * $Id: formulas.cc,v 1.10 2001-09-04 23:01:48 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -500,13 +500,6 @@ AtomicFormula::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Checks if this formula negates the given formula. */
-bool AtomicFormula::negates(const Formula& f) const {
-  const Negation* negation = dynamic_cast<const Negation*>(&f);
-  return negation != NULL && negation->negates(*this);
-}
-
-
 /* Returns the heuristic cost of this formula. */
 Cost AtomicFormula::cost(const hash_map<const Formula*, Cost>& atom_cost,
 			 Heuristic h) const {
@@ -580,12 +573,6 @@ const Formula& Negation::instantiation(const SubstitutionList& subst,
 /* Returns this formula subject to the given substitutions. */
 const Formula& Negation::substitution(const SubstitutionList& subst) const {
   return !atom.substitution(subst);
-}
-
-
-/* Checks if this formula negates the given formula. */
-bool Negation::negates(const Formula& f) const {
-  return atom == f;
 }
 
 
