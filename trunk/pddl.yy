@@ -2,7 +2,7 @@
 /*
  * PDDL parser.
  *
- * $Id: pddl.yy,v 1.1 2001-05-03 15:43:14 lorens Exp $
+ * $Id: pddl.yy,v 1.2 2001-05-04 19:36:59 lorens Exp $
  */
 %{
 #include <utility>
@@ -506,10 +506,14 @@ formula : atomic_term_formula
             { $$ = $1 }
         | '(' NOT formula ')'
             {
-	      if (action_style == Domain::STRIPS) {
-		yyerror("negation not allowed in STRIPS-style preconditions.");
-	      }
 	      $$ = &$3->negation();
+	      if (action_style == Domain::STRIPS) {
+		const Negation* negation = dynamic_cast<const Negation*>($$);
+		if (negation != NULL) {
+		  yyerror("negation not allowed in "
+			  "STRIPS-style preconditions.");
+		}
+	      }
 	    }
         | '(' AND formulas formula ')'
             { $3->push_back($4); $$ = new Conjunction(*$3); }
