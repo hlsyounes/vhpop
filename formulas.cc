@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 3.5 2002-03-12 22:42:53 lorens Exp $
+ * $Id: formulas.cc,v 3.6 2002-03-15 19:01:54 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -30,7 +30,7 @@ struct Substitutes
   : public binary_function<Substitution, const Variable*, bool> {
   /* Checks if the given substitution involves the given variable. */
   bool operator()(const Substitution& s, const Variable* v) const {
-    return *s.var == *v;
+    return s.var() == *v;
   }
 };
 
@@ -64,12 +64,12 @@ struct EquivalentFormulas
 
 /* Constructs a substitution. */
 Substitution::Substitution(const Variable& var, const Term& term)
-  : var(&var), term(&term) {}
+  : var_(&var), term_(&term) {}
 
 
 /* Prints this object on the given stream. */
 void Substitution::print(ostream& os) const {
-  os << '[' << *var << '/' << *term << ']';
+  os << '[' << var() << '/' << term() << ']';
 }
 
 
@@ -78,7 +78,18 @@ void Substitution::print(ostream& os) const {
 
 /* Constructs an abstract term with the given name. */
 Term::Term(const string& name, const Type& type)
-  : name(name), type(type) {}
+  : name_(name), type_(&type) {}
+
+
+/* Deletes this term. */
+Term::~Term() {
+  if (typeid(*this) != typeid(StepVar)) {
+    const UnionType* ut = dynamic_cast<const UnionType*>(type_);
+    if (ut != NULL) {
+      delete ut;
+    }
+  }
+}
 
 
 /* Returns an instantiation of this term. */
@@ -93,7 +104,7 @@ bool Term::less(const LessThanComparable& o) const {
     return true;
   } else {
     const Term& t = dynamic_cast<const Term&>(o);
-    return name < t.name;
+    return name() < t.name();
   }
 }
 
@@ -101,19 +112,19 @@ bool Term::less(const LessThanComparable& o) const {
 /* Checks if this object equals the given object. */
 bool Term::equals(const EqualityComparable& o) const {
   const Term* t = dynamic_cast<const Term*>(&o);
-  return t != NULL && typeid(o) == typeid(*this) && name == t->name;
+  return t != NULL && typeid(o) == typeid(*this) && name() == t->name();
 }
 
 
 /* Returns the hash value of this object. */
 size_t Term::hash_value() const {
-  return hash<string>()(name);
+  return hash<string>()(name());
 }
 
 
 /* Prints this object on the given stream. */
 void Term::print(ostream& os) const {
-  os << name;
+  os << name();
 }
 
 
@@ -123,15 +134,6 @@ void Term::print(ostream& os) const {
 /* Constructs a name. */
 Name::Name(const string& name, const Type& type)
   : Term(name, type) {}
-
-
-/* Deletes this name. */
-Name::~Name() {
-  const UnionType* ut = dynamic_cast<const UnionType*>(&type);
-  if (ut != NULL) {
-    delete ut;
-  }
-}
 
 
 /* Returns an instantiation of this term. */
@@ -177,7 +179,7 @@ const Variable& Variable::instantiation(size_t id) const {
 const Term& Variable::substitution(const SubstitutionList& subst) const {
   SubstListIter si = find_if(subst.begin(), subst.end(),
 			     bind2nd(Substitutes(), this));
-  return (si != subst.end()) ? *(*si).term : *this;
+  return (si != subst.end()) ? (*si).term() : *this;
 }
 
 
@@ -203,7 +205,7 @@ bool StepVar::less(const LessThanComparable& o) const {
     return false;
   } else {
     const StepVar& vt = dynamic_cast<const StepVar&>(o);
-    return id < vt.id || (id == vt.id && name < vt.name);
+    return id < vt.id || (id == vt.id && name() < vt.name());
   }
 }
 
@@ -211,13 +213,13 @@ bool StepVar::less(const LessThanComparable& o) const {
 /* Checks if this object equals the given object. */
 bool StepVar::equals(const EqualityComparable& o) const {
   const StepVar* vt = dynamic_cast<const StepVar*>(&o);
-  return vt != NULL && id == vt->id && name == vt->name;
+  return vt != NULL && id == vt->id && name() == vt->name();
 }
 
 
 /* Prints this object on the given stream. */
 void StepVar::print(ostream& os) const {
-  os << name << '(' << id << ')';
+  os << name() << '(' << id << ')';
 }
 
 
@@ -529,7 +531,7 @@ const Formula& Atom::instantiation(const SubstitutionList& subst,
   } else {
     const Type* type = problem.domain.find_type(predicate_);
     if (type != NULL) {
-      return f.terms_[0]->type.subtype(*type) ? TRUE : FALSE;
+      return f.terms_[0]->type().subtype(*type) ? TRUE : FALSE;
     } else {
       return f;
     }
@@ -579,9 +581,7 @@ size_t Atom::hash_value() const {
 /* Prints this object on the given stream. */
 void Atom::print(ostream& os) const {
   os << '(' << predicate_;
-  for (TermListIter ti = terms_.begin(); ti != terms_.end(); ti++) {
-    os << ' ' << **ti;
-  }
+  copy(terms_.begin(), terms_.end(), pre_ostream_iterator<Term>(os));
   os << ')';
 }
 
@@ -709,7 +709,7 @@ const Formula& Equality::instantiation(const Bindings& bindings) const {
     return (t1 == t2) ? TRUE : FALSE;
   } else if (&t1 == &term1 && &t2 == &term2) {
     return *this;
-  } else if (t1.type.subtype(t2.type) || t2.type.subtype(t1.type)) {
+  } else if (t1.type().subtype(t2.type()) || t2.type().subtype(t1.type())) {
     return *(new Equality(t1, t2));
   } else {
     return FALSE;
@@ -788,7 +788,7 @@ const Formula& Inequality::instantiation(const Bindings& bindings) const {
     return (t1 != t2) ? TRUE : FALSE;
   } else if (&t1 == &term1 && &t2 == &term2) {
     return *this;
-  } else if (t1.type.subtype(t2.type) || t2.type.subtype(t1.type)) {
+  } else if (t1.type().subtype(t2.type()) || t2.type().subtype(t1.type())) {
     return *(new Inequality(t1, t2));
   } else {
     return TRUE;
@@ -928,9 +928,7 @@ bool Conjunction::equivalent(const Formula& f) const {
 /* Prints this object on the given stream. */
 void Conjunction::print(ostream& os) const {
   os << "(and";
-  for (FormulaListIter fi = conjuncts.begin(); fi != conjuncts.end(); fi++) {
-    os << ' ' << **fi;
-  }
+  copy(conjuncts.begin(), conjuncts.end(), pre_ostream_iterator<Formula>(os));
   os << ")";
 }
 
@@ -1030,9 +1028,7 @@ bool Disjunction::equivalent(const Formula& f) const {
 /* Prints this object on the given stream. */
 void Disjunction::print(ostream& os) const {
   os << "(or";
-  for (FormulaListIter fi = disjuncts.begin(); fi != disjuncts.end(); fi++) {
-    os << ' ' << **fi;
-  }
+  copy(disjuncts.begin(), disjuncts.end(), pre_ostream_iterator<Formula>(os));
   os << ")";
 }
 
@@ -1096,7 +1092,7 @@ const Formula& ExistsFormula::instantiation(const SubstitutionList& subst,
   Vector<NameListIter> next_arg;
   for (VarListIter vi = parameters.begin(); vi != parameters.end(); vi++) {
     arguments.push_back(new NameList());
-    problem.compatible_objects(*arguments.back(), (*vi)->type);
+    problem.compatible_objects(*arguments.back(), (*vi)->type());
     if (arguments.back()->empty()) {
       return FALSE;
     }
@@ -1172,10 +1168,7 @@ void ExistsFormula::print(ostream& os) const {
     if (vi != parameters.begin()) {
       os << ' ';
     }
-    os << **vi;
-    if (!(*vi)->type.object()) {
-      os << " - " << (*vi)->type;
-    }
+    os << **vi << " - " << (*vi)->type();
   }
   os << ") " << body << ")";
 }
@@ -1220,7 +1213,7 @@ const Formula& ForallFormula::instantiation(const SubstitutionList& subst,
   Vector<NameListIter> next_arg;
   for (VarListIter vi = parameters.begin(); vi != parameters.end(); vi++) {
     arguments.push_back(new NameList());
-    problem.compatible_objects(*arguments.back(), (*vi)->type);
+    problem.compatible_objects(*arguments.back(), (*vi)->type());
     if (arguments.back()->empty()) {
       return FALSE;
     }
@@ -1296,10 +1289,7 @@ void ForallFormula::print(ostream& os) const {
     if (vi != parameters.begin()) {
       os << ' ';
     }
-    os << **vi;
-    if (!(*vi)->type.object()) {
-      os << " - " << (*vi)->type;
-    }
+    os << **vi << " - " << (*vi)->type();
   }
   os << ") " << body << ")";
 }

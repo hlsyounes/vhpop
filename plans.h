@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.h,v 3.1 2002-03-10 14:57:52 lorens Exp $
+ * $Id: plans.h,v 3.2 2002-03-15 19:02:22 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -147,7 +147,7 @@ struct PlanList;
 /*
  * Plan.
  */
-struct Plan : public LessThanComparable, public Printable, public gc {
+struct Plan : public LessThanComparable, public Printable {
   /* Id of goal step. */
   static const size_t GOAL_ID;
 

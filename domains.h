@@ -16,39 +16,36 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.h,v 3.3 2002-03-12 19:44:37 lorens Exp $
+ * $Id: domains.h,v 3.4 2002-03-15 19:01:39 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
 
 #include "support.h"
+#include "requirements.h"
+#include "types.h"
+#include "formulas.h"
 
-struct Type;
-struct SimpleType;
-struct TypeMap;
-struct SubstitutionList;
-struct TermList;
-struct VariableList;
-struct Name;
-struct NameList;
-struct NameMap;
-struct Formula;
-struct AtomList;
-struct NegationList;
-struct Atom;
 struct Problem;
 
 /*
  * Predicate declaration.
  */
-struct Predicate : public Printable, public gc {
+struct Predicate : public Printable {
   /* Name of this predicate. */
   const string name;
-  /* Predicate parameters. */
-  const VariableList& parameters;
 
-  /* Constructs a predicate with the given names and parameters. */
-  Predicate(const string& name, const VariableList& params);
+  /* Constructs a predicate with the given name. */
+  Predicate(const string& name);
+
+  /* Deletes this predicate. */
+  virtual ~Predicate();
+
+  /* Predicate parameters. */
+  const VariableList& parameters() const;
+
+  /* Adds a parameter to this predicate. */
+  void add(const Variable& param);
 
   /* Returns the arity of this predicate. */
   size_t arity() const;
@@ -56,13 +53,17 @@ struct Predicate : public Printable, public gc {
 protected:
   /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
+
+private:
+  /* Predicate parameters. */
+  VariableList parameters_;
 };
 
 
 /*
  * Table of predicate declarations.
  */
-struct PredicateMap : public HashMap<string, const Predicate*> {
+struct PredicateMap : public hash_map<string, const Predicate*> {
 };
 
 /* Iterator for predicate table. */
@@ -165,7 +166,7 @@ typedef EffectList::const_iterator EffectListIter;
 /*
  * Abstract action definition.
  */
-struct Action : public Printable, public gc {
+struct Action : public Printable {
   /* Name of this action. */
   const string name;
   /* Action precondition. */
@@ -247,7 +248,7 @@ protected:
 /*
  * Table of action schema definitions.
  */
-struct ActionSchemaMap : public HashMap<string, const ActionSchema*> {
+struct ActionSchemaMap : public hash_map<string, const ActionSchema*> {
 };
 
 /* Iterator for action schema table. */
@@ -257,7 +258,7 @@ typedef ActionSchemaMap::const_iterator ActionSchemaMapIter;
 /*
  * Ground action.
  */
-struct GroundAction : public Action {
+struct GroundAction : public Action, public gc {
   /* Action arguments. */
   const NameList& arguments;
 
@@ -293,7 +294,18 @@ struct GroundActionList : public Vector<const GroundAction*> {
 typedef GroundActionList::const_iterator GroundActionListIter;
 
 
-struct Requirements;
+/* ====================================================================== */
+/* TypeMap */
+
+/*
+ * Table of simple types.
+ */
+struct TypeMap : hash_map<string, const SimpleType*> {
+};
+
+/* Iterator for type tables. */
+typedef TypeMap::const_iterator TypeMapIter;
+
 
 /*
  * Domain definition.
@@ -308,16 +320,8 @@ struct Domain : public Printable {
 
   /* Name of this domain. */
   const string name;
-  /* Action style used for actions of this domain. */
-  const Requirements& requirements;
-  /* Domain types. */
-  const TypeMap& types;
-  /* Domain constants. */
-  const NameMap& constants;
-  /* Domain predicates. */
-  const PredicateMap& predicates;
-  /* Domain action schemas. */
-  const ActionSchemaMap& actions;
+  /* Requirements for this domain. */
+  Requirements requirements;
 
   /* Returns a const_iterator pointing to the first domain. */
   static DomainMapIter begin();
@@ -331,13 +335,26 @@ struct Domain : public Printable {
   /* Removes all defined domains. */
   static void clear();
 
-  /* Constructs a domain. */
-  Domain(const string& name, const Requirements& requirements,
-	 const TypeMap& types, const NameMap& constants,
-	 const PredicateMap& predicates, const ActionSchemaMap& actions);
+  /* Constructs an empty domain with the given name. */
+  Domain(const string& name);
 
   /* Deletes a domain. */
   virtual ~Domain();
+
+  /* Domain actions. */
+  const ActionSchemaMap& actions() const;
+
+  /* Adds a type to this domain. */
+  void add(const SimpleType& type);
+
+  /* Adds a constant to this domain. */
+  void add(const Name& constant);
+
+  /* Adds a predicate to this domain. */
+  void add(const Predicate& predicate);
+
+  /* Adds an action to this domain. */
+  void add(const ActionSchema& action);
 
   /* Returns the type with the given name, or NULL if it is
      undefined. */
@@ -370,6 +387,14 @@ private:
   /* Table of all defined domains. */
   static DomainMap domains;
 
+  /* Domain types. */
+  TypeMap types_;
+  /* Domain constants. */
+  NameMap constants_;
+  /* Domain predicates. */
+  PredicateMap predicates_;
+  /* Domain action schemas. */
+  ActionSchemaMap actions_;
   /* Static predicates. */
   hash_set<string> static_predicates_;
 };

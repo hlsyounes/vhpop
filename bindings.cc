@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.cc,v 3.2 2002-03-12 22:19:22 lorens Exp $
+ * $Id: bindings.cc,v 3.3 2002-03-15 19:01:17 lorens Exp $
  */
 #include <typeinfo>
 #include "bindings.h"
@@ -378,7 +378,7 @@ Binding::Binding(const Variable& variable, const Term& term,
 
 /* Constructs an equality binding from the given substitution. */
 EqualityBinding::EqualityBinding(const Substitution& s, const Reason& reason)
-  : Binding(*s.var, *s.term, reason) {
+  : Binding(s.var(), s.term(), reason) {
 }
 
 
@@ -401,7 +401,7 @@ void EqualityBinding::print(ostream& os) const {
 /* Constructs an inequality binding from the given substitution. */
 InequalityBinding::InequalityBinding(const Substitution& s,
 				     const Reason& reason)
-  : Binding(*s.var, *s.term, reason) {
+  : Binding(s.var(), s.term(), reason) {
 }
 
 
@@ -704,7 +704,7 @@ bool Bindings::unify(SubstitutionList& mgu,
 	 * The first term is a name and the second is a variable.
 	 */
 	const Variable& var2 = dynamic_cast<const Variable&>(term2);
-	if (!term1.type.subtype(term2.type)) {
+	if (!term1.type().subtype(term2.type())) {
 	  /* Incompatible term types. */
 	  return false;
 	}
@@ -714,9 +714,9 @@ bool Bindings::unify(SubstitutionList& mgu,
       /* The first term is a variable. */
       const Variable& var1 = dynamic_cast<const Variable&>(term1);
       const Name* name2 = dynamic_cast<const Name*>(&term2);
-      if ((name2 != NULL && !term2.type.subtype(term1.type))
-	  || (name2 == NULL && !(term1.type.subtype(term2.type)
-				 || term2.type.subtype(term1.type)))) {
+      if ((name2 != NULL && !term2.type().subtype(term1.type()))
+	  || (name2 == NULL && !(term1.type().subtype(term2.type())
+				 || term2.type().subtype(term1.type())))) {
 	/* Incompatible term types. */
 	return false;
       }

@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 3.5 2002-03-12 22:42:47 lorens Exp $
+ * $Id: formulas.h,v 3.6 2002-03-15 19:01:48 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -34,23 +34,37 @@ struct PlanningGraph;
 struct Term;
 struct Variable;
 
+
+/* ====================================================================== */
+/* Substitution */
+
 /*
  * Variable substitution.
  */
 struct Substitution : public Printable {
-  /* Variable to get substituted. */
-  const Variable* var;
-  /* Term to substitute with. */
-  const Term* term;
-
   /* Constructs a substitution. */
   Substitution(const Variable& var, const Term& term);
+
+  /* Returns the variable to get substituted. */
+  const Variable& var() const { return *var_; }
+
+  /* Returns the term to substitute with. */
+  const Term& term() const { return *term_; }
 
 protected:
   /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
+
+private:
+  /* Variable to get substituted. */
+  const Variable* var_;
+  /* Term to substitute with. */
+  const Term* term_;
 };
 
+
+/* ====================================================================== */
+/* SubstitutionList */
 
 /*
  * List of substitutions.
@@ -62,15 +76,21 @@ struct SubstitutionList : public vector<Substitution> {
 typedef SubstitutionList::const_iterator SubstListIter;
 
 
+/* ====================================================================== */
+/* Term */
+
 /*
  * Abstract term.
  */
-struct Term
-  : public LessThanComparable, public Hashable, public Printable {
-  /* Name of term. */
-  const string name;
-  /* Type of term. */
-  const Type& type;
+struct Term : public LessThanComparable, public Hashable, public Printable {
+  /* Deletes this term. */
+  virtual ~Term();
+
+  /* Returns the name of this term. */
+  const string& name() const { return name_; }
+
+  /* Returns the type of this term. */
+  const Type& type() const { return *type_; }
 
   /* Returns an instantiation of this term. */
   virtual const Term& instantiation(size_t id) const = 0;
@@ -101,6 +121,12 @@ protected:
 
   /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
+
+private:
+  /* Name of term. */
+  string name_;
+  /* Type of term. */
+  const Type* type_;
 };
 
 
@@ -110,9 +136,6 @@ protected:
 struct Name : public Term {
   /* Constructs a name. */
   Name(const string& name, const Type& type);
-
-  /* Deletes this name. */
-  virtual ~Name();
 
   /* Returns an instantiation of this term. */
   virtual const Name& instantiation(size_t id) const;
@@ -130,9 +153,9 @@ struct Name : public Term {
 /*
  * Variable.
  */
-struct Variable : public Term, public gc {
+struct Variable : public Term {
   /* Constructs a variable with the given name. */
-  Variable(const string& name);
+  explicit Variable(const string& name);
 
   /* Constructs a variable with the given name and type. */
   Variable(const string& name, const Type& type);
@@ -153,7 +176,7 @@ struct Variable : public Term, public gc {
 /*
  * Instantiated variable.
  */
-struct StepVar : public Variable {
+struct StepVar : public Variable, public gc {
   /* The id of the step that this variable belongs to. */
   const size_t id;
 
@@ -196,7 +219,7 @@ typedef TermList::const_iterator TermListIter;
 /*
  * List of names.
  */
-struct NameList : public Vector<const Name*> {
+struct NameList : public vector<const Name*> {
 };
 
 /* Name list iterator. */
