@@ -2,12 +2,11 @@
 /*
  * Domain descriptions.
  *
- * $Id: domains.h,v 1.30 2001-12-27 19:59:58 lorens Exp $
+ * $Id: domains.h,v 1.31 2001-12-29 11:42:02 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
 
-#include <hash_set>
 #include "support.h"
 
 struct Type;

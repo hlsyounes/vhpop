@@ -2,7 +2,7 @@
 /*
  * PDDL tokenizer.
  *
- * $Id: tokens.ll,v 1.7 2001-12-23 22:09:13 lorens Exp $
+ * $Id: tokens.ll,v 1.8 2001-12-29 11:41:52 lorens Exp $
  */
 %{
 struct Type;
@@ -19,11 +19,9 @@ struct Effect;
 struct EffectList;
 struct ActionSchema;
 
-#include <string>
-#include <vector>
 #include <cctype>
-#include "pddl.cc.h"
 #include "support.h"
+#include "pddl.cc.h"
 
 
 /* Current line number. */
