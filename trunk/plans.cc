@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.48 2002-01-04 20:25:48 lorens Exp $
+ * $Id: plans.cc,v 1.49 2002-01-04 21:08:39 lorens Exp $
  */
 #include <queue>
 #include <algorithm>
@@ -987,8 +987,11 @@ void Plan::handle_inequality(PlanList& plans,
 
 
 /* Counts the number of add-step refinements for the given literal
-   open condition. */
-int Plan::addable_steps(const LiteralOpenCondition& open_cond) const {
+   open condition, and returns true iff the number of refinements
+   does not exceed the given limit. */
+bool Plan::addable_steps(int& refinements,
+			const LiteralOpenCondition& open_cond,
+			 int limit) const {
   int count = 0;
   ActionList actions;
   if (params->ground_actions) {
@@ -1011,10 +1014,13 @@ int Plan::addable_steps(const LiteralOpenCondition& open_cond) const {
   if (!actions.empty()) {
     for (ActionListIter ai = actions.begin(); ai != actions.end(); ai++) {
       const Action& action = **ai;
-      count += count_new_links(action.precondition, action.effects,
-			       high_step_id_ + 1, &action, open_cond);
+      if (!count_new_links(count, action.precondition, action.effects,
+			   high_step_id_ + 1, &action, open_cond, limit)) {
+	return false;
+      }
     }
   }
+  refinements = count;
   return count;
 }
 
@@ -1053,8 +1059,11 @@ void Plan::add_step(PlanList& plans,
 
 
 /* Counts the number of reuse-step refinements for the given literal
-   open condition. */
-int Plan::reusable_steps(const LiteralOpenCondition& open_cond) const {
+   open condition, and returns true iff the number of refinements
+   does not exceed the given limit. */
+bool Plan::reusable_steps(int& refinements,
+			  const LiteralOpenCondition& open_cond,
+			  int limit) const {
   int count = 0;
   hash_set<size_t> seen_steps;
   for (const StepChain* sc = steps; sc != NULL; sc = sc->tail) {
@@ -1062,11 +1071,14 @@ int Plan::reusable_steps(const LiteralOpenCondition& open_cond) const {
     if (seen_steps.find(step.id) == seen_steps.end() &&
 	orderings.possibly_before(step.id, open_cond.step_id)) {
       seen_steps.insert(step.id);
-      count += count_new_links(step.precondition, step.effects, step.id,
-			       step.action, open_cond);
+      if (!count_new_links(count, step.precondition, step.effects, step.id,
+			   step.action, open_cond, limit)) {
+	return false;
+      }
     }
   }
-  return count;
+  refinements = count;
+  return true;
 }
 
 
@@ -1087,18 +1099,22 @@ void Plan::reuse_step(PlanList& plans,
 }
 
 
-/* Counts the number of new links that can be established between the
-   given effects and the open condition. */
-int Plan::count_new_links(const Formula& precondition,
-			  const EffectList& effects, size_t step_id,
-			  const Action* action,
-			  const LiteralOpenCondition& open_cond) const {
-  int count = 0;
+/* Counts the number of new links that can be established between
+   the given effects and the open condition, and returns true iff
+   the number of refinements does not exceed the given limit. */
+bool Plan::count_new_links(int& count, const Formula& precondition,
+			   const EffectList& effects, size_t step_id,
+			   const Action* action,
+			   const LiteralOpenCondition& open_cond,
+			   int limit) const {
   if (step_id == 0) {
     const Negation* negation =
       dynamic_cast<const Negation*>(&open_cond.literal);
     if (negation != NULL) {
       count += cw_link_possible(effects, *negation);
+      if (count > limit) {
+	return false;
+      }
     }
   }
   const Literal& goal = open_cond.literal;
@@ -1111,6 +1127,9 @@ int Plan::count_new_links(const Formula& precondition,
 	if (bindings_.unify(mgu, goal, **gi)) {
 	  count += link_possible(precondition, effect, step_id, action,
 				 open_cond, mgu);
+	  if (count > limit) {
+	    return false;
+	  }
 	}
       }
     } else {
@@ -1120,11 +1139,14 @@ int Plan::count_new_links(const Formula& precondition,
 	if (bindings_.unify(mgu, goal, **gi)) {
 	  count += link_possible(precondition, effect, step_id, action,
 				 open_cond, mgu);
+	  if (count > limit) {
+	    return false;
+	  }
 	}
       }
     }
   }
-  return count;
+  return true;
 }
 
 
