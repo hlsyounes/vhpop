@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.h,v 6.2 2003-07-13 16:51:28 lorens Exp $
+ * $Id: plans.h,v 6.3 2003-07-21 02:24:31 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -67,6 +67,9 @@ struct Link {
   /* Returns the condition satisfied by link. */
   const Literal& condition() const { return *condition_; }
 
+  /* Returns the time of the condition satisfied by this link. */
+  FormulaTime condition_time() const { return condition_time_; }
+
 private:
   /* Id of step that link goes from. */
   size_t from_id_;
@@ -76,6 +79,8 @@ private:
   size_t to_id_;
   /* Condition satisfied by link. */
   const Literal* condition_;
+  /* Time of condition satisfied by link. */
+  FormulaTime condition_time_;
 };
 
 /* Equality operator for links. */
@@ -195,7 +200,8 @@ struct Plan {
 
   /* Counts the number of refinements for the given disjunctive open
      condition. */
-  int disjunction_refinements(const Disjunction& disj, size_t step_id) const;
+  int disjunction_refinements(const Disjunction& disj, FormulaTime when,
+			      size_t step_id) const;
 
   /* Counts the number of refinements for the given inequality open
      condition. */
@@ -205,13 +211,13 @@ struct Plan {
      open condition, and returns true iff the number of refinements
      does not exceed the given limit. */
   bool addable_steps(int& refinements, const Literal& literal,
-		     size_t step_id, int limit) const;
+		     FormulaTime when, size_t step_id, int limit) const;
 
   /* Counts the number of reuse-step refinements for the given literal
      open condition, and returns true iff the number of refinements
      does not exceed the given limit. */
   bool reusable_steps(int& refinements, const Literal& open_cond,
-		      size_t step_id, int limit) const;
+		      FormulaTime when, size_t step_id, int limit) const;
 
 private:
   /* List of plans. */
@@ -312,8 +318,8 @@ private:
      the given effects and the open condition, and returns true iff
      the number of refinements does not exceed the given limit. */
   bool count_new_links(int& count, size_t step_id, const Action& action,
-		       const Literal& literal, size_t oc_step_id,
-		       int limit) const;
+		       const Literal& literal, FormulaTime when,
+		       size_t oc_step_id, int limit) const;
 
   /* Adds plans to the given plan list with a link from the given step
      to the given open condition added. */

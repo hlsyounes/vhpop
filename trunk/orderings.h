@@ -16,16 +16,16 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.h,v 6.1 2003-07-13 16:05:44 lorens Exp $
+ * $Id: orderings.h,v 6.2 2003-07-21 02:22:35 lorens Exp $
  */
 #ifndef ORDERINGS_H
 #define ORDERINGS_H
 
 #include <config.h>
+#include "formulas.h"
 #include "hashing.h"
 
 struct Step;
-struct Literal;
 struct Effect;
 
 
@@ -42,12 +42,12 @@ typedef enum { STEP_START, STEP_END } StepTime;
 StepTime end_time(const Effect& e);
 
 /* Returns the step time corresponding to the end time of the given
-   literal. */
-StepTime end_time(const Literal& f);
+   formula time. */
+StepTime end_time(FormulaTime ft);
 
 /* Returns the step time corresponding to the start time of the given
-   literal. */
-StepTime start_time(const Literal& f);
+   formula time. */
+StepTime start_time(FormulaTime ft);
 
 
 /* ====================================================================== */

@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 6.1 2003-07-13 16:14:11 lorens Exp $
+ * $Id: pddl.yy,v 6.2 2003-07-21 02:23:02 lorens Exp $
  */
 %{
 #include "requirements.h"
@@ -110,16 +110,20 @@ static bool repeated_predicate;
 static ActionSchema* action;
 /* Effect being parsed, or NULL if no effect is being parsed. */
 static Effect* effect;
+/* Time of current effect. */
+static Effect::EffectTime effect_time;
 /* Condition for effect being parsed, or NULL if unconditional effect. */
-static const Formula* effect_condition;
+static const Condition* effect_condition; 
+/* Paramerers for atomic formula or function application being parsed. */
+static TermList term_parameters;
+/* Whether parsing an atom. */
+static bool parsing_atom;
 /* Quantified variables for effect or formula being parsed. */
 VariableList quantified;
-/* Atom being parsed, or NULL if no atom is being parsed. */
-static Atom* atom;
-/* Time stap of current formula. */
-static Formula::FormulaTime formula_time;
 /* Current variable context. */
-static Context context;
+static Context context; 
+/* Predicate for atomic formula being parsed. */
+static Predicate atom_predicate;
 /* Kind of name map being parsed. */
 static enum { TYPE_MAP, CONSTANT_MAP, OBJECT_MAP, NOTHING } name_map_kind;
 
@@ -156,10 +160,16 @@ static void make_predicate(const std::string* name);
 static Term make_term(const std::string* name);
 /* Creates an action with the given name. */
 static void make_action(const std::string* name, bool durative);
+/* Creates a start condition. */
+static const Condition* make_start_condition(const Formula& condition);
+/* Creates an interval condition. */
+static const Condition* make_interval_condition(const Formula& condition);
+/* Creates an end condition. */
+static const Condition* make_end_condition(const Formula& condition);
 /* Prepares for the parsing of a universally quantified effect. */ 
 static void prepare_forall_effect();
 /* Prepares for the parsing of a conditional effect. */ 
-static void prepare_conditional_effect(const Formula* condition);
+static void prepare_conditional_effect(const Condition* condition);
 /* Creates an equality formula. */
 static const Formula* make_equality(const Term& t1, const Term& t2);
 /* Creates a negation. */
@@ -215,6 +225,7 @@ static const Atom* make_atom();
 %token ILLEGAL_TOKEN
 
 %union {
+  const Condition* condition;
   const Formula* formula;
   const Atom* atom;
   const std::string* str;
@@ -225,7 +236,7 @@ static const Atom* make_atom();
   float num;
 }
 
-%type <formula> da_gd timed_gd timed_gds
+%type <condition> da_gd timed_gd timed_gds
 %type <formula> formula conjuncts disjuncts
 %type <atom> atomic_term_formula atomic_name_formula
 %type <strs> name_seq variable_seq
@@ -363,14 +374,14 @@ action_body2 : /* empty */
              | effect
              ;
 
-precondition : PRECONDITION { formula_time = Formula::OVER_ALL; }
-                 formula { action->set_precondition(*$3); }
+precondition : PRECONDITION formula
+                 { action->set_condition(*make_interval_condition(*$2)); }
              ;
 
-effect : EFFECT eff_formula { add_effect(); }
+effect : EFFECT { effect_time = Effect::AT_END; } eff_formula { add_effect(); }
        ;
 
-da_body : CONDITION da_gd da_body2 { action->set_precondition(*$2); }
+da_body : CONDITION da_gd da_body2 { action->set_condition(*$2); }
         | da_body2
         ;
 
@@ -414,16 +425,13 @@ da_gd : timed_gd
       | '(' and timed_gds ')' { $$ = $3; }
       ;
 
-timed_gds : /* empty */ { $$ = &Formula::TRUE; }
+timed_gds : /* empty */ { $$ = &Condition::TRUE; }
           | timed_gds timed_gd { $$ = &(*$1 && *$2); }
           ;
 
-timed_gd : '(' at start { formula_time = Formula::AT_START; } formula ')'
-             { $$ = $5; }
-         | '(' at end { formula_time = Formula::AT_END; } formula ')'
-             { $$ = $5; }
-         | '(' over all { formula_time = Formula::OVER_ALL; } formula ')'
-             { $$ = $5; }
+timed_gd : '(' at start formula ')' { $$ = make_start_condition(*$4); }
+         | '(' at end formula ')' { $$ = make_end_condition(*$4); }
+         | '(' over all formula ')' { $$ = make_interval_condition(*$4); }
          ;
 
 
@@ -434,9 +442,9 @@ eff_formula : term_literal
             | '(' and eff_formulas ')'
             | '(' forall { prepare_forall_effect(); }
                 '(' opt_variables ')' eff_formula ')' { add_forall_effect(); }
-            | '(' when { formula_time = Formula::OVER_ALL; }
-                formula { prepare_conditional_effect($4); } one_eff_formula ')'
-                { add_conditional_effect(); }
+            | '(' when formula
+                { prepare_conditional_effect(make_interval_condition(*$3)); }
+                one_eff_formula ')' { add_conditional_effect(); }
             ;
 
 eff_formulas : /* empty */
@@ -467,9 +475,9 @@ da_effects : /* empty */
            | da_effects da_effect
            ;
 
-timed_effect : '(' at start { formula_time = Formula::AT_START; }
+timed_effect : '(' at start { effect_time = Effect::AT_START; }
                  one_eff_formula ')' { add_effect(); }
-             | '(' at end { formula_time = Formula::AT_END; }
+             | '(' at end { effect_time = Effect::AT_END; }
                  one_eff_formula ')' { add_effect(); }
              ;
 
@@ -520,8 +528,7 @@ goal_spec : goal
           | goal metric_spec
           ;
 
-goal : '(' GOAL { formula_time = Formula::AT_START; } formula ')'
-         { problem->set_goal(*$4); }
+goal : '(' GOAL formula ')' { problem->set_goal(*$3); }
      ;
 
 metric_spec : '(' METRIC optimization ground_f_exp ')'
@@ -880,17 +887,19 @@ static Term make_term(const std::string* name) {
   } else {
     std::pair<Object, bool> c = find_constant(*name);
     if (!c.second) {
-      size_t n = atom->terms().size();
+      size_t n = term_parameters.size();
       const Domain& d = *((domain != NULL) ? domain : pdomain);
-      if (atom != NULL && d.predicates().arity(atom->predicate()) > n) {
+      if (parsing_atom && d.predicates().arity(atom_predicate) > n) {
 	if (domain != NULL) {
 	  c.first =
 	    domain->terms().add_object(*name,
-				       d.predicates().parameter(atom->predicate(), n));
+				       d.predicates().parameter(atom_predicate,
+								n));
 	} else {
 	  c.first =
 	    problem->terms().add_object(*name,
-				       d.predicates().parameter(atom->predicate(), n));
+				       d.predicates().parameter(atom_predicate,
+								n));
 	}
       } else {
 	if (domain != NULL) {
@@ -920,6 +929,24 @@ static void make_action(const std::string* name, bool durative) {
 }
 
 
+/* Creates a start condition. */
+static const Condition* make_start_condition(const Formula& condition) {
+  return &Condition::make_condition(condition, AT_START);
+}
+
+
+/* Creates an interval condition. */
+static const Condition* make_interval_condition(const Formula& condition) {
+  return &Condition::make_condition(condition, OVER_ALL);
+}
+
+
+/* Creates an end condition. */
+static const Condition* make_end_condition(const Formula& condition) {
+  return &Condition::make_condition(condition, AT_END);
+}
+
+
 /* Prepares for the parsing of a universally quantified effect. */ 
 static void prepare_forall_effect() {
   if (!requirements->conditional_effects) {
@@ -933,7 +960,7 @@ static void prepare_forall_effect() {
 
 
 /* Prepares for the parsing of a conditional effect. */ 
-static void prepare_conditional_effect(const Formula* condition) {
+static void prepare_conditional_effect(const Condition* condition) {
   if (!requirements->conditional_effects) {
     yywarning("assuming `:conditional-effects' requirement");
     requirements->conditional_effects = true;
@@ -1016,7 +1043,7 @@ static const Formula* make_exists(const Formula& body) {
     n--;
   }
   if (n < m) {
-    ExistsFormula& exists = *(new ExistsFormula());
+    Exists& exists = *(new Exists());
     for (size_t i = n + 1; i <= m; i++) {
       exists.add_parameter(quantified[i]);
     }
@@ -1039,7 +1066,7 @@ static const Formula* make_forall(const Formula& body) {
     n--;
   }
   if (n < m) {
-    ForallFormula& forall = *(new ForallFormula());
+    Forall& forall = *(new Forall());
     for (size_t i = n + 1; i <= m; i++) {
       forall.add_parameter(quantified[i]);
     }
@@ -1156,8 +1183,7 @@ static void add_action() {
 /* Adds the given atom to the add list of the current effect. */
 static void add_positive(const Atom& atom) {
   if (effect == NULL) {
-    effect = new Effect(formula_time == Formula::AT_START
-			? Effect::AT_START : Effect::AT_END);
+    effect = new Effect(effect_time);
   }
   effect->add_positive(atom);
 }
@@ -1166,10 +1192,9 @@ static void add_positive(const Atom& atom) {
 /* Adds the given atom to the delete list of the current effect. */
 static void add_negative(const Atom& atom) {
   if (effect == NULL) {
-    effect = new Effect(formula_time == Formula::AT_START
-			? Effect::AT_START : Effect::AT_END);
+    effect = new Effect(effect_time);
   }
-  effect->add_negative(*(new Negation(atom)));
+  effect->add_negative(Negation::make_negation(atom));
 }
 
 
@@ -1222,7 +1247,9 @@ static void prepare_atom(const std::string* name) {
       yyerror("undeclared predicate `" + *name + "' used");
     }
   }
-  atom = new Atom(p.first, formula_time);
+  term_parameters.clear();
+  parsing_atom = true;
+  atom_predicate = p.first;
   delete name;
 }
 
@@ -1230,29 +1257,29 @@ static void prepare_atom(const std::string* name) {
 /* Adds a term with the given name to the current atomic formula. */
 static void add_term(const std::string* name) {
   const Term& term = make_term(name);
-  size_t n = atom->terms().size();
+  size_t n = term_parameters.size();
   const Domain& d = *((domain != NULL) ? domain : pdomain);
   const TermTable& t = (domain != NULL) ? domain->terms() : problem->terms();
-  if (d.predicates().arity(atom->predicate()) > n
+  if (d.predicates().arity(atom_predicate) > n
       && !d.types().subtype(t.type(term),
-			    d.predicates().parameter(atom->predicate(), n))) {
+			    d.predicates().parameter(atom_predicate, n))) {
     yyerror("type mismatch");
   }
-  atom->add_term(term);
+  term_parameters.push_back(term);
 }
 
 
 /* Creates the atomic formula just parsed. */
 static const Atom* make_atom() {
+  size_t n = term_parameters.size();
   const Domain& d = *((domain != NULL) ? domain : pdomain);
-  if (d.predicates().arity(atom->predicate()) < atom->terms().size()) {
+  if (d.predicates().arity(atom_predicate) < n) {
     yyerror("too many parameters passed to predicate `"
-	    + d.predicates().name(atom->predicate()) + "'");
-  } else if (d.predicates().arity(atom->predicate()) > atom->terms().size()) {
+	    + d.predicates().name(atom_predicate) + "'");
+  } else if (d.predicates().arity(atom_predicate) > n) {
     yyerror("too few parameters passed to predicate `"
-	    + d.predicates().name(atom->predicate()) + "'");
+	    + d.predicates().name(atom_predicate) + "'");
   }
-  const Atom* a = atom;
-  atom = NULL;
-  return a;
+  parsing_atom = false;
+  return &Atom::make_atom(atom_predicate, term_parameters);
 }

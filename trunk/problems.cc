@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: problems.cc,v 6.1 2003-07-13 16:09:48 lorens Exp $
+ * $Id: problems.cc,v 6.2 2003-07-21 02:24:53 lorens Exp $
  */
 #include "problems.h"
 #include "domains.h"
@@ -146,7 +146,9 @@ std::ostream& operator<<(std::ostream& os, const Problem& p) {
     os << " - ";
     p.domain().types().print_type(os, p.terms().type(i));
   }
-  os << std::endl << "initial condition: " << p.init();
-  os << std::endl << "goal: " << p.goal();
+  os << std::endl << "initial condition: ";
+  p.init().print(os, p.domain().predicates(), p.terms());
+  os << std::endl << "goal: ";
+  p.goal().print(os, p.domain().predicates(), p.terms(), 0, Bindings());
   return os;
 }

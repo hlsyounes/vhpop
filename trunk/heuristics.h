@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.h,v 6.1 2003-07-13 16:02:29 lorens Exp $
+ * $Id: heuristics.h,v 6.2 2003-07-21 02:21:57 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
@@ -152,10 +152,7 @@ struct PlanningGraph {
 
 private:
   /* Atom value map. */
-  struct AtomValueMap
-    : public hashing::hash_map<const Atom*, HeuristicValue,
-			       hashing::hash<const Literal*>,
-			       std::equal_to<const Literal*> > {
+  struct AtomValueMap : public hashing::hash_map<const Atom*, HeuristicValue> {
   };
 
   /* Iterator for AtomValueMap. */
@@ -348,7 +345,7 @@ struct FlawSelectionOrder {
   bool needs_planning_graph() const;
 
   /* Selects a flaw from the flaws of the given plan. */
-  const Flaw& select(const Plan& plan, const Domain& domain,
+  const Flaw& select(const Plan& plan, const Problem& problem,
 		     const PlanningGraph* pg) const;
 
 private:
@@ -379,11 +376,12 @@ private:
 
   /* Seaches threats for a flaw to select. */
   int select_unsafe(FlawSelection& selection, const Plan& plan,
+		    const Problem& problem,
 		    int first_criterion, int last_criterion) const;
 
   /* Seaches open conditions for a flaw to select. */
   int select_open_cond(FlawSelection& selection, const Plan& plan,
-		       const Domain& domain, const PlanningGraph* pg,
+		       const Problem& problem, const PlanningGraph* pg,
 		       int first_criterion, int last_criterion) const;
 };
 

@@ -16,19 +16,16 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: flaws.h,v 6.2 2003-07-13 16:51:16 lorens Exp $
+ * $Id: flaws.h,v 6.3 2003-07-21 02:18:14 lorens Exp $
  */
 #ifndef FLAWS_H
 #define FLAWS_H
 
 #include <config.h>
+#include "formulas.h"
 #include "chain.h"
 #include <iostream>
 
-struct Formula;
-struct Literal;
-struct Inequality;
-struct Disjunction;
 struct Domain;
 struct Effect;
 struct Link;
@@ -41,15 +38,11 @@ struct Link;
  * Abstract flaw.
  */
 struct Flaw {
-protected:
   /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const = 0;
-
-  friend std::ostream& operator<<(std::ostream& os, const Flaw& f);
+  virtual void print(std::ostream& os, const PredicateTable& predicates,
+		     const TermTable& terms,
+		     const Bindings& bindings) const = 0;
 };
-
-/* Output operator for flaws. */
-std::ostream& operator<<(std::ostream& os, const Flaw& f);
 
 
 /* ====================================================================== */
@@ -60,7 +53,7 @@ std::ostream& operator<<(std::ostream& os, const Flaw& f);
  */
 struct OpenCondition : public Flaw {
   /* Constructs an open condition. */
-  OpenCondition(size_t step_id, const Formula& condition);
+  OpenCondition(size_t step_id, const Formula& condition, FormulaTime when);
 
   /* Constructs an open condition. */
   OpenCondition(const OpenCondition& oc);
@@ -73,6 +66,9 @@ struct OpenCondition : public Flaw {
 
   /* Returns the open condition. */
   const Formula& condition() const { return *condition_; }
+
+  /* Returns the time of this condition. */
+  FormulaTime when() const { return when_; }
 
   /* Checks if this is a static open condition. */
   bool is_static(const Domain& domain) const;
@@ -89,15 +85,18 @@ struct OpenCondition : public Flaw {
      condition. */
   const Disjunction* disjunction() const;
 
-protected:
   /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const;
+  virtual void print(std::ostream& os, const PredicateTable& predicate,
+		     const TermTable& terms,
+		     const Bindings& bindings) const;
 
 private:
   /* Id of step to which this open condition belongs. */
   size_t step_id_;
   /* The open condition. */
   const Formula* condition_;
+  /* The time of the condition. */
+  FormulaTime when_;
 };
 
 /* Equality operator for open conditions. */
@@ -129,9 +128,10 @@ struct Unsafe : public Flaw {
   /* Returns the specific part of effect that threatens link. */
   const Literal& effect_add() const { return *effect_add_; }
 
-protected:
   /* Prints this open condition on the given stream. */
-  virtual void print(std::ostream& os) const;
+  virtual void print(std::ostream& os, const PredicateTable& predicates,
+		     const TermTable& terms,
+		     const Bindings& bindings) const;
 
 private:
   /* Threatened link. */
