@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 3.12 2002-07-04 10:55:53 lorens Exp $
+ * $Id: formulas.h,v 4.1 2002-07-22 22:41:12 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -31,6 +31,7 @@
 #endif
 
 struct Type;
+struct Predicate;
 struct Domain;
 struct Problem;
 struct Bindings;
@@ -116,9 +117,6 @@ protected:
   /* Checks if this object is less than the given object. */
   virtual bool less(const LessThanComparable& o) const;
 
-  /* Checks if this object equals the given object. */
-  virtual bool equals(const EqualityComparable& o) const;
-
   /* Returns the hash value of this object. */
   virtual size_t hash_value() const;
 
@@ -153,6 +151,10 @@ struct Name : public Term {
      are equivalent if they are the same name, or if they are both
      variables. */
   virtual bool equivalent(const Term& t) const;
+
+protected:
+  /* Checks if this object equals the given object. */
+  virtual bool equals(const EqualityComparable& o) const;
 };
 
 
@@ -179,6 +181,10 @@ struct Variable : public Term {
      are equivalent if they are the same name, or if they are both
      variables. */
   virtual bool equivalent(const Term& t) const;
+
+protected:
+  /* Checks if this object equals the given object. */
+  virtual bool equals(const EqualityComparable& o) const;
 };
 
 
@@ -456,7 +462,7 @@ struct Literal : public Formula {
   FormulaTime when() const { return when_; }
 
   /* Returns the predicate of this literal. */
-  virtual const string& predicate() const = 0;
+  virtual const Predicate& predicate() const = 0;
 
   /* Returns the terms of this literal. */
   virtual const TermList& terms() const = 0;
@@ -534,10 +540,10 @@ struct hash<const Literal*> {
  */
 struct Atom : public Literal {
   /* Constructs an atomic formula. */
-  Atom(const string& predicate, const TermList& terms, FormulaTime when);
+  Atom(const Predicate& predicate, const TermList& terms, FormulaTime when);
 
   /* Returns the predicate of this literal. */
-  virtual const string& predicate() const { return predicate_; }
+  virtual const Predicate& predicate() const { return *predicate_; }
 
   /* Returns the terms of this literal. */
   virtual const TermList& terms() const { return *terms_; }
@@ -584,7 +590,7 @@ protected:
 
 private:
   /* Predicate of this atom. */
-  string predicate_;
+  const Predicate* predicate_;
   /* Terms of this atom. */
   const TermList* terms_;
 };
@@ -604,7 +610,7 @@ struct Negation : public Literal {
   const Atom& atom() const { return *atom_; }
 
   /* Returns the predicate of this literal. */
-  virtual const string& predicate() const { return atom().predicate(); }
+  virtual const Predicate& predicate() const { return atom().predicate(); }
 
   /* Returns the terms of this literal. */
   virtual const TermList& terms() const { return atom().terms(); }
