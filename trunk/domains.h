@@ -2,7 +2,7 @@
 /*
  * Domain descriptions.
  *
- * $Id: domains.h,v 1.17 2001-10-06 04:23:46 lorens Exp $
+ * $Id: domains.h,v 1.18 2001-10-06 15:06:25 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -25,6 +25,7 @@ struct NameMap;
 struct Formula;
 struct FormulaList;
 struct AtomList;
+struct NegationList;
 struct Atom;
 struct Problem;
 
@@ -71,24 +72,26 @@ struct Effect : public Printable {
   /* Condition for this effect, or TRUE if unconditional effect. */
   const Formula& condition;
   /* Add list for this effect. */
-  const FormulaList& add_list;
+  const AtomList& add_list;
+  /* Delete list for this effect. */
+  const NegationList& del_list;
 
-  /* Constructs an unconditional single effect. */
-  Effect(const Formula& add);
-
-  /* Constructs an unconditional multiple effect. */
-  Effect(const FormulaList& add_list);
+  /* Constructs an unconditional effect. */
+  Effect(const AtomList& add_list, const NegationList& del_list);
 
   /* Constructs a conditional effect. */
-  Effect(const Formula& condition, const FormulaList& add_list);
+  Effect(const Formula& condition,
+	 const AtomList& add_list, const NegationList& del_list);
 
   /* Constructs a universally quantified unconditional effect. */
-  Effect(const VariableList& forall, const FormulaList& add_list);
+  Effect(const VariableList& forall,
+	 const AtomList& add_list, const NegationList& del_list);
 
   /* Constructs a universally quantified conditional effect. */
   Effect(const VariableList& forall, const Formula& condition,
-	 const FormulaList& add_list)
-    : forall(forall), condition(condition), add_list(add_list) {
+	 const AtomList& add_list, const NegationList& del_list)
+    : forall(forall), condition(condition),
+      add_list(add_list), del_list(del_list) {
   }
 
   /* Returns an instantiation of this effect. */
@@ -102,7 +105,7 @@ struct Effect : public Printable {
   const Effect& substitution(const SubstitutionList& subst) const;
 
   /* Fills the provided lists with goals achievable by this effect. */
-  void achievable_goals(AtomList& goals, FormulaList& neg_goals) const;
+  void achievable_goals(AtomList& goals, NegationList& neg_goals) const;
 
   /* Fills the provided sets with predicates achievable by the
      effect. */
@@ -140,7 +143,7 @@ struct EffectList : public gc, vector<const Effect*, container_alloc> {
 
   /* Fills the provided lists with goals achievable by the effect in
      this list. */
-  void achievable_goals(AtomList& goals, FormulaList& neg_goals) const;
+  void achievable_goals(AtomList& goals, NegationList& neg_goals) const;
 
   /* Fills the provided sets with predicates achievable by the effects
      in this list. */
@@ -173,7 +176,7 @@ struct Action : public Printable {
 			      const Problem& problem) const = 0;
 
   /* Fills the provided lists with goals achievable by this action. */
-  void achievable_goals(AtomList& goals, FormulaList& neg_goals) const;
+  void achievable_goals(AtomList& goals, NegationList& neg_goals) const;
 
   /* Fills the provided sets with predicates achievable by this
      action. */

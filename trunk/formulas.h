@@ -2,7 +2,7 @@
 /*
  * Formulas.
  *
- * $Id: formulas.h,v 1.20 2001-10-06 04:24:36 lorens Exp $
+ * $Id: formulas.h,v 1.21 2001-10-06 15:06:28 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -478,6 +478,29 @@ struct AtomList : public gc, vector<const Atom*, container_alloc> {
 typedef AtomList::const_iterator AtomListIter;
 
 
+struct Negation;
+
+/*
+ * List of negated atoms.
+ */
+struct NegationList : public gc, vector<const Negation*, container_alloc> {
+  /* Constructs an empty negation list. */
+  NegationList() {
+  }
+
+  /* Constructs a negation list with a single negated atom. */
+  NegationList(const Atom* atom);
+
+  /* Returns an instantiation of this negation list. */
+  const NegationList& instantiation(size_t id) const;
+
+  /* Returns this negation list subject to the given substitutions. */
+  const NegationList& substitution(const SubstitutionList& subst) const;
+};
+
+typedef NegationList::const_iterator NegationListIter;
+
+
 /*
  * Negated atom.
  */
@@ -493,7 +516,7 @@ struct Negation : public Formula {
 				       const Problem& problem) const;
 
   /* Returns this formula subject to the given substitutions. */
-  virtual const Formula& substitution(const SubstitutionList& subst) const;
+  virtual const Negation& substitution(const SubstitutionList& subst) const;
 
   /* Fills the provided lists with goals achievable by this formula. */
   virtual void achievable_goals(AtomList& goals,
@@ -529,6 +552,7 @@ private:
   }
 
   friend const Formula& Atom::negation() const;
+  friend NegationList::NegationList(const Atom* atom);
 };
 
 
