@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 6.5 2003-07-28 21:37:08 lorens Exp $
+ * $Id: heuristics.cc,v 6.6 2003-09-01 19:42:01 lorens Exp $
  */
 #include "heuristics.h"
 #include "plans.h"
@@ -53,7 +53,7 @@ formula_value(const Formula& formula, FormulaTime when, size_t step_id,
     if (literal != NULL) {
       StepTime gt = start_time(when);
       if (!domain.predicates().static_predicate(literal->predicate())) {
-	hashing::hash_set<size_t> seen_steps;
+	std::set<size_t> seen_steps;
 	for (const Chain<Step>* sc = plan.steps(); sc != NULL; sc = sc->tail) {
 	  const Step& step = sc->head;
 	  if (step.id() != 0 && seen_steps.find(step.id()) == seen_steps.end()
@@ -71,9 +71,7 @@ formula_value(const Formula& formula, FormulaTime when, size_t step_id,
 		  if ((bindings != NULL
 		       && bindings->unify(*literal, step_id,
 					  e.literal(), step.id()))
-		      || (bindings == NULL
-			  && Bindings::unifiable(*literal, step_id,
-						 e.literal(), step.id()))) {
+		      || (bindings == NULL && literal == &e.literal())) {
 		    return HeuristicValue::ZERO_COST_UNIT_WORK;
 		  }
 		}
@@ -106,6 +104,13 @@ formula_value(const Formula& formula, FormulaTime when, size_t step_id,
 	  if (exists != NULL) {
 	    return formula_value(exists->body(), when, step_id,
 				 plan, domain, pg, true);
+	  } else {
+	    const Forall* forall = dynamic_cast<const Forall*>(&formula);
+	    if (forall != NULL) {
+	      return formula_value(forall->universal_base(SubstitutionMap(),
+							  pg.problem()),
+				   when, step_id, plan, domain, pg, true);
+	    }
 	  }
 	}
       }
@@ -123,11 +128,8 @@ formula_value(const Formula& formula, FormulaTime when, size_t step_id,
 /*
  * Set of ground actions.
  */
-struct GroundActionSet : public hashing::hash_set<const GroundAction*> {
+struct GroundActionSet : public std::set<const GroundAction*> {
 };
-
-/* Iterator for ground action set. */
-typedef GroundActionSet::const_iterator GroundActionSetIter;
 
 
 /* ====================================================================== */
@@ -399,8 +401,8 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
   /*
    * Add initial conditions at level 0.
    */
-  for (AtomList::const_iterator gi = problem.init().begin();
-       gi != problem.init().end(); gi++) {
+  for (AtomSet::const_iterator gi = problem.init_atoms().begin();
+       gi != problem.init_atoms().end(); gi++) {
     const Atom& atom = **gi;
     if (problem.domain().predicates().static_predicate(atom.predicate())) {
       atom_values_.insert(std::make_pair(&atom, HeuristicValue::ZERO));
@@ -430,18 +432,18 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
        * Print literal values at this level.
        */
       std::cerr << "Literal values at level " << level << ":" << std::endl;
-      for (AtomValueMapIter vi = atom_values_.begin();
+      for (AtomValueMap::const_iterator vi = atom_values_.begin();
 	   vi != atom_values_.end(); vi++) {
 	std::cerr << "  ";
 	(*vi).first->print(std::cerr, problem.domain().predicates(),
-			   problem.terms(), 0, Bindings());
+			   problem.terms(), 0, Bindings::EMPTY);
 	std::cerr << " -- " << (*vi).second << std::endl;
       }
-      for (AtomValueMapIter vi = negation_values_.begin();
+      for (AtomValueMap::const_iterator vi = negation_values_.begin();
 	   vi != negation_values_.end(); vi++) {
 	std::cerr << "  (not ";
 	(*vi).first->print(std::cerr, problem.domain().predicates(),
-			   problem.terms(), 0, Bindings());
+			   problem.terms(), 0, Bindings::EMPTY);
 	std::cerr << ") -- " << (*vi).second << std::endl;
       }
     }
@@ -454,7 +456,7 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
      */
     AtomValueMap new_atom_values;
     AtomValueMap new_negation_values;
-    for (GroundActionListIter ai = actions.begin();
+    for (GroundActionList::const_iterator ai = actions.begin();
 	 ai != actions.end(); ai++) {
       const GroundAction& action = **ai;
       HeuristicValue pre_value;
@@ -490,23 +492,28 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
 	     * Update heuristic values of literal added by effect.
 	     */
 	    const Literal& literal = effect.literal();
-	    if (find(achieves_, literal, action) == achieves_.end()) {
-	      achieves_.insert(std::make_pair(&literal, &action));
+	    if (!find(achievers_, literal, action, effect)) {
+	      if (!pre_value.infinite()) {
+		achievers_[&literal].insert(std::make_pair(&action, &effect));
+	      }
 	      if (useful_actions.find(&action) == useful_actions.end()) {
 		useful_actions.insert(&action);
 	      }
 	      if (verbosity > 4) {
 		std::cerr << "  ";
-		action.print(std::cerr, problem.terms(), 0, Bindings());
+		action.print(std::cerr, problem.terms(), 0, Bindings::EMPTY);
 		std::cerr << " achieves ";
 		literal.print(std::cerr, problem.domain().predicates(),
-			      problem.terms(), 0, Bindings());
+			      problem.terms(), 0, Bindings::EMPTY);
+		std::cerr << " with ";
+		effect.print(std::cerr, problem.domain().predicates(),
+			     problem.terms());
 		std::cerr << std::endl;
 	      }
 	    }
 	    const Atom* atom = dynamic_cast<const Atom*>(&literal);
 	    if (atom != NULL) {
-	      AtomValueMapIter vi = new_atom_values.find(atom);
+	      AtomValueMap::const_iterator vi = new_atom_values.find(atom);
 	      if (vi == new_atom_values.end()) {
 		vi = atom_values_.find(atom);
 		if (vi == atom_values_.end()) {
@@ -530,7 +537,8 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
 	    } else {
 	      const Negation& negation =
 		dynamic_cast<const Negation&>(literal);
-	      AtomValueMapIter vi = new_negation_values.find(&negation.atom());
+	      AtomValueMap::const_iterator vi =
+		new_negation_values.find(&negation.atom());
 	      if (vi == new_negation_values.end()) {
 		vi = negation_values_.find(&negation.atom());
 		if (vi == negation_values_.end()) {
@@ -566,14 +574,14 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
     /*
      * Add achieved atoms to previously achieved atoms.
      */
-    for (AtomValueMapIter vi = new_atom_values.begin();
+    for (AtomValueMap::const_iterator vi = new_atom_values.begin();
 	 vi != new_atom_values.end(); vi++) {
       atom_values_[(*vi).first] = (*vi).second;
     }
     /*
      * Add achieved negated atoms to previously achieved negated atoms.
      */
-    for (AtomValueMapIter vi = new_negation_values.begin();
+    for (AtomValueMap::const_iterator vi = new_negation_values.begin();
 	 vi != new_negation_values.end(); vi++) {
       negation_values_[(*vi).first] = (*vi).second;
     }
@@ -582,7 +590,7 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
   /*
    * Map predicates to achievable ground atoms.
    */
-  for (AtomValueMapIter vi = atom_values_.begin();
+  for (AtomValueMap::const_iterator vi = atom_values_.begin();
        vi != atom_values_.end(); vi++) {
     const Atom& atom = *(*vi).first;
     predicate_atoms_.insert(std::make_pair(atom.predicate(), &atom));
@@ -591,7 +599,7 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
   /*
    * Map predicates to achievable negated ground atoms.
    */
-  for (AtomValueMapIter vi = negation_values_.begin();
+  for (AtomValueMap::const_iterator vi = negation_values_.begin();
        vi != negation_values_.end(); vi++) {
     const Atom& atom = *(*vi).first;
     predicate_negations_.insert(std::make_pair(atom.predicate(), &atom));
@@ -603,13 +611,14 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
    */
   GroundActionSet good_actions;
   if (verbosity > 1 || domain_constraints) {
-    for (GroundActionSetIter ai = applicable_actions.begin();
+    for (GroundActionSet::const_iterator ai = applicable_actions.begin();
 	 ai != applicable_actions.end(); ai++) {
       const GroundAction& action = **ai;
       if (useful_actions.find(&action) != useful_actions.end()) {
 	good_actions.insert(&action);
 	if (domain_constraints && !action.arguments().empty()) {
-	  ActionDomainMapIter di = action_domains_.find(action.name());
+	  ActionDomainMap::const_iterator di =
+	    action_domains_.find(action.name());
 	  if (di == action_domains_.end()) {
 	    ActionDomain* domain = new ActionDomain(action.arguments());
 	    ActionDomain::register_use(domain);
@@ -635,7 +644,8 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
   /*
    * Delete all actions that are not useful.
    */
-  for (GroundActionListIter ai = actions.begin(); ai != actions.end(); ai++) {
+  for (GroundActionList::const_iterator ai = actions.begin();
+       ai != actions.end(); ai++) {
     if (useful_actions.find(*ai) == useful_actions.end()) {
       delete *ai;
     }
@@ -645,28 +655,28 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
     /*
      * Print good actions.
      */
-    for (GroundActionSetIter ai = good_actions.begin();
+    for (GroundActionSet::const_iterator ai = good_actions.begin();
 	 ai != good_actions.end(); ai++) {
       std::cerr << "  ";
-      (*ai)->print(std::cerr, problem.terms(), 0, Bindings());
+      (*ai)->print(std::cerr, problem.terms(), 0, Bindings::EMPTY);
       std::cerr << std::endl;
     }
     /*
      * Print literal values.
      */
     std::cerr << "Achievable literals:" << std::endl;
-    for (AtomValueMapIter vi = atom_values_.begin();
+    for (AtomValueMap::const_iterator vi = atom_values_.begin();
 	 vi != atom_values_.end(); vi++) {
       std::cerr << "  ";
       (*vi).first->print(std::cerr, problem.domain().predicates(),
-			 problem.terms(), 0, Bindings());
+			 problem.terms(), 0, Bindings::EMPTY);
       std::cerr << " -- " << (*vi).second << std::endl;
     }
-    for (AtomValueMapIter vi = negation_values_.begin();
+    for (AtomValueMap::const_iterator vi = negation_values_.begin();
 	 vi != negation_values_.end(); vi++) {
       std::cerr << "  (not ";
       (*vi).first->print(std::cerr, problem.domain().predicates(),
-			 problem.terms(), 0, Bindings());
+			 problem.terms(), 0, Bindings::EMPTY);
       std::cerr << ") -- " << (*vi).second << std::endl;
     }
   }
@@ -675,16 +685,19 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
 
 /* Deletes this planning graph. */
 PlanningGraph::~PlanningGraph() {
-  for (ActionDomainMapIter di = action_domains_.begin();
+  for (ActionDomainMap::const_iterator di = action_domains_.begin();
        di != action_domains_.end(); di++) {
     ActionDomain::unregister_use((*di).second);
   }
   GroundActionSet useful_actions;
-  for (LiteralActionsMapIter ai = achieves_.begin();
-       ai != achieves_.end(); ai++) {
-    useful_actions.insert((*ai).second);
+  for (LiteralAchieverMap::const_iterator lai = achievers_.begin();
+       lai != achievers_.end(); lai++) {
+    for (ActionEffectMap::const_iterator aei = (*lai).second.begin();
+	 aei != (*lai).second.end(); aei++) {
+      useful_actions.insert(dynamic_cast<const GroundAction*>((*aei).first));
+    }
   }
-  for (GroundActionSetIter ai = useful_actions.begin();
+  for (GroundActionSet::const_iterator ai = useful_actions.begin();
        ai != useful_actions.end(); ai++) {
     delete *ai;
   }
@@ -696,15 +709,17 @@ HeuristicValue PlanningGraph::heuristic_value(const Atom& atom, size_t step_id,
 					      const Bindings* bindings) const {
   if (bindings == NULL) {
     /* Assume ground atom. */
-    AtomValueMapIter vi = atom_values_.find(&atom);
+    AtomValueMap::const_iterator vi = atom_values_.find(&atom);
     return ((vi != atom_values_.end())
 	    ? (*vi).second : HeuristicValue::INFINITE);
   } else {
     /* Take minimum value of ground atoms that unify. */
     HeuristicValue value = HeuristicValue::INFINITE;
-    std::pair<PredicateAtomsMapIter, PredicateAtomsMapIter> bounds =
+    std::pair<PredicateAtomsMap::const_iterator,
+      PredicateAtomsMap::const_iterator> bounds =
       predicate_atoms_.equal_range(atom.predicate());
-    for (PredicateAtomsMapIter gi = bounds.first; gi != bounds.second; gi++) {
+    for (PredicateAtomsMap::const_iterator gi = bounds.first;
+	 gi != bounds.second; gi++) {
       const Atom& a = *(*gi).second;
       if (bindings->unify(atom, step_id, a, 0)) {
 	HeuristicValue v = heuristic_value(a, 0);
@@ -725,7 +740,7 @@ HeuristicValue PlanningGraph::heuristic_value(const Negation& negation,
 					      const Bindings* bindings) const {
   if (bindings == NULL) {
     /* Assume ground negated atom. */
-    AtomValueMapIter vi = negation_values_.find(&negation.atom());
+    AtomValueMap::const_iterator vi = negation_values_.find(&negation.atom());
     if (vi != negation_values_.end()) {
       return (*vi).second;
     } else {
@@ -741,9 +756,11 @@ HeuristicValue PlanningGraph::heuristic_value(const Negation& negation,
       return HeuristicValue::ZERO;
     }
     HeuristicValue value = HeuristicValue::INFINITE;
-    std::pair<PredicateAtomsMapIter, PredicateAtomsMapIter> bounds =
+    std::pair<PredicateAtomsMap::const_iterator,
+      PredicateAtomsMap::const_iterator> bounds =
       predicate_negations_.equal_range(negation.predicate());
-    for (PredicateAtomsMapIter gi = bounds.first; gi != bounds.second; gi++) {
+    for (PredicateAtomsMap::const_iterator gi = bounds.first;
+	 gi != bounds.second; gi++) {
       const Atom& a = *(*gi).second;
       if (bindings->unify(atom, step_id, a, 0)) {
 	HeuristicValue v = heuristic_value(a, 0);
@@ -758,15 +775,11 @@ HeuristicValue PlanningGraph::heuristic_value(const Negation& negation,
 }
 
 
-/* Fills the provided list with actions that achieve the given
-   formula. */
-void PlanningGraph::achieves_formula(ActionList& actions,
-				     const Literal& f) const {
-  std::pair<LiteralActionsMapIter, LiteralActionsMapIter> bounds =
-    achieves_.equal_range(&f);
-  for (LiteralActionsMapIter i = bounds.first; i != bounds.second; i++) {
-    actions.push_back((*i).second);
-  }
+/* Returns a set of achievers for the given literal. */
+const ActionEffectMap*
+PlanningGraph::literal_achievers(const Literal& literal) const {
+  LiteralAchieverMap::const_iterator lai = achievers_.find(&literal);
+  return (lai != achievers_.end()) ? & (*lai).second : NULL;
 }
 
 
@@ -774,23 +787,27 @@ void PlanningGraph::achieves_formula(ActionList& actions,
    parameter domain is empty. */
 const ActionDomain*
 PlanningGraph::action_domain(const std::string& name) const {
-  ActionDomainMapIter di = action_domains_.find(name);
+  ActionDomainMap::const_iterator di = action_domains_.find(name);
   return (di != action_domains_.end()) ? (*di).second : NULL;
 }
 
 
 /* Finds an element in a LiteralActionsMap. */
-PlanningGraph::LiteralActionsMapIter
-PlanningGraph::find(const PlanningGraph::LiteralActionsMap& m,
-		    const Literal &l, const Action& a) const {
-  std::pair<LiteralActionsMapIter, LiteralActionsMapIter> bounds =
-    m.equal_range(&l);
-  for (LiteralActionsMapIter i = bounds.first; i != bounds.second; i++) {
-    if ((*i).second == &a) {
-      return i;
+bool PlanningGraph::find(const PlanningGraph::LiteralAchieverMap& m,
+			 const Literal &l, const Action& a,
+			 const Effect& e) const {
+  LiteralAchieverMap::const_iterator lai = m.find(&l);
+  if (lai != m.end()) {
+    std::pair<ActionEffectMap::const_iterator,
+      ActionEffectMap::const_iterator> bounds = (*lai).second.equal_range(&a);
+    for (ActionEffectMap::const_iterator i = bounds.first;
+	 i != bounds.second; i++) {
+      if ((*i).second == &e) {
+	return true;
+      }
     }
   }
-  return m.end();
+  return false;
 }
 
 
@@ -1010,8 +1027,8 @@ void Heuristic::plan_rank(std::vector<float>& rank, const Plan& plan,
     case MAX_WORK:
       if (!max_done) {
 	max_done = true;
-	hashing::hash_map<size_t, float> start_dist;
-	hashing::hash_map<size_t, float> end_dist;
+	std::map<size_t, float> start_dist;
+	std::map<size_t, float> end_dist;
 	max_cost = max_steps =
 	  int(plan.orderings().schedule(start_dist, end_dist) + 0.5);
 	for (const Chain<OpenCondition>* occ = plan.open_conds();
@@ -1051,8 +1068,8 @@ void Heuristic::plan_rank(std::vector<float>& rank, const Plan& plan,
     case MAXR_WORK:
       if (!maxr_done) {
 	maxr_done = true;
-	hashing::hash_map<size_t, float> start_dist;
-	hashing::hash_map<size_t, float> end_dist;
+	std::map<size_t, float> start_dist;
+	std::map<size_t, float> end_dist;
 	maxr_cost = max_steps =
 	  int(plan.orderings().schedule(start_dist, end_dist) + 0.5);
 	for (const Chain<OpenCondition>* occ = plan.open_conds();
@@ -1590,43 +1607,6 @@ bool FlawSelectionOrder::needs_planning_graph() const {
 }
 
 
-/* Counts the number of refinements for the given threat, and returns
-   true iff the number of refinements does not exceed the given
-   limit. */
-static bool unsafe_refinements(int& refinements, int& separable,
-			       int& promotable, int& demotable,
-			       const Unsafe& unsafe, const Plan& plan,
-			       int limit) {
-  if (refinements >= 0) {
-    return refinements <= limit;
-  } else {
-    int ref = 0;
-    if (separable < 0) {
-      separable = plan.separable(unsafe);
-      if (separable < 0) {
-	refinements = separable = 0;
-	return true;
-      }
-    }
-    ref += separable;
-    if (ref <= limit) {
-      if (promotable < 0) {
-	promotable = plan.promotable(unsafe);
-      }
-      ref += promotable;
-      if (ref <= limit) {
-	if (demotable < 0) {
-	  demotable = plan.demotable(unsafe);
-	}
-	refinements = ref + demotable;
-	return refinements <= limit;
-      }
-    }
-  }
-  return false;
-}
-
-
 /* Seaches threats for a flaw to select. */
 int FlawSelectionOrder::select_unsafe(FlawSelection& selection,
 				      const Plan& plan, const Problem& problem,
@@ -1642,7 +1622,7 @@ int FlawSelectionOrder::select_unsafe(FlawSelection& selection,
     if (verbosity > 1) {
       std::cerr << "(considering ";
       unsafe.print(std::cerr, problem.domain().predicates(),
-		   problem.terms(), Bindings());
+		   problem.terms(), Bindings::EMPTY);
       std::cerr << ")" << std::endl;
     }
     int refinements = -1;
@@ -1667,9 +1647,9 @@ int FlawSelectionOrder::select_unsafe(FlawSelection& selection,
 	/* Right type of threat, so now check if the refinement
            constraint is satisfied. */
 	if (criterion.max_refinements >= 3
-	    || unsafe_refinements(refinements, separable, promotable,
-				  demotable, unsafe, plan,
-				  criterion.max_refinements)) {
+	    || plan.unsafe_refinements(refinements, separable, promotable,
+				       demotable, unsafe,
+				       criterion.max_refinements)) {
 	  /* Refinement constraint is satisfied, so criterion applies. */
 	  switch (criterion.order) {
 	  case SelectionCriterion::LIFO:
@@ -1679,7 +1659,7 @@ int FlawSelectionOrder::select_unsafe(FlawSelection& selection,
 	    if (verbosity > 1) {
 	      std::cerr << "selecting ";
 	      unsafe.print(std::cerr, problem.domain().predicates(),
-			   problem.terms(), Bindings());
+			   problem.terms(), Bindings::EMPTY);
 	      std::cerr << " by criterion " << criterion << std::endl;
 	    }
 	    break;
@@ -1690,7 +1670,7 @@ int FlawSelectionOrder::select_unsafe(FlawSelection& selection,
 	    if (verbosity > 1) {
 	      std::cerr << "selecting ";
 	      unsafe.print(std::cerr, problem.domain().predicates(),
-			   problem.terms(), Bindings());
+			   problem.terms(), Bindings::EMPTY);
 	      std::cerr << " by criterion " << criterion << std::endl;
 	    }
 	    break;
@@ -1707,34 +1687,34 @@ int FlawSelectionOrder::select_unsafe(FlawSelection& selection,
 	      if (verbosity > 1) {
 		std::cerr << "selecting ";
 		unsafe.print(std::cerr, problem.domain().predicates(),
-			     problem.terms(), Bindings());
+			     problem.terms(), Bindings::EMPTY);
 		std::cerr << " by criterion " << criterion << std::endl;
 	      }
 	    }
 	    break;
 	  case SelectionCriterion::LR:
 	    if (c < selection.criterion
-		|| unsafe_refinements(refinements, separable, promotable,
-				      demotable, unsafe, plan,
-				      selection.rank - 1)) {
+		|| plan.unsafe_refinements(refinements, separable, promotable,
+					   demotable, unsafe,
+					   selection.rank - 1)) {
 	      selection.flaw = &unsafe;
 	      selection.criterion = c;
-	      unsafe_refinements(refinements, separable, promotable,
-				 demotable, unsafe, plan, INT_MAX);
+	      plan.unsafe_refinements(refinements, separable, promotable,
+				      demotable, unsafe, INT_MAX);
 	      selection.rank = refinements;
 	      last_criterion = (refinements == 0) ? c - 1 : c;
 	      if (verbosity > 1) {
 		std::cerr << "selecting ";
 		unsafe.print(std::cerr, problem.domain().predicates(),
-			     problem.terms(), Bindings());
+			     problem.terms(), Bindings::EMPTY);
 		std::cerr << " by criterion " << criterion
 			  << " with rank " << refinements << std::endl;
 	      }
 	    }
 	    break;
 	  case SelectionCriterion::MR:
-	    unsafe_refinements(refinements, separable, promotable,
-			       demotable, unsafe, plan, INT_MAX);
+	    plan.unsafe_refinements(refinements, separable, promotable,
+				    demotable, unsafe, INT_MAX);
 	    if (c < selection.criterion
 		|| refinements > selection.rank) {
 	      selection.flaw = &unsafe;
@@ -1744,7 +1724,7 @@ int FlawSelectionOrder::select_unsafe(FlawSelection& selection,
 	      if (verbosity > 1) {
 		std::cerr << "selecting ";
 		unsafe.print(std::cerr, problem.domain().predicates(),
-			     problem.terms(), Bindings());
+			     problem.terms(), Bindings::EMPTY);
 		std::cerr << " by criterion " << criterion
 			  << " with rank " << refinements << std::endl;
 	      }
@@ -1759,56 +1739,6 @@ int FlawSelectionOrder::select_unsafe(FlawSelection& selection,
     }
   }
   return last_criterion;
-}
-
-
-/* Counts the number of refinements for the given open condition, and
-   returns true iff the number of refinements does not exceed the
-   given limit. */
-static bool open_cond_refinements(int& refinements,
-				  int& addable, int& reusable,
-				  const OpenCondition& open_cond,
-				  const Plan& plan, int limit) {
-  if (refinements >= 0) {
-    return refinements <= limit;
-  } else {
-    const Literal* literal = open_cond.literal();
-    if (literal != NULL) {
-      int ref = 0;
-      if (addable < 0) {
-	if (!plan.addable_steps(addable, *literal, open_cond.when(),
-				open_cond.step_id(), limit)) {
-	  return false;
-	}
-      }
-      ref += addable;
-      if (ref <= limit) {
-	if (reusable < 0) {
-	  if (!plan.reusable_steps(reusable, *literal, open_cond.when(),
-				   open_cond.step_id(), limit)) {
-	    return false;
-	  }
-	}
-	refinements = ref + reusable;
-	return refinements <= limit;
-      }
-    } else {
-      const Disjunction* disj = open_cond.disjunction();
-      if (disj != NULL) {
-	refinements = plan.disjunction_refinements(*disj, open_cond.when(),
-						   open_cond.step_id());
-	return refinements <= limit;
-      } else {
-	const Inequality* neq = open_cond.inequality();
-	if (neq != NULL) {
-	  refinements = plan.inequality_refinements(*neq, open_cond.step_id());
-	} else {
-	  throw Exception("unknown kind of open condition");
-	}
-      }
-    }
-  }
-  return false;
 }
 
 
@@ -1830,7 +1760,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
     if (verbosity > 1) {
       std::cerr << "(considering ";
       open_cond.print(std::cerr, problem.domain().predicates(),
-		      problem.terms(), Bindings());
+		      problem.terms(), Bindings::EMPTY);
       std::cerr << ")" << std::endl;
     }
     if (local_id == 0) {
@@ -1868,8 +1798,9 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 	/* Right type of open condition, so now check if the
            refinement constraint is satisfied. */
 	if (criterion.max_refinements == INT_MAX
-	    || open_cond_refinements(refinements, addable, reusable, open_cond,
-				     plan, criterion.max_refinements)) {
+	    || plan.open_cond_refinements(refinements, addable, reusable,
+					  open_cond,
+					  criterion.max_refinements)) {
 	  /* Refinement constraint is satisfied, so criterion applies. */
 	  switch (criterion.order) {
 	  case SelectionCriterion::LIFO:
@@ -1879,7 +1810,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 	    if (verbosity > 1) {
 	      std::cerr << "selecting ";
 	      open_cond.print(std::cerr, problem.domain().predicates(),
-			      problem.terms(), Bindings());
+			      problem.terms(), Bindings::EMPTY);
 	      std::cerr << " by criterion " << criterion << std::endl;
 	    }
 	    break;
@@ -1890,7 +1821,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 	    if (verbosity > 1) {
 	      std::cerr << "selecting ";
 	      open_cond.print(std::cerr, problem.domain().predicates(),
-			      problem.terms(), Bindings());
+			      problem.terms(), Bindings::EMPTY);
 	      std::cerr << " by criterion " << criterion << std::endl;
 	    }
 	    break;
@@ -1907,34 +1838,33 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 	      if (verbosity > 1) {
 		std::cerr << "selecting ";
 		open_cond.print(std::cerr, problem.domain().predicates(),
-				problem.terms(), Bindings());
+				problem.terms(), Bindings::EMPTY);
 		std::cerr << " by criterion " << criterion << std::endl;
 	      }
 	    }
 	    break;
 	  case SelectionCriterion::LR:
 	    if (c < selection.criterion
-		|| open_cond_refinements(refinements, addable, reusable,
-					 open_cond, plan,
-					 selection.rank - 1)) {
+		|| plan.open_cond_refinements(refinements, addable, reusable,
+					      open_cond, selection.rank - 1)) {
 	      selection.flaw = &open_cond;
 	      selection.criterion = c;
-	      open_cond_refinements(refinements, addable, reusable, open_cond,
-				    plan, INT_MAX);
+	      plan.open_cond_refinements(refinements, addable, reusable,
+					 open_cond, INT_MAX);
 	      selection.rank = refinements;
 	      last_criterion = (refinements == 0) ? c - 1 : c;
 	      if (verbosity > 1) {
 		std::cerr << "selecting ";
 		open_cond.print(std::cerr, problem.domain().predicates(),
-				problem.terms(), Bindings());
+				problem.terms(), Bindings::EMPTY);
 		std::cerr << " by criterion " << criterion
 			  << " with rank " << refinements << std::endl;
 	      }
 	    }
 	    break;
 	  case SelectionCriterion::MR:
-	    open_cond_refinements(refinements, addable, reusable, open_cond,
-				  plan, INT_MAX);
+	    plan.open_cond_refinements(refinements, addable, reusable,
+				       open_cond, INT_MAX);
 	    if (c < selection.criterion
 		|| refinements > selection.rank) {
 	      selection.flaw = &open_cond;
@@ -1944,7 +1874,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 	      if (verbosity > 1) {
 		std::cerr << "selecting ";
 		open_cond.print(std::cerr, problem.domain().predicates(),
-				problem.terms(), Bindings());
+				problem.terms(), Bindings::EMPTY);
 		std::cerr << " by criterion " << criterion
 			  << " with rank " << refinements << std::endl;
 	      }
@@ -1957,8 +1887,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 		const Literal* literal = open_cond.literal();
 		if (literal != NULL) {
 		  has_new = !plan.addable_steps(addable, *literal,
-						open_cond.when(),
-						open_cond.step_id(), 0);
+						open_cond, 0);
 		}
 	      } else {
 		has_new = (addable > 0);
@@ -1970,7 +1899,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 		if (verbosity > 1) {
 		  std::cerr << "selecting ";
 		  open_cond.print(std::cerr, problem.domain().predicates(),
-				  problem.terms(), Bindings());
+				  problem.terms(), Bindings::EMPTY);
 		  std::cerr << " by criterion " << criterion;
 		  if (has_new) {
 		    std::cerr << " with new";
@@ -1987,8 +1916,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 		const Literal* literal = open_cond.literal();
 		if (literal != NULL) {
 		  has_reuse = !plan.reusable_steps(reusable, *literal,
-						   open_cond.when(),
-						   open_cond.step_id(), 0);
+						   open_cond, 0);
 		}
 	      } else {
 		has_reuse = (reusable > 0);
@@ -2000,7 +1928,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 		if (verbosity > 1) {
 		  std::cerr << "selecting ";
 		  open_cond.print(std::cerr, problem.domain().predicates(),
-				  problem.terms(), Bindings());
+				  problem.terms(), Bindings::EMPTY);
 		  std::cerr << " by criterion " << criterion;
 		  if (has_reuse) {
 		    std::cerr << " with reuse";
@@ -2026,7 +1954,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 		if (verbosity > 1) {
 		  std::cerr << "selecting ";
 		  open_cond.print(std::cerr, problem.domain().predicates(),
-				  problem.terms(), Bindings());
+				  problem.terms(), Bindings::EMPTY);
 		  std::cerr << " by criterion " << criterion
 			    << " with rank " << rank << std::endl;
 		}
@@ -2049,7 +1977,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 		if (verbosity > 1) {
 		  std::cerr << "selecting ";
 		  open_cond.print(std::cerr, problem.domain().predicates(),
-				  problem.terms(), Bindings());
+				  problem.terms(), Bindings::EMPTY);
 		  std::cerr << " by criterion " << criterion
 			    << " with rank " << rank << std::endl;
 		}
@@ -2072,7 +2000,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 		if (verbosity > 1) {
 		  std::cerr << "selecting ";
 		  open_cond.print(std::cerr, problem.domain().predicates(),
-				  problem.terms(), Bindings());
+				  problem.terms(), Bindings::EMPTY);
 		  std::cerr << " by criterion " << criterion
 			    << " with rank " << rank << std::endl;
 		}
@@ -2095,7 +2023,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 		if (verbosity > 1) {
 		  std::cerr << "selecting ";
 		  open_cond.print(std::cerr, problem.domain().predicates(),
-				  problem.terms(), Bindings());
+				  problem.terms(), Bindings::EMPTY);
 		  std::cerr << " by criterion " << criterion
 			    << " with rank " << rank << std::endl;
 		}
