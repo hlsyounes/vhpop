@@ -2,7 +2,7 @@
 /*
  * PDDL parser.
  *
- * $Id: pddl.yy,v 1.13 2001-10-06 14:57:25 lorens Exp $
+ * $Id: pddl.yy,v 1.14 2001-10-06 22:54:24 lorens Exp $
  */
 %{
 #include <utility>
@@ -706,7 +706,7 @@ static const Type* find_type(const string& name) {
   if (pdomain != NULL) {
     return pdomain->find_type(name);
   } else if (domain_types != NULL) {
-    TypeMap::const_iterator ti = domain_types->find(name);
+    TypeMapIter ti = domain_types->find(name);
     return (ti != domain_types->end()) ? (*ti).second : NULL;
   } else {
     return NULL;

@@ -2,7 +2,7 @@
 /*
  * Domain descriptions.
  *
- * $Id: domains.h,v 1.18 2001-10-06 15:06:25 lorens Exp $
+ * $Id: domains.h,v 1.19 2001-10-06 22:54:22 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -23,7 +23,6 @@ struct Name;
 struct NameList;
 struct NameMap;
 struct Formula;
-struct FormulaList;
 struct AtomList;
 struct NegationList;
 struct Atom;

@@ -1,5 +1,5 @@
 /*
- * $Id: formulas.cc,v 1.16 2001-10-06 14:59:02 lorens Exp $
+ * $Id: formulas.cc,v 1.17 2001-10-06 22:54:16 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -25,11 +25,16 @@ struct Substitutes
  */
 struct StepVar : public Variable {
 protected:
-  /* Prints this instantiated variable on the given stream. */
-  virtual void print(ostream& os) const;
+  /* Checks if this object equals the given object. */
+  virtual bool equals(const EqualityComparable& o) const {
+    const StepVar* vt = dynamic_cast<const StepVar*>(&o);
+    return vt != NULL && name == vt->name && id == vt->id;
+  }
 
-  /* Checks if this term equals the given term. */
-  virtual bool equals(const Term& t) const;
+  /* Prints this object on the given stream. */
+  virtual void print(ostream& os) const {
+    os << name << '(' << id << ')';
+  }
 
 private:
   /* The id of the step that this variable belongs to. */
@@ -146,21 +151,21 @@ private:
 };
 
 
-/* Prints this substitution on the given stream. */
+/* Prints this object on the given stream. */
 void Substitution::print(ostream& os) const {
   os << '[' << var << '/' << term << ']';
 }
 
 
-/* Prints this term on the given stream. */
-void Term::print(ostream& os) const {
-  os << name;
+/* Returns the hash value of this object. */
+size_t Term::hash_value() const {
+  return hash<string>()(name);
 }
 
 
-/* Returns the hash value of this term. */
-size_t Term::hash_value() const {
-  return hash<string>()(name);
+/* Prints this object on the given stream. */
+void Term::print(ostream& os) const {
+  os << name;
 }
 
 
@@ -184,9 +189,9 @@ bool Name::equivalent(const Term& t) const {
 }
 
 
-/* Checks if this term equals the given term. */
-bool Name::equals(const Term& t) const {
-  const Name* nt = dynamic_cast<const Name*>(&t);
+/* Checks if this object equals the given object. */
+bool Name::equals(const EqualityComparable& o) const {
+  const Name* nt = dynamic_cast<const Name*>(&o);
   return nt != NULL && name == nt->name;
 }
 
@@ -199,7 +204,8 @@ const Variable& Variable::instantiation(size_t id) const {
 
 /* Returns this term subject to the given substitutions. */
 const Term& Variable::substitution(const SubstitutionList& subst) const {
-  SLCI si = find_if(subst.begin(), subst.end(), bind2nd(Substitutes(), this));
+  SubstListIter si = find_if(subst.begin(), subst.end(),
+			     bind2nd(Substitutes(), this));
   return (si != subst.end()) ? (*si)->term : *this;
 }
 
@@ -212,23 +218,10 @@ bool Variable::equivalent(const Term& t) const {
 }
 
 
-/* Checks if this term equals the given term. */
-bool Variable::equals(const Term& t) const {
-  const Variable* vt = dynamic_cast<const Variable*>(&t);
-  return vt != NULL && name == vt->name && typeid(t) == typeid(Variable);
-}
-
-
-/* Prints this term on the given stream. */
-void StepVar::print(ostream& os) const {
-  os << name << '(' << id << ')';
-}
-
-
-/* Checks if this term equals the given term. */
-bool StepVar::equals(const Term& t) const {
-  const StepVar* vt = dynamic_cast<const StepVar*>(&t);
-  return vt != NULL && name == vt->name && id == vt->id;
+/* Checks if this object equals the given object. */
+bool Variable::equals(const EqualityComparable& o) const {
+  const Variable* vt = dynamic_cast<const Variable*>(&o);
+  return vt != NULL && name == vt->name && typeid(o) == typeid(Variable);
 }
 
 
@@ -268,38 +261,6 @@ bool TermList::equivalent(const TermList& terms) const {
 }
 
 
-/* Equality operator for term lists. */
-bool TermList::operator==(const TermList& terms) const {
-  if (size() != terms.size()) {
-    return false;
-  } else {
-    for (const_iterator ti = begin(), tj = terms.begin();
-	 ti != end(); ti++, tj++) {
-      if (**ti != **tj) {
-	return false;
-      }
-    }
-    return true;
-  }
-}
-
-
-/* Inequality operator for term lists. */
-bool TermList::operator!=(const TermList& terms) const {
-  return !(*this == terms);
-}
-
-size_t hash<TermList>::operator()(const TermList& terms) const {
-  hash<Term> h;
-  size_t v = 0;
-  for (TermList::const_iterator ti = terms.begin();
-       ti != terms.end(); ti++) {
-    v = 5*v + h(**ti);
-  }
-  return v;
-}
-
-
 /* An empty variable list. */
 const VariableList& VariableList::EMPTY = *(new VariableList());
 
@@ -322,28 +283,6 @@ const VariableList& VariableList::instantiation(size_t id) const {
     variables.push_back(&(*vi)->instantiation(id));
   }
   return variables;
-}
-
-
-/* Equality operator for variable lists. */
-bool VariableList::operator==(const VariableList& variables) const {
-  if (size() != variables.size()) {
-    return false;
-  } else {
-    for (const_iterator vi = begin(), vj = variables.begin();
-	 vi != end(); vi++, vj++) {
-      if (**vi != **vj) {
-	return false;
-      }
-    }
-    return true;
-  }
-}
-
-
-/* Inequality operator for variable lists. */
-bool VariableList::operator!=(const VariableList& variables) const {
-  return !(*this == variables);
 }
 
 
@@ -459,26 +398,6 @@ FormulaList::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Fills the provided lists with goals achievable by the formulas in
-   this list. */
-void FormulaList::achievable_goals(AtomList& goals,
-				   FormulaList& neg_goals) const {
-  for (const_iterator i = begin(); i != end(); i++) {
-    (*i)->achievable_goals(goals, neg_goals);
-  }
-}
-
-
-/* Fills the provided sets with predicates achievable by the formulas
-   in this list. */
-void FormulaList::achievable_predicates(hash_set<string>& preds,
-					hash_set<string>& neg_preds) const {
-  for (const_iterator i = begin(); i != end(); i++) {
-    (*i)->achievable_predicates(preds, neg_preds);
-  }
-}
-
-
 /* Checks if this formula list is equivalent to the given formula list. */
 bool FormulaList::equivalent(const FormulaList& formulas) const {
   if (size() != formulas.size()) {
@@ -492,28 +411,6 @@ bool FormulaList::equivalent(const FormulaList& formulas) const {
     }
     return true;
   }
-}
-
-
-/* Equality operator for formula lists. */
-bool FormulaList::operator==(const FormulaList& formulas) const {
-  if (size() != formulas.size()) {
-    return false;
-  } else {
-    for (const_iterator i = begin(), j = formulas.begin();
-	 i != end(); i++, j++) {
-      if (**i != **j) {
-	return false;
-      }
-    }
-    return true;
-  }
-}
-
-
-/* Inequality operator for formula lists. */
-bool FormulaList::operator!=(const FormulaList& formulas) const {
-  return !(*this == formulas);
 }
 
 
@@ -569,25 +466,6 @@ Cost Atom::cost(const hash_map<const Formula*, Cost>& atom_cost,
 }
 
 
-/* Fills the provided lists with goals achievable by this formula. */
-void Atom::achievable_goals(AtomList& goals, FormulaList& neg_goals) const {
-  goals.push_back(this);
-}
-
-
-/* Fills the provided sets with predicates achievable by this
-   formula. */
-void Atom::achievable_predicates(hash_set<string>& preds,
-				 hash_set<string>& neg_preds) const {
-  for (TermList::const_iterator ti = terms.begin(); ti != terms.end(); ti++) {
-    if (typeid(**ti) != typeid(Name)) {
-      preds.insert(predicate);
-      return;
-    }
-  }
-}
-
-
 /* Checks if this formula is equivalent to the given formula.  Two
    formulas is equivalent if they only differ in the choice of
    variable names. */
@@ -611,7 +489,10 @@ void Atom::print(ostream& os) const {
 /* Checks if this formula equals the given formula. */
 bool Atom::equals(const Formula& f) const {
   const Atom* atom = dynamic_cast<const Atom*>(&f);
-  return atom != NULL && predicate == atom->predicate && terms == atom->terms;
+  return (atom != NULL && predicate == atom->predicate
+	  && terms.size() == atom->terms.size()
+	  && equal(terms.begin(), terms.end(), atom->terms.begin(),
+		   equal_to<const EqualityComparable*>()));
 }
 
 
@@ -623,7 +504,12 @@ const Formula& Atom::negation() const {
 
 /* Returns the hash value of this formula. */
 size_t Atom::hash_value() const {
-  return 5*hash<string>()(predicate) + hash<TermList>()(terms);
+  hash<Hashable> h;
+  size_t val = hash<string>()(predicate);
+  for (TermListIter ti = terms.begin(); ti != terms.end(); ti++) {
+    val = 5*val + h(**ti);
+  }
+  return val;
 }
 
 
@@ -666,21 +552,6 @@ const Negation& Negation::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Fills the provided lists with goals achievable by this formula. */
-void Negation::achievable_goals(AtomList& goals,
-				FormulaList& neg_goals) const {
-  neg_goals.push_back(this);
-}
-
-
-/* Fills the provided sets with predicates achievable by this
-   formula. */
-void Negation::achievable_predicates(hash_set<string>& preds,
-				     hash_set<string>& neg_preds) const {
-  atom.achievable_predicates(neg_preds, preds);
-}
-
-
 /* Checks if this formula is equivalent to the given formula.  Two
    formulas is equivalent if they only differ in the choice of
    variable names. */
@@ -712,12 +583,6 @@ const Formula& Negation::negation() const {
 /* Returns the hash value of this formula. */
 size_t Negation::hash_value() const {
   return 2*hash<Formula>()(atom);
-}
-
-
-/* Constructs a negation list with a single negated atom. */
-NegationList::NegationList(const Atom* atom)
-  : vector<const Negation*, container_alloc>(1, new Negation(*atom)) {
 }
 
 
@@ -911,21 +776,6 @@ Cost Conjunction::cost(const hash_map<const Formula*, Cost>& atom_cost,
 }
 
 
-/* Fills the provided lists with goals achievable by this formula. */
-void Conjunction::achievable_goals(AtomList& goals,
-				   FormulaList& neg_goals) const {
-  conjuncts.achievable_goals(goals, neg_goals);
-}
-
-
-/* Fills the provided sets with predicates achievable by this
-   formula. */
-void Conjunction::achievable_predicates(hash_set<string>& preds,
-					hash_set<string>& neg_preds) const {
-  conjuncts.achievable_predicates(preds, neg_preds);
-}
-
-
 /* Checks if this formula is equivalent to the given formula.  Two
    formulas is equivalent if they only differ in the choice of
    variable names. */
@@ -947,8 +797,10 @@ void Conjunction::print(ostream& os) const {
 
 /* Checks if this formula equals the given formula. */
 bool Conjunction::equals(const Formula& f) const {
-  const Conjunction* conjunction = dynamic_cast<const Conjunction*>(&f);
-  return conjunction != NULL && conjuncts == conjunction->conjuncts;
+  const Conjunction* conj = dynamic_cast<const Conjunction*>(&f);
+  return (conj != NULL && conjuncts.size() == conj->conjuncts.size()
+	  && equal(conjuncts.begin(), conjuncts.end(), conj->conjuncts.begin(),
+		   equal_to<const Formula*>()));
 }
 
 
@@ -1001,21 +853,6 @@ Cost Disjunction::cost(const hash_map<const Formula*, Cost>& atom_cost,
 }
 
 
-/* Fills the provided lists with goals achievable by this formula. */
-void Disjunction::achievable_goals(AtomList& goals,
-				   FormulaList& neg_goals) const {
-  disjuncts.achievable_goals(goals, neg_goals);
-}
-
-
-/* Fills the provided sets with predicates achievable by this
-   formula. */
-void Disjunction::achievable_predicates(hash_set<string>& preds,
-					hash_set<string>& neg_preds) const {
-  disjuncts.achievable_predicates(preds, neg_preds);
-}
-
-
 /* Checks if this formula is equivalent to the given formula.  Two
    formulas is equivalent if they only differ in the choice of
    variable names. */
@@ -1037,8 +874,10 @@ void Disjunction::print(ostream& os) const {
 
 /* Checks if this formula equals the given formula. */
 bool Disjunction::equals(const Formula& f) const {
-  const Disjunction* disjunction = dynamic_cast<const Disjunction*>(&f);
-  return disjunction != NULL && disjuncts == disjunction->disjuncts;
+  const Disjunction* disj = dynamic_cast<const Disjunction*>(&f);
+  return (disj != NULL && disjuncts.size() == disj->disjuncts.size()
+	  && equal(disjuncts.begin(), disjuncts.end(), disj->disjuncts.begin(),
+		   equal_to<const Formula*>()));
 }
 
 
@@ -1105,8 +944,11 @@ void ExistsFormula::print(ostream& os) const {
 /* Checks if this formula equals the given formula. */
 bool ExistsFormula::equals(const Formula& f) const {
   const ExistsFormula* exists = dynamic_cast<const ExistsFormula*>(&f);
-  return (exists != NULL
-	  && parameters == exists->parameters && body == exists->body);
+  return (exists != NULL && parameters.size() == exists->parameters.size()
+	  && equal(parameters.begin(), parameters.end(),
+		   exists->parameters.begin(),
+		   equal_to<const EqualityComparable*>())
+	  && body == exists->body);
 }
 
 
@@ -1169,8 +1011,11 @@ void ForallFormula::print(ostream& os) const {
 /* Checks if this formula equals the given formula. */
 bool ForallFormula::equals(const Formula& f) const {
   const ForallFormula* forall = dynamic_cast<const ForallFormula*>(&f);
-  return (forall != NULL
-	  && parameters == forall->parameters && body == forall->body);
+  return (forall != NULL && parameters.size() == forall->parameters.size()
+	  && equal(parameters.begin(), parameters.end(),
+		   forall->parameters.begin(),
+		   equal_to<const EqualityComparable*>())
+	  && body == forall->body);
 }
 
 

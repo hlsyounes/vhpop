@@ -1,5 +1,5 @@
 /*
- * $Id: domains.cc,v 1.17 2001-10-06 15:06:15 lorens Exp $
+ * $Id: domains.cc,v 1.18 2001-10-06 22:54:40 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -19,10 +19,10 @@ size_t Predicate::arity() const {
 /* Prints this predicate on the given stream. */
 void Predicate::print(ostream& os) const {
   os << '(' << name;
-  for (VLCI i = parameters.begin(); i != parameters.end(); i++) {
-    os << ' ' << **i;
-    if (!(*i)->type.object()) {
-      os << " - " << (*i)->type;
+  for (VarListIter vi = parameters.begin(); vi != parameters.end(); vi++) {
+    os << ' ' << **vi;
+    if (!(*vi)->type.object()) {
+      os << " - " << (*vi)->type;
     }
   }
   os << ')';
@@ -71,15 +71,15 @@ void Effect::instantiations(EffectList& effects, const SubstitutionList& subst,
     }
   } else {
     SubstitutionList args;
-    for (SLCI i = subst.begin(); i != subst.end(); i++) {
-      const Substitution& s = **i;
+    for (SubstListIter si = subst.begin(); si != subst.end(); si++) {
+      const Substitution& s = **si;
       if (!forall.contains(s.var)) {
 	args.push_back(&s);
       }
     }
     vector<NameList*, container_alloc> arguments;
     vector<NameList::const_iterator> next_arg;
-    for (VLCI vi = forall.begin(); vi != forall.end(); vi++) {
+    for (VarListIter vi = forall.begin(); vi != forall.end(); vi++) {
       arguments.push_back(new NameList());
       problem.compatible_objects(*arguments.back(), (*vi)->type);
       if (arguments.back()->empty()) {
@@ -129,8 +129,8 @@ const Effect& Effect::substitution(const SubstitutionList& subst) const {
 			del_list.substitution(subst)));
   } else {
     SubstitutionList eff_subst;
-    for (SLCI i = subst.begin(); i != subst.end(); i++) {
-      const Substitution& s = **i;
+    for (SubstListIter si = subst.begin(); si != subst.end(); si++) {
+      const Substitution& s = **si;
       if (!forall.contains(s.var)) {
 	eff_subst.push_back(&s);
       }
@@ -276,7 +276,7 @@ void Action::achievable_predicates(hash_set<string>& preds,
 /* Returns a formula representing this action. */
 const Atom& ActionSchema::action_formula() const {
   TermList& terms = *(new TermList());
-  for (VLCI vi = parameters.begin(); vi != parameters.end(); vi++) {
+  for (VarListIter vi = parameters.begin(); vi != parameters.end(); vi++) {
     terms.push_back(*vi);
   }
   return *(new Atom(name, terms));
@@ -289,9 +289,9 @@ void ActionSchema::instantiations(ActionList& actions,
 				  const Problem& problem) const {
   vector<NameList*, container_alloc> arguments;
   vector<NameList::const_iterator> next_arg;
-  for (VLCI i = parameters.begin(); i != parameters.end(); i++) {
+  for (VarListIter vi = parameters.begin(); vi != parameters.end(); vi++) {
     arguments.push_back(new NameList());
-    problem.compatible_objects(*arguments.back(), (*i)->type);
+    problem.compatible_objects(*arguments.back(), (*vi)->type);
     if (arguments.back()->empty()) {
       return;
     }
@@ -308,8 +308,8 @@ void ActionSchema::instantiations(ActionList& actions,
 	if (!new_effects.empty()) {
 	  /* consistent instantiation */
 	  TermList& terms = *(new TermList());
-	  for (SLCI s = args.begin(); s != args.end(); s++) {
-	    terms.push_back(&(*s)->term);
+	  for (SubstListIter si = args.begin(); si != args.end(); si++) {
+	    terms.push_back(&(*si)->term);
 	  }
 	  actions.push_back(new GroundAction(name, terms, new_precond,
 					     new_effects));
@@ -340,13 +340,13 @@ void ActionSchema::instantiations(ActionList& actions,
 /* Prints this action on the given stream. */
 void ActionSchema::print(ostream& os) const {
   os << '(' << name << " (";
-  for (VLCI i = parameters.begin(); i != parameters.end(); i++) {
-    if (i != parameters.begin()) {
+  for (VarListIter vi = parameters.begin(); vi != parameters.end(); vi++) {
+    if (vi != parameters.begin()) {
       os << ' ';
     }
-    os << **i;
-    if (!(*i)->type.object()) {
-      os << " - " << (*i)->type;
+    os << **vi;
+    if (!(*vi)->type.object()) {
+      os << " - " << (*vi)->type;
     }
   }
   os << ") ";
@@ -447,8 +447,8 @@ size_t GroundAction::hash_value() const {
 /* Returns the type with the given name, or NULL if it is
    undefined. */
 const Type* Domain::find_type(const string& name) const {
-  TypeMap::const_iterator i = types.find(name);
-  return (i != types.end()) ? (*i).second : NULL;
+  TypeMapIter ti = types.find(name);
+  return (ti != types.end()) ? (*ti).second : NULL;
 }
 
 
@@ -513,11 +513,11 @@ hash_set<string> Domain::static_predicates(const PredicateMap& predicates,
 void Domain::print(ostream& os) const {
   os << "name: " << name;
   os << endl << "types:";
-  for (TypeMap::const_iterator i = types.begin(); i != types.end(); i++) {
-    if (!(*i).second->object()) {
-      os << ' ' << *(*i).second;
-      if (!(*i).second->supertype.object()) {
-	os << " - " << (*i).second->supertype;
+  for (TypeMapIter ti = types.begin(); ti != types.end(); ti++) {
+    if (!(*ti).second->object()) {
+      os << ' ' << *(*ti).second;
+      if (!(*ti).second->supertype.object()) {
+	os << " - " << (*ti).second->supertype;
       }
     }
   }
