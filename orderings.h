@@ -16,13 +16,14 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.h,v 6.4 2003-09-08 21:28:07 lorens Exp $
+ * $Id: orderings.h,v 6.5 2003-09-18 21:49:47 lorens Exp $
  */
 #ifndef ORDERINGS_H
 #define ORDERINGS_H
 
 #include <config.h>
 #include "formulas.h"
+#include "chain.h"
 
 struct Step;
 struct Effect;
@@ -246,7 +247,7 @@ private:
 /* ====================================================================== */
 /* TemporalOrderings */
 
-struct FloatVector;
+struct IntVector;
 
 /*
  * Collection of temporal ordering constraints.
@@ -269,6 +270,9 @@ struct TemporalOrderings : public Orderings {
   /* Returns the the ordering collection with the given additions. */
   const TemporalOrderings* refine(size_t step_id,
 				  float min_start, float min_end) const;
+
+  /* Returns the ordering collection with the given additions. */
+  const TemporalOrderings* refine(float time, const Step& new_step) const;
 
   /* Returns the ordering collection with the given addition. */
   virtual const TemporalOrderings* refine(const Ordering& new_ordering) const;
@@ -294,7 +298,9 @@ protected:
 
 private:
   /* Matrix representing the minimal network for the ordering constraints. */
-  std::vector<const FloatVector*> distance_;
+  std::vector<const IntVector*> distance_;
+  /* Steps that are linked to the goal. */
+  const Chain<size_t>* goal_achievers_;
 
   /* Constructs a copy of this ordering collection. */
   TemporalOrderings(const TemporalOrderings& o);
@@ -305,15 +311,15 @@ private:
   }
 
   /* Returns the maximum distance from the first and the second time node. */
-  float distance(size_t t1, size_t t2) const;
+  int distance(size_t t1, size_t t2) const;
 
   /* Sets the maximum distance from the first and the second time node. */
-  void set_distance(std::map<size_t, FloatVector*>& own_data,
-		    size_t t1, size_t t2, float d);
+  void set_distance(std::map<size_t, IntVector*>& own_data,
+		    size_t t1, size_t t2, int d);
 
   /* Updates the transitive closure given a new ordering constraint. */
-  bool fill_transitive(std::map<size_t, FloatVector*>& own_data,
-		       size_t i, size_t j, float dist);
+  bool fill_transitive(std::map<size_t, IntVector*>& own_data,
+		       size_t i, size_t j, int dist);
 };
 
 
