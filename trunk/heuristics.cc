@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 4.5 2002-12-17 17:06:06 lorens Exp $
+ * $Id: heuristics.cc,v 4.6 2002-12-17 18:30:40 lorens Exp $
  */
 #include "heuristics.h"
 #include "plans.h"
@@ -486,30 +486,6 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
   }
 
   /*
-   * Remove actions with no contributing effects.
-   */
-  size_t nactions = actions.size();
-  for (size_t i = 0; i < nactions; ) {
-    const Action& action = *actions[i];
-    bool useful_effect = false;
-    for (EffectListIter ei = action.effects().begin();
-	 ei != action.effects().end() && ! useful_effect; ei++) {
-      const Effect& effect = **ei;
-      if (!effect.link_condition().contradiction()) {
-	useful_effect = true;
-      }
-    }
-    if (useful_effect) {
-      i++;
-    } else {
-      nactions--;
-      delete actions[i];
-      actions[i] = actions[nactions];
-    }
-  }
-  actions.resize(nactions);
-  
-  /*
    * Add initial conditions at level 0.
    */
   for (AtomListIter gi = problem.init().add_list().begin();
@@ -724,19 +700,21 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
    * actions domains constraints for these actions, if called for.
    */
   GroundActionSet good_actions;
-  for (GroundActionSetIter ai = applicable_actions.begin();
-       ai != applicable_actions.end(); ai++) {
-    const GroundAction& action = **ai;
-    if (useful_actions.find(&action) != useful_actions.end()) {
-      good_actions.insert(&action);
-      if (domain_constraints && !action.arguments().empty()) {
-	ActionDomainMapIter di = action_domains_.find(action.name());
-	if (di == action_domains_.end()) {
-	  ActionDomain* domain = new ActionDomain(action.arguments());
-	  ActionDomain::register_use(domain);
-	  action_domains_.insert(std::make_pair(action.name(), domain));
-	} else {
-	  (*di).second->add(action.arguments());
+  if (verbosity > 1 || domain_constraints) {
+    for (GroundActionSetIter ai = applicable_actions.begin();
+	 ai != applicable_actions.end(); ai++) {
+      const GroundAction& action = **ai;
+      if (useful_actions.find(&action) != useful_actions.end()) {
+	good_actions.insert(&action);
+	if (domain_constraints && !action.arguments().empty()) {
+	  ActionDomainMapIter di = action_domains_.find(action.name());
+	  if (di == action_domains_.end()) {
+	    ActionDomain* domain = new ActionDomain(action.arguments());
+	    ActionDomain::register_use(domain);
+	    action_domains_.insert(std::make_pair(action.name(), domain));
+	  } else {
+	    (*di).second->add(action.arguments());
+	  }
 	}
       }
     }
@@ -745,8 +723,10 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
   if (verbosity > 0) {
     std::cerr << "Applicable actions: " << applicable_actions.size()
 	      << std::endl
-	      << "Useful actions: " << useful_actions.size() << std::endl
-	      << "Good actions: " << good_actions.size() << std::endl;
+	      << "Useful actions: " << useful_actions.size() << std::endl;
+    if (verbosity > 1) {
+      std::cerr << "Good actions: " << good_actions.size() << std::endl;
+    }
   }
 
 
