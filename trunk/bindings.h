@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.h,v 6.3 2003-07-21 01:58:15 lorens Exp $
+ * $Id: bindings.h,v 6.4 2003-07-21 18:17:22 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
@@ -253,8 +253,8 @@ struct Bindings {
   /* Creates a collection of variable bindings with the given equality
      and inequality bindings. Parameter constrains are used if pg is
      not NULL. */
-  static const Bindings* make_bindings(const Chain<Step>* steps,
-				       const PlanningGraph* pg);
+  static const Bindings* make(const Chain<Step>* steps,
+			      const PlanningGraph* pg);
 
   /* Checks if the given formulas can be unified. */
   static bool unifiable(const Literal& l1, size_t id1,

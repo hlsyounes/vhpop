@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.cc,v 6.3 2003-07-21 01:57:48 lorens Exp $
+ * $Id: bindings.cc,v 6.4 2003-07-21 18:17:13 lorens Exp $
  */
 #include "bindings.h"
 #include "plans.h"
@@ -193,8 +193,8 @@ struct Varset {
   }
 
   /* Returns the varset representing the given equality binding. */
-  static const Varset* make_varset(const Chain<Varset>*& vsc,
-				   const Binding& b, bool reverse = false) {
+  static const Varset* make(const Chain<Varset>*& vsc, const Binding& b,
+			    bool reverse = false) {
     if (b.equality()) {
       const Chain<StepVariable>* cd_set =
 	new Chain<StepVariable>(std::make_pair(b.var(), b.var_id()), NULL);
@@ -649,8 +649,8 @@ std::ostream& operator<<(std::ostream& os, const ActionDomain& ad) {
 
 /* Creates a collection of variable bindings with the given equality
    and inequality bindings. */
-const Bindings* Bindings::make_bindings(const Chain<Step>* steps,
-					const PlanningGraph* pg) {
+const Bindings* Bindings::make(const Chain<Step>* steps,
+			       const PlanningGraph* pg) {
   const Chain<StepDomain>* step_domains = NULL;
   for (const Chain<Step>* sc = steps; sc != NULL; sc = sc->tail) {
     const Step& step = sc->head;
@@ -1006,7 +1006,7 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 	}
       } else {
 	/* None of the terms are already bound. */
-	comb = Varset::make_varset(varsets, bind);
+	comb = Varset::make(varsets, bind);
       }
       if (comb == NULL) {
 	/* Binding is inconsistent with current bindings. */
@@ -1175,7 +1175,7 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 	bool separate2 = true;
 	if (vs1 == NULL) {
 	  /* The first term is unbound, so create a new varset for it. */
-	  vs1 = Varset::make_varset(varsets, bind);
+	  vs1 = Varset::make(varsets, bind);
 	} else {
 	  if (is_variable(bind.term())) {
 	    /* The second term is a variable. */
@@ -1194,7 +1194,7 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 	}
 	if (vs2 == NULL) {
 	  /* The second term is unbound, so create a new varset for it. */
-	  vs2 = Varset::make_varset(varsets, bind, true);
+	  vs2 = Varset::make(varsets, bind, true);
 	} else if (vs2->excludes(bind.var(), bind.var_id())) {
 	  /* The first term is already separated from the second. */
 	  separate2 = false;
