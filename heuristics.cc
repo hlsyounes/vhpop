@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 6.6 2003-09-01 19:42:01 lorens Exp $
+ * $Id: heuristics.cc,v 6.7 2003-09-01 20:53:01 lorens Exp $
  */
 #include "heuristics.h"
 #include "plans.h"
@@ -401,9 +401,11 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
   /*
    * Add initial conditions at level 0.
    */
-  for (AtomSet::const_iterator gi = problem.init_atoms().begin();
-       gi != problem.init_atoms().end(); gi++) {
-    const Atom& atom = **gi;
+  const GroundAction& ia = problem.init_action();
+  for (EffectList::const_iterator ei = ia.effects().begin();
+       ei != ia.effects().end(); ei++) {
+    const Atom& atom = dynamic_cast<const Atom&>((*ei)->literal());
+    achievers_[&atom].insert(std::make_pair(&ia, *ei));
     if (problem.domain().predicates().static_predicate(atom.predicate())) {
       atom_values_.insert(std::make_pair(&atom, HeuristicValue::ZERO));
     } else {
@@ -694,7 +696,9 @@ PlanningGraph::~PlanningGraph() {
        lai != achievers_.end(); lai++) {
     for (ActionEffectMap::const_iterator aei = (*lai).second.begin();
 	 aei != (*lai).second.end(); aei++) {
-      useful_actions.insert(dynamic_cast<const GroundAction*>((*aei).first));
+      if ((*aei).first != &problem().init_action()) {
+	useful_actions.insert(dynamic_cast<const GroundAction*>((*aei).first));
+      }
     }
   }
   for (GroundActionSet::const_iterator ai = useful_actions.begin();
