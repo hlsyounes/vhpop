@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.44 2002-01-01 22:26:32 lorens Exp $
+ * $Id: plans.cc,v 1.45 2002-01-02 19:28:21 lorens Exp $
  */
 #include <queue>
 #include <algorithm>
@@ -49,8 +49,7 @@ static bool static_pred_flaw;
 /* Constructs a causal link. */
 Link::Link(size_t from_id, const LiteralOpenCondition& open_cond)
   : from_id(from_id), to_id(open_cond.step_id),
-    condition(open_cond.literal), reason(open_cond.reason) {
-}
+    condition(open_cond.literal), reason(open_cond.reason) {}
 
 
 /* Prints this causal link. */
@@ -66,8 +65,7 @@ void Link::print(ostream& os) const {
 Step::Step(size_t id, const Formula& precondition, const EffectList& effects,
 	   const Reason& reason)
   : id(id), action(NULL), precondition(precondition.instantiation(id)),
-    effects(effects.instantiation(id)), reason(reason), formula(NULL) {
-}
+    effects(effects.instantiation(id)), reason(reason), formula(NULL) {}
 
 
 /* Constructs a step instantiated from an action. */
@@ -78,7 +76,19 @@ Step::Step(size_t id, const Action& action, const Reason& reason)
 		 : action.precondition),
     effects((typeid(action) == typeid(ActionSchema))
 	    ? action.effects.instantiation(id) : action.effects),
-    reason(reason), formula(NULL) {
+    reason(reason), formula(NULL) {}
+
+
+/* Constructs a step. */
+Step::Step(size_t id, const Action* action, const Formula& precondition,
+	   const EffectList& effects, const Reason& reason)
+  : id(id), action(action), precondition(precondition), effects(effects),
+    reason(reason) {}
+
+
+/* Returns a copy of this step with a new reason. */
+const Step& Step::new_reason(const Reason& reason) const {
+  return *(new Step(id, action, precondition, effects, reason));
 }
 
 
@@ -104,16 +114,6 @@ const Atom* Step::step_formula() const {
 struct PlanQueue : public priority_queue<const Plan*, Vector<const Plan*>,
 		   less<const LessThanComparable*> > {
 };
-
-
-/*
- * A list of steps.
- */
-struct StepList : public Vector<const Step*> {
-};
-
-/* Iterator for step lists. */
-typedef StepList::const_iterator StepListIter;
 
 
 /* Id of goal step. */
@@ -257,7 +257,7 @@ const Plan* Plan::make_initial_plan(const Problem& problem) {
   }
   /* Return initial plan. */
   return new Plan(steps, 0, NULL, 0, NULL, 0, open_conds, num_open_conds,
-		  *bindings, *(new Orderings()), NULL);
+		  *(new Orderings()), *bindings, NULL);
 }
 
 
@@ -274,7 +274,7 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
   if (params->ground_actions || params->domain_constraints
       || params->heuristic.needs_planning_graph()
       || params->flaw_order.needs_planning_graph()) {
-    planning_graph = new PlanningGraph(problem);
+    planning_graph = new PlanningGraph(problem, params->domain_constraints);
   } else {
     planning_graph = NULL;
   }
@@ -460,14 +460,14 @@ Plan::Plan(const StepChain* steps, size_t num_steps,
 	   const LinkChain* links, size_t num_links,
 	   const UnsafeChain* unsafes, size_t num_unsafes,
 	   const OpenConditionChain* open_conds, size_t num_open_conds,
-	   const Bindings& bindings, const Orderings& orderings,
+	   const Orderings& orderings, const Bindings& bindings,
 	   const Plan* parent, PlanType type)
   : depth((parent != NULL) ? parent->depth + 1 : 0),
     steps(steps), num_steps(num_steps),
     links(links), num_links(num_links),
     unsafes(unsafes), num_unsafes(num_unsafes),
     open_conds(open_conds), num_open_conds(num_open_conds),
-    bindings_(bindings), orderings_(orderings),
+    orderings(orderings), bindings_(bindings),
     parent_(params->transformational
 	    ? ((parent != NULL && parent->type_ == INTERMEDIATE_PLAN)
 	       ? parent->parent_ : parent)
@@ -502,7 +502,8 @@ const Bindings* Plan::bindings() const {
    signifies a better plan. */
 double Plan::primary_rank() const {
   if (rank_.empty()) {
-    params->heuristic.plan_rank(rank_, *this, params->weight, planning_graph);
+    params->heuristic.plan_rank(rank_, *this, params->weight, *domain,
+				planning_graph);
   }
   return rank_[0];
 }
@@ -558,7 +559,7 @@ void Plan::print(ostream& os) const {
       seen_steps.insert(step.id);
       StepList::iterator si = ordered_steps.begin();
       for (; si != ordered_steps.end(); si++) {
-	if (orderings_.before(step.id, (*si)->id)) {
+	if (orderings.before(step.id, (*si)->id)) {
 	  break;
 	}
       }
@@ -624,8 +625,8 @@ void Plan::print(ostream& os) const {
 	}
       }
     }
+    os << endl << "orderings = " << orderings;
     os << endl << "bindings = " << bindings_;
-    os << endl << "orderings = " << orderings_;
   }
 }
 
@@ -654,8 +655,8 @@ void Plan::refinements(PlanList& plans) const {
 /* Handles an unsafe link. */
 void Plan::handle_unsafe(PlanList& plans, const Unsafe& unsafe) const {
   size_t num_prev_plans = plans.size();
-  if (orderings_.possibly_before(unsafe.link.from_id, unsafe.step_id) &&
-      orderings_.possibly_after(unsafe.link.to_id, unsafe.step_id) &&
+  if (orderings.possibly_before(unsafe.link.from_id, unsafe.step_id) &&
+      orderings.possibly_after(unsafe.link.to_id, unsafe.step_id) &&
       bindings_.affects(unsafe.effect_add, unsafe.link.condition)) {
     separate(plans, unsafe);
     promote(plans, unsafe);
@@ -679,7 +680,7 @@ void Plan::handle_unsafe(PlanList& plans, const Unsafe& unsafe) const {
     plans.push_back(new Plan(steps, num_steps, links, num_links,
 			     unsafes->remove(&unsafe), num_unsafes - 1,
 			     open_conds, num_open_conds,
-			     bindings_, orderings_, this));
+			     orderings, bindings_, this));
   }
 }
 
@@ -726,7 +727,7 @@ void Plan::separate(PlanList& plans, const Unsafe& unsafe) const {
       plans.push_back(new Plan(steps, num_steps, links, num_links,
 			       unsafes->remove(&unsafe), num_unsafes - 1,
 			       new_open_conds, new_num_open_conds,
-			       *bindings, orderings_, this));
+			       orderings, *bindings, this));
     }
   }
 }
@@ -736,7 +737,7 @@ void Plan::separate(PlanList& plans, const Unsafe& unsafe) const {
 void Plan::demote(PlanList& plans, const Unsafe& unsafe) const {
   size_t before_id = unsafe.step_id;
   size_t after_id = unsafe.link.from_id;
-  if (orderings_.possibly_before(before_id, after_id)) {
+  if (orderings.possibly_before(before_id, after_id)) {
     new_ordering(plans, before_id, after_id, unsafe);
   }
 }
@@ -746,7 +747,7 @@ void Plan::demote(PlanList& plans, const Unsafe& unsafe) const {
 void Plan::promote(PlanList& plans, const Unsafe& unsafe) const {
   size_t before_id = unsafe.link.to_id;
   size_t after_id = unsafe.step_id;
-  if (orderings_.possibly_before(before_id, after_id)) {
+  if (orderings.possibly_before(before_id, after_id)) {
     new_ordering(plans, before_id, after_id, unsafe);
   }
 }
@@ -762,7 +763,7 @@ void Plan::new_ordering(PlanList& plans, size_t before_id, size_t after_id,
   plans.push_back(new Plan(steps, num_steps, links, num_links,
 			   unsafes->remove(&unsafe), num_unsafes - 1,
 			   open_conds, num_open_conds,
-			   bindings_, orderings_.refine(ordering), this));
+			   orderings.refine(ordering), bindings_, this));
 }
 
 
@@ -809,7 +810,7 @@ Plan::handle_disjunction(PlanList& plans,
 	plans.push_back(new Plan(steps, num_steps, links, num_links,
 				 unsafes, num_unsafes,
 				 new_open_conds, new_num_open_conds,
-				 *bindings, orderings_, this));
+				 orderings, *bindings, this));
       }
     }
   }
@@ -861,7 +862,7 @@ void Plan::handle_inequality(PlanList& plans,
 			       unsafes, num_unsafes,
 			       open_conds->remove(&open_cond),
 			       num_open_conds - 1,
-			       *bindings, orderings_, this));
+			       orderings, *bindings, this));
     }
   }
 }
@@ -907,7 +908,7 @@ void Plan::reuse_step(PlanList& plans,
   for (const StepChain* sc = steps; sc != NULL; sc = sc->tail) {
     const Step& step = *sc->head;
     if (seen_steps.find(step.id) == seen_steps.end() &&
-	orderings_.possibly_before(step.id, open_cond.step_id)) {
+	orderings.possibly_before(step.id, open_cond.step_id)) {
       seen_steps.insert(step.id);
       const Link& link = *(new Link(step.id, open_cond));
       const Reason& establish_reason = EstablishReason::make(*params, link);
@@ -999,7 +1000,7 @@ void Plan::new_cw_link(PlanList& plans, const Step& step,
 			       new LinkChain(&link, links), num_links + 1,
 			       unsafes, num_unsafes,
 			       new_open_conds, new_num_open_conds,
-			       *bindings, orderings_, this));
+			       orderings, *bindings, this));
     }
   }
 }
@@ -1011,6 +1012,9 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
 			    const LiteralOpenCondition& open_cond,
 			    const Link& link, const Reason& reason,
 			    const SubstitutionList& unifier) const {
+  /*
+   * Add bindings needed to unify effect and goal.
+   */
   const VariableList& effect_forall = effect.forall;
   BindingList new_bindings;
   for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
@@ -1019,6 +1023,10 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
       new_bindings.push_back(new EqualityBinding(subst, reason));
     }
   }
+
+  /*
+   * If the effect is conditional, add condition as goal.
+   */
   const OpenConditionChain* new_open_conds = open_conds->remove(&open_cond);
   size_t new_num_open_conds = num_open_conds - 1;
   const Formula* cond_goal = NULL;
@@ -1040,6 +1048,10 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
       return NULL;
     }
   }
+
+  /*
+   * See if this is a new step.
+   */
   const Bindings* bindings = &bindings_;
   const StepChain* new_steps = steps;
   size_t new_num_steps = num_steps;
@@ -1057,6 +1069,8 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
     }
     new_steps = new StepChain(&step, new_steps);
     new_num_steps++;
+  } else if (params->transformational) {
+    new_steps = new StepChain(&step.new_reason(reason), new_steps);
   }
   bindings = bindings->add(new_bindings);
   if (bindings == NULL) {
@@ -1064,15 +1078,19 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
   }
   const Ordering& ordering =
     *(new Ordering(step.id, open_cond.step_id, reason));
-  const Orderings& orderings = orderings_.refine(ordering, step.id);
+  const Orderings& new_orderings = orderings.refine(ordering, step.id);
+
+  /*
+   * Find any threats to the newly established link.
+   */
   const UnsafeChain* new_unsafes = unsafes;
   size_t new_num_unsafes = num_unsafes;
   hash_set<size_t> seen_steps;
   for (const StepChain* sc = steps; sc != NULL; sc = sc->tail) {
     const Step& s = *sc->head;
     if (seen_steps.find(s.id) == seen_steps.end() &&
-	orderings.possibly_before(link.from_id, s.id) &&
-	orderings.possibly_after(link.to_id, s.id)) {
+	new_orderings.possibly_before(link.from_id, s.id) &&
+	new_orderings.possibly_after(link.to_id, s.id)) {
       seen_steps.insert(s.id);
       const EffectList& effects = s.effects;
       for (EffectListIter ei = effects.begin(); ei != effects.end(); ei++) {
@@ -1098,11 +1116,15 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
       }
     }
   }
+
+  /*
+   * If this is a new step, find links it threatens.
+   */
   if (step.id > high_step_id_) {
     for (const LinkChain* lc = links; lc != NULL; lc = lc->tail) {
       const Link& l = *lc->head;
-      if (orderings.possibly_before(l.from_id, step.id) &&
-	  orderings.possibly_after(l.to_id, step.id)) {
+      if (new_orderings.possibly_before(l.from_id, step.id) &&
+	  new_orderings.possibly_after(l.to_id, step.id)) {
 	const EffectList& effects = step.effects;
 	for (EffectListIter ei = effects.begin(); ei != effects.end(); ei++) {
 	  const Effect& e = **ei;
@@ -1128,11 +1150,13 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
       }
     }
   }
+
+  /* Return the new plan. */
   return new Plan(new_steps, new_num_steps,
 		  new LinkChain(&link, links), num_links + 1,
 		  new_unsafes, new_num_unsafes,
 		  new_open_conds, new_num_open_conds,
-		  *bindings, orderings, this);
+		  new_orderings, *bindings, this);
 }
 
 
@@ -1378,7 +1402,7 @@ pair<const Plan*, const OpenCondition*> Plan::unlink(const Link& link) const {
   size_t new_num_open_conds = num_open_conds;
   const BindingChain* equalities = bindings_.equalities;
   const BindingChain* inequalities = bindings_.inequalities;
-  const OrderingChain* orderings = orderings_.orderings();
+  const OrderingChain* new_orderings = orderings.orderings();
   const LinkChain* new_links = links;
   size_t new_num_links = num_links;
   LinkStack exposed_links;
@@ -1408,7 +1432,7 @@ pair<const Plan*, const OpenCondition*> Plan::unlink(const Link& link) const {
       /* remove any reason involving link for steps */
       new_steps = remove_steps(exposed_steps, new_steps, l);
       /* remove any reason involving link for orderings */
-      orderings = remove_orderings(orderings, l);
+      new_orderings = remove_orderings(new_orderings, l);
       /* remove any reason involving link for bindings */
       equalities = remove_bindings(equalities, l);
       inequalities = remove_bindings(inequalities, l);
@@ -1430,7 +1454,7 @@ pair<const Plan*, const OpenCondition*> Plan::unlink(const Link& link) const {
       new_open_conds =
 	remove_open_conditions(new_open_conds, new_num_open_conds, s);
       /* remove any reason involving step for orderings */
-      orderings = remove_orderings(orderings, s);
+      new_orderings = remove_orderings(new_orderings, s);
       /* remove any reason involving step for bindings */
       equalities = remove_bindings(equalities, s);
       inequalities = remove_bindings(inequalities, s);
@@ -1439,9 +1463,10 @@ pair<const Plan*, const OpenCondition*> Plan::unlink(const Link& link) const {
   const Plan* plan =
     new Plan(new_steps, new_num_steps, new_links, new_num_links,
 	     new_unsafes, new_num_unsafes, new_open_conds, new_num_open_conds,
+	     *(new Orderings(new_steps, new_orderings)),
 	     *(Bindings::make_bindings(new_steps, planning_graph,
 				       equalities, inequalities)),
-	     *(new Orderings(new_steps, orderings)), this, INTERMEDIATE_PLAN);
+	     this, INTERMEDIATE_PLAN);
   return pair<const Plan*, const OpenCondition*>(plan, link_cond);
 }
 
@@ -1524,29 +1549,15 @@ bool Plan::equivalent(const Plan& p) const {
 
 #if 0
 void Plan::h_rank() const {
-  if (rank1_ >= 0) {
-    return;
-  }
-  if (params->heuristic.oc()) {
-    rank1_ = num_steps + num_open_conds;
-    rank2_ = 0;
-    return;
-  }
-  if (params->heuristic.ucpop()) {
-    rank1_ = num_steps + num_open_conds + num_unsafes;
-    rank2_ = 0;
-    return;
-  }
   CostGraph cg;
   cg.add_node(0, 1);
   hash_map<size_t, size_t> step_nodes;
-  hash_map<const Formula*, size_t> f_nodes;
-  size_t goal_node = make_node(cg, step_nodes, f_nodes, GOAL_ID);
+  size_t goal_node = make_node(cg, step_nodes, GOAL_ID);
   if (params->heuristic.max()) {
-    for (const OrderingChain* ords = orderings_.orderings();
-	 ords != NULL; ords = ords->tail) {
-      cg.set_distance(step_nodes[ords->head->after_id],
-		      step_nodes[ords->head->before_id], 1);
+    for (const OrderingChain* oc = orderings.orderings();
+	 oc != NULL; oc = oc->tail) {
+      const Ordering& ord = *oc->head;
+      cg.set_distance(step_nodes[ord.after_id], step_nodes[ord.before_id], 1);
     }
   }
   if (verbosity > 4) {
@@ -1557,27 +1568,10 @@ void Plan::h_rank() const {
   pair<int, int> cost = cg.cost(goal_node);
   rank1_ = cost.first;
   rank2_ = cost.second;
-#if 0
-  AchievesMap::const_iterator fali = achieves.find(&oc->head->condition);
-  if (fali != achieves.end()) {
-    int l = (*fali).second.size();
-    if (l > high_link
-	|| (l == high_link && params->flaw_order.fifo())) {
-      most_linkable_open_cond_ = oc->head;
-      high_link = l;
-    }
-    if (l < low_link
-	|| (l == low_link && params->flaw_order.fifo())) {
-      least_linkable_open_cond_ = oc->head;
-      low_link = l;
-    }
-  }
-#endif
 }
 
 
 size_t Plan::make_node(CostGraph& cg, hash_map<size_t, size_t>& step_nodes,
-		       hash_map<const Formula*, size_t>& f_nodes,
 		       size_t step_id) const {
   hash_map<size_t, size_t>::const_iterator s = step_nodes.find(step_id);
   if (s != step_nodes.end()) {
@@ -1605,7 +1599,7 @@ size_t Plan::make_node(CostGraph& cg, hash_map<size_t, size_t>& step_nodes,
 	  if (!params->heuristic.sum()
 	      || step_nodes.find(link.from_id) == step_nodes.end()) {
 	    size_t prec_node =
-	      make_node(cg, step_nodes, f_nodes, link.from_id);
+	      make_node(cg, step_nodes, link.from_id);
 	    cg.set_distance(step_node, prec_node, 1);
 	  }
 	}
@@ -1615,7 +1609,7 @@ size_t Plan::make_node(CostGraph& cg, hash_map<size_t, size_t>& step_nodes,
 	 occ != NULL; occ = occ->tail) {
       const OpenCondition& open_cond = *occ->head;
       if (open_cond.step_id == step->id) {
-	size_t prec_node = make_node(cg, step_nodes, f_nodes,
+	size_t prec_node = make_node(cg, step_nodes,
 				     open_cond.condition, open_cond.step_id);
 	cg.set_distance(step_node, prec_node, 0);
 	if (verbosity > 4) {
@@ -1631,32 +1625,7 @@ size_t Plan::make_node(CostGraph& cg, hash_map<size_t, size_t>& step_nodes,
 
 /* Returns a cost graph node for the given formula. */
 size_t Plan::make_node(CostGraph& cg, hash_map<size_t, size_t>& step_nodes,
-		       hash_map<const Formula*, size_t>& f_nodes,
 		       const Formula& cond, size_t step_id) const {
-  if (params->heuristic.sum_reuse()) {
-    hash_map<const Formula*, size_t>::const_iterator f = f_nodes.find(&cond);
-    if (f != f_nodes.end()) {
-      return 1;
-    }
-    // try to reuse step
-    hash_set<size_t> seen_steps;
-    for (const StepChain* sc = steps; sc != NULL; sc = sc->tail) {
-      const Step& step = *sc->head;
-      if (step.id != 0 && seen_steps.find(step.id) == seen_steps.end()
-	  && orderings_.possibly_before(step.id, step_id)) {
-	seen_steps.insert(step.id);
-	const EffectList& effs = step.effects;
-	for (EffectListIter ei = effs.begin(); ei != effs.end(); ei++) {
-	  const AtomList& adds = (*ei)->add_list;
-	  for (AtomListIter j = adds.begin(); j != adds.end(); j++) {
-	    if (bindings_.unify(cond, **j)) {
-	      return 1;
-	    }
-	  }
-	}
-      }
-    }
-  }
   HeuristicValue v = cond.heuristic_value(*planning_graph,
 					  (params->ground_actions
 					   ? NULL : &bindings_));
@@ -1670,7 +1639,6 @@ size_t Plan::make_node(CostGraph& cg, hash_map<size_t, size_t>& step_nodes,
     work = v.sum_work();
   }
   size_t cond_node = cg.add_node(params->weight*cost, work);
-  f_nodes[&cond] = cond_node;
   return cond_node;
 }
 #endif

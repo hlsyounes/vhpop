@@ -2,7 +2,7 @@
 /*
  * Heuristics.
  *
- * $Id: heuristics.h,v 1.12 2002-01-01 17:59:58 lorens Exp $
+ * $Id: heuristics.h,v 1.13 2002-01-02 19:28:29 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
@@ -34,35 +34,22 @@ struct HeuristicValue : public Printable, public gc {
   static const HeuristicValue INFINITE;
 
   /* Constructs a zero heuristic value. */
-  HeuristicValue()
-    : max_cost_(0), max_work_(0), sum_cost_(0), sum_work_(0) {
-  }
+  HeuristicValue();
 
   /* Constructs a heuristic value. */
-  HeuristicValue(int max_cost, int max_work, int sum_cost, int sum_work)
-    : max_cost_(max_cost), max_work_(max_work),
-      sum_cost_(sum_cost), sum_work_(sum_work) {
-  }
+  HeuristicValue(int max_cost, int max_work, int sum_cost, int sum_work);
 
   /* Returns the cost according to the MAX heuristic. */
-  int max_cost() const {
-    return max_cost_;
-  }
+  int max_cost() const;
 
   /* Returns the work according to the MAX heuristic. */
-  int max_work() const {
-    return max_work_;
-  }
+  int max_work() const;
 
   /* Returns the cost according to the SUM heurisitc. */
-  int sum_cost() const {
-    return sum_cost_;
-  }
+  int sum_cost() const;
 
   /* Returns the work according to the SUM heuristic. */
-  int sum_work() const {
-    return sum_work_;
-  }
+  int sum_work() const;
 
   /* Checks if this heuristic value is zero. */
   bool zero() const;
@@ -124,7 +111,7 @@ struct ActionDomain;
  */
 struct PlanningGraph : public gc {
   /* Constructs a planning graph. */
-  PlanningGraph(const Problem& problem);
+  PlanningGraph(const Problem& problem, bool domain_constraints);
 
   /* Returns the heurisitc value of an atom. */
   HeuristicValue heuristic_value(const Atom& atom,
@@ -194,24 +181,30 @@ private:
  */
 struct InvalidHeuristic : public Exception {
   /* Constructs an invalid heuristic exception. */
-  InvalidHeuristic(const string& name)
-    : Exception("invalid heuristic `" + name + "'") {
-  }
+  InvalidHeuristic(const string& name);
 };
 
 
 /*
- * Heuristic.
+ * Heuristic for ranking plans.
  *
- * The MAX heuristic estimates the parallel cost of a plan.  The SUM
- * heuristic estimates the sequential cost of a plan.  The SUMR
- * heuristic is a variant of the SUM heuristic, trying to be more
- * clever about reuse of steps.  The UCPOP is from the UCPOP planner.
+ * LIFO gives priority to plans created later.
+ * FIFO gives priority to plans created earlier.
+ * OC gives priority to plans with few open conditions.
+ * UC gives priority to plans with few threatened links.
+ * BUC gives priority to plans with no threatened links.
+ * S+OC uses h(p) = |S(p)| + w*|OC(p)|.
+ * UCPOP uses h(p) = |S(p)| + w*(|OC(p)| + |UC(p)|.
+ * SUM_COST uses the additive cost heuristic.
+ * SUM_WORK uses the additive work heuristic.
+ * SUM = SUM_COST:SUM_WORK.
+ * SUMR is like SUM, but tries to take reuse into account.
  */
 struct Heuristic {
 private:
   typedef enum { LIFO, FIFO, OC, UC, BUC, S_PLUS_OC, UCPOP,
-		 SUM, SUM_COST, SUM_WORK } HVal;
+		 SUM, SUM_COST, SUM_WORK,
+		 SUMR, SUMR_COST, SUMR_WORK } HVal;
 
 public:
   /* Constructs a heuristic from a name. */
@@ -222,13 +215,12 @@ public:
   /* Selects a heuristic from a name. */
   Heuristic& operator=(const string& name);
 
-  /* Adds another heuristic to this heuristic. */
-  Heuristic& operator+=(const string& name);
-
   /* Checks if this heuristic needs a planning graph. */
   bool needs_planning_graph() const;
 
-  void plan_rank(vector<double>& rank, const Plan& plan, double weight,
+  /* Fills the provided vector with the ranks for the given plan. */
+  void plan_rank(vector<double>& rank, const Plan& plan,
+		 double weight, const Domain& domain,
 		 const PlanningGraph* planning_graph) const;
 
 private:
