@@ -2,7 +2,7 @@
 /*
  * Template chain class.
  *
- * $Id: chain.h,v 1.1 2001-09-04 18:18:16 lorens Exp $
+ * $Id: chain.h,v 1.2 2001-09-04 19:10:43 lorens Exp $
  */
 #ifndef CHAIN_H
 #define CHAIN_H
@@ -11,7 +11,7 @@
 /*
  * Template chain class.
  */
-template<class T>
+template<typename T>
 struct Chain : public gc {
   T head;
   const Chain<T>* tail;
@@ -45,9 +45,23 @@ struct Chain : public gc {
     if (h == head) {
       return tail;
     } else if (tail != NULL) {
-      return new Chain<T>(head, tail->remove(h));
+      Chain<T>* prev = new Chain<T>(head, NULL);
+      const Chain<T>* top = prev;
+      for (const Chain<T>* ci = tail; ci != NULL; ci = ci->tail) {
+	if (h == ci->head) {
+	  prev->tail = ci->tail;
+	  break;
+	} else {
+	  Chain<T>* tmp = new Chain<T>(ci->head, NULL);
+	  prev->tail = tmp;
+	  prev = tmp;
+	}
+      }
+      return top;
     } else {
       return this;
     }
   }
 };
+
+#endif /* CHAIN_H */
