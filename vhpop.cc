@@ -1,7 +1,7 @@
 /*
  * Main program.
  *
- * $Id: vhpop.cc,v 1.17 2001-12-27 19:58:25 lorens Exp $
+ * $Id: vhpop.cc,v 1.18 2001-12-30 15:15:10 lorens Exp $
  */
 #include <iostream>
 #include <cstdio>
@@ -239,14 +239,14 @@ int main(int argc, char* argv[]) {
       /*
        * Display domains and problems.
        */
-      cout << "----------------------------------------"<< endl;
-      cout << "domains:" << endl;
+      cout << "----------------------------------------"<< endl
+	   << "domains:" << endl;
       for (Domain::DomainMapIter di = Domain::begin();
 	   di != Domain::end(); di++) {
 	cout << endl << *(*di).second << endl;
       }
-      cout << "----------------------------------------"<< endl;
-      cout << "problems:" << endl;
+      cout << "----------------------------------------"<< endl
+	   << "problems:" << endl;
       for (Problem::ProblemMapIter pi = Problem::begin();
 	   pi != Problem::end(); pi++) {
 	cout << endl << *(*pi).second << endl;
@@ -269,14 +269,12 @@ int main(int argc, char* argv[]) {
       /* Planning time. */
       double t = 1000000.9
 	- (timer.it_value.tv_sec + timer.it_value.tv_usec*1e-6);
-      if (t < 0.0) {
+      if (t < 1e-3) {
 	t = 0.0;
       }
       if (plan != NULL) {
 	if (plan->complete()) {
-	  /* Set output format for floating point numbers. */
-	  cout.setf(ios::fixed, ios::floatfield);
-	  cout.precision(3);
+	  cout << "Depth of solution: " << plan->depth << endl;
 	  cout << problem.name << ' ' << t << ' ' << *plan << endl;
 	} else {
 	  if (verbosity > 0) {
