@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.9 2001-08-11 06:14:47 lorens Exp $
+ * $Id: plans.cc,v 1.10 2001-08-12 06:53:51 lorens Exp $
  */
 #include <queue>
 #include <hash_set>
@@ -13,8 +13,6 @@
 const size_t Plan::GOAL_ID = UINT_MAX;
 /* Heiristic to use for estimating cost of plan. */
 static Heuristic heuristic = MAX_HEURISTIC;
-/* Whether to allow early linking. */
-static int early_linking = 0;
 /* Whether to allow transformational plan operators. */
 static bool transformations = false;
 /* Verbosity. */
@@ -25,10 +23,13 @@ size_t num_visited_plans = 0;
 size_t Plan::num_generated_plans = 0;
 /* Domain of problem currently being solved. */
 static const Domain* domain = NULL;
-/* List of all actions. */
-static ActionList all_actions;
 /* Maps ground atomic formulas to fully instantiated actions. */
 static hash_map<const Formula*, ActionList> achieves;
+/* Maps predicates to actions. */
+static hash_map<string, ActionList> achieves_pred;
+/* Maps negated predicates to actions. */
+static hash_map<string, ActionList> achieves_neg_pred;
+
 
 /*
  * Abstract reason.
@@ -180,28 +181,10 @@ void Link::print(ostream& os) const {
 }
 
 
-/* Checks if the given open condition is static. */
-static bool static_open_condition(const OpenCondition& open_cond) {
-  const Formula& formula = open_cond.condition;
-  const Negation* negation = dynamic_cast<const Negation*>(&formula);
-  if (negation != NULL) {
-    return domain->static_predicate(negation->atom.predicate);
-  } else {
-    const AtomicFormula* atom = dynamic_cast<const AtomicFormula*>(&formula);
-    if (atom != NULL) {
-      return domain->static_predicate(atom->predicate);
-    } else {
-      return false;
-    }
-  }
-}
-
-
 /* Adds atomic goal to chain of open conditions, and returns true if
    and only if the goal is consistent. */
 static bool add_open_condition(const OpenConditionChain*& open_conds,
 			       size_t& num_open_conds,
-			       size_t& num_static_open_conds,
 			       const Formula& goal, size_t step_id,
 			       const Reason& reason, const LinkChain* links) {
   for (const OpenConditionChain* oc = open_conds; oc != NULL; oc = oc->tail) {
@@ -237,12 +220,22 @@ static bool add_open_condition(const OpenConditionChain*& open_conds,
   /*
    * Add goal as open condition.
    */
-  const OpenCondition& open_cond = *(new OpenCondition(goal, step_id, reason));
-  open_conds = new OpenConditionChain(&open_cond, open_conds);
-  num_open_conds++;
-  if (static_open_condition(open_cond)) {
-    num_static_open_conds++;
+  const OpenCondition* open_cond;
+  const AtomicFormula* atom = dynamic_cast<const AtomicFormula*>(&goal);
+  if (atom != NULL) {
+    open_cond = new PredicateOpenCondition(goal, step_id, reason,
+					   atom->predicate);
+  } else {
+    const Negation* negation = dynamic_cast<const Negation*>(&goal);
+    if (negation != NULL) {
+      open_cond = new PredicateOpenCondition(goal, step_id, reason,
+					     negation->atom.predicate, true);
+    } else {
+      open_cond = new OpenCondition(goal, step_id, reason);
+    }
   }
+  open_conds = new OpenConditionChain(open_cond, open_conds);
+  num_open_conds++;
   return true;
 }
 
@@ -250,9 +243,8 @@ static bool add_open_condition(const OpenConditionChain*& open_conds,
 /* Adds atomic goal to chain of open conditions, and returns true if
    and only if the goal is consistent. */
 static bool add_goal(const OpenConditionChain*& open_conds,
-		     size_t& num_open_conds, size_t& num_static_open_conds,
-		     BindingList& new_bindings, const Formula& goal,
-		     size_t step_id, const Reason& reason,
+		     size_t& num_open_conds, BindingList& new_bindings,
+		     const Formula& goal, size_t step_id, const Reason& reason,
 		     const LinkChain* links = NULL) {
   if (goal == Formula::TRUE) {
     return true;
@@ -324,9 +316,8 @@ static bool add_goal(const OpenConditionChain*& open_conds,
 	      // handle EXISTS
 	      throw Unimplemented("adding existentially quantified goal");
 	    } else {
-	      if (!add_open_condition(open_conds, num_open_conds,
-				      num_static_open_conds, *goal, step_id,
-				      reason, links)) {
+	      if (!add_open_condition(open_conds, num_open_conds, *goal,
+				      step_id, reason, links)) {
 		return false;
 	      }
 	    }
@@ -364,12 +355,10 @@ remove_obsolete_unsafes(const UnsafeChain* unsafes, size_t& num_unsafes,
 
 
 /* Returns plan for given problem. */
-const Plan* Plan::plan(const Problem& problem, Heuristic h, int e, bool g,
+const Plan* Plan::plan(const Problem& problem, Heuristic h, bool g,
 		       bool t, size_t limit, int v) {
   /* Set plan cost heuristic. */
   heuristic = h;
-  /* Set early linking. */
-  early_linking = e;
   /* Set transformations. */
   transformations = t;
   /* Set verbosity. */
@@ -377,7 +366,10 @@ const Plan* Plan::plan(const Problem& problem, Heuristic h, int e, bool g,
   /* Set current domain. */
   domain = &problem.domain;
   /* Extract list of actions */
-  all_actions.clear();
+  ActionList all_actions;
+  achieves.clear();
+  achieves_pred.clear();
+  achieves_neg_pred.clear();
   if (g) {
     problem.instantiated_actions(all_actions);
     for (ActionList::const_iterator i = all_actions.begin();
@@ -404,6 +396,20 @@ const Plan* Plan::plan(const Problem& problem, Heuristic h, int e, bool g,
     for (ActionMap::const_iterator i = domain->actions.begin();
 	 i != domain->actions.end(); i++) {
       all_actions.push_back((*i).second);
+    }
+  }
+  for (ActionList::const_iterator i = all_actions.begin();
+       i != all_actions.end(); i++) {
+    vector<string> preds;
+    vector<string> neg_preds;
+    (*i)->achievable_predicates(preds, neg_preds);
+    for (vector<string>::const_iterator j = preds.begin();
+	 j != preds.end(); j++) {
+      achieves_pred[*j].push_back(*i);
+    }
+    for (vector<string>::const_iterator j = neg_preds.begin();
+	 j != neg_preds.end(); j++) {
+      achieves_neg_pred[*j].push_back(*i);
     }
   }
   /* Reset number of visited plan. */
@@ -543,14 +549,11 @@ const Plan* Plan::make_initial_plan(const Problem& problem) {
   const OpenConditionChain* open_conds = NULL;
   /* Number of open conditions. */
   size_t num_open_conds = 0;
-  /* Number of static open conditions. */
-  size_t num_static_open_conds = 0;
   /* Bindings introduced by goal. */
   BindingList new_bindings;
   /* Add goals as open conditions. */
-  if (!add_goal(open_conds, num_open_conds, num_static_open_conds,
-		new_bindings, goal_step.precondition, goal_step.id,
-		goal_reason)) {
+  if (!add_goal(open_conds, num_open_conds, new_bindings,
+		goal_step.precondition, goal_step.id, goal_reason)) {
     /* Goals are inconsistent. */
     return NULL;
   }
@@ -565,8 +568,7 @@ const Plan* Plan::make_initial_plan(const Problem& problem) {
   }
   /* Return initial plan. */
   return new Plan(steps, 2, 0, NULL, 0, NULL, 0, open_conds, num_open_conds,
-		  num_static_open_conds, NULL, *bindings, *(new Orderings()),
-		  NULL);
+		  NULL, *bindings, *(new Orderings()), NULL);
 }
 
 
@@ -628,8 +630,7 @@ void Plan::handle_unsafe(PlanList& new_plans, const Unsafe& unsafe) const {
     const Plan* p =
       new Plan(steps_, num_steps_, high_step_id_, links_, num_links_,
 	       unsafes_->remove(&unsafe), num_unsafes_ - 1, open_conds_,
-	       num_open_conds_, num_static_open_conds_, open_conds_, bindings_,
-	       orderings_, this);
+	       num_open_conds_, open_conds_, bindings_, orderings_, this);
     new_plans.push_back(p);
   }
 }
@@ -670,13 +671,11 @@ void Plan::separate(PlanList& new_plans, const Unsafe& unsafe) const {
   if (*goal != Formula::FALSE) {
     const OpenConditionChain* open_conds = open_conds_;
     size_t num_open_conds = num_open_conds_;
-    size_t num_static_open_conds = num_static_open_conds_;
     BindingList new_bindings;
     const Reason& protect_reason =
       *(new ProtectReason(unsafe.link, unsafe.step_id));
-    if (add_goal(open_conds, num_open_conds, num_static_open_conds,
-		 new_bindings, *goal, unsafe.step_id, protect_reason,
-		 links_)) {
+    if (add_goal(open_conds, num_open_conds, new_bindings, *goal,
+		 unsafe.step_id, protect_reason, links_)) {
       const Bindings* bindings = bindings_.add(new_bindings);
       if (bindings != NULL) {
 	const UnsafeChain* unsafes = unsafes_->remove(&unsafe);
@@ -688,8 +687,7 @@ void Plan::separate(PlanList& new_plans, const Unsafe& unsafe) const {
 	const Plan* p =
 	  new Plan(steps_, num_steps_, high_step_id_, links_, num_links_,
 		   unsafes, num_unsafes, open_conds, num_open_conds,
-		   num_static_open_conds, open_conds_, *bindings, orderings_,
-		   this);
+		   open_conds_, *bindings, orderings_, this);
 	new_plans.push_back(p);
       }
     }
@@ -732,7 +730,7 @@ void Plan::new_ordering(PlanList& new_plans, const Ordering& ordering,
   const Plan* new_plan =
     new Plan(steps_, num_steps_, high_step_id_, links_, num_links_,
 	     unsafes, num_unsafes, open_conds_, num_open_conds_,
-	     num_static_open_conds_, open_conds_, bindings_, orderings, this);
+	     open_conds_, bindings_, orderings, this);
   new_plans.push_back(new_plan);
 }
 
@@ -828,20 +826,15 @@ remove_unsafes(const UnsafeChain* unsafes,
    given chain involving the given link removed. */
 static const OpenConditionChain*
 remove_open_conditions(const OpenConditionChain* open_conds,
-		       size_t& num_open_conds, size_t& num_static_open_conds,
-		       const Link& link) {
+		       size_t& num_open_conds, const Link& link) {
   if (open_conds == NULL) {
     return NULL;
   } else {
     const OpenConditionChain* tail =
-      remove_open_conditions(open_conds->tail, num_open_conds,
-			     num_static_open_conds, link);
+      remove_open_conditions(open_conds->tail, num_open_conds, link);
     const OpenCondition& open_cond = *open_conds->head;
     if (open_cond.reason.involves(link)) {
       num_open_conds--;
-      if (static_open_condition(open_cond)) {
-	num_static_open_conds--;
-      }
       return tail;
     } else {
       return new OpenConditionChain(&open_cond, tail);
@@ -854,20 +847,15 @@ remove_open_conditions(const OpenConditionChain* open_conds,
    given chain involving the given step removed. */
 static const OpenConditionChain*
 remove_open_conditions(const OpenConditionChain* open_conds,
-		       size_t& num_open_conds, size_t& num_static_open_conds,
-		       const Step& step) {
+		       size_t& num_open_conds, const Step& step) {
   if (open_conds == NULL) {
     return NULL;
   } else {
     const OpenConditionChain* tail =
-      remove_open_conditions(open_conds->tail, num_open_conds,
-			     num_static_open_conds, step);
+      remove_open_conditions(open_conds->tail, num_open_conds, step);
     const OpenCondition& open_cond = *open_conds->head;
     if (open_cond.step_id == step.id) {
       num_open_conds--;
-      if (static_open_condition(open_cond)) {
-	num_static_open_conds--;
-      }
       return tail;
     } else {
       return new OpenConditionChain(&open_cond, tail);
@@ -994,7 +982,6 @@ pair<const Plan*, const OpenCondition*> Plan::unlink(const Link& link) const {
   unsigned int num_unsafes = num_unsafes_;
   const OpenConditionChain* open_conds = open_conds_;
   size_t num_open_conds = num_open_conds_;
-  size_t num_static_open_conds = num_static_open_conds_;
   const BindingChain* equalities = bindings_.equalities;
   const BindingChain* inequalities = bindings_.inequalities;
   const OrderingChain* orderings = orderings_.orderings();
@@ -1012,8 +999,7 @@ pair<const Plan*, const OpenCondition*> Plan::unlink(const Link& link) const {
       num_links--;
       /* remove flaws involving link */
       unsafes = remove_unsafes(unsafes, num_unsafes, l);
-      open_conds = remove_open_conditions(open_conds, num_open_conds,
-					  num_static_open_conds, l);
+      open_conds = remove_open_conditions(open_conds, num_open_conds, l);
       /* add open condition, if still valid */
       const OpenCondition& open_cond =
 	*(new OpenCondition(l.condition, l.to_id, l.reason));
@@ -1023,9 +1009,6 @@ pair<const Plan*, const OpenCondition*> Plan::unlink(const Link& link) const {
       if (valid_open_condition(open_cond, steps, links)) {
 	open_conds = new OpenConditionChain(&open_cond, open_conds);
 	num_open_conds++;
-	if (static_open_condition(open_cond)) {
-	  num_static_open_conds++;
-	}
       }
       /* remove any reason involving link for steps */
       steps = remove_steps(exposed_steps, steps, l);
@@ -1049,8 +1032,7 @@ pair<const Plan*, const OpenCondition*> Plan::unlink(const Link& link) const {
       links = remove_links(exposed_links, links, s);
       /* remove flaws involving step */
       unsafes = remove_unsafes(unsafes, num_unsafes, s);
-      open_conds = remove_open_conditions(open_conds, num_open_conds,
-					  num_static_open_conds, s);
+      open_conds = remove_open_conditions(open_conds, num_open_conds, s);
       /* remove any reason involving step for orderings */
       orderings = remove_orderings(orderings, s);
       /* remove any reason involving step for bindings */
@@ -1063,8 +1045,7 @@ pair<const Plan*, const OpenCondition*> Plan::unlink(const Link& link) const {
      linking of open conditions added during unlinking. */
   const Plan* plan =
     new Plan(steps, num_steps, high_step_id_, links, num_links,
-	     unsafes, num_unsafes, open_conds, num_open_conds,
-	     num_static_open_conds, open_conds,
+	     unsafes, num_unsafes, open_conds, num_open_conds, open_conds,
 	     *(Bindings::make_bindings(equalities, inequalities)),
 	     *(new Orderings(steps, orderings)), this, INTERMEDIATE_PLAN);
   return pair<const Plan*, const OpenCondition*>(plan, link_cond);
@@ -1077,8 +1058,10 @@ void Plan::handle_open_condition(PlanList& new_plans,
   if (disjunction != NULL) {
     handle_disjunction(new_plans, open_cond);
   } else {
-    add_step(new_plans, open_cond);
-    reuse_step(new_plans, open_cond);
+    const PredicateOpenCondition& poc =
+      dynamic_cast<const PredicateOpenCondition&>(open_cond);
+    add_step(new_plans, poc);
+    reuse_step(new_plans, poc);
   }
 }
 
@@ -1093,13 +1076,8 @@ void Plan::handle_disjunction(PlanList& new_plans,
     const OpenConditionChain* open_conds = open_conds_->remove(&open_cond);
     const OpenConditionChain* old_open_conds = open_conds;
     size_t num_open_conds = num_open_conds_ - 1;
-    size_t num_static_open_conds = num_static_open_conds_;
-    if (static_open_condition(open_cond)) {
-      num_static_open_conds--;
-    }
-    if (add_goal(open_conds, num_open_conds, num_static_open_conds,
-		 new_bindings, **g, open_cond.step_id, open_cond.reason,
-		 links_)) {
+    if (add_goal(open_conds, num_open_conds, new_bindings, **g,
+		 open_cond.step_id, open_cond.reason, links_)) {
       const Bindings* bindings;
       bindings = bindings_.add(new_bindings);
       if (bindings != NULL) {
@@ -1112,8 +1090,7 @@ void Plan::handle_disjunction(PlanList& new_plans,
 	const Plan* new_plan =
 	  new Plan(steps_, num_steps_, high_step_id_, links_, num_links_,
 		   unsafes, num_unsafes, open_conds, num_open_conds,
-		   num_static_open_conds_, old_open_conds, *bindings,
-		   orderings_, this);
+		   old_open_conds, *bindings, orderings_, this);
 	new_plans.push_back(new_plan);
       }
     }
@@ -1121,12 +1098,27 @@ void Plan::handle_disjunction(PlanList& new_plans,
 }
 
 void Plan::add_step(PlanList& new_plans,
-		    const OpenCondition& open_cond) const {
+		    const PredicateOpenCondition& open_cond) const {
   ActionList actions;
-  if (achieves.empty()) {
-    all_actions.applicable_actions(actions, open_cond.condition);
+  hash_map<const Formula*, ActionList>::const_iterator fali =
+    achieves.find(&open_cond.condition);
+  if (fali != achieves.end()) {
+    copy((*fali).second.begin(), (*fali).second.end(), back_inserter(actions));
+  }
+  if (!open_cond.negated) {
+    hash_map<string, ActionList>::const_iterator sali =
+      achieves_pred.find(open_cond.predicate);
+    if (sali != achieves_pred.end()) {
+      copy((*sali).second.begin(), (*sali).second.end(),
+	   back_inserter(actions));
+    }
   } else {
-    actions = achieves[&open_cond.condition];
+    hash_map<string, ActionList>::const_iterator sali =
+      achieves_neg_pred.find(open_cond.predicate);
+    if (sali != achieves_neg_pred.end()) {
+      copy((*sali).second.begin(), (*sali).second.end(),
+	   back_inserter(actions));
+    }
   }
   unsigned int step_id = high_step_id_ + 1;
   if (!actions.empty()) {
@@ -1144,85 +1136,16 @@ void Plan::add_step(PlanList& new_plans,
 	  cout << "new open conditions:" << endl;
 	  for (const OpenConditionChain* oc = p.open_conds_;
 	       oc != p.old_open_conds_; oc = oc->tail) {
-	    cout << "  " << *oc->head;
-	    if (static_open_condition(*oc->head)) {
-	      cout << " (static)";
-	    }
-	    cout << endl;
+	    cout << "  " << *oc->head << endl;
 	  }
 	}
-	if (early_linking > 0) {
-	  p.link_preconditions(new_plans);
-	  num_prev_plans = new_plans.size();
-	}
       }
     }
   }
 }
 
-void Plan::link_preconditions(PlanList& new_plans) const {
-  /* try to greedily link all preconditions added for step
-   * first link static preconditions
-   * then link all remaining (unconditional?) preconditions with only
-   * one possible link
-   */
-  vector<const OpenCondition*> dynamic;
-  const Plan* new_plan = this;
-  PlanList generated_plans;
-  size_t early_cost = 0;
-  for (const OpenConditionChain* oc = open_conds_;
-       oc != old_open_conds_; oc = oc->tail) {
-    const OpenCondition& open_cond = *oc->head;
-    if (static_open_condition(open_cond)) {
-      generated_plans.clear();
-      new_plan->reuse_step(generated_plans, open_cond, true);
-      size_t n = generated_plans.size();
-      if (n == 1) {
-	/* static precondition can be linked unambiguously */
-	new_plan = generated_plans.back();
-	early_cost++;
-      } else if (n == 0) {
-	/* static precondition cannot be linked, so the plan can never
-           be fulfilled */
-	new_plans.pop_back();
-	cout << "STATIC FAILURE" << endl;
-	return;
-      }
-    } else {
-      dynamic.push_back(&open_cond);
-    }
-  }
-  if (new_plan != this) {
-    /* Some static preconditions were unambigously linked, so we can
-       safely replace this plan with the new plan. */
-    assert(new_plans.back() == this);
-    new_plans.pop_back();
-    new_plan->early_cost_ = early_cost;
-    new_plans.push_back(new_plan);
-  }
-  if (early_linking > 1) {
-    const Plan* plan = new_plan;
-    /* try to link non-static preconditiontion */
-    for (vector<const OpenCondition*>::const_iterator i = dynamic.begin();
-	 i != dynamic.end(); i++) {
-      const OpenCondition& open_cond = **i;
-      generated_plans.clear();
-      new_plan->reuse_step(generated_plans, open_cond, true);
-      if (generated_plans.size() == 1) {
-	// only add if no threats are introduced?
-	new_plan = generated_plans.back();
-	early_cost++;
-      }
-    }
-    if (new_plan != plan) {
-      new_plan->early_cost_ = early_cost;
-      new_plans.push_back(new_plan);
-    }
-  }
-}
-
-void Plan::reuse_step(PlanList& new_plans, const OpenCondition& open_cond,
-		      bool early_linking) const {
+void Plan::reuse_step(PlanList& new_plans,
+		      const PredicateOpenCondition& open_cond) const {
   hash_set<unsigned int> seen_steps;
   for (const StepChain* steps = steps_; steps != NULL; steps = steps->tail) {
     const Step& step = *steps->head;
@@ -1231,19 +1154,18 @@ void Plan::reuse_step(PlanList& new_plans, const OpenCondition& open_cond,
       seen_steps.insert(step.id);
       const Link& link = *(new Link(step.id, open_cond));
       const Reason& establish_reason = *(new EstablishReason(link));
-      new_link(new_plans, step, open_cond, link, establish_reason,
-	       early_linking);
+      new_link(new_plans, step, open_cond, link, establish_reason);
     }
   }
 }
 
 bool Plan::new_link(PlanList& new_plans, const Step& step,
 		    const OpenCondition& open_cond, const Link& link,
-		    const Reason& reason, bool early_linking) const {
+		    const Reason& reason) const {
   unsigned int prev_num_plans = new_plans.size();
   if (step.id == 0 &&
       dynamic_cast<const Negation*>(&open_cond.condition) != NULL) {
-    new_cw_link(new_plans, step, open_cond, link, reason, early_linking);
+    new_cw_link(new_plans, step, open_cond, link, reason);
   }
   const Formula& goal = open_cond.condition;
   const EffectList& effs = step.effects;
@@ -1254,8 +1176,8 @@ bool Plan::new_link(PlanList& new_plans, const Step& step,
 	 j != adds.end(); j++) {
       SubstitutionList mgu;
       if (bindings_.unify(mgu, **j, goal)) {
-	const Plan* new_plan = make_link(step, effect, open_cond, link, reason,
-					 mgu, early_linking);
+	const Plan* new_plan =
+	  make_link(step, effect, open_cond, link, reason, mgu);
 	if (new_plan != NULL) {
 	  new_plans.push_back(new_plan);
 	}
@@ -1267,8 +1189,7 @@ bool Plan::new_link(PlanList& new_plans, const Step& step,
 
 void Plan::new_cw_link(PlanList& new_plans, const Step& step,
 		       const OpenCondition& open_cond, const Link& link,
-		       const Reason& establish_reason,
-		       bool early_linking) const {
+		       const Reason& establish_reason) const {
   bool success = true;
   const Negation& negation =
     dynamic_cast<const Negation&>(open_cond.condition);
@@ -1304,12 +1225,8 @@ void Plan::new_cw_link(PlanList& new_plans, const Step& step,
     const OpenConditionChain* open_conds = open_conds_->remove(&open_cond);
     const OpenConditionChain* old_open_conds = open_conds;
     size_t num_open_conds = num_open_conds_ - 1;
-    size_t num_static_open_conds = num_static_open_conds_;
-    if (static_open_condition(open_cond)) {
-      num_static_open_conds--;
-    }
-    if (!add_goal(open_conds, num_open_conds, num_static_open_conds,
-		  new_bindings, *bgoal, step.id, establish_reason, links)) {
+    if (!add_goal(open_conds, num_open_conds, new_bindings, *bgoal, step.id,
+		  establish_reason, links)) {
       success = false;
     }
     const Bindings* bindings;
@@ -1329,8 +1246,7 @@ void Plan::new_cw_link(PlanList& new_plans, const Step& step,
       const Plan* new_plan =
 	new Plan(steps_, num_steps_, high_step_id_, links, num_links_ + 1,
 		 unsafes, num_unsafes, open_conds, num_open_conds,
-		 num_static_open_conds, old_open_conds, *bindings, orderings_,
-		 this, (early_linking ? type_ : NORMAL_PLAN));
+		 old_open_conds, *bindings, orderings_, this, NORMAL_PLAN);
       new_plans.push_back(new_plan);
     }
   }
@@ -1339,8 +1255,7 @@ void Plan::new_cw_link(PlanList& new_plans, const Step& step,
 const Plan* Plan::make_link(const Step& step, const Effect& effect,
 			    const OpenCondition& open_cond, const Link& link,
 			    const Reason& establish_reason,
-			    const SubstitutionList& unifier,
-			    bool early_linking) const {
+			    const SubstitutionList& unifier) const {
   bool success = true;
   const LinkChain* links = new LinkChain(&link, links_);
   const VariableList& effect_forall = effect.forall;
@@ -1355,10 +1270,6 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
   const OpenConditionChain* open_conds = open_conds_->remove(&open_cond);
   const OpenConditionChain* old_open_conds = open_conds;
   size_t num_open_conds = num_open_conds_ - 1;
-  size_t num_static_open_conds = num_static_open_conds_;
-  if (static_open_condition(open_cond)) {
-    num_static_open_conds--;
-  }
   const Formula* cond_goal = NULL;
   if (effect.condition != NULL) {
     if (!effect_forall.empty()) {
@@ -1374,18 +1285,16 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
     } else {
       cond_goal = effect.condition;
     }
-    if (!add_goal(open_conds, num_open_conds, num_static_open_conds,
-		  new_bindings, *cond_goal, step.id, establish_reason,
-		  links)) {
+    if (!add_goal(open_conds, num_open_conds, new_bindings, *cond_goal,
+		  step.id, establish_reason, links)) {
       success = false;
     }
   }
   const Reason* step_reason = NULL;
   if (success && step.id > high_step_id_) {
     step_reason = new AddStepReason(step.id);
-    if (!add_goal(open_conds, num_open_conds, num_static_open_conds,
-		  new_bindings, step.precondition, step.id, *step_reason,
-		  links)) {
+    if (!add_goal(open_conds, num_open_conds, new_bindings, step.precondition,
+		  step.id, *step_reason, links)) {
       success = false;
     }
   }
@@ -1458,8 +1367,7 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
     }
     return new Plan(steps, num_steps, high_step_id, links, num_links_ + 1,
 		    unsafes, num_unsafes, open_conds, num_open_conds,
-		    num_static_open_conds, old_open_conds, *bindings,
-		    orderings, this, (early_linking ? type_ : NORMAL_PLAN));
+		    old_open_conds, *bindings, orderings, this, NORMAL_PLAN);
   } else {
     return NULL;
   }
@@ -1666,7 +1574,7 @@ void Plan::h_rank() const {
     }
   }
 #if 0
-  rank2_ = num_open_conds_ - num_static_open_conds_;
+  rank2_ = num_open_conds_;
 #endif
 }
 
@@ -1870,10 +1778,17 @@ size_t Plan::make_node(CostGraph& cg,
 	if (!done) {
 	  // try to add step
 	  ActionList actions;
-	  if (achieves.empty()) {
-	    all_actions.applicable_actions(actions, condition);
-	  } else {
-	    actions = achieves[&condition];
+	  hash_map<const Formula*, ActionList>::const_iterator fali =
+	    achieves.find(&condition);
+	  if (fali != achieves.end()) {
+	    copy((*fali).second.begin(), (*fali).second.end(),
+		 back_inserter(actions));
+	  }
+	  hash_map<string, ActionList>::const_iterator sali =
+	    achieves_pred.find(atom->predicate);
+	  if (sali != achieves_pred.end()) {
+	    copy((*sali).second.begin(), (*sali).second.end(),
+		 back_inserter(actions));
 	  }
 	  for (ActionList::const_iterator i = actions.begin();
 	       i != actions.end(); i++) {
