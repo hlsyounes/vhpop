@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 6.2 2003-07-21 02:23:02 lorens Exp $
+ * $Id: pddl.yy,v 6.3 2003-07-21 18:14:11 lorens Exp $
  */
 %{
 #include "requirements.h"
@@ -160,16 +160,10 @@ static void make_predicate(const std::string* name);
 static Term make_term(const std::string* name);
 /* Creates an action with the given name. */
 static void make_action(const std::string* name, bool durative);
-/* Creates a start condition. */
-static const Condition* make_start_condition(const Formula& condition);
-/* Creates an interval condition. */
-static const Condition* make_interval_condition(const Formula& condition);
-/* Creates an end condition. */
-static const Condition* make_end_condition(const Formula& condition);
 /* Prepares for the parsing of a universally quantified effect. */ 
 static void prepare_forall_effect();
 /* Prepares for the parsing of a conditional effect. */ 
-static void prepare_conditional_effect(const Condition* condition);
+static void prepare_conditional_effect(const Condition& condition);
 /* Creates an equality formula. */
 static const Formula* make_equality(const Term& t1, const Term& t2);
 /* Creates a negation. */
@@ -375,7 +369,7 @@ action_body2 : /* empty */
              ;
 
 precondition : PRECONDITION formula
-                 { action->set_condition(*make_interval_condition(*$2)); }
+                 { action->set_condition(Condition::make(*$2, OVER_ALL)); }
              ;
 
 effect : EFFECT { effect_time = Effect::AT_END; } eff_formula { add_effect(); }
@@ -429,9 +423,12 @@ timed_gds : /* empty */ { $$ = &Condition::TRUE; }
           | timed_gds timed_gd { $$ = &(*$1 && *$2); }
           ;
 
-timed_gd : '(' at start formula ')' { $$ = make_start_condition(*$4); }
-         | '(' at end formula ')' { $$ = make_end_condition(*$4); }
-         | '(' over all formula ')' { $$ = make_interval_condition(*$4); }
+timed_gd : '(' at start formula ')'
+             { $$ = &Condition::make(*$4, AT_START); }
+         | '(' at end formula ')'
+             { $$ = &Condition::make(*$4, AT_END); }
+         | '(' over all formula ')'
+             { $$ = &Condition::make(*$4, OVER_ALL); }
          ;
 
 
@@ -443,7 +440,7 @@ eff_formula : term_literal
             | '(' forall { prepare_forall_effect(); }
                 '(' opt_variables ')' eff_formula ')' { add_forall_effect(); }
             | '(' when formula
-                { prepare_conditional_effect(make_interval_condition(*$3)); }
+                { prepare_conditional_effect(Condition::make(*$3, OVER_ALL)); }
                 one_eff_formula ')' { add_conditional_effect(); }
             ;
 
@@ -467,8 +464,8 @@ da_effect : timed_effect
           | '(' and da_effects ')'
           | '(' forall { prepare_forall_effect(); }
               '(' opt_variables ')' da_effect ')' { add_forall_effect(); }
-          | '(' when da_gd { prepare_conditional_effect($3); } timed_effect ')'
-              { add_conditional_effect(); }
+          | '(' when da_gd { prepare_conditional_effect(*$3); }
+              timed_effect ')' { add_conditional_effect(); }
           ;
 
 da_effects : /* empty */
@@ -929,24 +926,6 @@ static void make_action(const std::string* name, bool durative) {
 }
 
 
-/* Creates a start condition. */
-static const Condition* make_start_condition(const Formula& condition) {
-  return &Condition::make_condition(condition, AT_START);
-}
-
-
-/* Creates an interval condition. */
-static const Condition* make_interval_condition(const Formula& condition) {
-  return &Condition::make_condition(condition, OVER_ALL);
-}
-
-
-/* Creates an end condition. */
-static const Condition* make_end_condition(const Formula& condition) {
-  return &Condition::make_condition(condition, AT_END);
-}
-
-
 /* Prepares for the parsing of a universally quantified effect. */ 
 static void prepare_forall_effect() {
   if (!requirements->conditional_effects) {
@@ -960,13 +939,13 @@ static void prepare_forall_effect() {
 
 
 /* Prepares for the parsing of a conditional effect. */ 
-static void prepare_conditional_effect(const Condition* condition) {
+static void prepare_conditional_effect(const Condition& condition) {
   if (!requirements->conditional_effects) {
     yywarning("assuming `:conditional-effects' requirement");
     requirements->conditional_effects = true;
   }
   add_effect();
-  effect_condition = condition;
+  effect_condition = &condition;
 }
 
 
@@ -980,7 +959,7 @@ static const Formula* make_equality(const Term& t1, const Term& t2) {
   const TermTable& t = (domain != NULL) ? domain->terms() : problem->terms();
   if (d.types().subtype(t.type(t1), t.type(t2))
       || d.types().subtype(t.type(t2), t.type(t1))) {
-    return new Equality(t1, t2);
+    return &Equality::make(t1, t2);
   } else {
     return &Formula::FALSE;
   }
@@ -1043,13 +1022,18 @@ static const Formula* make_exists(const Formula& body) {
     n--;
   }
   if (n < m) {
-    Exists& exists = *(new Exists());
-    for (size_t i = n + 1; i <= m; i++) {
-      exists.add_parameter(quantified[i]);
+    if (body.tautology() || body.contradiction()) {
+      quantified.resize(n);
+      return &body;
+    } else {
+      Exists& exists = *new Exists();
+      for (size_t i = n + 1; i <= m; i++) {
+	exists.add_parameter(quantified[i]);
+      }
+      exists.set_body(body);
+      quantified.resize(n);
+      return &exists;
     }
-    exists.set_body(body);
-    quantified.resize(n);
-    return &exists;
   } else {
     quantified.pop_back();
     return &body;
@@ -1066,13 +1050,18 @@ static const Formula* make_forall(const Formula& body) {
     n--;
   }
   if (n < m) {
-    Forall& forall = *(new Forall());
-    for (size_t i = n + 1; i <= m; i++) {
-      forall.add_parameter(quantified[i]);
+    if (body.tautology() || body.contradiction()) {
+      quantified.resize(n);
+      return &body;
+    } else {
+      Forall& forall = *new Forall();
+      for (size_t i = n + 1; i <= m; i++) {
+	forall.add_parameter(quantified[i]);
+      }
+      forall.set_body(body);
+      quantified.resize(n);
+      return &forall;
     }
-    forall.set_body(body);
-    quantified.resize(n);
-    return &forall;
   } else {
     quantified.pop_back();
     return &body;
@@ -1194,7 +1183,7 @@ static void add_negative(const Atom& atom) {
   if (effect == NULL) {
     effect = new Effect(effect_time);
   }
-  effect->add_negative(Negation::make_negation(atom));
+  effect->add_negative(Negation::make(atom));
 }
 
 
@@ -1281,5 +1270,5 @@ static const Atom* make_atom() {
 	    + d.predicates().name(atom_predicate) + "'");
   }
   parsing_atom = false;
-  return &Atom::make_atom(atom_predicate, term_parameters);
+  return &Atom::make(atom_predicate, term_parameters);
 }
