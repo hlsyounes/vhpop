@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 6.7 2003-09-01 19:50:27 lorens Exp $
+ * $Id: plans.cc,v 6.8 2003-09-01 20:52:34 lorens Exp $
  */
 #include "mathport.h"
 #include "plans.h"
@@ -455,6 +455,12 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
 								       *ei));
 	}
       }
+    }
+    const GroundAction& ia = problem.init_action();
+    for (EffectList::const_iterator ei = ia.effects().begin();
+	 ei != ia.effects().end(); ei++) {
+      const Literal& literal = (*ei)->literal();
+      achieves_pred[literal.predicate()].insert(std::make_pair(&ia, *ei));
     }
   }
   static_pred_flaw = false;
@@ -1162,8 +1168,11 @@ void Plan::handle_open_condition(PlanList& plans,
 				 const OpenCondition& open_cond) const {
   const Literal* literal = open_cond.literal();
   if (literal != NULL) {
-    add_step(plans, *literal, open_cond);
-    reuse_step(plans, *literal, open_cond);
+    const ActionEffectMap* achievers = literal_achievers(*literal);
+    if (achievers != NULL) {
+      add_step(plans, *literal, open_cond, *achievers);
+      reuse_step(plans, *literal, open_cond, *achievers);
+    }
   } else {
     const Disjunction* disj = open_cond.disjunction();
     if (disj != NULL) {
@@ -1288,11 +1297,13 @@ bool Plan::addable_steps(int& refinements, const Literal& literal,
     for (ActionEffectMap::const_iterator ai = achievers->begin();
 	 ai != achievers->end(); ai++) {
       const Action& action = *(*ai).first;
-      const Effect& effect = *(*ai).second;
-      count += new_link(dummy, Step(high_step_id_ + 1, action), effect,
-			literal, open_cond, true);
-      if (count > limit) {
-	return false;
+      if (&action != &problem->init_action()) {
+	const Effect& effect = *(*ai).second;
+	count += new_link(dummy, Step(high_step_id_ + 1, action), effect,
+			  literal, open_cond, true);
+	if (count > limit) {
+	  return false;
+	}
       }
     }
   }
@@ -1303,12 +1314,12 @@ bool Plan::addable_steps(int& refinements, const Literal& literal,
 
 /* Handles a literal open condition by adding a new step. */
 void Plan::add_step(PlanList& plans, const Literal& literal,
-		    const OpenCondition& open_cond) const {
-  const ActionEffectMap* achievers = literal_achievers(literal);
-  if (achievers != NULL) {
-    for (ActionEffectMap::const_iterator ai = achievers->begin();
-	 ai != achievers->end(); ai++) {
-      const Action& action = *(*ai).first;
+		    const OpenCondition& open_cond,
+		    const ActionEffectMap& achievers) const {
+  for (ActionEffectMap::const_iterator ai = achievers.begin();
+       ai != achievers.end(); ai++) {
+    const Action& action = *(*ai).first;
+    if (&action != &problem->init_action()) {
       const Effect& effect = *(*ai).second;
       new_link(plans, Step(high_step_id_ + 1, action), effect,
 	       literal, open_cond);
@@ -1324,33 +1335,39 @@ bool Plan::reusable_steps(int& refinements, const Literal& literal,
 			  const OpenCondition& open_cond, int limit) const {
   int count = 0;
   PlanList dummy;
-  StepTime gt = start_time(open_cond.when());
-  for (const Chain<Step>* sc = steps(); sc != NULL; sc = sc->tail) {
-    const Step& step = sc->head;
-    if (step.id() == 0) {
-      const Negation* negation = dynamic_cast<const Negation*>(&literal);
-      if (negation != NULL) {
-	PlanList dummy;
-	count +=
-	  new_cw_link(dummy, step.action().effects(), *negation, open_cond);
-	if (count > limit) {
-	  return false;
-	}
-	continue;
-      }
-    }
-    if (orderings().possibly_before(step.id(), STEP_START,
-				    open_cond.step_id(), gt)) {
-      const EffectList& effects = step.action().effects();
-      for (EffectList::const_iterator ei = effects.begin();
-	   ei != effects.end(); ei++) {
-	const Effect& effect = **ei;
-	StepTime et = end_time(effect);
-	if (orderings().possibly_before(step.id(), et,
-					open_cond.step_id(), gt)) {
-	  count += new_link(dummy, step, effect, literal, open_cond, true);
+  const ActionEffectMap* achievers = literal_achievers(literal);
+  if (achievers != NULL) {
+    StepTime gt = start_time(open_cond.when());
+    for (const Chain<Step>* sc = steps(); sc != NULL; sc = sc->tail) {
+      const Step& step = sc->head;
+      if (step.id() == 0) {
+	const Negation* negation = dynamic_cast<const Negation*>(&literal);
+	if (negation != NULL) {
+	  PlanList dummy;
+	  count +=
+	    new_cw_link(dummy, step.action().effects(), *negation, open_cond,
+			*achievers, true);
 	  if (count > limit) {
 	    return false;
+	  }
+	  continue;
+	}
+      }
+      if (orderings().possibly_before(step.id(), STEP_START,
+				      open_cond.step_id(), gt)) {
+	std::pair<ActionEffectMap::const_iterator,
+	  ActionEffectMap::const_iterator> b =
+	  achievers->equal_range(&step.action());
+	for (ActionEffectMap::const_iterator ei = b.first;
+	     ei != b.second; ei++) {
+	  const Effect& effect = *(*ei).second;
+	  StepTime et = end_time(effect);
+	  if (orderings().possibly_before(step.id(), et,
+					  open_cond.step_id(), gt)) {
+	    count += new_link(dummy, step, effect, literal, open_cond, true);
+	    if (count > limit) {
+	      return false;
+	    }
 	  }
 	}
       }
@@ -1363,23 +1380,27 @@ bool Plan::reusable_steps(int& refinements, const Literal& literal,
 
 /* Handles a literal open condition by reusing an existing step. */
 void Plan::reuse_step(PlanList& plans, const Literal& literal,
-		      const OpenCondition& open_cond) const {
+		      const OpenCondition& open_cond,
+		      const ActionEffectMap& achievers) const {
   StepTime gt = start_time(open_cond.when());
   for (const Chain<Step>* sc = steps(); sc != NULL; sc = sc->tail) {
     const Step& step = sc->head;
     if (step.id() == 0) {
       const Negation* negation = dynamic_cast<const Negation*>(&literal);
       if (negation != NULL) {
-	new_cw_link(plans, step.action().effects(), *negation, open_cond);
+	new_cw_link(plans, step.action().effects(), *negation, open_cond,
+		    achievers);
 	continue;
       }
     }
     if (orderings().possibly_before(step.id(), STEP_START,
 				    open_cond.step_id(), gt)) {
-      const EffectList& effects = step.action().effects();
-      for (EffectList::const_iterator ei = effects.begin();
-	   ei != effects.end(); ei++) {
-	const Effect& effect = **ei;
+      std::pair<ActionEffectMap::const_iterator,
+	ActionEffectMap::const_iterator> b =
+	achievers.equal_range(&step.action());
+      for (ActionEffectMap::const_iterator ei = b.first;
+	   ei != b.second; ei++) {
+	const Effect& effect = *(*ei).second;
 	StepTime et = end_time(effect);
 	if (orderings().possibly_before(step.id(), et,
 					open_cond.step_id(), gt)) {
@@ -1411,12 +1432,15 @@ int Plan::new_link(PlanList& plans, const Step& step, const Effect& effect,
    assumption. */
 int Plan::new_cw_link(PlanList& plans, const EffectList& effects,
 		      const Negation& negation, const OpenCondition& open_cond,
+		      const ActionEffectMap& achievers,
 		      bool test_only) const {
   const Atom& goal = negation.atom();
   const Formula* goals = &Formula::TRUE;
-  for (EffectList::const_iterator ei = effects.begin();
-       ei != effects.end(); ei++) {
-    const Effect& effect = **ei;
+  std::pair<ActionEffectMap::const_iterator,
+    ActionEffectMap::const_iterator> b =
+    achievers.equal_range(&problem->init_action());
+  for (ActionEffectMap::const_iterator ei = b.first; ei != b.second; ei++) {
+    const Effect& effect = *(*ei).second;
     BindingList mgu;
     if (bindings_->unify(mgu, goal, open_cond.step_id(),
 			 effect.literal(), 0)) {
