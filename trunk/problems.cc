@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: problems.cc,v 6.5 2003-08-27 22:13:40 lorens Exp $
+ * $Id: problems.cc,v 6.6 2003-08-28 15:34:25 lorens Exp $
  */
 #include "problems.h"
 #include "domains.h"
@@ -75,7 +75,7 @@ Problem::Problem(const std::string& name, const Domain& domain)
 Problem::~Problem() {
   problems.erase(name());
   Formula::unregister_use(goal_);
-  for (hashing::hash_map<Type, const ObjectList*>::const_iterator oi =
+  for (std::map<Type, const ObjectList*>::const_iterator oi =
 	 compatible_.begin(); oi != compatible_.end(); oi++) {
     delete (*oi).second;
   }
@@ -103,7 +103,7 @@ void Problem::set_goal(const Formula& goal) {
 /* Returns a list with objects (including constants declared in the
    domain) that are compatible with the given type. */
 const ObjectList& Problem::compatible_objects(Type type) const {
-  hashing::hash_map<Type, const ObjectList*>::const_iterator oi =
+  std::map<Type, const ObjectList*>::const_iterator oi =
     compatible_.find(type);
   if (oi != compatible_.end()) {
     return *(*oi).second;
@@ -135,7 +135,7 @@ void Problem::instantiated_actions(GroundActionList& actions) const {
        ai != domain().actions().end(); ai++) {
     (*ai).second->instantiations(actions, *this);
   }
-  for (hashing::hash_map<Type, const ObjectList*>::const_iterator oi =
+  for (std::map<Type, const ObjectList*>::const_iterator oi =
 	 compatible_.begin(); oi != compatible_.end(); oi++) {
     delete (*oi).second;
   }
@@ -157,12 +157,12 @@ std::ostream& operator<<(std::ostream& os, const Problem& p) {
   }
   os << std::endl << "initial condition: ";
   AtomSet::const_iterator ai = p.init_atoms().begin();
-  (*ai)->print(os, p.domain().predicates(), p.terms(), 0, Bindings());
+  (*ai)->print(os, p.domain().predicates(), p.terms(), 0, Bindings::EMPTY);
   for (ai++; ai != p.init_atoms().end(); ai++) {
     os << ' ';
-    (*ai)->print(os, p.domain().predicates(), p.terms(), 0, Bindings());
+    (*ai)->print(os, p.domain().predicates(), p.terms(), 0, Bindings::EMPTY);
   }
   os << std::endl << "goal: ";
-  p.goal().print(os, p.domain().predicates(), p.terms(), 0, Bindings());
+  p.goal().print(os, p.domain().predicates(), p.terms(), 0, Bindings::EMPTY);
   return os;
 }
