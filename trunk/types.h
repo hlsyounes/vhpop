@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: types.h,v 3.5 2002-03-18 09:41:38 lorens Exp $
+ * $Id: types.h,v 3.6 2002-03-18 09:41:46 lorens Exp $
  */
 #ifndef TYPES_H
 #define TYPES_H
@@ -77,19 +77,6 @@ private:
   /* Supertype */
   const Type* supertype_;
 };
-
-
-/* ====================================================================== */
-/* TypeMap */
-
-/*
- * Table of simple types.
- */
-struct TypeMap : hash_map<string, const SimpleType*> {
-};
-
-/* Iterator for type tables. */
-typedef TypeMap::const_iterator TypeMapIter;
 
 
 /* ====================================================================== */
