@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 6.5 2003-07-28 01:35:37 lorens Exp $
+ * $Id: formulas.h,v 6.6 2003-07-28 21:34:54 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -212,6 +212,9 @@ struct Literal : public Formula {
   /* Returns a formula that separates the given literal from anything
      definitely asserted by this formula. */
   virtual const Formula& separator(const Literal& literal) const;
+
+  /* Returns this formula subject to the given substitutions. */
+  virtual const Literal& substitution(const SubstitutionMap& subst) const = 0;
 };
 
 
@@ -833,9 +836,6 @@ const Condition& operator||(const Condition& c1, const Condition& c2);
 struct AtomList : public std::vector<const Atom*> {
 };
 
-/* Atom list iterator. */
-typedef AtomList::const_iterator AtomListIter;
-
 
 /* ====================================================================== */
 /* NegationList */
@@ -845,9 +845,6 @@ typedef AtomList::const_iterator AtomListIter;
  */
 struct NegationList : public std::vector<const Negation*> {
 };
-
-/* Negation list iterator */
-typedef NegationList::const_iterator NegationListIter;
 
 
 #endif /* FORMULAS_H */
