@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.37 2001-12-29 16:39:36 lorens Exp $
+ * $Id: plans.cc,v 1.38 2001-12-29 19:08:42 lorens Exp $
  */
 #include <queue>
 #include <hash_set>
@@ -9,6 +9,7 @@
 #include <cassert>
 #include <sys/time.h>
 #include "plans.h"
+#include "orderings.h"
 #include "flaws.h"
 #include "reasons.h"
 #include "problems.h"
@@ -1151,7 +1152,7 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
   StepChain* steps = new StepChain(&step, steps_);
   const Ordering& new_ordering =
     *(new Ordering(step.id, open_cond.step_id, establish_reason));
-  const Orderings& orderings = orderings_.refine(new_ordering, &step);
+  const Orderings& orderings = orderings_.refine(new_ordering, step.id);
   const UnsafeChain* unsafes = unsafes_;
   size_t num_unsafes = num_unsafes_;
   hash_set<size_t> seen_steps;
