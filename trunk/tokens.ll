@@ -16,15 +16,14 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: tokens.ll,v 3.12 2003-03-01 18:54:10 lorens Exp $
+ * $Id: tokens.ll,v 6.1 2003-07-13 16:13:36 lorens Exp $
  */
 %{
 struct Formula;
 struct Atom;
-struct Term;
-struct Type;
-struct UnionType;
 
+#include "terms.h"
+#include "types.h"
 #include <cctype>
 #include <string>
 #include <vector>

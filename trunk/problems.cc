@@ -13,11 +13,11 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: problems.cc,v 3.8 2003-03-01 18:54:56 lorens Exp $
+ * $Id: problems.cc,v 6.1 2003-07-13 16:09:48 lorens Exp $
  */
 #include "problems.h"
 #include "domains.h"
-#include "types.h"
+#include "bindings.h"
 #include <iostream>
 
 
@@ -60,7 +60,7 @@ void Problem::clear() {
 
 /* Constructs a problem. */
 Problem::Problem(const std::string& name, const Domain& domain)
-  : name_(name), domain_(&domain),
+  : name_(name), domain_(&domain), terms_(TermTable(domain.terms())),
     init_(new Effect(Effect::AT_END)),
     init_action_(GroundAction("", false)),
     goal_(&Formula::TRUE) {
@@ -77,16 +77,7 @@ Problem::Problem(const std::string& name, const Domain& domain)
 /* Deletes a problem. */
 Problem::~Problem() {
   problems.erase(name());
-  for (NameMapIter ni = objects_.begin(); ni != objects_.end(); ni++) {
-    delete (*ni).second;
-  }
   Formula::unregister_use(goal_);
-}
-
-
-/* Adds an object to this problem. */
-void Problem::add_object(Name& object) {
-  objects_[object.name()] = &object;
 }
 
 
@@ -106,33 +97,23 @@ void Problem::set_goal(const Formula& goal) {
 }
 
 
-/* Returns the object with the given name, or NULL if it is
-   undefined. */
-Name* Problem::find_object(const std::string& name) {
-  NameMapIter ni = objects_.find(name);
-  return (ni != objects_.end()) ? (*ni).second : NULL;
-}
-
-
-/* Returns the object with the given name, or NULL if it is
-   undefined. */
-const Name* Problem::find_object(const std::string& name) const {
-  NameMapIter ni = objects_.find(name);
-  return (ni != objects_.end()) ? (*ni).second : NULL;
-}
-
-
-/* Fills the provided name list with objects (including constants
-   declared in the domain) that are compatible with the given type. */
-void Problem::compatible_objects(NameList& objects, const Type& t) const {
-  domain().compatible_constants(objects, t);
-  for (NameMapIter ni = this->objects_.begin();
-       ni != this->objects_.end(); ni++) {
-    const Name& name = *(*ni).second;
-    if (name.type().subtype(t)) {
-      objects.push_back(&name);
+/* Fills the provided object list with objects (including constants
+   declared in the domain) that are compatible with the given
+   type. */
+void Problem::compatible_objects(ObjectList& objects, Type type) const {
+  domain().compatible_constants(objects, type);
+  Object last = terms().last_object();
+  for (Object i = terms().first_object(); i <= last; i++) {
+    if (domain().types().subtype(terms().type(i), type)) {
+      objects.push_back(i);
     }
   }
+}
+
+
+/* Returns a new variable for this problem. */
+Variable Problem::new_variable(Type type) const {
+  return terms_.add_variable(type);
 }
 
 
@@ -146,13 +127,24 @@ void Problem::instantiated_actions(GroundActionList& actions) const {
 }
 
 
+/* Prints the given term on the given stream with the given
+   bindings. */
+void Problem::print_term(std::ostream& os, Term term, size_t step_id,
+			 const Bindings& bindings) const {
+}
+
+
 /* Output operator for problems. */
 std::ostream& operator<<(std::ostream& os, const Problem& p) {
   os << "name: " << p.name();
   os << std::endl << "domain: " << p.domain().name();
   os << std::endl << "objects:";
-  for (NameMapIter ni = p.objects_.begin(); ni != p.objects_.end(); ni++) {
-    os << ' ' << *(*ni).second << " - " << (*ni).second->type();
+  for (Object i = p.terms().first_object();
+       i <= p.terms().last_object(); i++) {
+    os << std::endl << "  ";
+    p.terms().print_term(os, i, 0, Bindings());
+    os << " - ";
+    p.domain().types().print_type(os, p.terms().type(i));
   }
   os << std::endl << "initial condition: " << p.init();
   os << std::endl << "goal: " << p.goal();
