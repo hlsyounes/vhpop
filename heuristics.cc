@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 6.9 2003-09-08 21:26:17 lorens Exp $
+ * $Id: heuristics.cc,v 6.10 2003-09-09 23:19:15 lorens Exp $
  */
 #include "heuristics.h"
 #include "plans.h"
@@ -53,13 +53,11 @@ formula_value(const Formula& formula, FormulaTime when, size_t step_id,
     if (literal != NULL) {
       StepTime gt = start_time(when);
       if (!domain.predicates().static_predicate(literal->predicate())) {
-	std::set<size_t> seen_steps;
 	for (const Chain<Step>* sc = plan.steps(); sc != NULL; sc = sc->tail) {
 	  const Step& step = sc->head;
-	  if (step.id() != 0 && seen_steps.find(step.id()) == seen_steps.end()
+	  if (step.id() != 0
 	      && plan.orderings().possibly_before(step.id(), STEP_START,
 						  step_id, gt)) {
-	    seen_steps.insert(step.id());
 	    const EffectList& effs = step.action().effects();
 	    for (EffectList::const_iterator ei = effs.begin();
 		 ei != effs.end(); ei++) {
