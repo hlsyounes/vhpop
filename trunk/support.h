@@ -2,7 +2,7 @@
 /*
  * Auxiliary types and functions.
  *
- * $Id: support.h,v 1.14 2001-12-27 19:53:34 lorens Exp $
+ * $Id: support.h,v 1.15 2002-01-16 21:37:03 lorens Exp $
  */
 #ifndef SUPPORT_H
 #define SUPPORT_H
@@ -20,7 +20,7 @@
 /*
  * Allocator to use with all STL container classes.
  */
-typedef single_client_traceable_alloc container_alloc;
+typedef single_client_gc_alloc container_alloc;
 
 
 /* Checks if the given sequence contains the given value. */
