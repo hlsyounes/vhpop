@@ -1,5 +1,5 @@
 /*
- * $Id: orderings.cc,v 1.1 2001-05-03 15:40:03 lorens Exp $
+ * $Id: orderings.cc,v 1.2 2001-12-23 16:38:23 lorens Exp $
  */
 #include "plans.h"
 
@@ -24,7 +24,7 @@ void Orderings::print(ostream& os) const {
 Orderings::Orderings(const StepChain* steps, const OrderingChain* orderings)
   : orderings_(orderings) {
   size_ = 0;
-  hash_set<unsigned int> seen_steps;
+  hash_set<size_t> seen_steps;
   for (const StepChain* s = steps; s != NULL; s = s->tail) {
     const Step& step = *s->head;
     if (seen_steps.find(step.id) == seen_steps.end() &&
@@ -43,7 +43,7 @@ Orderings::Orderings(const StepChain* steps, const OrderingChain* orderings)
 
 
 /* Checks if the first step is ordered before the second step. */
-bool Orderings::before(unsigned int id1, unsigned int id2) const {
+bool Orderings::before(size_t id1, size_t id2) const {
   if (id1 == id2) {
     return false;
   } else if (id1 == 0) {
@@ -66,7 +66,7 @@ bool Orderings::before(unsigned int id1, unsigned int id2) const {
 
 
 /* Checks if the first step is ordered after the second step. */
-bool Orderings::after(unsigned int id1, unsigned int id2) const {
+bool Orderings::after(size_t id1, size_t id2) const {
   if (id1 == id2) {
     return false;
   } else if (id1 == 0) {
@@ -89,13 +89,13 @@ bool Orderings::after(unsigned int id1, unsigned int id2) const {
 
 
 /* Checks if the first step could be ordered before the second step. */
-bool Orderings::possibly_before(unsigned int id1, unsigned int id2) const {
+bool Orderings::possibly_before(size_t id1, size_t id2) const {
   return id1 != id2 && !after(id1, id2);
 }
 
 
 /* Checks if the first step could be ordered after the second step. */
-bool Orderings::possibly_after(unsigned int id1, unsigned int id2) const {
+bool Orderings::possibly_after(size_t id1, size_t id2) const {
   return id1 != id2 && !before(id1, id2);
 }
 
@@ -112,7 +112,7 @@ const Orderings& Orderings::refine(const Ordering& new_ordering,
     if (new_step->id != 0 && new_step->id != Plan::GOAL_ID) {
       if (orderings.id_map1_.find(new_step->id) ==
 	  orderings.id_map1_.end()) {
-	for (unsigned int i = 0; i < size_; i++) {
+	for (size_t i = 0; i < size_; i++) {
 	  orderings.order_[i].push_back(false);
 	}
 	orderings.id_map1_[new_step->id] = orderings.size_++;
@@ -137,13 +137,13 @@ void Orderings::fill_transitive(const OrderingChain* orderings) {
 /* Updates the transitive closure given a new ordering constraint. */
 void Orderings::fill_transitive(const Ordering& ordering) {
   if (ordering.before_id != 0 && ordering.after_id != Plan::GOAL_ID) {
-    unsigned int i = id_map1_[ordering.before_id];
-    unsigned int j = id_map1_[ordering.after_id];
+    size_t i = id_map1_[ordering.before_id];
+    size_t j = id_map1_[ordering.after_id];
     if (!order_[i][j]) {
-      for (unsigned int k = 0; k < size_; k++) {
+      for (size_t k = 0; k < size_; k++) {
 	if (k != i && (k == j || order_[j][k]) &&
 	    !order_[i][k]) {
-	  for (unsigned int l = 0; l < size_; l++) {
+	  for (size_t l = 0; l < size_; l++) {
 	    if (l != i && l !=j && l != k && order_[l][i]) {
 	      order_[l][k] = true;
 	    }
