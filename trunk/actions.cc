@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: actions.cc,v 6.3 2003-08-28 15:26:40 lorens Exp $
+ * $Id: actions.cc,v 6.4 2003-08-28 16:48:45 lorens Exp $
  */
 #include "actions.h"
 #include "bindings.h"
@@ -107,7 +107,7 @@ void Action::strengthen_effects() {
 	    /* Only separate two effects with same universally
 	       quantified variables. */
 	    BindingList mgu;
-	    if (Bindings::unifiable(mgu, neg.atom(), ej.literal())) {
+	    if (Bindings::unifiable(mgu, neg.atom(), 1, ej.literal(), 1)) {
 	      const Formula* sep = &Formula::FALSE;
 	      for (BindingList::const_iterator si = mgu.begin();
 		   si != mgu.end(); si++) {
