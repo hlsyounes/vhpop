@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.35 2002-01-01 22:26:35 lorens Exp $
+ * $Id: plans.h,v 1.36 2002-01-02 19:28:17 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -93,12 +93,19 @@ struct Step : public gc {
   /* Constructs a step instantiated from an action. */
   Step(size_t id, const Action& action, const Reason& reason);
 
+  /* Returns a copy of this step with a new reason. */
+  const Step& new_reason(const Reason& reason) const;
+
   /* Returns a formula representing this step. */
   const Atom* step_formula() const;
 
 private:
   /* Atomic representation of this step. */
   mutable const Atom* formula;
+
+  /* Constructs a step. */
+  Step(size_t id, const Action* action, const Formula& precondition,
+       const EffectList& effects, const Reason& reason);
 };
 
 
@@ -106,6 +113,16 @@ private:
  * Chain of plan steps.
  */
 typedef Chain<const Step*> StepChain;
+
+
+/*
+ * A list of steps.
+ */
+struct StepList : public Vector<const Step*> {
+};
+
+/* Iterator for step lists. */
+typedef StepList::const_iterator StepListIter;
 
 
 struct PlanList;
@@ -136,6 +153,8 @@ struct Plan : public LessThanComparable, public Printable, public gc {
   const OpenConditionChain* const open_conds;
   /* Number of open conditions. */
   const size_t num_open_conds;
+  /* Ordering constraints of this plan. */
+  const Orderings& orderings;
 
   /* Returns plan for given problem. */
   static const Plan* plan(const Problem& problem, const Parameters& params);
@@ -172,8 +191,6 @@ private:
   size_t high_step_id_;
   /* Binding constraints of this plan. */
   const Bindings& bindings_;
-  /* Ordering constraints of this plan. */
-  const Orderings& orderings_;
   /* Parent plan. */
   const Plan* const parent_;
   /* Plan type. */
@@ -192,7 +209,7 @@ private:
        const LinkChain* links, size_t num_links,
        const UnsafeChain* unsafes, size_t num_unsafes,
        const OpenConditionChain* open_conds, size_t num_open_conds,
-       const Bindings& bindings, const Orderings& orderings,
+       const Orderings& orderings, const Bindings& bindings,
        const Plan* parent, PlanType type = NORMAL_PLAN);
 
   /* Returns the next flaw to work on. */

@@ -1,16 +1,21 @@
 /*
- * $Id: heuristics.cc,v 1.15 2002-01-01 17:59:53 lorens Exp $
+ * $Id: heuristics.cc,v 1.16 2002-01-02 19:28:25 lorens Exp $
  */
 #include <set>
+#include <typeinfo>
 #include <cmath>
 #include "heuristics.h"
 #include "plans.h"
 #include "bindings.h"
+#include "orderings.h"
 #include "flaws.h"
 #include "problems.h"
 #include "domains.h"
 #include "debug.h"
 
+
+/* ====================================================================== */
+/* HeuristicValue */
 
 /* Returns the sum of two integers, avoiding overflow. */
 static int sum(int n, int m) {
@@ -26,6 +31,42 @@ HeuristicValue::ZERO_COST_UNIT_WORK = HeuristicValue(0, 1, 0, 1);
 /* An infinite heuristic value. */
 const HeuristicValue
 HeuristicValue::INFINITE = HeuristicValue(INT_MAX, INT_MAX, INT_MAX, INT_MAX);
+
+
+/* Constructs a zero heuristic value. */
+HeuristicValue::HeuristicValue()
+  : max_cost_(0), max_work_(0), sum_cost_(0), sum_work_(0) {}
+
+
+/* Constructs a heuristic value. */
+HeuristicValue::HeuristicValue(int max_cost, int max_work,
+			       int sum_cost, int sum_work)
+  : max_cost_(max_cost), max_work_(max_work),
+    sum_cost_(sum_cost), sum_work_(sum_work) {}
+
+
+/* Returns the cost according to the MAX heuristic. */
+int HeuristicValue::max_cost() const {
+  return max_cost_;
+}
+
+
+/* Returns the work according to the MAX heuristic. */
+int HeuristicValue::max_work() const {
+  return max_work_;
+}
+
+
+/* Returns the cost according to the SUM heurisitc. */
+int HeuristicValue::sum_cost() const {
+  return sum_cost_;
+}
+
+
+/* Returns the work according to the SUM heuristic. */
+int HeuristicValue::sum_work() const {
+  return sum_work_;
+}
 
 
 /* Checks if this heuristic value is zero. */
@@ -140,6 +181,9 @@ HeuristicValue min(const HeuristicValue& v1, const HeuristicValue& v2) {
 }
 
 
+/* ====================================================================== */
+/* Heuristic evaluation functions for formulas. */
+
 /* Returns the heuristic value of this formula. */
 void Constant::heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
 			       const Bindings* b) const {
@@ -219,18 +263,11 @@ void QuantifiedFormula::heuristic_value(HeuristicValue& h,
 }
 
 
-/* Atom value map. */
-struct AtomValueMap
-  : public HashMap<const Atom*, HeuristicValue, hash<const Literal*>,
-  equal_to<const Literal*> > {
-};
-
-/* Iterator for AtomValueMap. */
-typedef AtomValueMap::const_iterator AtomValueMapIter;
-
+/* ====================================================================== */
+/* PlanningGraph */
 
 /* Constructs a planning graph. */
-PlanningGraph::PlanningGraph(const Problem& problem) {
+PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
   /*
    * Find all consistent action instantiations.
    */
@@ -294,7 +331,7 @@ PlanningGraph::PlanningGraph(const Problem& problem) {
 	if (applicable_actions.find(&action) == applicable_actions.end()) {
 	  /* First time this action is applicable. */
 	  applicable_actions.insert(&action);
-	  if (!action.arguments.empty()) {
+	  if (domain_constraints && !action.arguments.empty()) {
 	    ActionDomainMapIter di = action_domains.find(action.name);
 	    if (di == action_domains.end()) {
 	      ActionDomain* domain = new ActionDomain(action.arguments);
@@ -548,42 +585,62 @@ const ActionDomain* PlanningGraph::action_domain(const string& name) const {
 }
 
 
+/* ====================================================================== */
+/* InvalidHeuristic */
+
+/* Constructs an invalid heuristic exception. */
+InvalidHeuristic::InvalidHeuristic(const string& name)
+  : Exception("invalid heuristic `" + name + "'") {}
+
+
+/* ====================================================================== */
+/* Heuristic */
+
 /* Selects a heuristic from a name. */
 Heuristic& Heuristic::operator=(const string& name) {
   h_.clear();
   needs_pg_ = false;
-  return *this += name;
-}
-
-
-/* Adds another heuristic to this heuristic. */
-Heuristic& Heuristic::operator+=(const string& name) {
-  const char* n = name.c_str();
-  if (strcasecmp(n, "LIFO") == 0) {
-    h_.push_back(LIFO);
-  } else if (strcasecmp(n, "FIFO") == 0) {
-    h_.push_back(FIFO);
-  } else if (strcasecmp(n, "OC") == 0) {
-    h_.push_back(OC);
-  } else if (strcasecmp(n, "UC") == 0) {
-    h_.push_back(UC);
-  } else if (strcasecmp(n, "BUC") == 0) {
-    h_.push_back(BUC);
-  } else if (strcasecmp(n, "S+OC") == 0) {
-    h_.push_back(S_PLUS_OC);
-  } else if (strcasecmp(n, "UCPOP") == 0) {
-    h_.push_back(UCPOP);
-  } else if (strcasecmp(n, "SUM") == 0) {
-    h_.push_back(SUM);
-    needs_pg_ = true;
-  } else if (strcasecmp(n, "SUM_COST") == 0) {
-    h_.push_back(SUM_COST);
-    needs_pg_ = true;
-  } else if (strcasecmp(n, "SUM_WORK") == 0) {
-    h_.push_back(SUM_WORK);
-    needs_pg_ = true;
-  } else {
-    throw InvalidHeuristic(name);
+  size_t pos = 0;
+  while (pos < name.length()) {
+    size_t next_pos = name.find(':', pos);
+    string key = name.substr(pos, next_pos - pos);
+    const char* n = key.c_str();
+    if (strcasecmp(n, "LIFO") == 0) {
+      h_.push_back(LIFO);
+    } else if (strcasecmp(n, "FIFO") == 0) {
+      h_.push_back(FIFO);
+    } else if (strcasecmp(n, "OC") == 0) {
+      h_.push_back(OC);
+    } else if (strcasecmp(n, "UC") == 0) {
+      h_.push_back(UC);
+    } else if (strcasecmp(n, "BUC") == 0) {
+      h_.push_back(BUC);
+    } else if (strcasecmp(n, "S+OC") == 0) {
+      h_.push_back(S_PLUS_OC);
+    } else if (strcasecmp(n, "UCPOP") == 0) {
+      h_.push_back(UCPOP);
+    } else if (strcasecmp(n, "SUM") == 0) {
+      h_.push_back(SUM);
+      needs_pg_ = true;
+    } else if (strcasecmp(n, "SUM_COST") == 0) {
+      h_.push_back(SUM_COST);
+      needs_pg_ = true;
+    } else if (strcasecmp(n, "SUM_WORK") == 0) {
+      h_.push_back(SUM_WORK);
+      needs_pg_ = true;
+    } else if (strcasecmp(n, "SUMR") == 0) {
+      h_.push_back(SUMR);
+      needs_pg_ = true;
+    } else if (strcasecmp(n, "SUMR_COST") == 0) {
+      h_.push_back(SUMR_COST);
+      needs_pg_ = true;
+    } else if (strcasecmp(n, "SUMR_WORK") == 0) {
+      h_.push_back(SUMR_WORK);
+      needs_pg_ = true;
+    } else {
+      throw InvalidHeuristic(name);
+    }
+    pos = (next_pos < name.length()) ? next_pos + 1 : next_pos;
   }
   return *this;
 }
@@ -595,12 +652,16 @@ bool Heuristic::needs_planning_graph() const {
 }
 
 
+/* Fills the provided vector with the ranks for the given plan. */
 void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
-			  double weight,
+			  double weight, const Domain& domain,
 			  const PlanningGraph* planning_graph) const {
   bool sum_done = false;
   int sum_cost = 0;
   int sum_work = 0;
+  bool sumr_done = false;
+  int sumr_cost = 0;
+  int sumr_work = 0;
   for (vector<HVal>::const_iterator hi = h_.begin(); hi != h_.end(); hi++) {
     HVal h = *hi;
     switch (h) {
@@ -649,6 +710,68 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
       if (h != SUM_COST) {
 	if (sum_work < INT_MAX) {
 	  rank.push_back(sum_work);
+	} else {
+	  rank.push_back(HUGE_VAL);
+	}
+      }
+      break;
+    case SUMR:
+    case SUMR_COST:
+    case SUMR_WORK:
+      if (!sumr_done) {
+	const Bindings* bindings = plan.bindings();
+	for (const OpenConditionChain* occ = plan.open_conds;
+	     occ != NULL; occ = occ->tail) {
+	  bool reuse = false;
+	  const LiteralOpenCondition* loc =
+	    dynamic_cast<const LiteralOpenCondition*>(occ->head);
+	  if (loc != NULL && !loc->is_static(domain)) {
+	    hash_set<size_t> seen_steps;
+	    for (const StepChain* sc = plan.steps;
+		 sc != NULL && !reuse; sc = sc->tail) {
+	      const Step& step = *sc->head;
+	      if (seen_steps.find(step.id) == seen_steps.end()) {
+		seen_steps.insert(step.id);
+		if (plan.orderings.possibly_before(step.id,
+						   loc->step_id)) {
+		  const EffectList& effs = step.effects;
+		  for (EffectListIter ei = effs.begin();
+		       ei != effs.end() && !reuse; ei++) {
+		    const AtomList& adds = (*ei)->add_list;
+		    for (AtomListIter fi = adds.begin();
+			 fi != adds.end() && !reuse; fi++) {
+		      if ((bindings != NULL
+			   && bindings->unify(loc->literal, **fi))
+			  || (bindings == NULL
+			      && Bindings::unifiable(loc->literal, **fi))) {
+			sumr_work = sum(sumr_work, 1);
+			reuse = true;
+		      }
+		    }
+		  }
+		}
+	      }
+	    }
+	  }
+	  if (!reuse) {
+	    HeuristicValue v;
+	    occ->head->condition().heuristic_value(v, *planning_graph,
+						   bindings);
+	    sumr_cost = sum(sumr_cost, v.sum_cost());
+	    sumr_work = sum(sumr_work, v.sum_work());
+	  }
+	}
+      }
+      if (h != SUMR_WORK) {
+	if (sumr_cost < INT_MAX) {
+	  rank.push_back(plan.num_steps + weight*sumr_cost);
+	} else {
+	  rank.push_back(HUGE_VAL);
+	}
+      }
+      if (h != SUMR_COST) {
+	if (sumr_work < INT_MAX) {
+	  rank.push_back(sumr_work);
 	} else {
 	  rank.push_back(HUGE_VAL);
 	}

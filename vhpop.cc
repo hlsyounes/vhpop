@@ -1,7 +1,7 @@
 /*
  * Main program.
  *
- * $Id: vhpop.cc,v 1.19 2001-12-30 19:30:01 lorens Exp $
+ * $Id: vhpop.cc,v 1.20 2002-01-02 19:28:40 lorens Exp $
  */
 #include <iostream>
 #include <cstdio>
@@ -130,8 +130,6 @@ int main(int argc, char* argv[]) {
   verbosity = 0;
   /* Set default warning level. */
   warning_level = 1;
-  /* Flag indicating whether or not a heuristic has been set. */
-  bool heuristic_set = false;
 
   /*
    * Get command line options.
@@ -166,12 +164,7 @@ int main(int argc, char* argv[]) {
       break;
     case 'h':
       try {
-	if (heuristic_set) {
-	  params.heuristic += optarg;
-	} else {
-	  params.heuristic = optarg;
-	  heuristic_set = true;
-	}
+	params.heuristic = optarg;
       } catch (const InvalidHeuristic& e) {
 	cerr << PROGRAM_NAME << ": " << e << endl
 	     << "Try `" << PROGRAM_NAME << " --help' for more information."
