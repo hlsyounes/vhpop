@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: actions.h,v 6.4 2003-09-09 20:37:21 lorens Exp $
+ * $Id: actions.h,v 6.5 2003-12-05 21:02:08 lorens Exp $
  */
 #ifndef ACTIONS_H
 #define ACTIONS_H
@@ -26,6 +26,7 @@
 
 struct FunctionTable;
 struct Expression;
+struct Domain;
 
 
 /* ====================================================================== */
@@ -75,7 +76,7 @@ struct Action {
   const Expression& max_duration() const { return *max_duration_; }
 
   /* "Strengthens" the effects of this action. */
-  void strengthen_effects();
+  void strengthen_effects(const Domain& domain);
 
   /* Prints this action on the given stream with the given bindings. */
   virtual void print(std::ostream& os, const TermTable& terms,

@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 6.11 2003-09-05 16:24:10 lorens Exp $
+ * $Id: formulas.h,v 6.12 2003-12-05 21:02:41 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -36,6 +36,7 @@
 #endif
 
 struct Problem;
+struct Domain;
 struct Bindings;
 struct HeuristicValue;
 struct PlanningGraph;
@@ -83,7 +84,8 @@ struct Formula {
 
   /* Returns a formula that separates the given literal from anything
      definitely asserted by this formula. */
-  virtual const Formula& separator(const Literal& literal) const = 0;
+  virtual const Formula& separator(const Literal& literal,
+				   const Domain& domain) const = 0;
 
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionMap& subst) const = 0;
@@ -149,7 +151,8 @@ struct FormulaList : public std::vector<const Formula*> {
 struct Constant : public Formula {
   /* Returns a formula that separates the given literal from anything
      definitely asserted by this formula. */
-  virtual const Formula& separator(const Literal& literal) const;
+  virtual const Formula& separator(const Literal& literal,
+				   const Domain& domain) const;
 
   /* Returns this formula subject to the given substitutions. */
   virtual const Constant& substitution(const SubstitutionMap& subst) const;
@@ -213,7 +216,8 @@ struct Literal : public Formula {
 
   /* Returns a formula that separates the given literal from anything
      definitely asserted by this formula. */
-  virtual const Formula& separator(const Literal& literal) const;
+  virtual const Formula& separator(const Literal& literal,
+				   const Domain& domain) const;
 
   /* Returns this formula subject to the given substitutions. */
   virtual const Literal& substitution(const SubstitutionMap& subst) const = 0;
@@ -431,7 +435,8 @@ struct BindingLiteral : public Formula {
 
   /* Returns a formula that separates the given literal from anything
      definitely asserted by this formula. */
-  virtual const Formula& separator(const Literal& literal) const;
+  virtual const Formula& separator(const Literal& literal,
+				   const Domain& domain) const;
 
 protected:
   /* Constructs a binding literal. */
@@ -557,7 +562,8 @@ struct Conjunction : public Formula {
 
   /* Returns a formula that separates the given literal from anything
      definitely asserted by this formula. */
-  virtual const Formula& separator(const Literal& literal) const;
+  virtual const Formula& separator(const Literal& literal,
+				   const Domain& domain) const;
 
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionMap& subst) const;
@@ -611,7 +617,8 @@ struct Disjunction : public Formula {
 
   /* Returns a formula that separates the given literal from anything
      definitely asserted by this formula. */
-  virtual const Formula& separator(const Literal& literal) const;
+  virtual const Formula& separator(const Literal& literal,
+				   const Domain& domain) const;
 
   /* Returns this formula subject to the given substitution. */
   virtual const Formula& substitution(const SubstitutionMap& subst) const;
@@ -668,7 +675,8 @@ struct Quantification : public Formula {
 
   /* Returns a formula that separates the given literal from anything
      definitely asserted by this formula. */
-  virtual const Formula& separator(const Literal& literal) const;
+  virtual const Formula& separator(const Literal& literal,
+				   const Domain& domain) const;
 
 protected:
   /* Constructs a quantified formula. */

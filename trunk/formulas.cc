@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 6.11 2003-09-05 16:23:24 lorens Exp $
+ * $Id: formulas.cc,v 6.12 2003-12-05 21:02:30 lorens Exp $
  */
 #include "formulas.h"
 #include "bindings.h"
@@ -169,7 +169,8 @@ Constant::Constant(bool value)
 
 /* Returns a formula that separates the given literal from anything
    definitely asserted by this formula. */
-const Formula& Constant::separator(const Literal& literal) const {
+const Formula& Constant::separator(const Literal& literal,
+				   const Domain& domain) const {
   return TRUE;
 }
 
@@ -227,9 +228,11 @@ void Literal::assign_id(bool ground) {
 
 /* Returns a formula that separates the given literal from anything
    definitely asserted by this formula. */
-const Formula& Literal::separator(const Literal& literal) const {
+const Formula& Literal::separator(const Literal& literal,
+				  const Domain& domain) const {
   BindingList mgu;
-  if (Bindings::unifiable(mgu, *this, 1, literal, 1)) {
+  if (Bindings::unifiable(mgu, *this, 1, literal, 1,
+			  domain.types(), domain.terms())) {
     Disjunction* disj = NULL;
     const Formula* first_d = &FALSE;
     for (BindingList::const_iterator bi = mgu.begin(); bi != mgu.end(); bi++) {
@@ -566,7 +569,8 @@ BindingLiteral::BindingLiteral(Term term1, size_t id1,
 
 /* Returns a formula that separates the given literal from anything
    definitely asserted by this formula. */
-const Formula& BindingLiteral::separator(const Literal& literal) const {
+const Formula& BindingLiteral::separator(const Literal& literal,
+					 const Domain& domain) const {
   return TRUE;
 }
 
@@ -773,12 +777,13 @@ void Conjunction::add_conjunct(const Formula& conjunct) {
 
 /* Returns a formula that separates the given literal from anything
    definitely asserted by this formula. */
-const Formula& Conjunction::separator(const Literal& literal) const {
+const Formula& Conjunction::separator(const Literal& literal,
+				      const Domain& domain) const {
   Conjunction* conj = NULL;
   const Formula* first_c = &TRUE;
   for (FormulaList::const_iterator fi = conjuncts().begin();
        fi != conjuncts().end(); fi++) {
-    const Formula& c = (*fi)->separator(literal);
+    const Formula& c = (*fi)->separator(literal, domain);
     if (c.contradiction()) {
       if (conj == NULL) {
 	register_use(first_c);
@@ -1032,13 +1037,14 @@ void Disjunction::add_disjunct(const Formula& disjunct) {
 
 /* Returns a formula that separates the given literal from anything
    definitely asserted by this formula. */
-const Formula& Disjunction::separator(const Literal& literal) const {
+const Formula& Disjunction::separator(const Literal& literal,
+				      const Domain& domain) const {
   Conjunction* conj = NULL;
   const Formula* first_c = &TRUE;
   for (FormulaList::const_iterator fi = disjuncts().begin();
        fi != disjuncts().end(); fi++) {
     const Formula& d = **fi;
-    const Formula& c = !d && d.separator(literal);
+    const Formula& c = !d && d.separator(literal, domain);
     if (c.contradiction()) {
       if (conj == NULL) {
 	register_use(first_c);
@@ -1301,7 +1307,8 @@ void Quantification::set_body(const Formula& body) {
 
 /* Returns a formula that separates the given literal from anything
    definitely asserted by this formula. */
-const Formula& Quantification::separator(const Literal& literal) const {
+const Formula& Quantification::separator(const Literal& literal,
+					 const Domain& domain) const {
   /* We are being conservative here.  It can be hard to find a
      separator in this case. */
   return TRUE;

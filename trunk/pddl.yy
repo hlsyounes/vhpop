@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 6.7 2003-09-18 21:50:21 lorens Exp $
+ * $Id: pddl.yy,v 6.8 2003-12-05 21:03:31 lorens Exp $
  */
 %{
 #include "requirements.h"
@@ -1043,7 +1043,7 @@ static void make_action(const std::string* name, bool durative) {
 static void add_action() {
   context.pop_frame();
   if (domain->find_action(action->name()) == NULL) {
-    action->strengthen_effects();
+    action->strengthen_effects(*domain);
     domain->add_action(*action);
   } else {
     yywarning("ignoring repeated declaration of action `"
