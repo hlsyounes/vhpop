@@ -2,7 +2,7 @@
 /*
  * PDDL parser.
  *
- * $Id: pddl.yy,v 1.16 2001-10-08 03:08:48 lorens Exp $
+ * $Id: pddl.yy,v 1.17 2001-10-13 22:12:23 lorens Exp $
  */
 %{
 #include <utility>
@@ -44,7 +44,7 @@ static const Type& make_type(const string& name);
  */
 struct Context {
   void push_frame() {
-    frames_.push_back(VariableMap());
+    frames_.push_back(new VariableMap());
   }
 
   void pop_frame() {
@@ -52,19 +52,19 @@ struct Context {
   }
 
   void insert(const Variable* v) {
-    (frames_.back())[v->name] = v;
+    (*frames_.back())[v->name] = v;
   }
 
   const Variable* shallow_find(const string& name) const {
-    VariableMap::const_iterator vi = frames_.back().find(name);
-    return (vi != frames_.back().end()) ? (*vi).second : NULL;
+    VariableMap::const_iterator vi = frames_.back()->find(name);
+    return (vi != frames_.back()->end()) ? (*vi).second : NULL;
   }
 
   const Variable* find(const string& name) const {
-    for (vector<VariableMap>::const_reverse_iterator fi = frames_.rbegin();
+    for (Vector<VariableMap*>::const_reverse_iterator fi = frames_.rbegin();
 	 fi != frames_.rend(); fi++) {
-      VariableMap::const_iterator vi = (*fi).find(name);
-      if (vi != (*fi).end()) {
+      VariableMap::const_iterator vi = (*fi)->find(name);
+      if (vi != (*fi)->end()) {
 	return (*vi).second;
       }
     }
@@ -72,10 +72,10 @@ struct Context {
   }
 
 private:
-  typedef hash_map<string, const Variable*, hash<string>, equal_to<string>,
-    container_alloc> VariableMap;
+  struct VariableMap : public HashMap<string, const Variable*> {
+  };
 
-  vector<VariableMap> frames_;
+  Vector<VariableMap*> frames_;
 };
 
 
