@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: types.cc,v 4.1 2002-07-22 22:38:19 lorens Exp $
+ * $Id: types.cc,v 4.2 2002-07-24 15:07:54 lorens Exp $
  */
 #include "types.h"
 
@@ -53,12 +53,12 @@ SimpleType::SimpleType(const string& name, const Type& supertype)
 
 /* Checks if this type is a subtype of the given type. */
 bool SimpleType::subtype(const Type& t) const {
-  if (t.object()) {
+  if (this == &t || t.object()) {
     return true;
   } else {
     const SimpleType* st = dynamic_cast<const SimpleType*>(&t);
     if (st != NULL) {
-      return name() == st->name() || (!object() && supertype().subtype(t));
+      return !object() && supertype().subtype(t);
     } else {
       const UnionType& ut = dynamic_cast<const UnionType&>(t);
       return member_if(ut.types().begin(), ut.types().end(),
@@ -70,8 +70,7 @@ bool SimpleType::subtype(const Type& t) const {
 
 /* Checks if this object is less than the given object. */
 bool SimpleType::less(const LessThanComparable& o) const {
-  const SimpleType& st = dynamic_cast<const SimpleType&>(o);
-  return name() < st.name();
+  return this < &o;
 }
 
 
