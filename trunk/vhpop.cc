@@ -15,10 +15,9 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 3.30 2003-03-01 23:45:53 lorens Exp $
+ * $Id: vhpop.cc,v 6.1 2003-07-13 16:12:55 lorens Exp $
  */
 #include "plans.h"
-#include "reasons.h"
 #include "parameters.h"
 #include "heuristics.h"
 #include "domains.h"
@@ -66,10 +65,8 @@ static struct option long_options[] = {
   { "limit", required_argument, NULL, 'l' },
   { "reverse-open-conditions", no_argument, NULL, 'r' },
   { "search-algorithm", required_argument, NULL, 's' },
+  { "seed", required_argument, NULL, 'S' },
   { "tolerance", required_argument, NULL, 't' },
-#ifdef TRANSFORMATIONAL
-  { "transformational", no_argument, NULL, 1 },
-#endif
   { "time-limit", required_argument, NULL, 'T' },
   { "verbose", optional_argument, NULL, 'v' },
   { "version", no_argument, NULL, 'V' },
@@ -111,10 +108,6 @@ static void display_help() {
 	    << "\t\t\t  time stamps less than t appart are considered"
 	    << std::endl
 	    << "\t\t\t  indistinguishable (default is 0.01)" << std::endl
-#ifdef TRANSFORMATIONAL
-	    << "         --transformational" << std::endl
-	    << "\t\t\tuse transformational planner" << std::endl
-#endif
 	    << "  -T t,  --time-limit=t\t"
 	    << "limit search to t minutes" << std::endl
 	    << "  -v[n], --verbose[=n]\t"
@@ -181,9 +174,7 @@ static void cleanup() {
   Domain::clear();
 
 #ifdef DEBUG_MEMORY
-  std::cerr << "Variables created: " << created_variables << std::endl
-	    << "Variables deleted: " << deleted_variables << std::endl
-	    << "Formulas created: " << created_formulas << std::endl
+  std::cerr << "Formulas created: " << created_formulas << std::endl
 	    << "Formulas deleted: " << deleted_formulas << std::endl
 	    << "Name sets created: " << created_name_sets << std::endl
 	    << "Name sets deleted: " << deleted_name_sets << std::endl
@@ -202,16 +193,12 @@ static void cleanup() {
 	    << "Plans created: " << created_plans << std::endl
 	    << "Plans deleted: " << deleted_plans << std::endl
 	    << "Chains created: " << created_chains << std::endl
-	    << "Chains deleted: " << deleted_chains << std::endl
-	    << "Reasons created: " << created_reasons << std::endl
-	    << "Reasons deleted: " << deleted_reasons << std::endl;
+	    << "Chains deleted: " << deleted_chains << std::endl;
 #endif
 }
 
 
 #ifdef DEBUG_MEMORY
-size_t created_variables = 0;
-size_t deleted_variables = 0;
 size_t created_formulas = 0;
 size_t deleted_formulas = 0;
 size_t created_name_sets = 0;
@@ -230,8 +217,6 @@ size_t created_plans = 0;
 size_t deleted_plans = 0;
 size_t created_chains = 0;
 size_t deleted_chains = 0;
-size_t created_reasons = 0;
-size_t deleted_reasons = 0;
 #endif
 
 
@@ -324,11 +309,6 @@ int main(int argc, char* argv[]) {
 	TemporalOrderings::threshold = atof(optarg);
       }
       break;
-#ifdef TRANSFORMATIONAL
-    case 1:
-      params.transformational = true;
-      break;
-#endif
     case 'T':
       params.time_limit = atoi(optarg);
       break;
