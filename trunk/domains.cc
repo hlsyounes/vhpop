@@ -1,5 +1,5 @@
 /*
- * $Id: domains.cc,v 1.20 2001-10-06 23:39:57 lorens Exp $
+ * $Id: domains.cc,v 1.21 2001-10-08 02:34:38 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -63,11 +63,11 @@ const Effect& Effect::instantiation(size_t id) const {
 void Effect::instantiations(EffectList& effects, const SubstitutionList& subst,
 			    const Problem& problem) const {
   if (forall.empty()) {
-    const AtomList& new_add_list = add_list.substitution(subst);
-    const NegationList& new_del_list = del_list.substitution(subst);
     const Formula& new_condition = condition.instantiation(subst, problem);
     if (new_condition != Formula::FALSE) {
-      effects.push_back(new Effect(new_condition, new_add_list, new_del_list));
+      effects.push_back(new Effect(new_condition,
+				   add_list.substitution(subst),
+				   del_list.substitution(subst)));
     }
   } else {
     SubstitutionList args;
@@ -93,10 +93,9 @@ void Effect::instantiations(EffectList& effects, const SubstitutionList& subst,
       const Formula& new_condition = condition.instantiation(args, problem);
       if (i + 1 == n || new_condition == Formula::FALSE) {
 	if (new_condition != Formula::FALSE) {
-	  const AtomList& new_add_list = add_list.substitution(args);
-	  const NegationList& new_del_list = del_list.substitution(args);
 	  effects.push_back(new Effect(new_condition,
-				       new_add_list, new_del_list));
+				       add_list.substitution(args),
+				       del_list.substitution(args)));
 	}
 	for (int j = i; j >= 0; j--) {
 	  args.pop_back();
