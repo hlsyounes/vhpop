@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 1.27 2002-01-25 22:03:09 lorens Exp $
+ * $Id: vhpop.cc,v 1.28 2002-01-26 01:00:02 lorens Exp $
  */
 #include <iostream>
 #include <cstdio>
@@ -123,7 +123,7 @@ static void display_help() {
 
 /* Displays version information. */
 static void display_version() {
-  cout << PROGRAM_NAME << " (" << __DATE__ << ")" << endl
+  cout << PROGRAM_NAME " " VERSION_NUMBER << " (" << __DATE__ << ")" << endl
        << "Written by H\345kan L. S. Younes (lorens@cs.cmu.edu)." << endl;
 }
 
