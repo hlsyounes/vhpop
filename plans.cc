@@ -1,11 +1,12 @@
 /*
- * $Id: plans.cc,v 1.40 2001-12-30 14:36:49 lorens Exp $
+ * $Id: plans.cc,v 1.41 2001-12-30 19:29:56 lorens Exp $
  */
 #include <queue>
 #include <algorithm>
 #include <typeinfo>
 #include <climits>
 #include <cassert>
+#include <cmath>
 #include <sys/time.h>
 #include "plans.h"
 #include "bindings.h"
@@ -40,7 +41,7 @@ static PredicateActionsMap achieves_pred;
 /* Maps negated predicates to actions. */
 static PredicateActionsMap achieves_neg_pred;
 /* Whether last flaw was a static predicate. */
-static bool static_pred_flaw = false;
+static bool static_pred_flaw;
 
 
 /* ====================================================================== */
@@ -290,6 +291,7 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
       }
     }
   }
+  static_pred_flaw = false;
 
   /* Number of visited plan. */
   size_t num_visited_plans = 0;
@@ -301,7 +303,8 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
   /* Queue of pending plans. */
   PlanQueue plans;
   /* Construct the initial plan. */
-  const Plan* current_plan = make_initial_plan(problem);
+  const Plan* initial_plan = make_initial_plan(problem);
+  const Plan* current_plan = initial_plan;
   current_plan->id = 0;
   num_generated_plans++;
 
@@ -313,91 +316,114 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
   /*
    * Search for complete plan.
    */
-  while (current_plan != NULL && !current_plan->complete()) {
-    if (num_generated_plans - num_static >= params->search_limit) {
-      /* Search limit exceeded. */
-      break;
-    }
-    struct itimerval timer;
-    getitimer(ITIMER_PROF, &timer);
-    double t = 1000000.9
-      - (timer.it_value.tv_sec + timer.it_value.tv_usec*1e-6);
-    if (t >= 60.0*params->time_limit) {
-      /* Time limit exceeded. */
-      break;
-    }
+  double f_limit;
+  if (current_plan != NULL
+      && params->search_algorithm == Parameters::IDA_STAR) {
+    f_limit = current_plan->primary_rank();
+  } else {
+    f_limit = HUGE_VAL;
+  }
+  do {
+    double next_f_limit = HUGE_VAL;
+    while (current_plan != NULL && !current_plan->complete()) {
+      if (num_generated_plans - num_static >= params->search_limit) {
+	/* Search limit exceeded. */
+	break;
+      }
+      struct itimerval timer;
+      getitimer(ITIMER_PROF, &timer);
+      double t = 1000000.9
+	- (timer.it_value.tv_sec + timer.it_value.tv_usec*1e-6);
+      if (t >= 60.0*params->time_limit) {
+	/* Time limit exceeded. */
+	break;
+      }
 
-    /*
-     * Visiting a new plan.
-     */
-    num_visited_plans++;
-    if (verbosity == 1) {
-      while (num_generated_plans - num_static - last_dot >= 1000) {
-	cout << '.';
-	last_dot += 1000;
-      }
-      while (t - 60.0*last_hash >= 60.0) {
-	cout << '#';
-	last_hash++;
-      }
-    }
-    if (verbosity > 1) {
-      cout << endl << (num_visited_plans - num_static) << ": "
-	   << "!!!!CURRENT PLAN (id " << current_plan->id << ")"
-	   << " with rank (" << current_plan->primary_rank();
-      for (size_t ri = 1; ri < current_plan->rank_.size(); ri++) {
-	cout << ',' << current_plan->rank_[ri];
-      }
-      cout << ")" << endl
-	   << *current_plan << endl;
-    }
-    /* List of children to current plan. */
-    PlanList refinements;
-    /* Get plan refinements. */
-    current_plan->refinements(refinements);
-    /* Add children to queue of pending plans. */
-    bool added = false;
-    for (PlanListIter pi = refinements.begin();
-	 pi != refinements.end(); pi++) {
-      const Plan& new_plan = **pi;
-      /* N.B. Must set id before computing rank, because it may be used. */
-      new_plan.id = num_generated_plans;
-      if (new_plan.primary_rank() < INT_MAX) {
-	added = true;
-	plans.push(&new_plan);
-	num_generated_plans++;
-	if (verbosity > 2) {
-	  cout << endl << "####CHILD (id " << new_plan.id << ")"
-	       << " with rank (" << new_plan.primary_rank();
-	  for (size_t ri = 1; ri < new_plan.rank_.size(); ri++) {
-	    cout << ',' << new_plan.rank_[ri];
-	  }
-	  cout << "):" << endl
-	       << new_plan << endl;
+      /*
+       * Visiting a new plan.
+       */
+      num_visited_plans++;
+      if (verbosity == 1) {
+	while (num_generated_plans - num_static - last_dot >= 1000) {
+	  cout << '.';
+	  last_dot += 1000;
+	}
+	while (t - 60.0*last_hash >= 60.0) {
+	  cout << '#';
+	  last_hash++;
 	}
       }
-    }
-    if (added && static_pred_flaw) {
-      num_static++;
-    }
-
-    /*
-     * Process next plan.
-     */
-    do {
-      if (plans.empty()) {
-	/* Problem lacks solution. */
-	current_plan = NULL;
-      } else {
-	current_plan = plans.top();
-	plans.pop();
+      if (verbosity > 1) {
+	cout << endl << (num_visited_plans - num_static) << ": "
+	     << "!!!!CURRENT PLAN (id " << current_plan->id << ")"
+	     << " with rank (" << current_plan->primary_rank();
+	for (size_t ri = 1; ri < current_plan->rank_.size(); ri++) {
+	  cout << ',' << current_plan->rank_[ri];
+	}
+	cout << ")" << endl
+	     << *current_plan << endl;
       }
-    } while (current_plan != NULL && current_plan->duplicate());
-#ifdef HILL_CLIMBING
-    /* Discard the rest of the plan queue. */
-    plans = PlanQueue();
-#endif
-  }
+      /* List of children to current plan. */
+      PlanList refinements;
+      /* Get plan refinements. */
+      current_plan->refinements(refinements);
+      /* Add children to queue of pending plans. */
+      bool added = false;
+      for (PlanListIter pi = refinements.begin();
+	   pi != refinements.end(); pi++) {
+	const Plan& new_plan = **pi;
+	/* N.B. Must set id before computing rank, because it may be used. */
+	new_plan.id = num_generated_plans;
+	if (!isinf(new_plan.primary_rank())
+	    && num_generated_plans - num_static < params->search_limit) {
+	  if (params->search_algorithm == Parameters::IDA_STAR
+	      && new_plan.primary_rank() > f_limit) {
+	    next_f_limit = min(next_f_limit, new_plan.primary_rank());
+	    continue;
+	  }
+	  if (!added && static_pred_flaw) {
+	    num_static++;
+	  }
+	  added = true;
+	  plans.push(&new_plan);
+	  num_generated_plans++;
+	  if (verbosity > 2) {
+	    cout << endl << "####CHILD (id " << new_plan.id << ")"
+		 << " with rank (" << new_plan.primary_rank();
+	    for (size_t ri = 1; ri < new_plan.rank_.size(); ri++) {
+	      cout << ',' << new_plan.rank_[ri];
+	    }
+	    cout << "):" << endl
+		 << new_plan << endl;
+	  }
+	}
+      }
+
+      /*
+       * Process next plan.
+       */
+      do {
+	if (plans.empty()) {
+	  /* Problem lacks solution. */
+	  current_plan = NULL;
+	} else {
+	  current_plan = plans.top();
+	  plans.pop();
+	}
+      } while (current_plan != NULL && current_plan->duplicate());
+      if (params->search_algorithm == Parameters::HILL_CLIMBING) {
+	/* Discard the rest of the plan queue. */
+	plans = PlanQueue();
+      }
+    }
+    if (current_plan != NULL && current_plan->complete()) {
+      break;
+    }
+    f_limit = next_f_limit;
+    if (!isinf(f_limit)) {
+      current_plan = initial_plan;
+    }
+  } while (!isinf(f_limit));
   if (verbosity > 0) {
     /*
      * Print statistics.

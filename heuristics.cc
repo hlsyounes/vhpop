@@ -1,7 +1,8 @@
 /*
- * $Id: heuristics.cc,v 1.12 2001-12-29 22:12:12 lorens Exp $
+ * $Id: heuristics.cc,v 1.13 2001-12-30 19:30:04 lorens Exp $
  */
 #include <set>
+#include <cmath>
 #include "heuristics.h"
 #include "plans.h"
 #include "bindings.h"
@@ -634,15 +635,23 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
 	  HeuristicValue v;
 	  occ->head->condition().heuristic_value(v, *planning_graph,
 						 plan.bindings());
-	  sum_cost += v.sum_cost();
-	  sum_work += v.sum_work();
+	  sum_cost = sum(sum_cost, v.sum_cost());
+	  sum_work = sum(sum_work, v.sum_work());
 	}
       }
       if (h != SUM_WORK) {
-	rank.push_back(plan.num_steps() + weight*sum_cost);
+	if (sum_cost < INT_MAX) {
+	  rank.push_back(plan.num_steps() + weight*sum_cost);
+	} else {
+	  rank.push_back(HUGE_VAL);
+	}
       }
       if (h != SUM_COST) {
-	rank.push_back(sum_work);
+	if (sum_work < INT_MAX) {
+	  rank.push_back(sum_work);
+	} else {
+	  rank.push_back(HUGE_VAL);
+	}
       }
       break;
     }

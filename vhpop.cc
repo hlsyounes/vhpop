@@ -1,7 +1,7 @@
 /*
  * Main program.
  *
- * $Id: vhpop.cc,v 1.18 2001-12-30 15:15:10 lorens Exp $
+ * $Id: vhpop.cc,v 1.19 2001-12-30 19:30:01 lorens Exp $
  */
 #include <iostream>
 #include <cstdio>
@@ -41,6 +41,7 @@ static struct option long_options[] = {
   { "ground-actions", no_argument, NULL, 'g' },
   { "heuristic", required_argument, NULL, 'h' },
   { "limit", required_argument, NULL, 'l' },
+  { "search-algorithm", required_argument, NULL, 's' },
   { "transformational", no_argument, NULL, 't' },
   { "time-limit", required_argument, NULL, 'T' },
   { "verbose", optional_argument, NULL, 'v' },
@@ -51,7 +52,7 @@ static struct option long_options[] = {
   { 0, 0, 0, 0 }
 };
 #endif
-static const char OPTION_STRING[] = "df:gh:l:tT:v::Vw:W::?";
+static const char OPTION_STRING[] = "df:gh:l:s:tT:v::Vw:W::?";
 
 
 /* Displays help. */
@@ -73,6 +74,8 @@ static void display_help() {
        << endl
        << "  -l l,  --limit=l\t"
        << "search no more than l plans" << endl
+       << "  -s s,  --search-algorithm" << endl
+       << "\t\t\tuse search algorithm s" << endl
        << "  -t,    --transformational" << endl
        << "\t\t\tuse transformational planner" << endl
        << "  -T t,  --time-limit=t\t"
@@ -178,6 +181,16 @@ int main(int argc, char* argv[]) {
       break;
     case 'l':
       params.search_limit = atoi(optarg);
+      break;
+    case 's':
+      try {
+	params.set_search_algorithm(optarg);
+      } catch (const InvalidSearchAlgorithm& e) {
+	cerr << PROGRAM_NAME << ": " << e << endl
+	     << "Try `" << PROGRAM_NAME << " --help' for more information."
+	     << endl;
+	return -1;
+      }
       break;
     case 't':
       params.transformational = true;
