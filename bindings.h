@@ -2,7 +2,7 @@
 /*
  * Binding constraints.
  *
- * $Id: bindings.h,v 1.7 2001-10-30 16:01:17 lorens Exp $
+ * $Id: bindings.h,v 1.8 2001-10-30 18:41:13 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
@@ -100,6 +100,14 @@ typedef Chain<const Binding*> BindingChain;
  * A set of names.
  */
 struct NameSet : public Set<const Name*, less<const LessThanComparable*> > {
+};
+
+
+/*
+ * A set of variables.
+ */
+struct VariableSet
+  : public Set<const Variable*, less<const LessThanComparable*> > {
 };
 
 
@@ -240,14 +248,17 @@ protected:
 private:
   /* Varsets representing the transitive closure of the bindings. */
   const VarsetChain* const varsets_;
+  /* Highest step id of variable in varsets. */
+  const size_t high_step_;
   /* Step domains. */
   const StepDomainChain* const step_domains_;
 
   /* Constructs a binding collection. */
   Bindings(const BindingChain* equalities, const BindingChain* inequalities,
-	   const VarsetChain* varsets, const StepDomainChain* step_domains)
+	   const VarsetChain* varsets, size_t high_step,
+	   const StepDomainChain* step_domains)
     : equalities(equalities), inequalities(inequalities),
-      varsets_(varsets), step_domains_(step_domains) {
+      varsets_(varsets), high_step_(high_step), step_domains_(step_domains) {
   }
 };
 
