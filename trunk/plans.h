@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.32 2001-12-30 15:15:28 lorens Exp $
+ * $Id: plans.h,v 1.33 2001-12-31 16:59:11 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -119,6 +119,15 @@ struct Plan : public LessThanComparable, public Printable, public gc {
 
   /* Depth of this plan in the search space. */
   const size_t depth;
+  /* Chain of steps (could contain same step several times, if it is
+     in plan for more than one reason). */
+  const StepChain* const steps;
+  /* Number of unique steps in plan. */
+  const size_t num_steps;
+  /* Chain of causal links. */
+  const LinkChain* const links;
+  /* Number of causal links. */
+  const size_t num_links;
 
   /* Returns plan for given problem. */
   static const Plan* plan(const Problem& problem, const Parameters& params);
@@ -128,9 +137,6 @@ struct Plan : public LessThanComparable, public Printable, public gc {
 
   /* Returns the serial number of this plan. */
   size_t serial_no() const;
-
-  /* Returns the number of steps of this plan. */
-  size_t num_steps() const;
 
   /* Returns the open conditions of this plan. */
   const OpenConditionChain* open_conds() const;
@@ -155,17 +161,8 @@ private:
   /* Type of plan. */
   typedef enum { NORMAL_PLAN, INTERMEDIATE_PLAN, TRANSFORMED_PLAN } PlanType;
 
-  /* Chain of steps (could contain same step several times, if it is
-     in plan for more than one reason). */
-  const StepChain* const steps_;
-  /* Number of unique steps in plan. */
-  const size_t num_steps_;
   /* Highest step id that has been used so far. */
-  const size_t high_step_id_;
-  /* Chain of causal links. */
-  const LinkChain* const links_;
-  /* Number of causal links. */
-  const size_t num_links_;
+  size_t high_step_id_;
   /* Chain of potentially threatened links. */
   const UnsafeChain* const unsafes_;
   /* Number of potentially threatened links. */
@@ -192,26 +189,12 @@ private:
   static const Plan* make_initial_plan(const Problem& problem);
 
   /* Constructs a plan. */
-  Plan(const StepChain* steps, size_t num_steps, size_t high_id,
+  Plan(const StepChain* steps, size_t num_steps,
        const LinkChain* links, size_t num_links,
        const UnsafeChain* unsafes, size_t num_unsafes,
        const OpenConditionChain* open_conds, size_t num_open_conds,
        const Bindings& bindings, const Orderings& orderings,
-       const Plan* parent, PlanType type = NORMAL_PLAN)
-    : depth((parent != NULL) ? parent->depth + 1 : 0),
-      steps_(steps), num_steps_(num_steps), high_step_id_(high_id),
-      links_(links), num_links_(num_links),
-      unsafes_(unsafes), num_unsafes_(num_unsafes),
-      open_conds_(open_conds), num_open_conds_(num_open_conds),
-      bindings_(bindings), orderings_(orderings),
-#if 0
-      parent_((parent != NULL && parent->type_ == INTERMEDIATE_PLAN) ?
-	      parent->parent_ : parent),
-#else
-      parent_(NULL),
-#endif
-      type_((parent != NULL && parent->type_ == INTERMEDIATE_PLAN) ?
-	    TRANSFORMED_PLAN : type) {}
+       const Plan* parent, PlanType type = NORMAL_PLAN);
 
   /* Returns the primary rank of this plan, where a lower rank
      signifies a better plan. */
