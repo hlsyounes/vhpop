@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.29 2001-10-25 18:06:05 lorens Exp $
+ * $Id: plans.cc,v 1.30 2001-10-30 16:02:24 lorens Exp $
  */
 #include <queue>
 #include <hash_set>
@@ -339,11 +339,9 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
     for (ActionSchemaMap::const_iterator i = domain->actions.begin();
 	 i != domain->actions.end(); i++) {
       const ActionSchema* action = (*i).second;
-#if 0
       if (!params.heuristic.ucpop()) {
-	action = &action->strip_static(*domain);
+	action = &action->strip_equality();
       }
-#endif
       hash_set<string> preds;
       hash_set<string> neg_preds;
       action->achievable_predicates(preds, neg_preds);

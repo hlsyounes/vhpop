@@ -1,5 +1,5 @@
 /*
- * $Id: bindings.cc,v 1.5 2001-10-18 21:15:24 lorens Exp $
+ * $Id: bindings.cc,v 1.6 2001-10-30 16:00:58 lorens Exp $
  */
 #include "bindings.h"
 #include "formulas.h"
@@ -312,11 +312,19 @@ static const Varset* find_varset(const VarsetChain* varsets, const Term& t) {
    none does. */
 static pair<const StepDomain*, size_t>
 find_step_domain(const StepDomainChain* step_domains, const Variable& var) {
-  for (const StepDomainChain* sd = step_domains; sd != NULL; sd = sd->tail) {
-    const StepDomain& step_domain = *sd->head;
-    int column = step_domain.index_of(var);
-    if (column >= 0) {
-      return make_pair(&step_domain, column);
+  const StepVar* sv = dynamic_cast<const StepVar*>(&var);
+  if (sv != NULL) {
+    size_t id = sv->id;
+    for (const StepDomainChain* sd = step_domains; sd != NULL; sd = sd->tail) {
+      const StepDomain& step_domain = *sd->head;
+      if (step_domain.id == id) {
+	int column = step_domain.index_of(var);
+	if (column >= 0) {
+	  return make_pair(&step_domain, column);
+	} else {
+	  break;
+	}
+      }
     }
   }
   return pair<const StepDomain*, size_t>(NULL, 0);
@@ -589,70 +597,59 @@ bool Bindings::unify(SubstitutionList& mgu,
   /*
    * Try to unify the terms of the atomic formulas.
    */
-  /* Bindings resulting from unification. */
-  const Bindings* bindings = this;
   /* Terms of the first atom. */
   const TermList& terms1 = atom1.terms;
   /* Terms of the second atom. */
   const TermList& terms2 = atom2.terms;
+  if (terms1.size() != terms2.size()) {
+    /* Term lists of different size. */
+    return false;
+  }
 
   /*
    * Unify one pair of terms at a time.
    */
+  BindingList bl;
   for (TermListIter i = terms1.begin(), j = terms2.begin();
-       i != terms1.end() || j != terms2.end(); i++, j++) {
-    if (i == terms1.end() || j == terms2.end()) {
-      /* The term lists are of different length. */
-      return false;
-    } else {
-      /*
-       * Try to unify a pair of terms.
-       */
-      const Name* name1 = dynamic_cast<const Name*>(*i);
-      if (name1 != NULL) {
-	/* The first term is a name. */
-	const Name* name2 = dynamic_cast<const Name*>(*j);
-	if (name2 != NULL) {
-	  /*
-	   * Both terms are names.
-	   */
-	  if (*name1 != *name2) {
-	    /* The two terms are different names. */
-	    return false;
-	  }
-	} else {
-	   /*
-	    * The first term is a name and the second is a variable.
-	    */
-	  const Variable& var2 = dynamic_cast<const Variable&>(**j);
-	  BindingList bl;
-	  bl.push_back(new EqualityBinding(var2, *name1,
-					   *(new DummyReason())));
-	  bindings = bindings->add(bl);
-	  if (bindings == NULL) {
-	    /* Unification is inconsistent with current bindings. */
-	    return false;
-	  } else {
-	    /* Add unification to most general unifier. */
-	    mgu.push_back(new Substitution(var2, *name1));
-	  }
+       i != terms1.end(); i++, j++) {
+    /*
+     * Try to unify a pair of terms.
+     */
+    const Name* name1 = dynamic_cast<const Name*>(*i);
+    if (name1 != NULL) {
+      /* The first term is a name. */
+      const Name* name2 = dynamic_cast<const Name*>(*j);
+      if (name2 != NULL) {
+	/*
+	 * Both terms are names.
+	 */
+	if (*name1 != *name2) {
+	  /* The two terms are different names. */
+	  return false;
 	}
       } else {
-	/* The first term is a variable. */
-	const Variable& var1 = dynamic_cast<const Variable&>(**i);
-	const Term& term2 = **j;
-	BindingList bl;
-	bl.push_back(new EqualityBinding(var1, term2, *(new DummyReason())));
-	bindings = bindings->add(bl);
-	if (bindings == NULL) {
-	  /* Unification is inconsistent with current bindings. */
-	  return false;
-	} else {
-	  /* Unification is consistent. */
-	  mgu.push_back(new Substitution(var1, term2));
-	}
+	/*
+	 * The first term is a name and the second is a variable.
+	 */
+	const Variable& var2 = dynamic_cast<const Variable&>(**j);
+	bl.push_back(new EqualityBinding(var2, *name1,
+					 *(new DummyReason())));
       }
+    } else {
+      /* The first term is a variable. */
+      const Variable& var1 = dynamic_cast<const Variable&>(**i);
+      const Term& term2 = **j;
+      bl.push_back(new EqualityBinding(var1, term2, *(new DummyReason())));
     }
+  }
+  if (!bl.empty() && add(bl) == NULL) {
+    /* Unification is inconsistent with current bindings. */
+    return false;
+  }
+  for (BindingList::const_iterator bi = bl.begin(); bi != bl.end(); bi++) {
+    /* Add unification to most general unifier. */
+    const Binding& b = **bi;
+    mgu.push_back(new Substitution(b.variable, b.term));
   }
   /* Successful unification. */
   return true;
@@ -1015,7 +1012,16 @@ const Bindings* Bindings::add(const Step& step,
 		   *domain);
   const StepDomainChain* step_domains = new StepDomainChain(step_domain,
 							    step_domains_);
-  return new Bindings(equalities, inequalities, varsets_, step_domains);
+  const VarsetChain* varsets = varsets_;
+  for (size_t c = 0; c < step_domain->width(); c++) {
+    if (step_domain->projection_size(c) == 1) {
+      const VariableChain* cd_set =
+	new VariableChain(step_domain->parameters[c], NULL);
+      varsets = new VarsetChain(new Varset(*step_domain->projection(c).begin(),
+					   cd_set, NULL), varsets);
+    }
+  }
+  return new Bindings(equalities, inequalities, varsets, step_domains);
 }
 
 
