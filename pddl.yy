@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 3.9 2002-03-19 17:36:57 lorens Exp $
+ * $Id: pddl.yy,v 3.10 2002-03-24 00:07:58 lorens Exp $
  */
 %{
 #include "requirements.h"
@@ -61,7 +61,7 @@ static const SimpleType& make_type(const string& name);
  */
 struct Context {
   void push_frame() {
-    frames_.push_back(new VariableMap());
+    frames_.push_back(VariableMap());
   }
 
   void pop_frame() {
@@ -69,19 +69,19 @@ struct Context {
   }
 
   void insert(const Variable* v) {
-    (*frames_.back())[v->name()] = v;
+    frames_.back()[v->name()] = v;
   }
 
   const Variable* shallow_find(const string& name) const {
-    VariableMap::const_iterator vi = frames_.back()->find(name);
-    return (vi != frames_.back()->end()) ? (*vi).second : NULL;
+    VariableMap::const_iterator vi = frames_.back().find(name);
+    return (vi != frames_.back().end()) ? (*vi).second : NULL;
   }
 
   const Variable* find(const string& name) const {
-    for (Vector<VariableMap*>::const_reverse_iterator fi = frames_.rbegin();
+    for (vector<VariableMap>::const_reverse_iterator fi = frames_.rbegin();
 	 fi != frames_.rend(); fi++) {
-      VariableMap::const_iterator vi = (*fi)->find(name);
-      if (vi != (*fi)->end()) {
+      VariableMap::const_iterator vi = (*fi).find(name);
+      if (vi != (*fi).end()) {
 	return (*vi).second;
       }
     }
@@ -92,7 +92,7 @@ private:
   struct VariableMap : public hash_map<string, const Variable*> {
   };
 
-  Vector<VariableMap*> frames_;
+  vector<VariableMap> frames_;
 };
 
 
@@ -201,7 +201,7 @@ domain_or_problem : domain  { context = ""; }
  * Domains
  */
 
-domain : '(' DEFINE '(' DOMAIN name ')'
+domain : '(' define '(' domain name ')'
            {
 	     pdomain = NULL;
 	     domain = new Domain(*$5);
@@ -382,10 +382,11 @@ eff_formula : term_literal
                 {
 		  $$ = new EffectList(new Effect(*$1->first, *$1->second,
 						 Effect::AT_END));
+		  delete $1;
 		}
-            | '(' AND eff_formulas ')'
+            | '(' and eff_formulas ')'
                 { $$ = $3; }
-            | '(' FORALL
+            | '(' forall
                 {
 		  if (!requirements->conditional_effects) {
 		    yywarning("assuming `:conditional-effects' requirement");
@@ -415,7 +416,7 @@ eff_formula : term_literal
 		    $$ = $7;
 		  }
 		}
-            | '(' WHEN { formula_time = Formula::OVER_ALL; }
+            | '(' when { formula_time = Formula::OVER_ALL; }
               formula one_eff_formula ')'
                 {
 		  if (!requirements->conditional_effects) {
@@ -432,6 +433,7 @@ eff_formula : term_literal
 						   *$5->first, *$5->second,
 						   Effect::AT_END));
 		  }
+		  delete $5;
 		}
             ;
 
@@ -441,7 +443,7 @@ eff_formulas : /* empty */
                  { copy($2->begin(), $2->end(), back_inserter(*$1)); $$ = $1; }
 
 one_eff_formula : term_literal
-                | '(' AND term_literals ')'
+                | '(' and term_literals ')'
                     { $$ = $3; }
                 ;
 
@@ -454,12 +456,13 @@ term_literals : /* empty */
 		    copy($2->second->begin(), $2->second->end(),
 			 back_inserter(*$1->second));
 		    $$ = $1;
+		    delete $2;
 		  }
               ;
 
 term_literal : atomic_term_formula
                  { $$ = &make_add_del(new AtomList($1), new NegationList()); }
-             | '(' NOT atomic_term_formula ')'
+             | '(' not atomic_term_formula ')'
                  { $$ = &make_add_del(new AtomList(), new NegationList($3)); }
              ;
 
@@ -475,7 +478,7 @@ da_body3 : /* empty */      { action_effs = &EffectList::EMPTY; }
          ;
 
 duration_constraint : simple_duration_constraint
-                    | '(' AND simple_duration_constraints ')'
+                    | '(' and simple_duration_constraints ')'
                         {
 			  if (!requirements->duration_inequalities) {
 			    yywarning("assuming `:duration-inequalities' "
@@ -485,7 +488,7 @@ duration_constraint : simple_duration_constraint
 			}
                     ;
 
-simple_duration_constraint : '(' LE DURATION_VAR NUMBER ')'
+simple_duration_constraint : '(' LE duration_var NUMBER ')'
                                {
 				 if (!requirements->duration_inequalities) {
 				   yywarning("assuming "
@@ -497,7 +500,7 @@ simple_duration_constraint : '(' LE DURATION_VAR NUMBER ')'
 				   action_duration.second = $4;
 				 }
 			       }
-                           | '(' GE DURATION_VAR NUMBER ')'
+                           | '(' GE duration_var NUMBER ')'
                                {
 				 if (!requirements->duration_inequalities) {
 				   yywarning("assuming "
@@ -509,7 +512,7 @@ simple_duration_constraint : '(' LE DURATION_VAR NUMBER ')'
 				   action_duration.first = $4;
 				 }
 			       }
-                           | '(' '=' DURATION_VAR NUMBER ')'
+                           | '(' '=' duration_var NUMBER ')'
                                {
 				 if (action_duration.first <= $4
 				     && $4 <= action_duration.second) {
@@ -526,7 +529,7 @@ simple_duration_constraints : /* empty */
                               simple_duration_constraint
 
 da_gd : timed_gd
-      | '(' AND timed_gds ')'
+      | '(' and timed_gds ')'
           {
 	    $$ = &Formula::TRUE;
 	    for (FormulaListIter fi = $3->begin(); fi != $3->end(); fi++) {
@@ -539,18 +542,18 @@ timed_gds : /* empty */        { $$ = new FormulaList(); }
           | timed_gds timed_gd { $1->push_back($2); $$ = $1; }
           ;
 
-timed_gd : '(' AT START { formula_time = Formula::AT_START; } formula ')'
+timed_gd : '(' at start { formula_time = Formula::AT_START; } formula ')'
              { $$ = $5; }
-         | '(' AT END { formula_time = Formula::AT_END; } formula ')'
+         | '(' at end { formula_time = Formula::AT_END; } formula ')'
              { $$ = $5; }
-         | '(' OVER ALL { formula_time = Formula::OVER_ALL; } formula ')'
+         | '(' over all { formula_time = Formula::OVER_ALL; } formula ')'
              { $$ = $5; }
          ;
 
 da_effect : timed_effect
-          | '(' AND da_effects ')'
+          | '(' and da_effects ')'
               { $$ = $3; }
-          | '(' FORALL
+          | '(' forall
               {
 		if (!requirements->conditional_effects) {
 		  yywarning("assuming `:conditional-effects' requirement");
@@ -580,7 +583,7 @@ da_effect : timed_effect
 		  $$ = $7;
 		}
 	      }
-          | '(' WHEN da_gd timed_effect ')'
+          | '(' when da_gd timed_effect ')'
               {
 		if (!requirements->conditional_effects) {
 		  yywarning("assuming `:conditional-effects' requirement");
@@ -606,19 +609,21 @@ da_effects : /* empty */
            | da_effects da_effect
                { copy($2->begin(), $2->end(), back_inserter(*$1)); $$ = $1; }
 
-timed_effect : '(' AT START
+timed_effect : '(' at start
                  { formula_time = Formula::AT_START; }
                one_eff_formula ')'
                  {
 		   $$ = new EffectList(new Effect(*$5->first, *$5->second,
 						  Effect::AT_START));
+		   delete $5;
 		 }
-             | '(' AT END
+             | '(' at end
                  { formula_time = Formula::AT_END; }
                one_eff_formula ')'
                  {
 		   $$ = new EffectList(new Effect(*$5->first, *$5->second,
 						  Effect::AT_END));
+		   delete $5;
 		 }
              ;
 
@@ -627,15 +632,17 @@ timed_effect : '(' AT START
  * Problems
  */
 
-problem : '(' DEFINE '(' PROBLEM name ')' 
+problem : '(' define '(' problem name ')' 
             {
 	      problem_name = *$5;
+	      delete $5;
 	      context = " in problem `" + problem_name + "'";
 	    }
           '(' PDOMAIN name ')'
             {
 	      domain = NULL;
 	      pdomain = Domain::find(*$10);
+	      delete $10;
 	      if (pdomain != NULL) {
 		requirements = new Requirements(pdomain->requirements);
 	      } else {
@@ -649,7 +656,6 @@ problem : '(' DEFINE '(' PROBLEM name ')'
 	      new Problem(problem_name, *pdomain, *problem_objects,
 			  *problem_init, *problem_goal);
 	      delete requirements;
-	      delete $5;
 	    }
         ;
 
@@ -685,7 +691,10 @@ init : '(' INIT
 	     " in initial conditions of problem `" + problem_name + "'";
 	 }
        name_literals ')'
-         { $$ = new Effect(*$4->first, *$4->second, Effect::AT_END); }
+         {
+	   $$ = new Effect(*$4->first, *$4->second, Effect::AT_END);
+	   delete $4;
+	 }
      ;
 
 name_literals : name_literal
@@ -696,12 +705,13 @@ name_literals : name_literal
 		    copy($2->second->begin(), $2->second->end(),
 			 back_inserter(*$1->second));
 		    $$ = $1;
+		    delete $2;
 		  }
               ;
 
 name_literal : atomic_name_formula
                  { $$ = &make_add_del(new AtomList($1), new NegationList()); }
-             | '(' NOT atomic_name_formula ')'
+             | '(' not atomic_name_formula ')'
                  { $$ = &make_add_del(new AtomList(), new NegationList()); }
              ;
 
@@ -749,8 +759,8 @@ goal : '(' GOAL
 metric_spec : '(' METRIC optimization ground_f_exp ')'
             ;
 
-optimization : MINIMIZE {}
-             | MAXIMIZE {}
+optimization : MINIMIZE { delete $1; }
+             | MAXIMIZE { delete $1; }
              ;
 
 ground_f_exp : '(' '+' ground_f_exp ground_f_exp ')'
@@ -797,7 +807,7 @@ formula : atomic_term_formula
 		$$ = &Formula::FALSE;
 	      }
 	    }
-        | '(' NOT formula ')'
+        | '(' not formula ')'
             {
 	      if (typeid(*$3) == typeid(Atom)) {
 		if (!requirements->negative_preconditions) {
@@ -813,14 +823,14 @@ formula : atomic_term_formula
 	      }
 	      $$ = &!*$3;
 	    }
-        | '(' AND formulas ')'
+        | '(' and formulas ')'
             {
 	      $$ = &Formula::TRUE;
 	      for (FormulaListIter fi = $3->begin(); fi != $3->end(); fi++) {
 		$$ = &(*$$ && **fi);
 	      }
 	    }
-        | '(' OR formulas ')'
+        | '(' or formulas ')'
             {
 	      if (!requirements->disjunctive_preconditions) {
 		yywarning("assuming `:disjunctive-preconditions' requirement");
@@ -831,7 +841,7 @@ formula : atomic_term_formula
 		$$ = &(*$$ || **fi);
 	      }
 	    }
-        | '(' IMPLY formula formula ')'
+        | '(' imply formula formula ')'
             {
 	      if (!requirements->disjunctive_preconditions) {
 		yywarning("assuming `:disjunctive-preconditions' requirement");
@@ -839,7 +849,7 @@ formula : atomic_term_formula
 	      }
 	      $$ = &(!*$3 || *$4);
 	    }
-        | '(' EXISTS
+        | '(' exists
             {
 	      if (!requirements->existential_preconditions) {
 		yywarning("assuming `:existential-preconditions' requirement");
@@ -852,7 +862,7 @@ formula : atomic_term_formula
 	      free_variables.pop_frame();
 	      $$ = $5->empty() ? $7 : new ExistsFormula(*$5, *$7);
 	    }
-        | '(' FORALL
+        | '(' forall
             {
 	      if (!requirements->universal_preconditions) {
 		yywarning("assuming `:universal-preconditions' requirement");
@@ -894,8 +904,9 @@ name_map : /* empty */
          | typed_names
 	 ;
 
-typed_names : name_seq { add_names(*$1); }
-            | name_seq type_spec { add_names(*$1, *$2); } opt_typed_names
+typed_names : name_seq { add_names(*$1); delete $1; }
+            | name_seq type_spec { add_names(*$1, *$2); delete $1; }
+              opt_typed_names
             ;
 
 opt_typed_names : /* empty */
@@ -933,6 +944,7 @@ vars : variable_seq
 		si != $1->end(); si++) {
 	     add_variable(*si);
 	   }
+	   delete $1;
 	 }
      | variable_seq type_spec 
          {
@@ -947,6 +959,7 @@ vars : variable_seq
 	   if (ut != NULL) {
 	     delete ut;
 	   }
+	   delete $1;
 	 }
        opt_vars
      ;
@@ -955,8 +968,10 @@ opt_vars : /* empty */
          | vars
          ;
 
-variable_seq : variable              { $$ = new vector<string>(1, *$1); delete $1; }
-             | variable_seq variable { $1->push_back(*$2); $$ = $1; delete $2; }
+variable_seq : variable
+                 { $$ = new vector<string>(1, *$1); delete $1; }
+             | variable_seq variable
+                 { $1->push_back(*$2); $$ = $1; delete $2; }
              ;
 
 types : predicate       { $$ = new UnionType(make_type(*$1)); delete $1; }
@@ -967,8 +982,59 @@ type_spec : '-' type { $$ = $2; }
           ;
 
 type : predicate            { $$ = &make_type(*$1); delete $1; }
-     | '(' EITHER types ')' { $$ = &UnionType::simplify(*$3); }
+     | '(' either types ')' { $$ = &UnionType::simplify(*$3); }
      ;
+
+define : DEFINE { delete $1; }
+       ;
+
+domain : DOMAIN { delete $1; }
+       ;
+
+problem : PROBLEM { delete $1; }
+        ;
+
+when : WHEN { delete $1; }
+     ;
+
+not : NOT { delete $1; }
+    ;
+
+and : AND { delete $1; }
+    ;
+
+or : OR { delete $1; }
+   ;
+
+imply : IMPLY { delete $1; }
+      ;
+
+exists : EXISTS { delete $1; }
+       ;
+
+forall : FORALL { delete $1; }
+       ;
+
+either : EITHER { delete $1; }
+       ;
+
+at : AT { delete $1; }
+   ;
+
+over : OVER { delete $1; }
+     ;
+
+start : START { delete $1; }
+      ;
+
+end : END { delete $1; }
+    ;
+
+all : ALL { delete $1; }
+    ;
+
+duration_var : DURATION_VAR { delete $1; }
+             ;
 
 variable : DURATION_VAR
          | VARIABLE
