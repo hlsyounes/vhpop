@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.h,v 3.11 2002-05-28 22:18:12 lorens Exp $
+ * $Id: orderings.h,v 3.12 2002-06-12 18:23:12 lorens Exp $
  */
 #ifndef ORDERINGS_H
 #define ORDERINGS_H
@@ -62,6 +62,9 @@ struct Ordering {
   /* Constructs an ordering constraint. */
   Ordering(size_t before_id, StepTime before_time,
 	   size_t after_id, StepTime after_time, const Reason& reason);
+
+  /* Constructs an ordering constraint. */
+  Ordering(const Ordering& o);
 
   /* Deletes this ordering constraint. */
   ~Ordering();
