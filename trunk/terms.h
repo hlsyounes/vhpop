@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: terms.h,v 6.3 2003-08-28 15:35:31 lorens Exp $
+ * $Id: terms.h,v 6.4 2003-09-05 16:33:35 lorens Exp $
  */
 #ifndef TERMS_H
 #define TERMS_H
@@ -99,7 +99,7 @@ struct TermTable {
   TermTable() : parent_(NULL) {}
 
   /* Constructs a term table extending the given term table. */
-  TermTable(const TermTable& parent) : parent_(&parent) {}
+  explicit TermTable(const TermTable& parent) : parent_(&parent) {}
 
   /* Adds an object with the given name and type to this term table
      and returns the object. */

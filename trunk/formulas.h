@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 6.10 2003-08-28 15:32:51 lorens Exp $
+ * $Id: formulas.h,v 6.11 2003-09-05 16:24:10 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -186,7 +186,7 @@ private:
   bool value_;
 
   /* Constructs a constant formula. */
-  Constant(bool value);
+  explicit Constant(bool value);
 
   friend struct Formula;
 };
@@ -199,6 +199,9 @@ private:
  * An abstract literal.
  */
 struct Literal : public Formula {
+  /* Returns the id for this literal (zero if lifted). */
+  size_t id() const { return id_; }
+
   /* Returns the predicate of this literal. */
   virtual Predicate predicate() const = 0;
 
@@ -214,7 +217,31 @@ struct Literal : public Formula {
 
   /* Returns this formula subject to the given substitutions. */
   virtual const Literal& substitution(const SubstitutionMap& subst) const = 0;
+
+protected:
+  /* Assigns an id to this literal. */
+  void assign_id(bool ground);
+
+private:
+  /* Next id for ground literals. */
+  static size_t next_id;
+
+  /* Unique id for ground literals (zero if lifted). */
+  size_t id_;
 };
+
+/*
+ * Less than function object for literal pointers.
+ */
+namespace std {
+  struct less<const Literal*>
+    : public binary_function<const Literal*, const Literal*, bool> {
+    /* Comparison function operator. */
+    bool operator()(const Literal* l1, const Literal* l2) const {
+      return l1->id() < l2->id();
+    }
+  };
+}
 
 
 /* ====================================================================== */
@@ -285,11 +312,19 @@ private:
   TermList terms_;
 
   /* Constructs an atomic formula with the given predicate. */
-  Atom(Predicate predicate);
+  explicit Atom(Predicate predicate) : predicate_(predicate) {}
 
   /* Adds a term to this atomic formula. */
   void add_term(Term term) { terms_.push_back(term); }
 };
+
+/*
+ * Less than function object for atom pointers.
+ */
+namespace std {
+  struct less<const Atom*> : public less<const Literal*> {
+  };
+}
 
 
 /* ====================================================================== */
@@ -364,6 +399,14 @@ private:
   explicit Negation(const Atom& atom);
 };
 
+/*
+ * Less than function object for negation pointers.
+ */
+namespace std {
+  struct less<const Negation*> : public less<const Literal*> {
+  };
+}
+
 
 /* ====================================================================== */
 /* BindingLiteral */
@@ -372,7 +415,7 @@ private:
  * A binding literal.
  */
 struct BindingLiteral : public Formula {
-  /* Returns the first term of binding literal. */
+  /* Returns the first term of this binding literal. */
   Term term1() const { return term1_; }
 
   /* Returns the step id of the first term, or the given id if no step
@@ -827,10 +870,10 @@ const Condition& operator||(const Condition& c1, const Condition& c2);
 
 
 /* ====================================================================== */
-/* AtomList */
+/* AtomSet */
 
 /*
- * List of ground atoms.
+ * A set of atoms.
  */
 struct AtomSet : public std::set<const Atom*> {
 };
