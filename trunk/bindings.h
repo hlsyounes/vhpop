@@ -2,7 +2,7 @@
 /*
  * Binding constraints.
  *
- * $Id: bindings.h,v 1.14 2002-01-04 20:25:11 lorens Exp $
+ * $Id: bindings.h,v 1.15 2002-01-25 00:16:44 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
@@ -25,6 +25,7 @@ struct Reason;
 struct Step;
 struct PlanningGraph;
 
+
 /*
  * Abstract variable binding.
  */
@@ -38,8 +39,7 @@ struct Binding : public Printable, public gc {
 
 protected:
   /* Constructs an abstract variable binding. */
-  Binding(const Variable& variable, const Term& term, const Reason& reason)
-    : variable(variable), term(term), reason(reason) {}
+  Binding(const Variable& variable, const Term& term, const Reason& reason);
 };
 
 
@@ -53,8 +53,7 @@ struct EqualityBinding : public Binding {
   /* Construct an equality binding, binding the given variable to the
      given term. */
   EqualityBinding(const Variable& variable, const Term& term,
-		  const Reason& reason)
-    : Binding(variable, term, reason) {}
+		  const Reason& reason);
 
 protected:
   /* Prints this equality binding on the given stream. */
@@ -72,8 +71,7 @@ struct InequalityBinding : public Binding {
   /* Constructs an inequality binding, separating the given variable
      from the given term. */
   InequalityBinding(const Variable& variable, const Term& term,
-		    const Reason& reason)
-    : Binding(variable, term, reason) {}
+		    const Reason& reason);
 
 protected:
   /* Prints this inequality binding on the given stream. */
@@ -87,6 +85,7 @@ protected:
 struct BindingList : Vector<const Binding*> {
 };
 
+/* Iterator for binding lists. */
 typedef BindingList::const_iterator BindingListIter;
 
 
@@ -102,6 +101,7 @@ typedef Chain<const Binding*> BindingChain;
 struct NameSet : public Set<const Name*, less<const LessThanComparable*> > {
 };
 
+/* Iterator for name sets. */
 typedef NameSet::const_iterator NameSetIter;
 
 
@@ -113,6 +113,7 @@ struct VariableSet
   static const VariableSet& EMPTY;
 };
 
+/* Iterator for variable sets. */
 typedef VariableSet::const_iterator VariableSetIter;
 
 
@@ -265,9 +266,7 @@ private:
   /* Constructs a binding collection. */
   Bindings(const BindingChain* equalities, const BindingChain* inequalities,
 	   const VarsetChain* varsets, size_t high_step,
-	   const StepDomainChain* step_domains)
-    : equalities(equalities), inequalities(inequalities),
-      varsets_(varsets), high_step_(high_step), step_domains_(step_domains) {}
+	   const StepDomainChain* step_domains);
 };
 
 #endif /* BINDINGS_H */

@@ -1,5 +1,5 @@
 /*
- * $Id: bindings.cc,v 1.17 2002-01-09 16:16:39 lorens Exp $
+ * $Id: bindings.cc,v 1.18 2002-01-25 00:16:27 lorens Exp $
  */
 #include <typeinfo>
 #include "bindings.h"
@@ -35,8 +35,8 @@ struct Varset : public gc {
 
   /* Checks if this varset includes the given variable. */
   bool includes(const Variable& var) const {
-    for (const VariableChain* vars = cd_set; vars != NULL; vars = vars->tail) {
-      if (*vars->head == var) {
+    for (const VariableChain* vc = cd_set; vc != NULL; vc = vc->tail) {
+      if (*vc->head == var) {
 	return true;
       }
     }
@@ -45,9 +45,8 @@ struct Varset : public gc {
 
   /* Checks if this varset excludes the given variable. */
   bool excludes(const Variable& var) const {
-    for (const VariableChain* vars = ncd_set;
-	 vars != NULL; vars = vars->tail) {
-      if (*vars->head == var) {
+    for (const VariableChain* vc = ncd_set; vc != NULL; vc = vc->tail) {
+      if (*vc->head == var) {
 	return true;
       }
     }
@@ -102,19 +101,21 @@ struct Varset : public gc {
     }
     const Name* comb_const = (constant != NULL) ? constant : vs.constant;
     const VariableChain* comb_cd = cd_set;
-    for (const VariableChain* cd = vs.cd_set; cd != NULL; cd = cd->tail) {
-      if (excludes(*cd->head)) {
+    for (const VariableChain* vc = vs.cd_set; vc != NULL; vc = vc->tail) {
+      const Variable& var = *vc->head;
+      if (excludes(var)) {
 	return NULL;
       } else {
-	comb_cd = new VariableChain(cd->head, comb_cd);
+	comb_cd = new VariableChain(&var, comb_cd);
       }
     }
     const VariableChain* comb_ncd = ncd_set;
-    for (const VariableChain* ncd = vs.ncd_set; ncd != NULL; ncd = ncd->tail) {
-      if (includes(*ncd->head)) {
+    for (const VariableChain* vc = vs.ncd_set; vc != NULL; vc = vc->tail) {
+      const Variable& var = *vc->head;
+      if (includes(var)) {
 	return NULL;
-      } else if (!excludes(*ncd->head)) {
-	comb_ncd = new VariableChain(ncd->head, comb_ncd);
+      } else if (!excludes(var)) {
+	comb_ncd = new VariableChain(&var, comb_ncd);
       }
     }
     return new Varset(comb_const, comb_cd, comb_ncd);
@@ -291,9 +292,10 @@ protected:
 /* Returns the varset containing the given constant, or NULL if none do. */
 static const Varset* find_varset(const VarsetChain* varsets,
 				 const Name& constant) {
-  for (const VarsetChain* vs = varsets; vs != NULL; vs = vs->tail) {
-    if (vs->head->includes(constant)) {
-      return vs->head;
+  for (const VarsetChain* vsc = varsets; vsc != NULL; vsc = vsc->tail) {
+    const Varset* vs = vsc->head;
+    if (vs->includes(constant)) {
+      return vs;
     }
   }
   return NULL;
@@ -303,9 +305,10 @@ static const Varset* find_varset(const VarsetChain* varsets,
 /* Returns the varset containing the given variable, or NULL if none do. */
 static const Varset* find_varset(const VarsetChain* varsets,
 				 const Variable& var) {
-  for (const VarsetChain* vs = varsets; vs != NULL; vs = vs->tail) {
-    if (vs->head->includes(var)) {
-      return vs->head;
+  for (const VarsetChain* vsc = varsets; vsc != NULL; vsc = vsc->tail) {
+    const Varset* vs = vsc->head;
+    if (vs->includes(var)) {
+      return vs;
     }
   }
   return NULL;
@@ -347,10 +350,29 @@ find_step_domain(const StepDomainChain* step_domains, const Variable& var) {
 }
 
 
+/* ====================================================================== */
+/* Binding */
+
+/* Constructs an abstract variable binding. */
+Binding::Binding(const Variable& variable, const Term& term,
+		 const Reason& reason)
+  : variable(variable), term(term), reason(reason) {}
+
+
+/* ====================================================================== */
+/* EqualityBinding */
+
 /* Constructs an equality binding from the given substitution. */
 EqualityBinding::EqualityBinding(const Substitution& s, const Reason& reason)
   : Binding(s.var, s.term, reason) {
 }
+
+
+/* Construct an equality binding, binding the given variable to the
+   given term. */
+EqualityBinding::EqualityBinding(const Variable& variable, const Term& term,
+				 const Reason& reason)
+  : Binding(variable, term, reason) {}
 
 
 /* Prints this equality binding on the given stream. */
@@ -359,6 +381,9 @@ void EqualityBinding::print(ostream& os) const {
 }
 
 
+/* ====================================================================== */
+/* InequalityBinding */
+
 /* Constructs an inequality binding from the given substitution. */
 InequalityBinding::InequalityBinding(const Substitution& s,
 				     const Reason& reason)
@@ -366,11 +391,21 @@ InequalityBinding::InequalityBinding(const Substitution& s,
 }
 
 
+/* Constructs an inequality binding, separating the given variable
+   from the given term. */
+InequalityBinding::InequalityBinding(const Variable& variable,
+				     const Term& term, const Reason& reason)
+  : Binding(variable, term, reason) {}
+
+
 /* Prints this inequality binding on the given stream. */
 void InequalityBinding::print(ostream& os) const {
   os << variable << "!=" << term;
 }
 
+
+/* ====================================================================== */
+/* ActionDomain */
 
 /* Constructs an action domain with a single tuple. */
 ActionDomain::ActionDomain(const NameList& tuple) {
@@ -413,12 +448,13 @@ const size_t ActionDomain::projection_size(size_t column) const {
 const ActionDomain* ActionDomain::restrict(const Name& name,
 					   size_t column) const {
   ActionDomain* new_domain = NULL;
-  for (TupleListIter i = tuples.begin(); i != tuples.end(); i++) {
-    if (*(**i)[column] == name) {
+  for (TupleListIter ti = tuples.begin(); ti != tuples.end(); ti++) {
+    const NameList& tuple = **ti;
+    if (*tuple[column] == name) {
       if (new_domain == NULL) {
-	new_domain = new ActionDomain(**i);
+	new_domain = new ActionDomain(tuple);
       } else {
-	new_domain->add(**i);
+	new_domain->add(tuple);
       }
     }
   }
@@ -432,12 +468,13 @@ const ActionDomain* ActionDomain::restrict(const Name& name,
 const ActionDomain* ActionDomain::restrict(const NameSet& names,
 					   size_t column) const {
   ActionDomain* new_domain = NULL;
-  for (TupleListIter i = tuples.begin(); i != tuples.end(); i++) {
-    if (names.find((**i)[column]) != names.end()) {
+  for (TupleListIter ti = tuples.begin(); ti != tuples.end(); ti++) {
+    const NameList& tuple = **ti;
+    if (names.find(tuple[column]) != names.end()) {
       if (new_domain == NULL) {
-	new_domain = new ActionDomain(**i);
+	new_domain = new ActionDomain(tuple);
       } else {
-	new_domain->add(**i);
+	new_domain->add(tuple);
       }
     }
   }
@@ -450,12 +487,13 @@ const ActionDomain* ActionDomain::restrict(const NameSet& names,
 const ActionDomain* ActionDomain::exclude(const Name& name,
 					  size_t column) const {
   ActionDomain* new_domain = NULL;
-  for (TupleListIter i = tuples.begin(); i != tuples.end(); i++) {
-    if (*(**i)[column] != name) {
+  for (TupleListIter ti = tuples.begin(); ti != tuples.end(); ti++) {
+    const NameList& tuple = **ti;
+    if (*tuple[column] != name) {
       if (new_domain == NULL) {
-	new_domain = new ActionDomain(**i);
+	new_domain = new ActionDomain(tuple);
       } else {
-	new_domain->add(**i);
+	new_domain->add(tuple);
       }
     }
   }
@@ -466,13 +504,14 @@ const ActionDomain* ActionDomain::exclude(const Name& name,
 /* Prints this object on the given stream. */
 void ActionDomain::print(ostream& os) const {
   os << '{';
-  for (TupleListIter i = tuples.begin(); i != tuples.end(); i++) {
-    if (i != tuples.begin()) {
+  for (TupleListIter ti = tuples.begin(); ti != tuples.end(); ti++) {
+    if (ti != tuples.begin()) {
       os << ' ';
     }
     os << '<';
-    for (NameListIter ni = (*i)->begin(); ni != (*i)->end(); ni++) {
-      if (ni != (*i)->begin()) {
+    const NameList& tuple = **ti;
+    for (NameListIter ni = tuple.begin(); ni != tuple.end(); ni++) {
+      if (ni != tuple.begin()) {
 	os << ' ';
       }
       os << **ni;
@@ -483,14 +522,17 @@ void ActionDomain::print(ostream& os) const {
 }
 
 
+/* ====================================================================== */
+/* Bindings */
+
 /* Creates a binding collection with parameter constrains if pg is
    not NULL, or an empty binding collection otherwise. */
 const Bindings& Bindings::make_bindings(const StepChain* steps,
 					const PlanningGraph* pg) {
   const StepDomainChain* step_domains = NULL;
   hash_set<size_t> seen_steps;
-  for (const StepChain* s = steps; s != NULL; s = s->tail) {
-    const Step& step = *s->head;
+  for (const StepChain* sc = steps; sc != NULL; sc = sc->tail) {
+    const Step& step = *sc->head;
     if (step.action != NULL
 	&& seen_steps.find(step.id) == seen_steps.end()) {
       seen_steps.insert(step.id);
@@ -519,11 +561,11 @@ const Bindings* Bindings::make_bindings(const StepChain* steps,
 					const BindingChain* inequalities) {
   const Bindings* b = &make_bindings(steps, pg);
   BindingList bindings;
-  for (const BindingChain* ec = equalities; ec != NULL; ec = ec->tail) {
-    bindings.push_back(ec->head);
+  for (const BindingChain* bc = equalities; bc != NULL; bc = bc->tail) {
+    bindings.push_back(bc->head);
   }
-  for (const BindingChain* ic = inequalities; ic != NULL; ic = ic->tail) {
-    bindings.push_back(ic->head);
+  for (const BindingChain* bc = inequalities; bc != NULL; bc = bc->tail) {
+    bindings.push_back(bc->head);
   }
   return b->add(bindings);
 }
@@ -533,6 +575,15 @@ const Bindings* Bindings::make_bindings(const StepChain* steps,
 bool Bindings::unifiable(const Literal& l1, const Literal& l2) {
   return Bindings(NULL, NULL, NULL, 0, NULL).unify(l1, l2);
 }
+
+
+/* Constructs a binding collection. */
+Bindings::Bindings(const BindingChain* equalities,
+		   const BindingChain* inequalities,
+		   const VarsetChain* varsets, size_t high_step,
+		   const StepDomainChain* step_domains)
+  : equalities(equalities), inequalities(inequalities),
+    varsets_(varsets), high_step_(high_step), step_domains_(step_domains) {}
 
 
 /* Returns the binding for the given term, or the term itself if it is
@@ -615,13 +666,13 @@ bool Bindings::unify(SubstitutionList& mgu,
     return false;
   }
   BindingList bl;
-  for (TermListIter i = terms1.begin(), j = terms2.begin();
-       i != terms1.end(); i++, j++) {
+  for (TermListIter ti = terms1.begin(), tj = terms2.begin();
+       ti != terms1.end(); ti++, tj++) {
     /*
      * Try to unify a pair of terms.
      */
-    const Term& term1 = **i;
-    const Term& term2 = **j;
+    const Term& term1 = **ti;
+    const Term& term2 = **tj;
     if (!term2.type.subtype(term1.type)) {
       /* Incompatible term types. */
       return false;
@@ -1089,25 +1140,52 @@ const Bindings* Bindings::add(size_t step_id, const Action* step_action,
 
 /* Prints this binding collection on the given stream. */
 void Bindings::print(ostream& os) const {
-#if 0
-  os << "{";
-  for (const BindingChain* b = equalities; b != NULL; b = b->tail) {
-    os << ' ' << *b->head;
+  Vector<const Term*> seen_terms;
+  for (const VarsetChain* vsc = varsets_; vsc != NULL; vsc = vsc->tail) {
+    const Varset& vs = *vsc->head;
+    if (vs.cd_set != NULL) {
+      const VariableChain* vc = vs.cd_set;
+      if (member_if(seen_terms.begin(), seen_terms.end(),
+		    bind1st(equal_to<const EqualityComparable*>(),
+			    vc->head))) {
+	continue;
+      }
+      os << endl << "{";
+      for (; vc != NULL; vc = vc->tail) {
+	const Variable& var = *vc->head;
+	os << ' ' << var;
+	seen_terms.push_back(&var);
+      }
+      os << " }";
+      if (vs.constant != NULL) {
+	os << " == ";
+      }
+    }
+    if (vs.constant != NULL) {
+      const Name& name = *vs.constant;
+      if (member_if(seen_terms.begin(), seen_terms.end(),
+		    bind1st(equal_to<const EqualityComparable*>(), &name))) {
+	continue;
+      }
+      if (vs.cd_set == NULL) {
+	os << endl;
+      }
+      os << name;
+      seen_terms.push_back(&name);
+    }
+    if (vs.ncd_set != NULL) {
+      os << " != {";
+      for (const VariableChain* vc = vs.ncd_set; vc != NULL; vc = vc->tail) {
+	os << ' ' << *vc->head;
+      }
+      os << " }";
+    }
   }
-  for (const BindingChain* b = inequalities; b != NULL; b = b->tail) {
-    os << ' ' << *b->head;
-  }
-  os << " }";
-#else
-  for (const VarsetChain* vc = varsets_; vc != NULL; vc = vc->tail) {
-    os << ' ' << *vc->head;
-  }
-#endif
   hash_set<size_t> seen_steps;
-  for (const StepDomainChain* s = step_domains_; s != NULL; s = s->tail) {
-    if (seen_steps.find(s->head->id) == seen_steps.end()) {
-      seen_steps.insert(s->head->id);
-      os << endl << *s->head;
+  for (const StepDomainChain* sd = step_domains_; sd != NULL; sd = sd->tail) {
+    if (seen_steps.find(sd->head->id) == seen_steps.end()) {
+      seen_steps.insert(sd->head->id);
+      os << endl << *sd->head;
     }
   }
 }
