@@ -1,5 +1,5 @@
 /*
- * $Id: types.cc,v 1.8 2001-12-25 18:15:44 lorens Exp $
+ * $Id: types.cc,v 1.9 2001-12-25 19:23:02 lorens Exp $
  */
 #include "types.h"
 
@@ -58,9 +58,8 @@ bool SimpleType::subtype(const Type& t) const {
       return name == st->name || (!object() && supertype.subtype(t));
     } else {
       const UnionType& ut = dynamic_cast<const UnionType&>(t);
-      return (find_if(ut.types.begin(), ut.types.end(),
-		      bind1st(Subtype(), this))
-	      != ut.types.end());
+      return member_if(ut.types.begin(), ut.types.end(),
+		       bind1st(Subtype(), this));
     }
   }
 }
@@ -125,8 +124,7 @@ UnionType::UnionType(const TypeList& types)
 
 /* Checks if this type is a subtype of the given type. */
 bool UnionType::subtype(const Type& t) const {
-  return (find_if(types.begin(), types.end(), bind2nd(Subtype(), &t))
-	  != types.end());
+  return member_if(types.begin(), types.end(), bind2nd(Subtype(), &t));
 }
 
 
