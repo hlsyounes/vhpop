@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: flaws.cc,v 3.5 2002-12-16 17:08:13 lorens Exp $
+ * $Id: flaws.cc,v 3.6 2002-12-16 17:11:32 lorens Exp $
  */
 #include "flaws.h"
 #include "plans.h"
@@ -41,7 +41,7 @@ OpenCondition::OpenCondition(size_t step_id, const Formula& condition,
   Formula::register_use(condition_);
 #ifdef TRANSFORMATIONAL
   reason_ = &reason;
-  Collectible::register_use(reason_);
+  Reason::register_use(reason_);
 #endif
 }
 
@@ -52,7 +52,7 @@ OpenCondition::OpenCondition(const OpenCondition& oc)
   Formula::register_use(condition_);
 #ifdef TRANSFORMATIONAL
   reason_ = oc.reason_;
-  Collectible::register_use(reason_);
+  Reason::register_use(reason_);
 #endif
 }
 
