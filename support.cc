@@ -13,21 +13,11 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: support.cc,v 1.10 2002-06-28 20:14:07 lorens Exp $
+ * $Id: support.cc,v 1.11 2002-09-23 04:06:40 lorens Exp $
  */
 
 #include <cstdlib>
 #include "support.h"
-
-
-/* ====================================================================== */
-/* Printable */
-
-/* Output operator for printable objects. */
-ostream& operator<<(ostream& os, const Printable& o) {
-  o.print(os);
-  return os;
-}
 
 
 /* ====================================================================== */
@@ -38,9 +28,10 @@ Exception::Exception(const string& message)
   : message(message) {}
 
 
-/* Prints this object on the given stream. */
-void Exception::print(ostream& os) const {
-  os << message;
+/* Output operator for exceptions. */
+ostream& operator<<(ostream& os, const Exception& e) {
+  os << e.message;
+  return os;
 }
 
 
