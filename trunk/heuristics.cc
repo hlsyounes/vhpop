@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 3.10 2002-04-02 17:32:45 lorens Exp $
+ * $Id: heuristics.cc,v 3.11 2002-04-04 10:26:28 lorens Exp $
  */
 #include "heuristics.h"
 #include "plans.h"
@@ -679,50 +679,11 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
 	}
       }
     }
-#if 0
-    typedef hash_map<const Atom*, size_t, hash<const Literal*>,
-      equal_to<const Literal*> > AtomCount;
-    AtomCount atom_count;
-    AtomCount negation_count;
-    for (AtomListIter gi = problem.init.add_list.begin();
-	 gi != problem.init.add_list.end(); gi++) {
-      const Atom* atom = *gi;
-      atom_count[atom] = 1;
-    }
-    for (LiteralActionsMapIter i = achieves.begin();
-	 i != achieves.end(); i++) {
-      const Literal* l = (*i).first;
-      const Atom* atom = dynamic_cast<const Atom*>(l);
-      if (atom != NULL) {
-	atom_count[atom]++;
-      } else {
-	const Negation& neg = dynamic_cast<const Negation&>(*l);
-	negation_count[&neg.atom]++;
-      }
-    }
-    cout << ";achievable literals: "
-	 << (atom_count.size() + negation_count.size())
-	 << " (" << atom_count.size() << " + " << negation_count.size() << ")"
-	 << endl;
-    if (!atom_count.empty()) {
-      float sum = 0.0;
-      for (AtomCount::const_iterator i = atom_count.begin();
-	   i != atom_count.end(); i++) {
-	const Atom* atom = (*i).first;
-	size_t an = (*i).second;
-	AtomCount::const_iterator ni = negation_count.find(atom);
-	if (ni != negation_count.end()) {
-	  size_t nn = (*ni).second;
-	  sum += float(nn)/an;
-	}
-      }
-      cout << ";clobber factor: " << (sum/atom_count.size()) << endl;
-    }
-#endif
     if (verbosity > 2) {
       /*
        * Print literal values.
        */
+      cout << ";achievable literals:" << endl;
       for (AtomValueMapIter vi = atom_values.begin();
 	   vi != atom_values.end(); vi++) {
 	cout << ";  " << *(*vi).first << " -- " << (*vi).second << endl;
