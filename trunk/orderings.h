@@ -16,13 +16,13 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.h,v 3.7 2002-03-29 10:04:07 lorens Exp $
+ * $Id: orderings.h,v 3.8 2002-03-29 19:42:30 lorens Exp $
  */
 #ifndef ORDERINGS_H
 #define ORDERINGS_H
 
-#include "support.h"
 #include "chain.h"
+#include <hash_map>
 
 struct Reason;
 struct Step;
@@ -110,7 +110,24 @@ struct BoolVector;
 /*
  * Collection of ordering constraints.
  */
-struct Orderings : public Collectible {
+struct Orderings {
+  /* Register use of the given ordering collection. */
+  static void register_use(const Orderings* o) {
+    if (o != NULL) {
+      o->ref_count_++;
+    }
+  }
+
+  /* Unregister use of the given ordering collection. */
+  static void unregister_use(const Orderings* o) {
+    if (o != NULL) {
+      o->ref_count_--;
+      if (o->ref_count_ == 0) {
+	delete o;
+      }
+    }
+  }
+
   /* Deletes this ordering collection. */
   virtual ~Orderings();
 
@@ -187,6 +204,10 @@ protected:
 
   /* Prints this ordering collection on the given stream. */
   virtual void print(ostream& os) const = 0;
+
+private:
+  /* Reference counter. */
+  mutable size_t ref_count_;
 
   friend ostream& operator<<(ostream& os, const Orderings& o);
 };
