@@ -16,9 +16,10 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: tokens.ll,v 6.1 2003-07-13 16:13:36 lorens Exp $
+ * $Id: tokens.ll,v 6.2 2003-07-21 02:26:45 lorens Exp $
  */
 %{
+struct Condition;
 struct Formula;
 struct Atom;
 

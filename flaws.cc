@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: flaws.cc,v 6.1 2003-07-13 15:59:02 lorens Exp $
+ * $Id: flaws.cc,v 6.2 2003-07-21 02:17:35 lorens Exp $
  */
 #include "flaws.h"
 #include "plans.h"
@@ -22,27 +22,19 @@
 
 
 /* ====================================================================== */
-/* Flaw */
-
-std::ostream& operator<<(std::ostream& os, const Flaw& f) {
-  f.print(os);
-  return os;
-}
-
-
-/* ====================================================================== */
 /* OpenCondition */
 
 /* Constructs an open condition. */
-OpenCondition::OpenCondition(size_t step_id, const Formula& condition)
-  : step_id_(step_id), condition_(&condition) {
+OpenCondition::OpenCondition(size_t step_id, const Formula& condition,
+			     FormulaTime when)
+  : step_id_(step_id), condition_(&condition), when_(when) {
   Formula::register_use(condition_);
 }
 
 
 /* Constructs an open condition. */
 OpenCondition::OpenCondition(const OpenCondition& oc)
-  : step_id_(oc.step_id_), condition_(oc.condition_) {
+  : step_id_(oc.step_id_), condition_(oc.condition_), when_(oc.when_) {
   Formula::register_use(condition_);
 }
 
@@ -83,8 +75,23 @@ const Disjunction* OpenCondition::disjunction() const {
 
 
 /* Prints this open condition on the given stream. */
-void OpenCondition::print(std::ostream& os) const {
-  os << "#<OPEN " << condition() << " step " << step_id() << ">";
+void OpenCondition::print(std::ostream& os, const PredicateTable& predicates,
+			  const TermTable& terms,
+			  const Bindings& bindings) const {
+  os << "#<OPEN (";
+  switch (when()) {
+  case AT_START:
+    os << "at start ";
+    break;
+  case OVER_ALL:
+    os << "over all ";
+    break;
+  case AT_END:
+    os << "at end ";
+    break;
+  }
+  condition().print(os, predicates, terms, step_id(), bindings);
+  os << ") " << step_id() << ">";
 }
 
 
@@ -99,7 +106,10 @@ Unsafe::Unsafe(const Link& link, size_t step_id, const Effect& effect,
 
 
 /* Prints this threatened causal link on the given stream. */
-void Unsafe::print(std::ostream& os) const {
-  os << "#<UNSAFE " << link().from_id() << ' ' << link().condition()
-     << ' ' << link().to_id() << " step " << step_id() << ">";
+void Unsafe::print(std::ostream& os, const PredicateTable& predicates,
+		   const TermTable& terms,
+		   const Bindings& bindings) const {
+  os << "#<UNSAFE " << link().from_id() << ' ';
+  link().condition().print(os, predicates, terms, link().to_id(), bindings);
+  os << ' ' << link().to_id() << " step " << step_id() << ">";
 }
