@@ -16,12 +16,13 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 4.8 2002-09-24 17:32:00 lorens Exp $
+ * $Id: formulas.h,v 4.9 2002-11-05 04:42:23 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
 
 #include "support.h"
+#include <map>
 
 #ifdef TRUE
 #undef TRUE
@@ -104,6 +105,9 @@ struct Term {
   /* Deletes this term. */
   virtual ~Term();
 
+  /* Adds the given type to the type of this term. */
+  void add_type(const Type& type);
+
   /* Returns the name of this term. */
   const string& name() const { return name_; }
 
@@ -131,7 +135,7 @@ private:
 /*
  * Hash function object for term pointers.
  */
-namespace std {
+namespace __gnu_cxx {
 struct hash<const Term*> {
   size_t operator()(const Term* t) const {
     return size_t(t);
@@ -222,7 +226,7 @@ typedef NameList::const_iterator NameListIter;
 /*
  * Table of names.
  */
-struct NameMap : public hash_map<string, const Name*> {
+struct NameMap : public map<string, Name*> {
 };
 
 /* Name table iterator. */
@@ -461,7 +465,7 @@ struct equal_to<const Literal*>
 /*
  * Hash function object for literal pointers.
  */
-namespace std {
+namespace __gnu_cxx {
 struct hash<const Literal*> {
   size_t operator()(const Literal* l) const {
     return l->hash_value();

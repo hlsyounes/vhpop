@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  * 
- * $Id: support.h,v 3.10 2002-09-23 04:06:36 lorens Exp $
+ * $Id: support.h,v 3.11 2002-11-05 04:43:25 lorens Exp $
  */
 #ifndef SUPPORT_H
 #define SUPPORT_H
@@ -27,6 +27,7 @@
 #include <hash_map>
 #include <hash_set>
 #else
+using namespace __gnu_cxx;
 #include <ext/hash_map>
 #include <ext/hash_set>
 #endif
@@ -125,7 +126,7 @@ struct HashMultimap : public hash_multimap<K, T, H, E> {
 /*
  * Hash function object for strings.
  */
-namespace std {
+namespace __gnu_cxx {
 struct hash<string> {
   /* Hash function for strings. */
   size_t operator()(const string& s) const {

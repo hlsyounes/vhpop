@@ -13,16 +13,16 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: types.cc,v 4.3 2002-09-22 22:07:32 lorens Exp $
+ * $Id: types.cc,v 4.4 2002-11-05 04:43:13 lorens Exp $
  */
 #include "types.h"
-#include "support.h"
+#include <iostream>
 
 
 /*
  * A subtype binary predicate.
  */
-struct Subtype : public binary_function<const Type*, const Type*, bool> {
+struct Subtype : public std::binary_function<const Type*, const Type*, bool> {
   /* Checks if the first type is a subtype of the second type. */
   bool operator()(const Type* t1, const Type* t2) const {
     return t1->subtype(*t2);
@@ -33,14 +33,18 @@ struct Subtype : public binary_function<const Type*, const Type*, bool> {
 /* ====================================================================== */
 /* Type */
 
+/* The object type. */
+const Type& Type::OBJECT = SimpleType::OBJECT_;
+
+
 /* Checks if this type is the object type. */
 bool Type::object() const {
-  return this == &SimpleType::OBJECT;
+  return this == &Type::OBJECT;
 }
 
 
 /* Output operator for types. */
-ostream& operator<<(ostream& os, const Type& t) {
+std::ostream& operator<<(std::ostream& os, const Type& t) {
   t.print(os);
   return os;
 }
@@ -50,13 +54,30 @@ ostream& operator<<(ostream& os, const Type& t) {
 /* SimpleType */
 
 /* The object type. */
-const SimpleType SimpleType::OBJECT = SimpleType("object");
+const SimpleType SimpleType::OBJECT_("object");
 
 
 /* Constructs a simple type with the given name. */
-SimpleType::SimpleType(const string& name, const Type& supertype)
+SimpleType::SimpleType(const std::string& name, const Type& supertype)
   : name_(name),
     supertype_(name == "object" ? (const Type*) this : &supertype) {}
+
+
+/* Attemts to add the given supertype to this type.  Returns false
+   if the intended supertype is a subtype of this type. */
+bool SimpleType::add_supertype(const Type& supertype) {
+  if (supertype.subtype(*this)) {
+    return false;
+  } else {
+    const Type& new_supertype = UnionType::add(*supertype_, supertype);
+    const UnionType* ut = dynamic_cast<const UnionType*>(supertype_);
+    if (ut != NULL) {
+      delete ut;
+    }
+    supertype_ = &new_supertype;
+    return true;
+  }
+}
 
 
 /* Checks if this type is a subtype of the given type. */
@@ -69,8 +90,8 @@ bool SimpleType::subtype(const Type& t) const {
       return !object() && supertype().subtype(t);
     } else {
       const UnionType& ut = dynamic_cast<const UnionType&>(t);
-      return member_if(ut.types().begin(), ut.types().end(),
-		       bind1st(Subtype(), this));
+      return find_if(ut.types().begin(), ut.types().end(),
+		     bind1st(Subtype(), this)) != ut.types().end();
     }
   }
 }
@@ -83,7 +104,7 @@ bool SimpleType::equals(const Type& t) const {
 
 
 /* Prints this object on the given stream. */
-void SimpleType::print(ostream& os) const {
+void SimpleType::print(std::ostream& os) const {
   os << name();
 }
 
@@ -95,7 +116,7 @@ void SimpleType::print(ostream& os) const {
 const Type& UnionType::simplify(const UnionType& t) {
   const Type* canonical_type;
   if (t.types().empty()) {
-    canonical_type = &SimpleType::OBJECT;
+    canonical_type = &Type::OBJECT;
     delete &t;
   } else if (t.types().size() == 1) {
     canonical_type = *t.types().begin();
@@ -130,6 +151,11 @@ const Type& UnionType::add(const Type& t1, const Type& t2) {
 }
 
 
+/* Constructs an empty union type. */
+UnionType::UnionType() {
+}
+
+
 /* Constructs a singleton union type. */
 UnionType::UnionType(const SimpleType& type) {
   types_.insert(&type);
@@ -152,7 +178,8 @@ void UnionType::add(const SimpleType& t) {
 
 /* Checks if this type is a subtype of the given type. */
 bool UnionType::subtype(const Type& t) const {
-  return member_if(types().begin(), types().end(), bind2nd(Subtype(), &t));
+  return (find_if(types().begin(), types().end(), bind2nd(Subtype(), &t))
+	  != types().end());
 }
 
 
@@ -165,8 +192,10 @@ bool UnionType::equals(const Type& t) const {
 
 
 /* Prints this object on the given stream. */
-void UnionType::print(ostream& os) const {
+void UnionType::print(std::ostream& os) const {
   os << "(either";
-  copy(types().begin(), types().end(), pre_ostream_iterator<SimpleType>(os));
+  for (TypeSetIter ti = types().begin(); ti != types().end(); ti++) {
+    os << ' ' << **ti;
+  }
   os << ")";
 }

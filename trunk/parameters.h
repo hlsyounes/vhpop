@@ -16,12 +16,11 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: parameters.h,v 3.6 2002-09-24 17:37:30 lorens Exp $
+ * $Id: parameters.h,v 3.7 2002-11-05 04:47:37 lorens Exp $
  */
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
 
-#include "support.h"
 #include "heuristics.h"
 
 

@@ -14,11 +14,12 @@
 # SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
 # ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
 #
-# $Id: configure.ac,v 1.6 2002-09-22 23:21:48 lorens Exp $
+# $Id: configure.ac,v 1.7 2002-11-05 04:42:46 lorens Exp $
 
 AC_INIT(VHPOP, 2.2, lorens@cs.cmu.edu)
-AM_INIT_AUTOMAKE(VHPOP, 2.2)
-AC_CONFIG_SRCDIR([vhpop.cc])
+AC_CONFIG_SRCDIR(vhpop.cc)
+AM_INIT_AUTOMAKE
+AM_CONFIG_HEADER(config.h)
 
 # Checks for programs.
 AC_PROG_CXX
@@ -34,7 +35,7 @@ AC_SEARCH_LIBS(gettext, intl)
 # Checks for header files.
 AC_FUNC_ALLOCA
 AC_HEADER_STDC
-AC_CHECK_HEADERS([libintl.h malloc.h stdlib.h string.h strings.h sys/time.h unistd.h])
+AC_CHECK_HEADERS([libintl.h stdlib.h string.h strings.h sys/time.h unistd.h])
 AC_LANG_PUSH(C++)
 AC_CHECK_HEADERS(hash_map)
 AC_LANG_POP(C++)
@@ -50,5 +51,5 @@ AC_CHECK_FUNCS([atexit memset select strcasecmp strerror strncasecmp])
 AC_CHECK_FUNCS(getopt_long, , [AC_LIBOBJ(getopt) AC_LIBOBJ(getopt1)])
 AC_CHECK_FUNCS(isinf, , [AC_EGREP_HEADER(finite, math.h, ,
                                          [AC_CHECK_HEADERS(ieeefp.h)])])
-AC_CONFIG_FILES([Makefile])
+AC_CONFIG_FILES(Makefile)
 AC_OUTPUT

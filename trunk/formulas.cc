@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 4.7 2002-09-24 17:32:24 lorens Exp $
+ * $Id: formulas.cc,v 4.8 2002-11-05 04:42:13 lorens Exp $
  */
 #include <typeinfo>
 #include <stack>
@@ -72,6 +72,17 @@ Term::~Term() {
   if (ut != NULL) {
     delete ut;
   }
+}
+
+
+/* Adds the given type to the type of this term. */
+void Term::add_type(const Type& type) {
+  const Type& new_type = UnionType::add(*type_, type);
+  const UnionType* ut = dynamic_cast<const UnionType*>(type_);
+  if (ut != NULL) {
+    delete ut;
+  }
+  type_ = &new_type;
 }
 
 
