@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 6.3 2003-07-21 18:16:32 lorens Exp $
+ * $Id: formulas.h,v 6.4 2003-07-21 19:58:14 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -93,6 +93,10 @@ struct Formula {
   virtual const Formula& instantiation(const SubstitutionMap& subst,
 				       const Problem& problem) const = 0;
 
+  /* Returns the universal base of this formula. */
+  virtual const Formula& universal_base(const SubstitutionMap& subst,
+					const Problem& problem) const = 0;
+
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h,
 			       const PlanningGraph& pg, size_t step_id,
@@ -153,6 +157,10 @@ struct Constant : public Formula {
 
   /* Returns an instantiation of this formula. */
   virtual const Constant& instantiation(const SubstitutionMap& subst,
+					const Problem& problem) const;
+
+  /* Returns the universal base of this formula. */
+  virtual const Formula& universal_base(const SubstitutionMap& subst,
 					const Problem& problem) const;
 
   /* Returns the heuristic value of this formula. */
@@ -236,6 +244,10 @@ struct Atom : public Literal {
   virtual const Formula& instantiation(const SubstitutionMap& subst,
 				       const Problem& problem) const;
 
+  /* Returns the universal base of this formula. */
+  virtual const Formula& universal_base(const SubstitutionMap& subst,
+					const Problem& problem) const;
+
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h,
 			       const PlanningGraph& pg, size_t step_id,
@@ -309,6 +321,10 @@ struct Negation : public Literal {
   /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionMap& subst,
 				       const Problem& problem) const;
+
+  /* Returns the universal base of this formula. */
+  virtual const Formula& universal_base(const SubstitutionMap& subst,
+					const Problem& problem) const;
 
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h,
@@ -408,6 +424,10 @@ struct Equality : public BindingLiteral {
   virtual const Formula& instantiation(const SubstitutionMap& subst,
 				       const Problem& problem) const;
 
+  /* Returns the universal base of this formula. */
+  virtual const Formula& universal_base(const SubstitutionMap& subst,
+					const Problem& problem) const;
+
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h,
 			       const PlanningGraph& pg, size_t step_id,
@@ -450,6 +470,10 @@ struct Inequality : public BindingLiteral {
   /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionMap& subst,
 				       const Problem& problem) const;
+
+  /* Returns the universal base of this formula. */
+  virtual const Formula& universal_base(const SubstitutionMap& subst,
+					const Problem& problem) const;
 
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h,
@@ -496,6 +520,10 @@ struct Conjunction : public Formula {
   /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionMap& subst,
 				       const Problem& problem) const;
+
+  /* Returns the universal base of this formula. */
+  virtual const Formula& universal_base(const SubstitutionMap& subst,
+					const Problem& problem) const;
 
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h,
@@ -546,6 +574,10 @@ struct Disjunction : public Formula {
   /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionMap& subst,
 				       const Problem& problem) const;
+
+  /* Returns the universal base of this formula. */
+  virtual const Formula& universal_base(const SubstitutionMap& subst,
+					const Problem& problem) const;
 
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h,
@@ -622,6 +654,10 @@ struct Exists : public QuantifiedFormula {
   virtual const Formula& instantiation(const SubstitutionMap& subst,
 				       const Problem& problem) const;
 
+  /* Returns the universal base of this formula. */
+  virtual const Formula& universal_base(const SubstitutionMap& subst,
+					const Problem& problem) const;
+
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h,
 			       const PlanningGraph& pg, size_t step_id,
@@ -654,6 +690,10 @@ struct Forall : public QuantifiedFormula {
   /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionMap& subst,
 				       const Problem& problem) const;
+
+  /* Returns the universal base of this formula. */
+  virtual const Formula& universal_base(const SubstitutionMap& subst,
+					const Problem& problem) const;
 
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h,
@@ -741,6 +781,10 @@ struct Condition {
   /* Returns an instantiation of this condition. */
   const Condition& instantiation(const SubstitutionMap& subst,
 				 const Problem& problem) const;
+
+  /* Returns the universal base of this condition. */
+  const Condition& universal_base(const SubstitutionMap& subst,
+				  const Problem& problem) const;
 
   /* Returns the heuristic value of this condition. */
   void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
