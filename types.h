@@ -16,12 +16,13 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: types.h,v 3.8 2002-03-18 09:42:01 lorens Exp $
+ * $Id: types.h,v 3.9 2002-03-25 00:34:04 lorens Exp $
  */
 #ifndef TYPES_H
 #define TYPES_H
 
 #include "support.h"
+#include <set>
 
 
 /* ====================================================================== */
