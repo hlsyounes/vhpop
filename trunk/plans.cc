@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 3.16 2002-03-29 19:42:37 lorens Exp $
+ * $Id: plans.cc,v 3.17 2002-04-04 17:06:30 lorens Exp $
  */
 #include "plans.h"
 #include "heuristics.h"
@@ -510,6 +510,8 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
   size_t num_generated_plans = 0;
   /* Number of static preconditions encountered. */
   size_t num_static = 0;
+  /* Number of dead ends encountered. */
+  size_t num_dead_ends = 0;
 
   /* Queue of pending plans. */
   PlanQueue plans;
@@ -616,6 +618,9 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
 	  }
 	}
       }
+      if (!added) {
+	num_dead_ends++;
+      }
 
       /*
        * Process next plan.
@@ -660,15 +665,15 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
     /*
      * Print statistics.
      */
-    cout << endl << "Plans generated: " << num_generated_plans;
+    cout << endl << ";Plans generated: " << num_generated_plans;
     if (num_static > 0) {
       cout << " [" << (num_generated_plans - num_static) << "]";
     }
-    cout << endl << "Plans visited: " << num_visited_plans;
+    cout << endl << ";Plans visited: " << num_visited_plans;
     if (num_static > 0) {
       cout << " [" << (num_visited_plans - num_static) << "]";
     }
-    cout << endl;
+    cout << endl << ";Dead ends encountered: " << num_dead_ends << endl;
   }
   if (current_plan != initial_plan) {
     delete initial_plan;
@@ -2158,7 +2163,7 @@ ostream& operator<<(ostream& os, const Plan& p) {
   sort(ordered_steps.begin(), ordered_steps.end(), StepSorter(start_dist));
   if (verbosity < 2) {
     if (verbosity > 0) {
-      os << "Number of steps: " << p.num_steps();
+      os << ";Number of steps: " << p.num_steps();
     }
     for (vector<const Step*>::const_iterator si = ordered_steps.begin();
 	 si != ordered_steps.end(); si++) {
