@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 3.19 2002-06-28 20:13:46 lorens Exp $
+ * $Id: vhpop.cc,v 3.20 2002-06-29 17:11:54 lorens Exp $
  */
 #include <cstdio>
 #include <cstdlib>
@@ -127,7 +127,7 @@ static void display_version() {
        << PACKAGE " comes with NO WARRANTY, to the extent permitted by law."
        << endl
        << "For information about the terms of redistribution," << endl
-       << "see the file named COPYING in the ProVer distribution." << endl
+       << "see the file named COPYING in the " PACKAGE " distribution." << endl
        << endl
        << "Written by H\345kan L. S. Younes." << endl;
 }
