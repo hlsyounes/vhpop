@@ -1,5 +1,5 @@
 /*
- * $Id: flaws.cc,v 1.4 2001-12-29 16:39:23 lorens Exp $
+ * $Id: flaws.cc,v 1.5 2002-01-09 16:27:31 lorens Exp $
  */
 #include "flaws.h"
 #include "plans.h"
@@ -39,7 +39,8 @@ const Formula& LiteralOpenCondition::condition() const {
 
 /* Checks if this is a static open condition. */
 bool LiteralOpenCondition::is_static(const Domain& domain) const {
-  return domain.static_predicate(literal.predicate());
+  return (step_id != Plan::GOAL_ID
+	  && domain.static_predicate(literal.predicate()));
 }
 
 
