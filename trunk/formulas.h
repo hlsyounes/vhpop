@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 3.7 2002-03-18 10:12:03 lorens Exp $
+ * $Id: formulas.h,v 3.8 2002-03-19 17:19:28 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -270,8 +270,9 @@ struct Formula : public Printable, public gc {
   /* Checks if this formula is either a tautology or contradiction. */
   bool constant() const;
 
-  /* Checks if this formula asserts the given atom. */
-  virtual bool asserts(const Literal& literal) const = 0;
+  /* Returns a formula that separates the given literal from anything
+     definitely asserted by this formula. */
+  virtual const Formula& separate(const Literal& literal) const = 0;
 
   /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(size_t id) const = 0;
@@ -347,8 +348,9 @@ typedef FormulaList::const_iterator FormulaListIter;
  * A formula with a constant truth value.
  */
 struct Constant : public Formula {
-  /* Checks if this formula asserts the given atom. */
-  virtual bool asserts(const Literal& literal) const;
+  /* Returns a formula that separates the given literal from anything
+     definitely asserted by this formula. */
+  virtual const Formula& separate(const Literal& literal) const;
 
   /* Returns an instantiation of this formula. */
   virtual const Constant& instantiation(size_t id) const;
@@ -411,8 +413,9 @@ struct Literal : public Formula {
   /* Returns the terms of this literal. */
   virtual const TermList& terms() const = 0;
 
-  /* Checks if this formula asserts the given atom. */
-  virtual bool asserts(const Literal& literal) const;
+  /* Returns a formula that separates the given literal from anything
+     definitely asserted by this formula. */
+  virtual const Formula& separate(const Literal& literal) const;
 
   /* Returns this formula with static literals assumed true. */
   virtual const Formula& strip_static(const Domain& domain) const;
@@ -599,8 +602,9 @@ struct BindingLiteral : public Formula {
   /* Second term of binding literal. */
   const Term& term2;
 
-  /* Checks if this formula asserts the given atom. */
-  virtual bool asserts(const Literal& literal) const;
+  /* Returns a formula that separates the given literal from anything
+     definitely asserted by this formula. */
+  virtual const Formula& separate(const Literal& literal) const;
 
 protected:
   /* Constructs a binding literal. */
@@ -707,8 +711,9 @@ struct Conjunction : public Formula {
   /* The conjuncts. */
   const FormulaList& conjuncts;
 
-  /* Checks if this formula asserts the given atom. */
-  virtual bool asserts(const Literal& literal) const;
+  /* Returns a formula that separates the given literal from anything
+     definitely asserted by this formula. */
+  virtual const Formula& separate(const Literal& literal) const;
 
   /* Returns an instantiation of this formula. */
   virtual const Conjunction& instantiation(size_t id) const;
@@ -762,8 +767,9 @@ struct Disjunction : public Formula {
   /* The disjuncts. */
   const FormulaList& disjuncts;
 
-  /* Checks if this formula asserts the given atom. */
-  virtual bool asserts(const Literal& literal) const;
+  /* Returns a formula that separates the given literal from anything
+     definitely asserted by this formula. */
+  virtual const Formula& separate(const Literal& literal) const;
 
   /* Returns an instantiation of this formula. */
   virtual const Disjunction& instantiation(size_t id) const;
@@ -819,8 +825,9 @@ struct QuantifiedFormula : public Formula {
   /* The quantified formula. */
   const Formula& body;
 
-  /* Checks if this formula asserts the given atom. */
-  virtual bool asserts(const Literal& literal) const;
+  /* Returns a formula that separates the given literal from anything
+     definitely asserted by this formula. */
+  virtual const Formula& separate(const Literal& literal) const;
 
 protected:
   /* Constructs a quantified formula. */
@@ -924,6 +931,9 @@ protected:
  * List of atoms.
  */
 struct AtomList : public Vector<const Atom*> {
+  /* An empty atom list. */
+  static const AtomList EMPTY;
+
   /* Constructs an empty atom list. */
   AtomList();
 
@@ -945,6 +955,9 @@ typedef AtomList::const_iterator AtomListIter;
  * List of negated atoms.
  */
 struct NegationList : public Vector<const Negation*> {
+  /* An empty negation list. */
+  static const NegationList EMPTY;
+
   /* Constructs an empty negation list. */
   NegationList();
 

@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.cc,v 3.4 2002-03-18 00:08:54 lorens Exp $
+ * $Id: bindings.cc,v 3.5 2002-03-19 17:19:36 lorens Exp $
  */
 #include <typeinfo>
 #include "bindings.h"
@@ -601,6 +601,14 @@ const Bindings* Bindings::make_bindings(const StepChain* steps,
 /* Checks if the given formulas can be unified. */
 bool Bindings::unifiable(const Literal& l1, const Literal& l2) {
   return Bindings(NULL, 0, NULL, NULL, NULL).unify(l1, l2);
+}
+
+
+/* Checks if the given formulas can be unified; the most general
+   unifier is added to the provided substitution list. */
+bool Bindings::unifiable(SubstitutionList& mgu,
+			 const Literal& l1, const Literal& l2) {
+  return Bindings(NULL, 0, NULL, NULL, NULL).unify(mgu, l1, l2);
 }
 
 
