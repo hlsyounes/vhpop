@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 4.8 2002-12-16 17:37:32 lorens Exp $
+ * $Id: plans.cc,v 4.9 2002-12-17 17:21:31 lorens Exp $
  */
 #include "mathport.h"
 #include "plans.h"
@@ -2005,9 +2005,14 @@ disable_interference(const std::vector<const Step*>& ordered_steps,
 	    std::cerr << si.id() << " and " << sj.id() << " interfering"
 		      << std::endl;
 	  }
+	  const Orderings* old_orderings = new_orderings;
 	  new_orderings = new_orderings->refine(Ordering(si.id(), STEP_START,
 							 sj.id(), STEP_START,
 							 Reason::DUMMY));
+	  if (old_orderings != new_orderings) {
+	    Orderings::register_use(old_orderings);
+	    Orderings::unregister_use(old_orderings);
+	  }
 	}
       }
     }
@@ -2060,6 +2065,8 @@ std::ostream& operator<<(std::ostream& os, const Plan& p) {
       new_orderings.schedule(start_times, end_times);
       sort(ordered_steps.begin(), ordered_steps.end(),
 	   StepSorter(start_times));
+      Orderings::register_use(&new_orderings);
+      Orderings::unregister_use(&new_orderings);
     }
   }
   if (verbosity < 2) {
