@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.cc,v 4.4 2002-12-16 17:34:57 lorens Exp $
+ * $Id: orderings.cc,v 4.5 2002-12-18 14:11:11 lorens Exp $
  */
 #include "orderings.h"
 #include "plans.h"
@@ -744,7 +744,7 @@ TemporalOrderings::schedule(hashing::hash_map<size_t, float>& start_times,
     size_t i = time_node(step_id, STEP_START);
     start_times.insert(std::make_pair(step_id, -distance(i + 1, 0)));
     size_t j = time_node(step_id, STEP_END);
-    float ed = -distance(i + 1, 0);
+    float ed = -distance(j + 1, 0);
     end_times.insert(std::make_pair(step_id, ed));
     return ed;
   }
