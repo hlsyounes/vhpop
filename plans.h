@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.9 2001-08-12 06:59:28 lorens Exp $
+ * $Id: plans.h,v 1.10 2001-08-18 16:49:07 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -170,7 +170,7 @@ struct Step : public gc {
   const size_t id;
   /* Action formula, or NULL if step is not instantiated from an action. */
   const AtomicFormula* const action;
-  /* Precondition of step, or NULL if step has no precondition. */
+  /* Precondition of step, or TRUE if step has no precondition. */
   const Formula& precondition;
   /* List of effects. */
   const EffectList& effects;
@@ -398,10 +398,10 @@ private:
   /* Plan type. */
   const PlanType type_;
   /* Rank of this plan. */
-  int& rank1_;
-  int& rank2_;
-  const OpenCondition*& hardest_open_cond_;
-  size_t& early_cost_;
+  mutable int rank1_;
+  mutable int rank2_;
+  mutable const OpenCondition* hardest_open_cond_;
+  mutable size_t early_cost_;
 
   /* Returns the initial plan representing the given problem, or NULL
      if goals of problem are inconsistent. */
@@ -425,9 +425,7 @@ private:
 	      parent->parent_ : parent),
       type_((parent != NULL && parent->type_ == INTERMEDIATE_PLAN) ?
 	    TRANSFORMED_PLAN : type),
-      rank1_(*(new (GC) int(-1))), rank2_(*(new (GC) int(-1))),
-      hardest_open_cond_(*(new (GC) (const OpenCondition*)(NULL))),
-      early_cost_(*new (GC) size_t(0)) {
+      rank1_(-1), rank2_(-1), hardest_open_cond_(NULL), early_cost_(0) {
     if (type_ != INTERMEDIATE_PLAN) {
       num_generated_plans++;
     }
