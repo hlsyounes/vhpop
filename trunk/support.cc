@@ -1,10 +1,13 @@
 /*
- * $Id: support.cc,v 1.6 2001-12-23 16:26:19 lorens Exp $
+ * $Id: support.cc,v 1.7 2001-12-27 19:53:37 lorens Exp $
  */
 
 #include <cstdlib>
 #include "support.h"
 
+
+/* ====================================================================== */
+/* Printable */
 
 /* Output operator for printable objects. */
 ostream& operator<<(ostream& os, const Printable& o) {
@@ -12,6 +15,9 @@ ostream& operator<<(ostream& os, const Printable& o) {
   return os;
 }
 
+
+/* ====================================================================== */
+/* Exception */
 
 /* Constructs an exception with the given message. */
 Exception::Exception(const string& message)
@@ -24,10 +30,16 @@ void Exception::print(ostream& os) const {
 }
 
 
+/* ====================================================================== */
+/* Unimplemented */
+
 /* Constructs an unimplemented exception. */
 Unimplemented::Unimplemented(const string& message)
   : Exception(message) {}
 
+
+/* ====================================================================== */
+/* Random number generation */
 
 /* Generates a random number in the interval [0,1]. */
 double rand01() {
