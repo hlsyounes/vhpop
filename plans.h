@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.1 2001-05-03 15:40:45 lorens Exp $
+ * $Id: plans.h,v 1.2 2001-05-04 00:16:08 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -406,6 +406,7 @@ private:
   int& rank1_;
   int& rank2_;
   const OpenCondition*& hardest_open_cond_;
+  size_t& early_cost_;
 
   /* Returns the initial plan representing the given problem, or NULL
      if goals of problem are inconsistent. */
@@ -431,7 +432,8 @@ private:
       type_((parent != NULL && parent->type_ == INTERMEDIATE_PLAN) ?
 	    TRANSFORMED_PLAN : type),
       rank1_(*(new (GC) int(-1))), rank2_(*(new (GC) int(-1))),
-      hardest_open_cond_(*(new (GC) (const OpenCondition*)(NULL))) {
+      hardest_open_cond_(*(new (GC) (const OpenCondition*)(NULL))),
+      early_cost_(*new (GC) size_t(0)) {
   }
 
   const Flaw& get_flaw() const;
