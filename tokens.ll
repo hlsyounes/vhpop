@@ -2,14 +2,33 @@
 /*
  * PDDL tokenizer.
  *
- * $Id: tokens.ll,v 1.1 2001-05-03 15:43:40 lorens Exp $
+ * $Id: tokens.ll,v 1.2 2001-07-29 18:12:56 lorens Exp $
  */
 %{
-#include "formulas.h"
-#include "domains.h"
-#include "pddl.cc.h"
+struct Type;
+struct TermList;
+struct Name;
+struct Variable;
+struct VariableList;
+struct Formula;
+struct FormulaList;
+struct AtomicFormula;
+struct Effect;
+struct EffectList;
+struct ActionSchema;
 
-unsigned int line_number;
+#include <string>
+#include <vector>
+#include <ctype.h>
+#include "pddl.cc.h"
+#include "support.h"
+
+
+/* Current line number. */
+size_t line_number;
+
+static string* tolower(const char* s);
+
 %}
 
 %option never-interactive nounput
@@ -21,10 +40,15 @@ define                       return DEFINE;
 domain                       return DOMAIN;
 problem                      return PROBLEM;
 :requirements                return REQUIREMENTS;
-:strips                      return REQSTRIPS;
-:adl                         return REQADL;
+:strips                      return STRIPS;
 :typing                      return TYPING;
+:disjunctive-preconditions   return DISJUNCTIVE_PRECONDITIONS;
 :equality                    return EQUALITY;
+:existential-preconditions   return EXISTENTIAL_PRECONDITIONS;
+:universal-preconditions     return UNIVERSAL_PRECONDITIONS;
+:quantified-preconditions    return QUANTIFIED_PRECONDITIONS;
+:conditional-effects         return CONDITIONAL_EFFECTS;
+:adl                         return ADL;
 :types                       return TYPES;
 :constants                   return CONSTANTS;
 :predicates                  return PREDICATES;
@@ -44,15 +68,22 @@ imply                        return IMPLY;
 exists                       return EXISTS;
 forall                       return FORALL;
 either                       return EITHER;
-[A-Za-z]([A-Za-z0-9\-_])*    { yylval.str = new (GC) string(tolower(yytext));
-                               return NAME; }
-=                            { yylval.str = new (GC) string(tolower(yytext));
-                               return NAME; }
-\?[A-Za-z]([A-Z0-9a-z\-_])*  { yylval.str = new (GC) string(tolower(yytext));
-			       return VARIABLE; }
+[A-Za-z]([A-Za-z0-9\-_])*    { yylval.str = tolower(yytext); return NAME; }
+=                            { yylval.str = tolower(yytext); return NAME; }
+\?[A-Za-z]([A-Z0-9a-z\-_])*  { yylval.str = tolower(yytext); return VARIABLE; }
 ;.*$                         /* comment */
 [ \t\r]+                     /* whitespace */
 \n                           line_number++;
 .                            return ILLEGAL_TOKEN;
 
 %%
+
+/* Allocates a string containing the lowercase characters of the given
+   C string. */
+static string* tolower(const char* s) {
+  string* result = new (GC) string();
+  for (const char* p = s; *p != '\0'; p++) {
+    *result += tolower(*p);
+  }
+  return result;
+}
