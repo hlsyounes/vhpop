@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.23 2001-10-06 15:00:15 lorens Exp $
+ * $Id: plans.cc,v 1.24 2001-10-06 23:40:49 lorens Exp $
  */
 #include <queue>
 #include <hash_set>
@@ -43,7 +43,7 @@ static hash_map<const Formula*, Cost> atom_cost;
 /*
  * Abstract reason.
  */
-struct Reason : public Printable {
+struct Reason : public Printable, public gc {
   /* Checks if this reason involves the given link. */
   virtual bool involves(const Link& link) const {
     return false;

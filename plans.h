@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.19 2001-10-06 00:55:30 lorens Exp $
+ * $Id: plans.h,v 1.20 2001-10-06 23:44:03 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -23,7 +23,7 @@ struct Reason;
 /*
  * Abstract flaw.
  */
-struct Flaw : public Printable {
+struct Flaw : public Printable, public gc {
 };
 
 
@@ -110,7 +110,7 @@ typedef Chain<const Unsafe*> UnsafeChain;
 /*
  * Causal link.
  */
-struct Link : public Printable {
+struct Link : public Printable, public gc {
   /* Id of step that link goes from. */
   const size_t from_id;
   /* Id of step that link goes to. */
@@ -197,7 +197,7 @@ typedef Chain<const Step*> StepChain;
 /*
  * Ordering constraint between plan steps.
  */
-struct Ordering : public Printable {
+struct Ordering : public Printable, public gc {
   /* Preceeding step. */
   const size_t before_id;
   /* Succeeding step. */
@@ -225,7 +225,7 @@ typedef Chain<const Ordering*> OrderingChain;
 /*
  * Collection of ordering constraints.
  */
-struct Orderings : public Printable {
+struct Orderings : public Printable, public gc {
   /* Constructs an empty ordering collection. */
   Orderings()
     : orderings_(NULL), size_(0) {
@@ -301,7 +301,7 @@ struct CostGraph;
 /*
  * Plan.
  */
-struct Plan : public Printable {
+struct Plan : public Printable, public gc {
   /* Id of goal step. */
   static const size_t GOAL_ID;
 
