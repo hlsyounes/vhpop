@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 4.2 2002-07-24 16:00:37 lorens Exp $
+ * $Id: formulas.h,v 4.3 2002-09-18 02:39:54 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -99,16 +99,11 @@ struct Term : public LessThanComparable, public Hashable, public Printable {
   /* Returns an instantiation of this term. */
   virtual const Term& instantiation(size_t id) const = 0;
 
-  /* Returns an instantiation of this term. */
-  const Term& instantiation(const Bindings& bindings) const;
-
   /* Returns this term subject to the given substitutions. */
   virtual const Term& substitution(const SubstitutionList& subst) const = 0;
 
-  /* Checks if this term is equivalent to the given term.  Two terms
-     are equivalent if they are the same name, or if they are both
-     variables. */
-  virtual bool equivalent(const Term& t) const = 0;
+  /* Prints this term on the given stream with the given bindings. */
+  void print(ostream& os, const Bindings& bindings) const;
 
 protected:
   /* Constructs an abstract term with the given name. */
@@ -144,11 +139,6 @@ struct Name : public Term {
   /* Returns this term subject to the given substitutions. */
   virtual const Name& substitution(const SubstitutionList& subst) const;
 
-  /* Checks if this term is equivalent to the given term.  Two terms
-     are equivalent if they are the same name, or if they are both
-     variables. */
-  virtual bool equivalent(const Term& t) const;
-
 protected:
   /* Checks if this object equals the given object. */
   virtual bool equals(const EqualityComparable& o) const;
@@ -176,11 +166,6 @@ struct Variable : public Term {
 
   /* Returns this term subject to the given substitutions. */
   virtual const Term& substitution(const SubstitutionList& subst) const;
-
-  /* Checks if this term is equivalent to the given term.  Two terms
-     are equivalent if they are the same name, or if they are both
-     variables. */
-  virtual bool equivalent(const Term& t) const;
 
 protected:
   /* Checks if this object equals the given object. */
@@ -234,9 +219,6 @@ private:
 struct TermList : public vector<const Term*> {
   /* Returns an instantiation of this term list. */
   const TermList& instantiation(size_t id) const;
-
-  /* Returns an instantiation of this term list. */
-  const TermList& instantiation(const Bindings& bindings) const;
 
   /* Returns this term list subject to the given substitutions. */
   const TermList& substitution(const SubstitutionList& subst) const;
@@ -324,9 +306,6 @@ struct Formula : public Printable {
   virtual const Formula& instantiation(size_t id) const = 0;
 
   /* Returns an instantiation of this formula. */
-  virtual const Formula& instantiation(const Bindings& bindings) const = 0;
-
-  /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionList& subst,
 				       const Problem& problem) const = 0;
 
@@ -345,10 +324,8 @@ struct Formula : public Printable {
 			       const PlanningGraph& pg,
 			       const Bindings* b = NULL) const = 0;
 
-  /* Checks if this formula is equivalent to the given formula.  Two
-     formulas are equivalent if they only differ in the choice of
-     variable names. */
-  virtual bool equivalent(const Formula& f) const = 0;
+  /* Prints this formula on the given stream with the given bindings. */
+  virtual void print(ostream& os, const Bindings& bindings) const = 0;
 
 protected:
   /* Returns the negation of this formula. */
@@ -408,9 +385,6 @@ struct Constant : public Formula {
   virtual const Constant& instantiation(size_t id) const;
 
   /* Returns an instantiation of this formula. */
-  virtual const Constant& instantiation(const Bindings& bindings) const;
-
-  /* Returns an instantiation of this formula. */
   virtual const Constant& instantiation(const SubstitutionList& subst,
 					const Problem& problem) const;
 
@@ -429,10 +403,8 @@ struct Constant : public Formula {
 			       const PlanningGraph& pg,
 			       const Bindings* b) const;
 
-  /* Checks if this formula is equivalent to the given formula.  Two
-     formulas are equivalent if they only differ in the choice of
-     variable names. */
-  virtual bool equivalent(const Formula& f) const;
+  /* Prints this formula on the given stream with the given bindings. */
+  virtual void print(ostream& os, const Bindings& bindings) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -558,9 +530,6 @@ struct Atom : public Literal {
   virtual const Atom& instantiation(size_t id) const;
 
   /* Returns an instantiation of this formula. */
-  virtual const Formula& instantiation(const Bindings& bindings) const;
-
-  /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionList& subst,
 				       const Problem& problem) const;
 
@@ -576,10 +545,8 @@ struct Atom : public Literal {
 			       const PlanningGraph& pg,
 			       const Bindings* b) const;
 
-  /* Checks if this formula is equivalent to the given formula.  Two
-     formulas are equivalent if they only differ in the choice of
-     variable names. */
-  virtual bool equivalent(const Formula& f) const;
+  /* Prints this formula on the given stream with the given bindings. */
+  virtual void print(ostream& os, const Bindings& bindings) const;
 
 protected:
   /* Checks if this object equals the given object. */
@@ -625,9 +592,6 @@ struct Negation : public Literal {
   virtual const Negation& instantiation(size_t id) const;
 
   /* Returns an instantiation of this formula. */
-  virtual const Formula& instantiation(const Bindings& bindings) const;
-
-  /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionList& subst,
 				       const Problem& problem) const;
 
@@ -643,10 +607,8 @@ struct Negation : public Literal {
 			       const PlanningGraph& pg,
 			       const Bindings* b) const;
 
-  /* Checks if this formula is equivalent to the given formula.  Two
-     formulas are equivalent if they only differ in the choice of
-     variable names. */
-  virtual bool equivalent(const Formula& f) const;
+  /* Prints this formula on the given stream with the given bindings. */
+  virtual void print(ostream& os, const Bindings& bindings) const;
 
 protected:
   /* Checks if this object equals the given object. */
@@ -710,9 +672,6 @@ struct Equality : public BindingLiteral {
   virtual const Equality& instantiation(size_t id) const;
 
   /* Returns an instantiation of this formula. */
-  virtual const Formula& instantiation(const Bindings& bindings) const;
-
-  /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionList& subst,
 				       const Problem& problem) const;
 
@@ -731,10 +690,8 @@ struct Equality : public BindingLiteral {
 			       const PlanningGraph& pg,
 			       const Bindings* b) const;
 
-  /* Checks if this formula is equivalent to the given formula.  Two
-     formulas are equivalent if they only differ in the choice of
-     variable names. */
-  virtual bool equivalent(const Formula& f) const;
+  /* Prints this formula on the given stream with the given bindings. */
+  virtual void print(ostream& os, const Bindings& bindings) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -759,9 +716,6 @@ struct Inequality : public BindingLiteral {
   virtual const Inequality& instantiation(size_t id) const;
 
   /* Returns an instantiation of this formula. */
-  virtual const Formula& instantiation(const Bindings& bindings) const;
-
-  /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionList& subst,
 				       const Problem& problem) const;
 
@@ -780,10 +734,8 @@ struct Inequality : public BindingLiteral {
 			       const PlanningGraph& pg,
 			       const Bindings* b) const;
 
-  /* Checks if this formula is equivalent to the given formula.  Two
-     formulas are equivalent if they only differ in the choice of
-     variable names. */
-  virtual bool equivalent(const Formula& f) const;
+  /* Prints this formula on the given stream with the given bindings. */
+  virtual void print(ostream& os, const Bindings& bindings) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -812,9 +764,6 @@ struct Conjunction : public Formula {
   virtual const Conjunction& instantiation(size_t id) const;
 
   /* Returns an instantiation of this formula. */
-  virtual const Formula& instantiation(const Bindings& bindings) const;
-
-  /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionList& subst,
 				       const Problem& problem) const;
 
@@ -833,10 +782,8 @@ struct Conjunction : public Formula {
 			       const PlanningGraph& pg,
 			       const Bindings* b) const;
 
-  /* Checks if this formula is equivalent to the given formula.  Two
-     formulas are equivalent if they only differ in the choice of
-     variable names. */
-  virtual bool equivalent(const Formula& f) const;
+  /* Prints this formula on the given stream with the given bindings. */
+  virtual void print(ostream& os, const Bindings& bindings) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -874,9 +821,6 @@ struct Disjunction : public Formula {
   virtual const Disjunction& instantiation(size_t id) const;
 
   /* Returns an instantiation of this formula. */
-  virtual const Formula& instantiation(const Bindings& bindings) const;
-
-  /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionList& subst,
 				       const Problem& problem) const;
 
@@ -895,10 +839,8 @@ struct Disjunction : public Formula {
 			       const PlanningGraph& pg,
 			       const Bindings* b) const;
 
-  /* Checks if this formula is equivalent to the given formula.  Two
-     formulas are equivalent if they only differ in the choice of
-     variable names. */
-  virtual bool equivalent(const Formula& f) const;
+  /* Prints this formula on the given stream with the given bindings. */
+  virtual void print(ostream& os, const Bindings& bindings) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -961,9 +903,6 @@ struct ExistsFormula : public QuantifiedFormula {
   virtual const ExistsFormula& instantiation(size_t id) const;
 
   /* Returns an instantiation of this formula. */
-  virtual const Formula& instantiation(const Bindings& bindings) const;
-
-  /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionList& subst,
 				       const Problem& problem) const;
 
@@ -982,10 +921,8 @@ struct ExistsFormula : public QuantifiedFormula {
 			       const PlanningGraph& pg,
 			       const Bindings* b) const;
 
-  /* Checks if this formula is equivalent to the given formula.  Two
-     formulas are equivalent if they only differ in the choice of
-     variable names. */
-  virtual bool equivalent(const Formula& f) const;
+  /* Prints this formula on the given stream with the given bindings. */
+  virtual void print(ostream& os, const Bindings& bindings) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -1010,9 +947,6 @@ struct ForallFormula : public QuantifiedFormula {
   virtual const ForallFormula& instantiation(size_t id) const;
 
   /* Returns an instantiation of this formula. */
-  virtual const Formula& instantiation(const Bindings& bindings) const;
-
-  /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionList& subst,
 				       const Problem& problem) const;
 
@@ -1031,10 +965,8 @@ struct ForallFormula : public QuantifiedFormula {
 			       const PlanningGraph& pg,
 			       const Bindings* b) const;
 
-  /* Checks if this formula is equivalent to the given formula.  Two
-     formulas are equivalent if they only differ in the choice of
-     variable names. */
-  virtual bool equivalent(const Formula& f) const;
+  /* Prints this formula on the given stream with the given bindings. */
+  virtual void print(ostream& os, const Bindings& bindings) const;
 
 protected:
   /* Prints this object on the given stream. */
