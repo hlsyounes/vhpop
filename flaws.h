@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: flaws.h,v 3.4 2002-03-23 15:18:15 lorens Exp $
+ * $Id: flaws.h,v 3.5 2002-09-23 02:34:08 lorens Exp $
  */
 #ifndef FLAWS_H
 #define FLAWS_H
@@ -40,8 +40,16 @@ struct Link;
 /*
  * Abstract flaw.
  */
-struct Flaw : public Printable {
+struct Flaw {
+protected:
+  /* Prints this object on the given stream. */
+  virtual void print(ostream& os) const = 0;
+
+  friend ostream& operator<<(ostream& os, const Flaw& f);
 };
+
+/* Output operator for flaws. */
+ostream& operator<<(ostream& os, const Flaw& f);
 
 
 /* ====================================================================== */
@@ -54,6 +62,9 @@ struct OpenCondition : public Flaw {
   /* Constructs an open condition. */
   OpenCondition(size_t step_id, const Formula& condition,
 		const Reason& reason);
+
+  /* Deletes this open condition. */
+  virtual ~OpenCondition();
 
   /* Returns the step id. */
   size_t step_id() const { return step_id_; }
@@ -80,7 +91,7 @@ struct OpenCondition : public Flaw {
   const Disjunction* disjunction() const;
 
 protected:
-  /* Prints this open condition on the given stream. */
+  /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
 
 private:
@@ -95,7 +106,9 @@ private:
 };
 
 /* Equality operator for open conditions. */
-bool operator==(const OpenCondition& oc1, const OpenCondition& oc2);
+inline bool operator==(const OpenCondition& oc1, const OpenCondition& oc2) {
+  return &oc1 == &oc2;
+}
 
 
 /* ====================================================================== */
@@ -131,7 +144,7 @@ struct Unsafe : public Flaw {
   const Literal& effect_add() const { return *effect_add_; }
 
 protected:
-  /* Prints this threatened causal link on the given stream. */
+  /* Prints this open condition on the given stream. */
   virtual void print(ostream& os) const;
 
 private:
@@ -146,7 +159,9 @@ private:
 };
 
 /* Equality operator for unsafe links. */
-bool operator==(const Unsafe& u1, const Unsafe& u2);
+inline bool operator==(const Unsafe& u1, const Unsafe& u2) {
+  return &u1 == &u2;
+}
 
 
 /* ====================================================================== */
