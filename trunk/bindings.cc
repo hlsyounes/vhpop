@@ -1,9 +1,12 @@
 /*
- * $Id: bindings.cc,v 1.7 2001-10-30 18:41:09 lorens Exp $
+ * $Id: bindings.cc,v 1.8 2001-10-30 21:35:07 lorens Exp $
  */
 #include "bindings.h"
 #include "formulas.h"
 #include "plans.h"
+
+
+const VariableSet& VariableSet::EMPTY = *(new VariableSet());
 
 
 struct DummyReason : public Reason {

@@ -2,7 +2,7 @@
 /*
  * Binding constraints.
  *
- * $Id: bindings.h,v 1.8 2001-10-30 18:41:13 lorens Exp $
+ * $Id: bindings.h,v 1.9 2001-10-30 21:33:47 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
@@ -108,7 +108,10 @@ struct NameSet : public Set<const Name*, less<const LessThanComparable*> > {
  */
 struct VariableSet
   : public Set<const Variable*, less<const LessThanComparable*> > {
+  static const VariableSet& EMPTY;
 };
+
+typedef VariableSet::const_iterator VariableSetIter;
 
 
 /*
