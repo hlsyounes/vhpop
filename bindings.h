@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.h,v 6.7 2003-09-01 19:32:27 lorens Exp $
+ * $Id: bindings.h,v 6.8 2003-09-05 16:19:45 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
@@ -240,23 +240,23 @@ struct Bindings {
 
   /* Checks if one of the given formulas is the negation of the other,
      and the atomic formulas can be unified. */
-  bool affects(const Literal& l1, size_t id1,
-	       const Literal& l2, size_t id2) const;
+  bool affects(const Literal& l1, size_t id1, const Literal& l2, size_t id2,
+	       const Problem* problem) const;
 
   /* Checks if one of the given formulas is the negation of the other,
      and the atomic formulas can be unified; the most general unifier
      is added to the provided substitution list. */
   bool affects(BindingList& mgu, const Literal& l1, size_t id1,
-	       const Literal& l2, size_t id2) const;
+	       const Literal& l2, size_t id2, const Problem* problem) const;
 
   /* Checks if the given formulas can be unified. */
-  bool unify(const Literal& l1, size_t id1,
-	     const Literal& l2, size_t id2) const;
+  bool unify(const Literal& l1, size_t id1, const Literal& l2, size_t id2,
+	     const Problem* problem) const;
 
   /* Checks if the given formulas can be unified; the most general
      unifier is added to the provided substitution list. */
   bool unify(BindingList& mgu, const Literal& l1, size_t id1,
-	     const Literal& l2, size_t id2) const;
+	     const Literal& l2, size_t id2, const Problem* problem) const;
 
   /* Checks if the given equality is consistent with the current
      bindings. */

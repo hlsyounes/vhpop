@@ -13,12 +13,13 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: effects.cc,v 6.3 2003-08-28 15:32:33 lorens Exp $
+ * $Id: effects.cc,v 6.4 2003-09-05 16:21:40 lorens Exp $
  */
 #include "effects.h"
 #include "bindings.h"
 #include "problems.h"
 #include "formulas.h"
+#include <algorithm>
 #include <stack>
 
 

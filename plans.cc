@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 6.8 2003-09-01 20:52:34 lorens Exp $
+ * $Id: plans.cc,v 6.9 2003-09-05 16:28:34 lorens Exp $
  */
 #include "mathport.h"
 #include "plans.h"
@@ -25,6 +25,7 @@
 #include "requirements.h"
 #include "parameters.h"
 #include "debug.h"
+#include <algorithm>
 #include <queue>
 #include <typeinfo>
 #include <climits>
@@ -71,7 +72,7 @@ Link::Link(size_t from_id, StepTime effect_time,
 /* Constructs a causal link. */
 Link::Link(const Link& l)
   : from_id_(l.from_id_), effect_time_(l.effect_time_), to_id_(l.to_id_),
-    condition_(l.condition_) {
+    condition_(l.condition_), condition_time_(l.condition_time_) {
   Formula::register_use(condition_);
 }
 
@@ -89,22 +90,20 @@ Link::~Link() {
  * Less than function object for plan pointers.
  */
 namespace std {
-struct less<const Plan*>
-  : public binary_function<const Plan*, const Plan*, bool> {
-  bool operator()(const Plan* p1, const Plan* p2) const {
-    return *p1 < *p2;
-  }
-};
+  struct less<const Plan*>
+    : public binary_function<const Plan*, const Plan*, bool> {
+    /* Comparison function operator. */
+    bool operator()(const Plan* p1, const Plan* p2) const {
+      return *p1 < *p2;
+    }
+  };
 }
 
 
 /*
  * A plan queue.
  */
-struct PlanQueue
-  : public std::priority_queue<const Plan*,
-			       std::vector<const Plan*>,
-			       std::less<const Plan*> > {
+struct PlanQueue : public std::priority_queue<const Plan*> {
 };
 
 
@@ -312,14 +311,14 @@ static void link_threats(const Chain<Unsafe>*& unsafes, size_t& num_unsafes,
 	    || orderings.possibly_after(link.to_id(), lt2, s.id(), et)) {
 	  if (typeid(link.condition()) == typeid(Negation)) {
 	    if (bindings.affects(e.literal(), s.id(),
-				 link.condition(), link.to_id())) {
+				 link.condition(), link.to_id(), problem)) {
 	      unsafes = new Chain<Unsafe>(Unsafe(link, s.id(), e, e.literal()),
 					  unsafes);
 	      num_unsafes++;
 	    }
 	  } else if (!(link.from_id() == s.id() && lt1 == et)) {
 	    if (bindings.affects(e.literal(), s.id(),
-				 link.condition(), link.to_id())) {
+				 link.condition(), link.to_id(), problem)) {
 	      unsafes = new Chain<Unsafe>(Unsafe(link, s.id(), e, e.literal()),
 					  unsafes);
 	      num_unsafes++;
@@ -355,7 +354,7 @@ static void step_threats(const Chain<Unsafe>*& unsafes, size_t& num_unsafes,
 	if (orderings.possibly_before(l.from_id(), lt1, step.id(), et)
 	    && orderings.possibly_after(l.to_id(), lt2, step.id(), et)) {
 	  if (bindings.affects(e.literal(), step.id(),
-			       l.condition(), l.to_id())) {
+			       l.condition(), l.to_id(), problem)) {
 	    unsafes = new Chain<Unsafe>(Unsafe(l, step.id(), e, e.literal()),
 					unsafes);
 	    num_unsafes++;
@@ -856,7 +855,7 @@ bool Plan::unsafe_refinements(int& refinements, int& separable,
 	     && orderings().possibly_after(link.to_id(), lt2,
 					   unsafe.step_id(), et)))
 	&& bindings_->affects(unifier, unsafe.effect_add(), unsafe.step_id(),
-			      link.condition(), link.to_id())) {
+			      link.condition(), link.to_id(), problem)) {
       PlanList dummy;
       if (separable < 0) {
 	separable = separate(dummy, unsafe, unifier, true);
@@ -898,7 +897,7 @@ void Plan::handle_unsafe(PlanList& plans, const Unsafe& unsafe) const {
 	   && orderings().possibly_after(link.to_id(), lt2,
 				       unsafe.step_id(), et)))
       && bindings_->affects(unifier, unsafe.effect_add(), unsafe.step_id(),
-			    link.condition(), link.to_id())) {
+			    link.condition(), link.to_id(), problem)) {
     separate(plans, unsafe, unifier);
     promote(plans, unsafe);
     demote(plans, unsafe);
@@ -926,7 +925,7 @@ int Plan::separable(const Unsafe& unsafe) const {
 				       unsafe.step_id(), et)))
       && bindings_->affects(unifier,
 			    unsafe.effect_add(), unsafe.step_id(),
-			    link.condition(), link.to_id())) {
+			    link.condition(), link.to_id(), problem)) {
     PlanList dummy;
     return separate(dummy, unsafe, unifier, true);
   } else {
@@ -1104,7 +1103,7 @@ bool Plan::unsafe_open_condition(const OpenCondition& open_cond) const {
 	  if (orderings().possibly_before(s.id(), et,
 					  open_cond.step_id(), gt)) {
 	    if (bindings_->affects(e.literal(), s.id(),
-				   goal, open_cond.step_id())) {
+				   goal, open_cond.step_id(), problem)) {
 	      return true;
 	    }
 	  }
@@ -1172,6 +1171,11 @@ void Plan::handle_open_condition(PlanList& plans,
     if (achievers != NULL) {
       add_step(plans, *literal, open_cond, *achievers);
       reuse_step(plans, *literal, open_cond, *achievers);
+    }
+    const Negation* negation = dynamic_cast<const Negation*>(literal);
+    if (negation != NULL) {
+      new_cw_link(plans, problem->init_action().effects(),
+		  *negation, open_cond);
     }
   } else {
     const Disjunction* disj = open_cond.disjunction();
@@ -1340,19 +1344,6 @@ bool Plan::reusable_steps(int& refinements, const Literal& literal,
     StepTime gt = start_time(open_cond.when());
     for (const Chain<Step>* sc = steps(); sc != NULL; sc = sc->tail) {
       const Step& step = sc->head;
-      if (step.id() == 0) {
-	const Negation* negation = dynamic_cast<const Negation*>(&literal);
-	if (negation != NULL) {
-	  PlanList dummy;
-	  count +=
-	    new_cw_link(dummy, step.action().effects(), *negation, open_cond,
-			*achievers, true);
-	  if (count > limit) {
-	    return false;
-	  }
-	  continue;
-	}
-      }
       if (orderings().possibly_before(step.id(), STEP_START,
 				      open_cond.step_id(), gt)) {
 	std::pair<ActionEffectMap::const_iterator,
@@ -1373,6 +1364,11 @@ bool Plan::reusable_steps(int& refinements, const Literal& literal,
       }
     }
   }
+  const Negation* negation = dynamic_cast<const Negation*>(&literal);
+  if (negation != NULL) {
+    count += new_cw_link(dummy, problem->init_action().effects(),
+			 *negation, open_cond, true);
+  }
   refinements = count;
   return count <= limit;
 }
@@ -1385,14 +1381,6 @@ void Plan::reuse_step(PlanList& plans, const Literal& literal,
   StepTime gt = start_time(open_cond.when());
   for (const Chain<Step>* sc = steps(); sc != NULL; sc = sc->tail) {
     const Step& step = sc->head;
-    if (step.id() == 0) {
-      const Negation* negation = dynamic_cast<const Negation*>(&literal);
-      if (negation != NULL) {
-	new_cw_link(plans, step.action().effects(), *negation, open_cond,
-		    achievers);
-	continue;
-      }
-    }
     if (orderings().possibly_before(step.id(), STEP_START,
 				    open_cond.step_id(), gt)) {
       std::pair<ActionEffectMap::const_iterator,
@@ -1419,7 +1407,7 @@ int Plan::new_link(PlanList& plans, const Step& step, const Effect& effect,
 		   bool test_only) const {
   BindingList mgu;
   if (bindings_->unify(mgu, literal, open_cond.step_id(),
-		       effect.literal(), step.id())) {
+		       effect.literal(), step.id(), problem)) {
     return make_link(plans, step, effect, literal, open_cond, mgu, test_only);
   } else {
     return 0;
@@ -1432,18 +1420,15 @@ int Plan::new_link(PlanList& plans, const Step& step, const Effect& effect,
    assumption. */
 int Plan::new_cw_link(PlanList& plans, const EffectList& effects,
 		      const Negation& negation, const OpenCondition& open_cond,
-		      const ActionEffectMap& achievers,
 		      bool test_only) const {
   const Atom& goal = negation.atom();
   const Formula* goals = &Formula::TRUE;
-  std::pair<ActionEffectMap::const_iterator,
-    ActionEffectMap::const_iterator> b =
-    achievers.equal_range(&problem->init_action());
-  for (ActionEffectMap::const_iterator ei = b.first; ei != b.second; ei++) {
-    const Effect& effect = *(*ei).second;
+  for (EffectList::const_iterator ei = effects.begin();
+       ei != effects.end(); ei++) {
+    const Effect& effect = **ei;
     BindingList mgu;
     if (bindings_->unify(mgu, goal, open_cond.step_id(),
-			 effect.literal(), 0)) {
+			 effect.literal(), 0, problem)) {
       if (mgu.empty()) {
 	/* Impossible to separate goal and initial condition. */
 	return 0;
@@ -1722,7 +1707,7 @@ disable_interference(const std::vector<const Step*>& ordered_steps,
 		if (new_orderings->possibly_concurrent(si.id(), et,
 						       l.to_id(), lt)) {
 		  if (bindings.affects(e.literal(), si.id(),
-				       l.condition(), l.to_id())) {
+				       l.condition(), l.to_id(), problem)) {
 		    interference = true;
 		  }
 		}
@@ -1740,7 +1725,7 @@ disable_interference(const std::vector<const Step*>& ordered_steps,
 		if (new_orderings->possibly_concurrent(sj.id(), et,
 						       l.to_id(), lt)) {
 		  if (bindings.affects(e.literal(), sj.id(),
-				       l.condition(), l.to_id())) {
+				       l.condition(), l.to_id(), problem)) {
 		    interference = true;
 		  }
 		}
@@ -1887,7 +1872,7 @@ std::ostream& operator<<(std::ostream& os, const Plan& p) {
       }
     }
     os << std::endl << "orderings = " << p.orderings();
-    if (bindings != NULL) {
+    if (p.bindings() != NULL) {
       os << std::endl << "bindings = ";
       bindings->print(os, problem->terms());
     }

@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.h,v 6.5 2003-09-01 20:52:46 lorens Exp $
+ * $Id: plans.h,v 6.6 2003-09-05 16:28:46 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -325,7 +325,6 @@ private:
      assumption. */
   int new_cw_link(PlanList& plans, const EffectList& effects,
 		  const Negation& negation, const OpenCondition& open_cond,
-		  const ActionEffectMap& achievers,
 		  bool test_only = false) const;
 
   /* Returns a plan with a link added from the given effect to the

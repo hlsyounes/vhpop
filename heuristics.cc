@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 6.7 2003-09-01 20:53:01 lorens Exp $
+ * $Id: heuristics.cc,v 6.8 2003-09-05 16:24:25 lorens Exp $
  */
 #include "heuristics.h"
 #include "plans.h"
@@ -70,7 +70,8 @@ formula_value(const Formula& formula, FormulaTime when, size_t step_id,
 		if (typeid(*literal) == typeid(e.literal())) {
 		  if ((bindings != NULL
 		       && bindings->unify(*literal, step_id,
-					  e.literal(), step.id()))
+					  e.literal(), step.id(),
+					  &pg.problem()))
 		      || (bindings == NULL && literal == &e.literal())) {
 		    return HeuristicValue::ZERO_COST_UNIT_WORK;
 		  }
@@ -725,7 +726,7 @@ HeuristicValue PlanningGraph::heuristic_value(const Atom& atom, size_t step_id,
     for (PredicateAtomsMap::const_iterator gi = bounds.first;
 	 gi != bounds.second; gi++) {
       const Atom& a = *(*gi).second;
-      if (bindings->unify(atom, step_id, a, 0)) {
+      if (bindings->unify(atom, step_id, a, 0, &problem())) {
 	HeuristicValue v = heuristic_value(a, 0);
 	value = min(value, v);
 	if (value.zero()) {
@@ -766,7 +767,7 @@ HeuristicValue PlanningGraph::heuristic_value(const Negation& negation,
     for (PredicateAtomsMap::const_iterator gi = bounds.first;
 	 gi != bounds.second; gi++) {
       const Atom& a = *(*gi).second;
-      if (bindings->unify(atom, step_id, a, 0)) {
+      if (bindings->unify(atom, step_id, a, 0, &problem())) {
 	HeuristicValue v = heuristic_value(a, 0);
 	value = min(value, v);
 	if (value.zero()) {

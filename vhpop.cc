@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 6.2 2003-07-21 02:27:10 lorens Exp $
+ * $Id: vhpop.cc,v 6.3 2003-09-05 16:34:29 lorens Exp $
  */
 #include "plans.h"
 #include "parameters.h"
@@ -47,11 +47,11 @@
 extern int yyparse();
 /* File to parse. */
 extern FILE* yyin;
-/* Name of current file. */
-extern std::string current_file;
-/* Level of warnings. */
-extern int warning_level;
 
+/* Name of current file. */
+std::string current_file;
+/* Level of warnings. */
+int warning_level;
 /* Verbosity level. */
 int verbosity;
 
@@ -174,12 +174,12 @@ static void cleanup() {
   Domain::clear();
 
 #ifdef DEBUG_MEMORY
-  std::cerr << "Formulas created: " << created_formulas << std::endl
+  std::cerr << "Expressions created: " << created_expressions << std::endl
+	    << "Expressions deleted: " << deleted_expressions << std::endl
+	    << "Formulas created: " << created_formulas << std::endl
 	    << "Formulas deleted: " << deleted_formulas << std::endl
 	    << "Conditions created: " << created_conditions << std::endl
 	    << "Conditions deleted: " << deleted_conditions << std::endl
-	    << "Name sets created: " << created_name_sets << std::endl
-	    << "Name sets deleted: " << deleted_name_sets << std::endl
 	    << "Action domains created: " << created_action_domains
 	    << std::endl
 	    << "Action domains deleted: " << deleted_action_domains
@@ -201,12 +201,12 @@ static void cleanup() {
 
 
 #ifdef DEBUG_MEMORY
+size_t created_expressions = 0;
+size_t deleted_expressions = 0;
 size_t created_formulas = 0;
 size_t deleted_formulas = 0;
 size_t created_conditions = 0;
 size_t deleted_conditions = 0;
-size_t created_name_sets = 0;
-size_t deleted_name_sets = 0;
 size_t created_action_domains = 0;
 size_t deleted_action_domains = 0;
 size_t created_bindings = 0;
@@ -374,13 +374,13 @@ int main(int argc, char* argv[]) {
        */
       std::cerr << "----------------------------------------"<< std::endl
 		<< "domains:" << std::endl;
-      for (Domain::DomainMapIter di = Domain::begin();
+      for (Domain::DomainMap::const_iterator di = Domain::begin();
 	   di != Domain::end(); di++) {
 	std::cerr << std::endl << *(*di).second << std::endl;
       }
       std::cerr << "----------------------------------------"<< std::endl
 		<< "problems:" << std::endl;
-      for (Problem::ProblemMapIter pi = Problem::begin();
+      for (Problem::ProblemMap::const_iterator pi = Problem::begin();
 	   pi != Problem::end(); pi++) {
 	std::cerr << std::endl << *(*pi).second << std::endl;
       }
@@ -392,7 +392,7 @@ int main(int argc, char* argv[]) {
     /*
      * Solve the problems.
      */
-    for (Problem::ProblemMapIter pi = Problem::begin();
+    for (Problem::ProblemMap::const_iterator pi = Problem::begin();
 	 pi != Problem::end(); ) {
       const Problem& problem = *(*pi).second;
       pi++;
