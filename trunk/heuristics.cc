@@ -1,5 +1,5 @@
 /*
- * $Id: heuristics.cc,v 1.20 2002-01-04 21:08:34 lorens Exp $
+ * $Id: heuristics.cc,v 1.21 2002-01-05 13:51:06 lorens Exp $
  */
 #include <set>
 #include <typeinfo>
@@ -609,7 +609,7 @@ Heuristic& Heuristic::operator=(const string& name) {
   needs_pg_ = false;
   size_t pos = 0;
   while (pos < name.length()) {
-    size_t next_pos = name.find(':', pos);
+    size_t next_pos = name.find('/', pos);
     string key = name.substr(pos, next_pos - pos);
     const char* n = key.c_str();
     if (strcasecmp(n, "LIFO") == 0) {
@@ -656,7 +656,13 @@ Heuristic& Heuristic::operator=(const string& name) {
     } else {
       throw InvalidHeuristic(name);
     }
-    pos = (next_pos < name.length()) ? next_pos + 1 : next_pos;
+    pos = next_pos;
+    if (name[pos] == '/') {
+      pos++;
+      if (pos >= name.length()) {
+	throw InvalidHeuristic(name);
+      }
+    }
   }
   return *this;
 }
@@ -944,11 +950,13 @@ FlawSelectionOrder::FlawSelectionOrder(const string& name) {
 FlawSelectionOrder& FlawSelectionOrder::operator=(const string& name) {
   const char* n = name.c_str();
   if (strcasecmp(n, "UCPOP") == 0) {
-    return *this = "{n,s}LIFO{o}LIFO";
+    return *this = "{n,s}LIFO/{o}LIFO";
   } else if (strcasecmp(n, "LCFR") == 0) {
     return *this = "{n,s,o}LR";
   } else if (strcasecmp(n, "ZLIFO") == 0) {
-    return *this = "{n}LIFO{o}0LIFO{o}1NEW{o}LIFO{s}LIFO";
+    return *this = "{n}LIFO/{o}0LIFO/{o}1NEW/{o}LIFO/{s}LIFO";
+  } else if (strcasecmp(n, "STATIC") == 0) {
+    return *this = "{t}LIFO/{n,s}LIFO/{o}LIFO";
   }
   selection_criteria_.clear();
   needs_pg_ = false;
@@ -1061,7 +1069,7 @@ FlawSelectionOrder& FlawSelectionOrder::operator=(const string& name) {
     } else {
       criterion.max_refinements = INT_MAX;
     }
-    next_pos = name.find('{', pos);
+    next_pos = name.find('/', pos);
     string key = name.substr(pos, next_pos - pos);
     n = key.c_str();
     if (strcasecmp(n, "LIFO") == 0) {
@@ -1101,6 +1109,12 @@ FlawSelectionOrder& FlawSelectionOrder::operator=(const string& name) {
     }
     selection_criteria_.push_back(criterion);
     pos = next_pos;
+    if (name[pos] == '/') {
+      pos++;
+      if (pos >= name.length()) {
+	throw InvalidFlawSelectionOrder(name);
+      }
+    }
   }
   if (non_separable_max_refinements < INT_MAX
       || separable_max_refinements < INT_MAX
@@ -1345,17 +1359,16 @@ int FlawSelectionOrder::select_unsafe(FlawSelection& selection,
 	    if (c < selection.criterion
 		|| unsafe_refinements(refinements, separable, promotable,
 				      demotable, unsafe, plan,
-				      selection.refinements - 1)) {
+				      selection.rank - 1)) {
 	      selection.flaw = &unsafe;
 	      selection.criterion = c;
 	      unsafe_refinements(refinements, separable, promotable,
 				 demotable, unsafe, plan, INT_MAX);
-	      selection.refinements = refinements;
+	      selection.rank = refinements;
 	      last_criterion = (refinements == 0) ? c - 1 : c;
 	      if (verbosity > 1) {
 		cout << "selecting " << unsafe << " by criterion "
-		     << criterion << " with " << refinements << " refinements"
-		     << endl;
+		     << criterion << " with rank " << refinements << endl;
 	      }
 	    }
 	    break;
@@ -1363,15 +1376,14 @@ int FlawSelectionOrder::select_unsafe(FlawSelection& selection,
 	    unsafe_refinements(refinements, separable, promotable,
 			       demotable, unsafe, plan, INT_MAX);
 	    if (c < selection.criterion
-		|| refinements > selection.refinements) {
+		|| refinements > selection.rank) {
 	      selection.flaw = &unsafe;
 	      selection.criterion = c;
-	      selection.refinements = refinements;
+	      selection.rank = refinements;
 	      last_criterion = (refinements == 3) ? c - 1 : c;
 	      if (verbosity > 1) {
 		cout << "selecting " << unsafe << " by criterion "
-		     << criterion << " with " << refinements << " refinements"
-		     << endl;
+		     << criterion << " with rank " << refinements << endl;
 	      }
 	    }
 	    break;
@@ -1523,17 +1535,16 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 	    if (c < selection.criterion
 		|| open_cond_refinements(refinements, addable, reusable,
 					 open_cond, plan,
-					 selection.refinements - 1)) {
+					 selection.rank - 1)) {
 	      selection.flaw = &open_cond;
 	      selection.criterion = c;
 	      open_cond_refinements(refinements, addable, reusable, open_cond,
 				    plan, INT_MAX);
-	      selection.refinements = refinements;
+	      selection.rank = refinements;
 	      last_criterion = (refinements == 0) ? c - 1 : c;
 	      if (verbosity > 1) {
 		cout << "selecting " << open_cond << " by criterion "
-		     << criterion << " with " << refinements << " refinements"
-		     << endl;
+		     << criterion << " with rank " << refinements << endl;
 	      }
 	    }
 	    break;
@@ -1541,15 +1552,14 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 	    open_cond_refinements(refinements, addable, reusable, open_cond,
 				  plan, INT_MAX);
 	    if (c < selection.criterion
-		|| refinements > selection.refinements) {
+		|| refinements > selection.rank) {
 	      selection.flaw = &open_cond;
 	      selection.criterion = c;
-	      selection.refinements = refinements;
+	      selection.rank = refinements;
 	      last_criterion = c;
 	      if (verbosity > 1) {
 		cout << "selecting " << open_cond << " by criterion "
-		     << criterion << " with " << refinements << " refinements"
-		     << endl;
+		     << criterion << " with rank " << refinements << endl;
 	      }
 	    }
 	    break;

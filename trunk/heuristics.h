@@ -2,7 +2,7 @@
 /*
  * Heuristics.
  *
- * $Id: heuristics.h,v 1.16 2002-01-04 20:25:23 lorens Exp $
+ * $Id: heuristics.h,v 1.17 2002-01-05 13:51:11 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
@@ -277,7 +277,7 @@ private:
   struct FlawSelection {
     const Flaw* flaw;
     int criterion;
-    int refinements;
+    int rank;
     int streak;
   };
 
