@@ -2,7 +2,7 @@
 /*
  * Types, terms, and formulas.
  *
- * $Id: formulas.h,v 1.1 2001-05-03 15:14:16 lorens Exp $
+ * $Id: formulas.h,v 1.2 2001-05-03 21:40:55 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -22,6 +22,17 @@ struct Type : public gc {
   /* Deletes this type. */
   virtual ~Type() {
   }
+
+  /* Checks if this type is object type. */
+  bool object() const;
+
+  /* Checks if this type is compatible with the given type. */
+  bool compatible(const Type& t) const {
+    return subtype(t) || t.subtype(*this);
+  }
+
+  /* Checks if this type is a subtype of the given type. */
+  virtual bool subtype(const Type& t) const = 0;
 
 protected:
   /* Prints this type on the given stream. */
@@ -44,6 +55,34 @@ typedef vector<const Type*, container_alloc> TypeList;
 
 
 /*
+ * Union type.
+ */
+struct UnionType : public Type {
+  /* Constituent types. */
+  const TypeList& types;
+
+  /* Constructs the type that is the union of the given types. */
+  UnionType(const TypeList& types)
+    : types(types) {
+  }
+
+  /* Checks if this type is a subtype of the given type. */
+  virtual bool subtype(const Type& t) const {
+    for (TypeList::const_iterator i = types.begin(); i != types.end(); i++) {
+      if ((*i)->subtype(t)) {
+	return true;
+      }
+    }
+    return false;
+  }
+
+protected:
+  /* Prints this type on the given stream. */
+  virtual void print(ostream& os) const;
+};
+
+
+/*
  * Simple type.
  */
 struct SimpleType : public Type {
@@ -60,10 +99,36 @@ struct SimpleType : public Type {
     : name(name), super_type(name == "object" ? *this : super_type) {
   }
 
+  /* Checks if this type is a subtype of the given type. */
+  virtual bool subtype(const Type& t) const {
+    if (t.object()) {
+      return true;
+    } else {
+      const SimpleType* st = dynamic_cast<const SimpleType*>(&t);
+      if (st != NULL) {
+	return name == st->name || (!object() && super_type.subtype(t));
+      } else {
+	const UnionType& ut = dynamic_cast<const UnionType&>(t);
+	for (TypeList::const_iterator i = ut.types.begin();
+	     i != ut.types.end(); i++) {
+	  if (subtype(**i)) {
+	    return true;
+	  }
+	}
+	return false;
+      }
+    }
+  }
+
 protected:
   /* Prints this type on the given stream. */
   virtual void print(ostream& os) const;
 };
+
+/* Checks if this type is object type. */
+inline bool Type::object() const {
+  return this == &SimpleType::OBJECT_TYPE;
+}
 
 
 /*
@@ -71,24 +136,6 @@ protected:
  */
 typedef hash_map<string, const SimpleType*, hash<string>, equal_to<string>,
   container_alloc> TypeMap;
-
-
-/*
- * Union type.
- */
-struct UnionType : public Type {
-  /* Constituent types. */
-  const TypeList& types;
-
-  /* Constructs the type that is the union of the given types. */
-  UnionType(const TypeList& types)
-    : types(types) {
-  }
-
-protected:
-  /* Prints this type on the given stream. */
-  virtual void print(ostream& os) const;
-};
 
 
 struct Term;
