@@ -2,16 +2,17 @@
 /*
  * Domain descriptions.
  *
- * $Id: domains.h,v 1.27 2001-12-25 20:10:44 lorens Exp $
+ * $Id: domains.h,v 1.28 2001-12-27 19:13:15 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
 
 #include <hash_set>
 #include "support.h"
-#include "types.h"
 
 
+struct Type;
+struct TypeMap;
 struct SubstitutionList;
 struct TermList;
 struct VariableList;
@@ -34,8 +35,7 @@ struct Predicate : public Printable, public gc {
   const VariableList& parameters;
 
   /* Constructs a predicate with the given names and parameters. */
-  Predicate(const string& name, const VariableList& params)
-    : name(name), parameters(params) {}
+  Predicate(const string& name, const VariableList& params);
 
   /* Returns the arity of this predicate. */
   size_t arity() const;
@@ -52,6 +52,7 @@ protected:
 struct PredicateMap : public HashMap<string, const Predicate*> {
 };
 
+/* Iterator for predicate table. */
 typedef PredicateMap::const_iterator PredicateMapIter;
 
 
@@ -83,9 +84,7 @@ struct Effect : public Printable, public gc {
 
   /* Constructs a universally quantified conditional effect. */
   Effect(const VariableList& forall, const Formula& condition,
-	 const AtomList& add_list, const NegationList& del_list)
-    : forall(forall), condition(condition),
-      add_list(add_list), del_list(del_list) {}
+	 const AtomList& add_list, const NegationList& del_list);
 
   /* Returns an instantiation of this effect. */
   const Effect& instantiation(size_t id) const;
@@ -116,12 +115,10 @@ struct EffectList : public Vector<const Effect*> {
   static const EffectList& EMPTY;
 
   /* Constructs an empty effect list. */
-  EffectList() {}
+  EffectList();
 
   /* Constructs an effect list with a single effect. */
-  EffectList(const Effect* effect) {
-    push_back(effect);
-  }
+  EffectList(const Effect* effect);
 
   /* Returns an instantiation of this effect list. */
   const EffectList& instantiation(size_t id) const;
@@ -139,6 +136,7 @@ struct EffectList : public Vector<const Effect*> {
 			     hash_set<string>& neg_preds) const;
 };
 
+/* Iterator for effect lists. */
 typedef EffectList::const_iterator EffectListIter;
 
 
@@ -164,8 +162,7 @@ struct Action : public Printable, public gc {
 protected:
   /* Constructs an action. */
   Action(const string& name, const Formula& precondition,
-	 const EffectList& effects)
-    : name(name), precondition(precondition), effects(effects) {}
+	 const EffectList& effects);
 };
 
 
@@ -175,6 +172,7 @@ protected:
 struct ActionList : public Vector<const Action*> {
 };
 
+/* Iterator for action lists. */
 typedef ActionList::const_iterator ActionListIter;
 
 
@@ -188,9 +186,9 @@ struct ActionSchema : public Action {
   /* Action schema parameters. */
   const VariableList& parameters;
 
+  /* Constructs an action schema. */
   ActionSchema(const string& name, const VariableList& parameters,
-	       const Formula& precondition, const EffectList& effects)
-    : Action(name, precondition, effects), parameters(parameters) {}
+	       const Formula& precondition, const EffectList& effects);
 
   /* Returns a formula representing this action. */
   virtual const Atom& action_formula() const;
@@ -219,6 +217,7 @@ protected:
 struct ActionSchemaMap : public HashMap<string, const ActionSchema*> {
 };
 
+/* Iterator for action schema table. */
 typedef ActionSchemaMap::const_iterator ActionSchemaMapIter;
 
 
@@ -231,9 +230,7 @@ struct GroundAction : public Action {
 
   /* Constructs a ground action, assuming arguments are names. */
   GroundAction(const string& name, const NameList& arguments,
-	       const Formula& precondition, const EffectList& effects)
-    : Action(name, precondition, effects), arguments(arguments),
-      formula(NULL) {}
+	       const Formula& precondition, const EffectList& effects);
 
   /* Returns a formula representing this action. */
   virtual const Atom& action_formula() const;
@@ -244,7 +241,7 @@ protected:
 
 private:
   /* Atomic representation of this ground action. */
-  mutable const Atom* formula;
+  mutable const Atom* formula_;
 };
 
 
@@ -254,6 +251,7 @@ private:
 struct GroundActionList : public Vector<const GroundAction*> {
 };
 
+/* Iterator for ground action lists. */
 typedef GroundActionList::const_iterator GroundActionListIter;
 
 
@@ -266,6 +264,9 @@ struct Domain : public Printable, public gc {
   /* Table of domain definitions. */
   struct DomainMap : public HashMap<string, const Domain*> {
   };
+
+  /* Iterator for domain tables. */
+  typedef DomainMap::const_iterator DomainMapIter;
 
   /* Name of this domain. */
   const string name;
@@ -281,40 +282,24 @@ struct Domain : public Printable, public gc {
   const ActionSchemaMap& actions;
 
   /* Returns a const_iterator pointing to the first domain. */
-  static DomainMap::const_iterator begin() {
-    return domains.begin();
-  }
+  static DomainMapIter begin();
 
   /* Returns a const_iterator pointing beyond the last domain. */
-  static DomainMap::const_iterator end() {
-    return domains.end();
-  }
+  static DomainMapIter end();
 
   /* Returns the domain with the given name, or NULL it is undefined. */
-  static const Domain* find(const string& name) {
-    DomainMap::const_iterator i = domains.find(name);
-    return (i != domains.end()) ? (*i).second : NULL;
-  }
+  static const Domain* find(const string& name);
 
   /* Removes all defined domains. */
-  static void clear() {
-    domains.clear();
-  }
+  static void clear();
 
   /* Constructs a domain. */
   Domain(const string& name, const Requirements& requirements,
 	 const TypeMap& types, const NameMap& constants,
-	 const PredicateMap& predicates, const ActionSchemaMap& actions)
-    : name(name), requirements(requirements), types(types),
-      constants(constants), predicates(predicates), actions(actions),
-      static_predicates_(static_predicates(predicates, actions)) {
-    domains[name] = this;
-  }
+	 const PredicateMap& predicates, const ActionSchemaMap& actions);
 
   /* Deletes a domain. */
-  virtual ~Domain() {
-    domains.erase(name);
-  }
+  virtual ~Domain();
 
   /* Returns the type with the given name, or NULL if it is
      undefined. */
@@ -334,13 +319,10 @@ struct Domain : public Printable, public gc {
 
   /* Fills the provided name list with constants that are compatible
      with the given type. */
-  void compatible_constants(NameList& constants,
-			    const Type& t = SimpleType::OBJECT) const;
+  void compatible_constants(NameList& constants, const Type& t) const;
 
   /* Tests if the given predicate is static. */
-  bool static_predicate(const string& predicate) const {
-    return (static_predicates_.find(predicate) != static_predicates_.end());
-  }
+  bool static_predicate(const string& predicate) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -351,11 +333,7 @@ private:
   static DomainMap domains;
 
   /* Static predicates. */
-  const hash_set<string> static_predicates_;
-
-  /* Returns a set of static predicates. */
-  static hash_set<string> static_predicates(const PredicateMap& predicates,
-					    const ActionSchemaMap& actions);
+  hash_set<string> static_predicates_;
 };
 
 #endif /* DOMAINS_H */

@@ -1,13 +1,18 @@
 /*
- * $Id: domains.cc,v 1.27 2001-12-26 18:51:59 lorens Exp $
+ * $Id: domains.cc,v 1.28 2001-12-27 19:13:10 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
 #include "formulas.h"
+#include "types.h"
 
 
-/* Table of defined domains. */
-Domain::DomainMap Domain::domains = Domain::DomainMap();
+/* ====================================================================== */
+/* Predicate */
+
+/* Constructs a predicate with the given names and parameters. */
+Predicate::Predicate(const string& name, const VariableList& params)
+  : name(name), parameters(params) {}
 
 
 /* Returns the arity of this predicate. */
@@ -28,6 +33,9 @@ void Predicate::print(ostream& os) const {
   os << ')';
 }
 
+
+/* ====================================================================== */
+/* Effect */
 
 /* Constructs an unconditional effect. */
 Effect::Effect(const AtomList& add_list, const NegationList& del_list)
@@ -50,6 +58,13 @@ Effect::Effect(const VariableList& forall,
   : forall(forall), condition(Formula::TRUE),
     add_list(add_list), del_list(del_list) {
 }
+
+
+/* Constructs a universally quantified conditional effect. */
+Effect::Effect(const VariableList& forall, const Formula& condition,
+	       const AtomList& add_list, const NegationList& del_list)
+  : forall(forall), condition(condition),
+    add_list(add_list), del_list(del_list) {}
 
 
 /* Returns an instantiation of this effect. */
@@ -181,6 +196,22 @@ void Effect::print(ostream& os) const {
 }
 
 
+/* ====================================================================== */
+/* EffectList */
+
+/* An empty effect list. */
+const EffectList& EffectList::EMPTY = *(new EffectList());
+
+
+/* Constructs an empty effect list. */
+EffectList::EffectList() {}
+
+
+/* Constructs an effect list with a single effect. */
+EffectList::EffectList(const Effect* effect)
+  : Vector<const Effect*>(1, effect) {}
+
+
 /* Returns an instantiation of this effect list. */
 const EffectList& EffectList::instantiation(size_t id) const {
   EffectList& effects = *(new EffectList());
@@ -242,6 +273,15 @@ void EffectList::achievable_predicates(hash_set<string>& preds,
 }
 
 
+/* ====================================================================== */
+/* Action */
+
+/* Constructs an action. */
+Action::Action(const string& name, const Formula& precondition,
+	       const EffectList& effects)
+  : name(name), precondition(precondition), effects(effects) {}
+
+
 /* Fills the provided sets with predicates achievable by this
    action. */
 void Action::achievable_predicates(hash_set<string>& preds,
@@ -250,12 +290,20 @@ void Action::achievable_predicates(hash_set<string>& preds,
 }
 
 
+/* ====================================================================== */
+/* ActionSchema */
+
+/* Constructs an action schema. */
+ActionSchema::ActionSchema(const string& name, const VariableList& parameters,
+			   const Formula& precondition,
+			   const EffectList& effects)
+  : Action(name, precondition, effects), parameters(parameters) {}
+
+
 /* Returns a formula representing this action. */
 const Atom& ActionSchema::action_formula() const {
   TermList& terms = *(new TermList());
-  for (VarListIter vi = parameters.begin(); vi != parameters.end(); vi++) {
-    terms.push_back(*vi);
-  }
+  copy(parameters.begin(), parameters.end(), back_inserter(terms));
   return *(new Atom(name, terms));
 }
 
@@ -360,14 +408,25 @@ void ActionSchema::print(ostream& os) const {
 }
 
 
+/* ====================================================================== */
+/* GroundAction */
+
+/* Constructs a ground action, assuming arguments are names. */
+GroundAction::GroundAction(const string& name, const NameList& arguments,
+			   const Formula& precondition,
+			   const EffectList& effects)
+  : Action(name, precondition, effects), arguments(arguments),
+    formula_(NULL) {}
+
+
 /* Returns a formula representing this action. */
 const Atom& GroundAction::action_formula() const {
-  if (formula == NULL) {
+  if (formula_ == NULL) {
     TermList& terms = *(new TermList());
     copy(arguments.begin(), arguments.end(), back_inserter(terms));
-    formula = new Atom(name, terms);
+    formula_ = new Atom(name, terms);
   }
-  return *formula;
+  return *formula_;
 }
 
 
@@ -394,6 +453,66 @@ void GroundAction::print(ostream& os) const {
     os << **ei;
   }
   os << ")" << ')';
+}
+
+
+/* ====================================================================== */
+/* Domain */
+
+/* Table of defined domains. */
+Domain::DomainMap Domain::domains = Domain::DomainMap();
+
+
+/* Returns a const_iterator pointing to the first domain. */
+Domain::DomainMapIter Domain::begin() {
+  return domains.begin();
+}
+
+
+/* Returns a const_iterator pointing beyond the last domain. */
+Domain::DomainMapIter Domain::end() {
+  return domains.end();
+}
+
+
+/* Returns the domain with the given name, or NULL it is undefined. */
+const Domain* Domain::find(const string& name) {
+  DomainMapIter di = domains.find(name);
+  return (di != domains.end()) ? (*di).second : NULL;
+}
+
+
+/* Removes all defined domains. */
+void Domain::clear() {
+  domains.clear();
+}
+
+
+/* Constructs a domain. */
+Domain::Domain(const string& name, const Requirements& requirements,
+	       const TypeMap& types, const NameMap& constants,
+	       const PredicateMap& predicates, const ActionSchemaMap& actions)
+  : name(name), requirements(requirements), types(types),
+    constants(constants), predicates(predicates), actions(actions) {
+  domains[name] = this;
+  hash_set<string> static_preds;
+  hash_set<string> achievable_preds;
+  for (ActionSchemaMapIter ai = actions.begin(); ai != actions.end(); ai++) {
+    (*ai).second->achievable_predicates(achievable_preds, achievable_preds);
+  }
+  for (PredicateMapIter pi = predicates.begin();
+       pi != predicates.end(); pi++) {
+    const string& p = (*pi).first;
+    if (achievable_preds.find(p) == achievable_preds.end()) {
+      static_predicates_.insert(p);
+    }
+  }
+}
+
+
+/* Deletes a domain. */
+Domain::~Domain() {
+  domains.erase(name);
 }
 
 
@@ -442,22 +561,9 @@ void Domain::compatible_constants(NameList& constants, const Type& t) const {
 }
 
 
-/* Returns a set of static predicates. */
-hash_set<string> Domain::static_predicates(const PredicateMap& predicates,
-					   const ActionSchemaMap& actions) {
-  hash_set<string> static_preds;
-  hash_set<string> achievable_preds;
-  for (ActionSchemaMapIter ai = actions.begin(); ai != actions.end(); ai++) {
-    (*ai).second->achievable_predicates(achievable_preds, achievable_preds);
-  }
-  for (PredicateMapIter pi = predicates.begin();
-       pi != predicates.end(); pi++) {
-    const string& p = (*pi).first;
-    if (achievable_preds.find(p) == achievable_preds.end()) {
-      static_preds.insert(p);
-    }
-  }
-  return static_preds;
+/* Tests if the given predicate is static. */
+bool Domain::static_predicate(const string& predicate) const {
+  return (static_predicates_.find(predicate) != static_predicates_.end());
 }
 
 

@@ -2,7 +2,7 @@
 /*
  * Formulas.
  *
- * $Id: formulas.h,v 1.32 2001-12-26 18:51:51 lorens Exp $
+ * $Id: formulas.h,v 1.33 2001-12-27 19:13:12 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -342,7 +342,7 @@ protected:
 
 private:
   /* Value of this constant. */
-  const bool value;
+  bool value_;
 
   /* Constructs a constant formula. */
   Constant(bool value);
@@ -468,7 +468,7 @@ protected:
 
 private:
   /* Predicate of this atom. */
-  const string predicate_;
+  string predicate_;
   /* Terms of this atom. */
   const TermList& terms_;
 };

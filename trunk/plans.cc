@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.34 2001-12-26 18:51:41 lorens Exp $
+ * $Id: plans.cc,v 1.35 2001-12-27 19:13:29 lorens Exp $
  */
 #include <queue>
 #include <hash_set>
@@ -364,9 +364,9 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
     planning_graph = new PlanningGraph(problem);
   }
   if (!params.ground_actions) {
-    for (ActionSchemaMap::const_iterator i = domain->actions.begin();
-	 i != domain->actions.end(); i++) {
-      const ActionSchema* action = (*i).second;
+    for (ActionSchemaMapIter ai = domain->actions.begin();
+	 ai != domain->actions.end(); ai++) {
+      const ActionSchema* action = (*ai).second;
       if (params.domain_constraints) {
 #ifdef INEQUALITY_AS_BRANCHING
 	action = &action->strip_static(*domain);
@@ -1117,9 +1117,8 @@ void Plan::add_step(PlanList& new_plans,
   if (!actions.empty()) {
     const Link& link = *(new Link(step_id, open_cond));
     const Reason& establish_reason = *(new EstablishReason(link));
-    for (ActionList::const_iterator i = actions.begin();
-	 i != actions.end(); i++) {
-      const Step& step = *(new Step(step_id, **i, establish_reason));
+    for (ActionListIter ai = actions.begin(); ai != actions.end(); ai++) {
+      const Step& step = *(new Step(step_id, **ai, establish_reason));
       new_link(new_plans, step, open_cond, link, establish_reason);
     }
   }
@@ -1149,8 +1148,8 @@ bool Plan::new_link(PlanList& new_plans, const Step& step,
   }
   const Literal& goal = open_cond.literal;
   const EffectList& effs = step.effects;
-  for (EffectList::const_iterator i = effs.begin(); i != effs.end(); i++) {
-    const Effect& effect = **i;
+  for (EffectListIter ei = effs.begin(); ei != effs.end(); ei++) {
+    const Effect& effect = **ei;
     if (typeid(goal) == typeid(Atom)) {
       const AtomList& adds = effect.add_list;
       for (AtomListIter gi = adds.begin(); gi != adds.end(); gi++) {
@@ -1189,8 +1188,8 @@ void Plan::new_cw_link(PlanList& new_plans, const Step& step,
   const Atom& goal = negation.atom;
   const Formula* goals = &Formula::TRUE;
   const EffectList& effs = step.effects;
-  for (EffectList::const_iterator i = effs.begin(); i != effs.end(); i++) {
-    const Effect& effect = **i;
+  for (EffectListIter ei = effs.begin(); ei != effs.end(); ei++) {
+    const Effect& effect = **ei;
     const AtomList& adds = effect.add_list;
     for (AtomListIter gi = adds.begin(); gi != adds.end(); gi++) {
       SubstitutionList mgu;
@@ -1310,20 +1309,20 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
 	orderings.possibly_after(link.to_id, s.id)) {
       seen_steps.insert(s.id);
       const EffectList& effects = s.effects;
-      for (EffectList::const_iterator e = effects.begin();
-	   e != effects.end(); e++) {
-	const AtomList& adds = (*e)->add_list;
+      for (EffectListIter ei = effects.begin(); ei != effects.end(); ei++) {
+	const Effect& e = **ei;
+	const AtomList& adds = e.add_list;
 	for (AtomListIter f = adds.begin(); f != adds.end(); f++) {
 	  if (bindings->affects(**f, link.condition)) {
-	    unsafes = new UnsafeChain(new Unsafe(link, s.id, **e, **f),
+	    unsafes = new UnsafeChain(new Unsafe(link, s.id, e, **f),
 				      unsafes);
 	    num_unsafes++;
 	  }
 	}
-	const NegationList& dels = (*e)->del_list;
+	const NegationList& dels = e.del_list;
 	for (NegationListIter f = dels.begin(); f != dels.end(); f++) {
 	  if (bindings->affects(**f, link.condition)) {
-	    unsafes = new UnsafeChain(new Unsafe(link, s.id, **e, **f),
+	    unsafes = new UnsafeChain(new Unsafe(link, s.id, e, **f),
 				      unsafes);
 	    num_unsafes++;
 	  }
@@ -1337,20 +1336,20 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
       if (orderings.possibly_before(l.from_id, step.id) &&
 	  orderings.possibly_after(l.to_id, step.id)) {
 	const EffectList& effects = step.effects;
-	for (EffectList::const_iterator e = effects.begin();
-	     e != effects.end(); e++) {
-	  const AtomList& adds = (*e)->add_list;
+	for (EffectListIter ei = effects.begin(); ei != effects.end(); ei++) {
+	  const Effect& e = **ei;
+	  const AtomList& adds = e.add_list;
 	  for (AtomListIter f = adds.begin(); f != adds.end(); f++) {
 	    if (bindings->affects(**f, l.condition)) {
-	      unsafes = new UnsafeChain(new Unsafe(l, step.id, **e, **f),
+	      unsafes = new UnsafeChain(new Unsafe(l, step.id, e, **f),
 					unsafes);
 	      num_unsafes++;
 	    }
 	  }
-	  const NegationList& dels = (*e)->del_list;
+	  const NegationList& dels = e.del_list;
 	  for (NegationListIter f = dels.begin(); f != dels.end(); f++) {
 	    if (bindings->affects(**f, l.condition)) {
-	      unsafes = new UnsafeChain(new Unsafe(l, step.id, **e, **f),
+	      unsafes = new UnsafeChain(new Unsafe(l, step.id, e, **f),
 					unsafes);
 	      num_unsafes++;
 	    }
@@ -1453,9 +1452,8 @@ void Plan::print(ostream& os) const {
   } else {
     os << "Initial  :";
     const EffectList& effects = init->effects;
-    for (EffectList::const_iterator i = effects.begin();
-	 i != effects.end(); i++) {
-      const AtomList& fs = (*i)->add_list;
+    for (EffectListIter ei = effects.begin(); ei != effects.end(); ei++) {
+      const AtomList& fs = (*ei)->add_list;
       for (AtomListIter j = fs.begin(); j != fs.end(); j++) {
 	os << ' ' << **j;
       }
@@ -1721,9 +1719,8 @@ size_t Plan::make_node(CostGraph& cg, hash_map<size_t, size_t>& step_nodes,
 	  && orderings_.possibly_before(step.id, step_id)) {
 	seen_steps.insert(step.id);
 	const EffectList& effs = step.effects;
-	for (EffectList::const_iterator i = effs.begin();
-	     i != effs.end(); i++) {
-	  const AtomList& adds = (*i)->add_list;
+	for (EffectListIter ei = effs.begin(); ei != effs.end(); ei++) {
+	  const AtomList& adds = (*ei)->add_list;
 	  for (AtomListIter j = adds.begin(); j != adds.end(); j++) {
 	    if (bindings_.unify(cond, **j)) {
 	      return 1;
