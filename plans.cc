@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 2.2 2002-02-08 05:16:00 lorens Exp $
+ * $Id: plans.cc,v 2.3 2002-02-08 06:00:18 lorens Exp $
  */
 #include <queue>
 #include <algorithm>
@@ -668,7 +668,7 @@ void Plan::print(ostream& os) const {
 	os << endl;
       }
       const Step& s = **si;
-      os << (max_dist - dist[s.id]) << ": "
+      os << (max_dist - dist[s.id]) << ':'
 	 << s.step_formula()->instantiation(bindings_);
     }
   } else {
