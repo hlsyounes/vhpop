@@ -1,46 +1,40 @@
 /*
- * $Id: plans.cc,v 1.38 2001-12-29 19:08:42 lorens Exp $
+ * $Id: plans.cc,v 1.39 2001-12-29 22:16:36 lorens Exp $
  */
 #include <queue>
-#include <hash_set>
 #include <algorithm>
 #include <typeinfo>
 #include <climits>
 #include <cassert>
 #include <sys/time.h>
 #include "plans.h"
+#include "bindings.h"
 #include "orderings.h"
 #include "flaws.h"
 #include "reasons.h"
 #include "problems.h"
+#include "domains.h"
 #include "formulas.h"
 #include "parameters.h"
 #include "debug.h"
 
 
-//#define INEQUALITY_AS_BRANCHING
-
 /* Planning parameters. */
-static Parameters params;
+static const Parameters* params;
 /* Domain of problem currently being solved. */
 static const Domain* domain = NULL;
+/* Planning graph. */
+static const PlanningGraph* planning_graph;
 /* Maps predicates to actions. */
 static hash_map<string, ActionList> achieves_pred;
 /* Maps negated predicates to actions. */
 static hash_map<string, ActionList> achieves_neg_pred;
-/* Planning graph. */
-static const PlanningGraph* planning_graph;
 /* Whether last flaw was a static predicate. */
 static bool static_pred_flaw = false;
 
 
-/*
- * A plan queue.
- */
-struct PlanQueue : public priority_queue<const Plan*, Vector<const Plan*>,
-		   less<const LessThanComparable*> > {
-};
-
+/* ====================================================================== */
+/* Link */
 
 /* Constructs a causal link. */
 Link::Link(size_t from_id, const LiteralOpenCondition& open_cond)
@@ -54,6 +48,9 @@ void Link::print(ostream& os) const {
   os << "#<LINK " << from_id << ' ' << condition << ' ' << to_id << '>';
 }
 
+
+/* ====================================================================== */
+/* Step */
 
 /* Constructs a step. */
 Step::Step(size_t id, const Formula& precondition, const EffectList& effects,
@@ -86,6 +83,17 @@ const Atom* Step::step_formula() const {
   }
   return formula;
 }
+
+
+/* ====================================================================== */
+/* Plan */
+
+/*
+ * A plan queue.
+ */
+struct PlanQueue : public priority_queue<const Plan*, Vector<const Plan*>,
+		   less<const LessThanComparable*> > {
+};
 
 
 /* Id of goal step. */
@@ -188,7 +196,7 @@ static bool add_goal(const OpenConditionChain*& open_conds,
    if goals of problem are inconsistent. */
 const Plan* Plan::make_initial_plan(const Problem& problem) {
   /* Reason for initial steps in plan. */
-  const Reason& init_reason = InitReason::make(params);
+  const Reason& init_reason = InitReason::make(*params);
 
   /*
    * Create step representing initial conditions of problem.
@@ -202,9 +210,9 @@ const Plan* Plan::make_initial_plan(const Problem& problem) {
    */
   /* Goal step. */
   const Step& goal_step =
-    *(new Step(Plan::GOAL_ID, problem.goal, *(new EffectList()), init_reason));
+    *(new Step(GOAL_ID, problem.goal, EffectList::EMPTY, init_reason));
   /* Reason for open conditions of goal. */
-  const Reason& goal_reason = AddStepReason::make(params, goal_step.id);
+  const Reason& goal_reason = AddStepReason::make(*params, goal_step.id);
   /* Chain of open conditions. */
   const OpenConditionChain* open_conds = NULL;
   /* Number of open conditions. */
@@ -235,22 +243,25 @@ const Plan* Plan::make_initial_plan(const Problem& problem) {
 /* Returns plan for given problem. */
 const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
   /* Set planning parameters. */
-  params = p;
+  params = &p;
   /* Set current domain. */
   domain = &problem.domain;
 
-  achieves_pred.clear();
-  achieves_neg_pred.clear();
-  if (params.ground_actions || params.domain_constraints
-      || params.heuristic.needs_planning_graph()
-      || params.flaw_order.needs_planning_graph()) {
+  /*
+   * Initialize planning graph and maps from predicates to actions.
+   */
+  if (params->ground_actions || params->domain_constraints
+      || params->heuristic.needs_planning_graph()
+      || params->flaw_order.needs_planning_graph()) {
     planning_graph = new PlanningGraph(problem);
   }
-  if (!params.ground_actions) {
+  achieves_pred.clear();
+  achieves_neg_pred.clear();
+  if (!params->ground_actions) {
     for (ActionSchemaMapIter ai = domain->actions.begin();
 	 ai != domain->actions.end(); ai++) {
       const ActionSchema* action = (*ai).second;
-      if (params.domain_constraints) {
+      if (params->domain_constraints) {
 #ifdef INEQUALITY_AS_BRANCHING
 	action = &action->strip_static(*domain);
 #else
@@ -290,7 +301,7 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
    * Search for complete plan.
    */
   while (current_plan != NULL && !current_plan->complete()) {
-    if (num_generated_plans - num_static >= params.search_limit) {
+    if (num_generated_plans - num_static >= params->search_limit) {
       /* Search limit exceeded. */
       break;
     }
@@ -298,7 +309,7 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
     getitimer(ITIMER_PROF, &timer);
     double t = 1000000.9
       - (timer.it_value.tv_sec + timer.it_value.tv_usec*1e-6);
-    if (t >= 60.0*params.time_limit) {
+    if (t >= 60.0*params->time_limit) {
       /* Time limit exceeded. */
       break;
     }
@@ -332,8 +343,7 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
     current_plan->refinements(refinements);
     /* Add children to queue of pending plans. */
     bool added = false;
-    for (PlanList::const_iterator i = refinements.begin();
-	 i != refinements.end(); i++) {
+    for (PlanListIter i = refinements.begin(); i != refinements.end(); i++) {
       (*i)->id = num_generated_plans;
       if ((*i)->primary_rank() < INT_MAX) {
 	added = true;
@@ -364,7 +374,7 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
       }
     } while (current_plan != NULL && current_plan->duplicate());
 #ifdef HILLCLIMB_TRANSFORMATIONAL
-    if (params.transformational) {
+    if (params->transformational) {
       plans = PlanQueue();
     }
 #endif
@@ -398,7 +408,7 @@ bool Plan::complete() const {
    signifies a better plan. */
 double Plan::primary_rank() const {
   if (rank_.empty()) {
-    params.heuristic.plan_rank(rank_, *this, params.weight, planning_graph);
+    params->heuristic.plan_rank(rank_, *this, params->weight, planning_graph);
   }
   return rank_[0];
 }
@@ -406,8 +416,8 @@ double Plan::primary_rank() const {
 
 const Flaw& Plan::get_flaw() const {
   const Flaw& flaw =
-    params.flaw_order.select(unsafes_, open_conds_, planning_graph, *domain,
-			     (params.ground_actions ? NULL : &bindings_));
+    params->flaw_order.select(unsafes_, open_conds_, planning_graph, *domain,
+			      (params->ground_actions ? NULL : &bindings_));
   const OpenCondition* open_cond = dynamic_cast<const OpenCondition*>(&flaw);
   static_pred_flaw = (open_cond != NULL && open_cond->is_static(*domain));
   return flaw;
@@ -439,7 +449,7 @@ void Plan::handle_unsafe(PlanList& new_plans, const Unsafe& unsafe) const {
     promote(new_plans, unsafe);
     separate(new_plans, unsafe);
     if (num_prev_plans == new_plans.size()) {
-      if (params.transformational) {
+      if (params->transformational) {
 	if (verbosity > 2) {
 	  cout << endl << "++++DEAD END:" << endl << *this << endl;
 	}
@@ -504,7 +514,7 @@ void Plan::separate(PlanList& new_plans, const Unsafe& unsafe) const {
     size_t num_open_conds = num_open_conds_;
     BindingList new_bindings;
     const Reason& protect_reason =
-      ProtectReason::make(params, unsafe.link, unsafe.step_id);
+      ProtectReason::make(*params, unsafe.link, unsafe.step_id);
     if (add_goal(open_conds, num_open_conds, new_bindings, *goal,
 		 unsafe.step_id, protect_reason)) {
       const Bindings* bindings = bindings_.add(new_bindings);
@@ -526,7 +536,7 @@ void Plan::demote(PlanList& new_plans, const Unsafe& unsafe) const {
   size_t after_id = unsafe.link.from_id;
   if (orderings_.possibly_before(before_id, after_id)) {
     const Reason& protect_reason =
-      ProtectReason::make(params, unsafe.link, unsafe.step_id);
+      ProtectReason::make(*params, unsafe.link, unsafe.step_id);
     new_ordering(new_plans,
 		 *(new Ordering(before_id, after_id, protect_reason)),
 		 unsafe);
@@ -538,7 +548,7 @@ void Plan::promote(PlanList& new_plans, const Unsafe& unsafe) const {
   size_t after_id = unsafe.step_id;
   if (orderings_.possibly_before(before_id, after_id)) {
     const Reason& protect_reason =
-      ProtectReason::make(params, unsafe.link, unsafe.step_id);
+      ProtectReason::make(*params, unsafe.link, unsafe.step_id);
     new_ordering(new_plans,
 		 *(new Ordering(before_id, after_id, protect_reason)),
 		 unsafe);
@@ -959,7 +969,7 @@ void Plan::handle_inequality(PlanList& new_plans,
 void Plan::add_step(PlanList& new_plans,
 		    const LiteralOpenCondition& open_cond) const {
   ActionList actions;
-  if (params.ground_actions) {
+  if (params->ground_actions) {
     planning_graph->achieves_formula(actions, open_cond.literal);
   } else if (typeid(open_cond.literal) == typeid(Atom)) {
     hash_map<string, ActionList>::const_iterator sali =
@@ -979,7 +989,7 @@ void Plan::add_step(PlanList& new_plans,
   size_t step_id = high_step_id_ + 1;
   if (!actions.empty()) {
     const Link& link = *(new Link(step_id, open_cond));
-    const Reason& establish_reason = EstablishReason::make(params, link);
+    const Reason& establish_reason = EstablishReason::make(*params, link);
     for (ActionListIter ai = actions.begin(); ai != actions.end(); ai++) {
       const Step& step = *(new Step(step_id, **ai, establish_reason));
       new_link(new_plans, step, open_cond, link, establish_reason);
@@ -996,7 +1006,7 @@ void Plan::reuse_step(PlanList& new_plans,
 	orderings_.possibly_before(step.id, open_cond.step_id)) {
       seen_steps.insert(step.id);
       const Link& link = *(new Link(step.id, open_cond));
-      const Reason& establish_reason = EstablishReason::make(params, link);
+      const Reason& establish_reason = EstablishReason::make(*params, link);
       new_link(new_plans, step, open_cond, link, establish_reason);
     }
   }
@@ -1126,7 +1136,7 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
     }
   }
   if (step.id > high_step_id_) {
-    const Reason& step_reason = AddStepReason::make(params, step.id);
+    const Reason& step_reason = AddStepReason::make(*params, step.id);
     if (!add_goal(open_conds, num_open_conds, new_bindings, step.precondition,
 		  step.id, step_reason)) {
       return NULL;
@@ -1138,7 +1148,7 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
   if (step.id > high_step_id_) {
     num_steps++;
     high_step_id = step.id;
-    if (params.domain_constraints) {
+    if (params->domain_constraints) {
       bindings = bindings->add(step, *planning_graph);
       if (bindings == NULL) {
 	return NULL;
@@ -1250,7 +1260,7 @@ size_t Plan::num_unsafes() const {
 
 /* Returns the bindings of this plan. */
 const Bindings* Plan::bindings() const {
-  return params.ground_actions ? NULL : &bindings_;
+  return params->ground_actions ? NULL : &bindings_;
 }
 
 
@@ -1258,10 +1268,10 @@ const Bindings* Plan::bindings() const {
 bool Plan::less(const LessThanComparable& o) const {
   const Plan& p = dynamic_cast<const Plan&>(o);
   if (rank_.empty()) {
-    params.heuristic.plan_rank(rank_, *this, params.weight, planning_graph);
+    params->heuristic.plan_rank(rank_, *this, params->weight, planning_graph);
   }
   if (p.rank_.empty()) {
-    params.heuristic.plan_rank(rank_, p, params.weight, planning_graph);
+    params->heuristic.plan_rank(rank_, p, params->weight, planning_graph);
   }
   for (size_t i = 0; i < rank_.size(); i++) {
     double diff = rank_[i] - p.rank_[i];
@@ -1425,7 +1435,7 @@ bool Plan::equivalent(const Plan& p) const {
     for (const StepChain* s = steps_; s != NULL; s = s->tail) {
       size_t id = s->head->id;
       if (s->head->action != NULL && steps1.find(id) == steps1.end()) {
-	if (params.ground_actions) {
+	if (params->ground_actions) {
 	  steps1[id] = s->head->step_formula();
 	} else {
 	  steps1[id] = &s->head->step_formula()->instantiation(bindings_);
@@ -1436,7 +1446,7 @@ bool Plan::equivalent(const Plan& p) const {
     for (const StepChain* s = p.steps_; s != NULL; s = s->tail) {
       size_t id = s->head->id;
       if (s->head->action != NULL && steps2.find(id) == steps2.end()) {
-	if (params.ground_actions) {
+	if (params->ground_actions) {
 	  steps2[id] = s->head->step_formula();
 	} else {
 	  steps2[id] = &s->head->step_formula()->instantiation(p.bindings_);
@@ -1455,12 +1465,12 @@ void Plan::h_rank() const {
   if (rank1_ >= 0) {
     return;
   }
-  if (params.heuristic.oc()) {
+  if (params->heuristic.oc()) {
     rank1_ = num_steps_ + num_open_conds_;
     rank2_ = 0;
     return;
   }
-  if (params.heuristic.ucpop()) {
+  if (params->heuristic.ucpop()) {
     rank1_ = num_steps_ + num_open_conds_ + num_unsafes_;
     rank2_ = 0;
     return;
@@ -1470,7 +1480,7 @@ void Plan::h_rank() const {
   hash_map<size_t, size_t> step_nodes;
   hash_map<const Formula*, size_t> f_nodes;
   size_t goal_node = make_node(cg, step_nodes, f_nodes, GOAL_ID);
-  if (params.heuristic.max()) {
+  if (params->heuristic.max()) {
     for (const OrderingChain* ords = orderings_.orderings();
 	 ords != NULL; ords = ords->tail) {
       cg.set_distance(step_nodes[ords->head->after_id],
@@ -1490,12 +1500,12 @@ void Plan::h_rank() const {
   if (fali != achieves.end()) {
     int l = (*fali).second.size();
     if (l > high_link
-	|| (l == high_link && params.flaw_order.fifo())) {
+	|| (l == high_link && params->flaw_order.fifo())) {
       most_linkable_open_cond_ = oc->head;
       high_link = l;
     }
     if (l < low_link
-	|| (l == low_link && params.flaw_order.fifo())) {
+	|| (l == low_link && params->flaw_order.fifo())) {
       least_linkable_open_cond_ = oc->head;
       low_link = l;
     }
@@ -1514,7 +1524,7 @@ size_t Plan::make_node(CostGraph& cg, hash_map<size_t, size_t>& step_nodes,
   } else {
     /* create new node */
     size_t step_node;
-    if (params.heuristic.max()) {
+    if (params->heuristic.max()) {
       step_node = cg.add_max_node();
     } else {
       step_node = cg.add_sum_node();
@@ -1530,7 +1540,7 @@ size_t Plan::make_node(CostGraph& cg, hash_map<size_t, size_t>& step_nodes,
 	if (links->head->from_id == 0) {
 	  cg.set_distance(step_node, 0, 0);
 	} else {
-	  if (!params.heuristic.sum()
+	  if (!params->heuristic.sum()
 	      || step_nodes.find(links->head->from_id) == step_nodes.end()) {
 	    size_t prec_node =
 	      make_node(cg, step_nodes, f_nodes, links->head->from_id);
@@ -1560,7 +1570,7 @@ size_t Plan::make_node(CostGraph& cg, hash_map<size_t, size_t>& step_nodes,
 size_t Plan::make_node(CostGraph& cg, hash_map<size_t, size_t>& step_nodes,
 		       hash_map<const Formula*, size_t>& f_nodes,
 		       const Formula& cond, size_t step_id) const {
-  if (params.heuristic.sum_reuse()) {
+  if (params->heuristic.sum_reuse()) {
     hash_map<const Formula*, size_t>::const_iterator f = f_nodes.find(&cond);
     if (f != f_nodes.end()) {
       return 1;
@@ -1585,18 +1595,18 @@ size_t Plan::make_node(CostGraph& cg, hash_map<size_t, size_t>& step_nodes,
     }
   }
   HeuristicValue v = cond.heuristic_value(*planning_graph,
-					  (params.ground_actions
+					  (params->ground_actions
 					   ? NULL : &bindings_));
   int cost;
   int work;
-  if (params.heuristic.max()) {
+  if (params->heuristic.max()) {
     cost = v.max_cost();
     work = v.max_work();
   } else {
     cost = v.sum_cost();
     work = v.sum_work();
   }
-  size_t cond_node = cg.add_node(params.weight*cost, work);
+  size_t cond_node = cg.add_node(params->weight*cost, work);
   f_nodes[&cond] = cond_node;
   return cond_node;
 }

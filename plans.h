@@ -2,18 +2,23 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.30 2001-12-29 19:08:45 lorens Exp $
+ * $Id: plans.h,v 1.31 2001-12-29 22:16:40 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
 
-#include <utility>
 #include "support.h"
-#include "domains.h"
-#include "bindings.h"
+#include "chain.h"
 
-struct Problem;
 struct Parameters;
+struct SubstitutionList;
+struct Formula;
+struct Literal;
+struct Atom;
+struct Effect;
+struct EffectList;
+struct Action;
+struct Problem;
 struct Reason;
 struct Flaw;
 struct OpenCondition;
@@ -23,6 +28,7 @@ struct DisjunctiveOpenCondition;
 struct Unsafe;
 struct Ordering;
 struct Orderings;
+struct Bindings;
 
 
 /*
@@ -87,22 +93,10 @@ struct Step : public gc {
   /* Constructs a step instantiated from an action. */
   Step(size_t id, const Action& action, const Reason& reason);
 
-  /* Returns a copy of this step with a new reason. */
-  const Step& new_reason(const Reason& reason) const {
-    return *(new Step(id, action, precondition, effects, reason, formula));
-  }
-
   /* Returns a formula representing this step. */
   const Atom* step_formula() const;
 
 private:
-  /* Constructs a step. */
-  Step(size_t id, const Action* action, const Formula& precondition,
-       const EffectList& effects, const Reason& reason, const Atom* formula)
-    : id(id), action(action), precondition(precondition), effects(effects),
-      reason(reason), formula(formula) {
-  }
-
   /* Atomic representation of this step. */
   mutable const Atom* formula;
 };
@@ -113,6 +107,8 @@ private:
  */
 typedef Chain<const Step*> StepChain;
 
+
+struct PlanList;
 
 /*
  * Plan.
@@ -153,8 +149,6 @@ protected:
   virtual void print(ostream& os) const;
 
 private:
-  /* List of plans. */
-  typedef vector<const Plan*, container_alloc> PlanList;
   /* Type of plan. */
   typedef enum { NORMAL_PLAN, INTERMEDIATE_PLAN, TRANSFORMED_PLAN } PlanType;
 
@@ -272,5 +266,16 @@ private:
 
   bool equivalent(const Plan& p) const;
 };
+
+
+/*
+ * List of plans.
+ */
+struct PlanList : public Vector<const Plan*> {
+};
+
+/* Iterator for plan lists. */
+typedef PlanList::const_iterator PlanListIter;
+
 
 #endif /* PLANS_H */

@@ -1,9 +1,10 @@
 /*
- * $Id: heuristics.cc,v 1.11 2001-12-29 16:39:31 lorens Exp $
+ * $Id: heuristics.cc,v 1.12 2001-12-29 22:12:12 lorens Exp $
  */
 #include <set>
 #include "heuristics.h"
 #include "plans.h"
+#include "bindings.h"
 #include "flaws.h"
 #include "problems.h"
 #include "domains.h"
