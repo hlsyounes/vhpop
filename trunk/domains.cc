@@ -1,5 +1,5 @@
 /*
- * $Id: domains.cc,v 1.10 2001-08-18 21:12:28 lorens Exp $
+ * $Id: domains.cc,v 1.11 2001-08-20 04:06:03 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -193,7 +193,7 @@ void EffectList::achievable_predicates(hash_set<string>& preds,
 
 /* Constructs an action. */
 Action::Action(const Formula& precondition, const EffectList& effects)
-  : precondition(precondition), effects(effects), cost(precondition.cost()) {
+  : precondition(precondition), effects(effects) {
 }
 
 
