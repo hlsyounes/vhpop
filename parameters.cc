@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: parameters.cc,v 1.5 2002-01-25 18:23:00 lorens Exp $
+ * $Id: parameters.cc,v 1.6 2002-01-25 21:58:21 lorens Exp $
  */
 #include "parameters.h"
 #include "heuristics.h"
@@ -33,7 +33,7 @@ InvalidSearchAlgorithm::InvalidSearchAlgorithm(const string& name)
 /* Constructs default planning parameters. */
 Parameters::Parameters()
   : search_limit(2000), time_limit(1440), search_algorithm(A_STAR),
-    heuristic(*(new Heuristic("SUM"))), weight(1.0),
+    heuristic(*(new Heuristic("UCPOP"))), weight(1.0),
     flaw_order(*(new FlawSelectionOrder("UCPOP"))),
     reverse_open_conditions(false), ground_actions(false),
     domain_constraints(false), keep_static_preconditions(true),
