@@ -16,12 +16,12 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.h,v 4.3 2002-09-23 18:26:02 lorens Exp $
+ * $Id: plans.h,v 4.4 2002-12-16 17:41:06 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
 
-#include "support.h"
+#include <config.h>
 #include "chain.h"
 #include "flaws.h"
 #include "orderings.h"
@@ -36,9 +36,6 @@ struct EffectList;
 struct Action;
 struct Problem;
 struct Reason;
-struct Flaw;
-struct OpenCondition;
-struct Unsafe;
 struct Bindings;
 struct FlawSelectionOrder;
 
@@ -52,6 +49,9 @@ struct FlawSelectionOrder;
 struct Link {
   /* Constructs a causal link. */
   Link(size_t from_id, StepTime effect_time, const OpenCondition& open_cond);
+
+  /* Constructs a causal link. */
+  Link(const Link& l);
 
   /* Deletes this causal link. */
   ~Link();
@@ -108,11 +108,11 @@ typedef CollectibleChain<Link> LinkChain;
  * Plan step.
  */
 struct Step {
-  /* Constructs a step. */
-  Step(size_t id, const EffectList& effects, const Reason& reason);
-
   /* Constructs a step instantiated from an action. */
   Step(size_t id, const Action& action, const Reason& reason);
+
+  /* Constructs a step. */
+  Step(const Step& s);
 
   /* Deletes this step. */
   ~Step();
@@ -123,8 +123,7 @@ struct Step {
   /* Test if this is a dummy step. */
   size_t dummy() const;
 
-  /* Returns the action that this step was instantiated from, or NULL
-     if step was not instantiated from an action. */
+  /* Returns the action that this step is instantiated from. */
   const Action& action() const { return *action_; }
 
   /* Returns the reasons. */
@@ -136,7 +135,7 @@ struct Step {
 private:
   /* Step id. */
   size_t id_;
-  /* Action, or NULL if step is not instantiated from an action. */
+  /* Action that this step is instantiated from. */
   const Action* action_;
 #ifdef TRANSFORMATIONAL
   /* Reason for step. */
@@ -167,6 +166,9 @@ struct Plan {
   /* Returns plan for given problem. */
   static const Plan* plan(const Problem& problem, const Parameters& params,
 			  bool last_problem);
+
+  /* Cleans up after planning. */
+  static void cleanup();
 
   /* Deletes this plan. */
   ~Plan();
@@ -250,7 +252,7 @@ struct Plan {
 
 private:
   /* List of plans. */
-  struct PlanList : public vector<const Plan*> {
+  struct PlanList : public std::vector<const Plan*> {
   };
 
   /* Iterator for plan lists. */
@@ -283,7 +285,7 @@ private:
   /* Number of open conditions. */
   const size_t num_open_conds_;
   /* Rank of this plan. */
-  mutable vector<float> rank_;
+  mutable std::vector<float> rank_;
   /* Plan id (serial number). */
   mutable size_t id_;
 #ifdef DEBUG
@@ -393,14 +395,14 @@ private:
   bool duplicate() const;
 
   friend bool operator<(const Plan& p1, const Plan& p2);
-  friend ostream& operator<<(ostream& os, const Plan& p);
+  friend std::ostream& operator<<(std::ostream& os, const Plan& p);
 };
 
 /* Less than operator for plans. */
 bool operator<(const Plan& p1, const Plan& p2);
 
 /* Output operator for plans. */
-ostream& operator<<(ostream& os, const Plan& p);
+std::ostream& operator<<(std::ostream& os, const Plan& p);
 
 
 #endif /* PLANS_H */

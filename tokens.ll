@@ -16,29 +16,18 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: tokens.ll,v 3.10 2002-11-05 04:42:29 lorens Exp $
+ * $Id: tokens.ll,v 3.11 2002-12-16 17:42:43 lorens Exp $
  */
 %{
+struct Formula;
+struct Atom;
+struct Term;
 struct Type;
 struct UnionType;
-struct TermList;
-struct Name;
-struct Variable;
-struct VariableList;
-struct Formula;
-struct FormulaList;
-struct Atom;
-struct AtomList;
-struct NegationList;
-struct Effect;
-struct EffectList;
-struct ActionSchema;
 
 #include <cctype>
-#include <utility>
 #include <string>
 #include <vector>
-using namespace std;
 #include "pddl.h"
 
 
@@ -122,7 +111,7 @@ total-time			return make_string(yytext, TOTAL_TIME);
 /* Allocates a string containing the lowercase characters of the given
    C string, and returns the given token. */
 static int make_string(const char* s, int token) {
-  string* result = new string();
+  std::string* result = new std::string();
   for (const char* p = s; *p != '\0'; p++) {
     *result += tolower(*p);
   }

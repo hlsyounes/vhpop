@@ -15,9 +15,15 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 3.26 2002-11-05 04:42:32 lorens Exp $
+ * $Id: vhpop.cc,v 3.27 2002-12-16 17:43:21 lorens Exp $
  */
-#include <config.h>
+#include "plans.h"
+#include "reasons.h"
+#include "parameters.h"
+#include "heuristics.h"
+#include "domains.h"
+#include "problems.h"
+#include "debug.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cerrno>
@@ -30,13 +36,12 @@
 #else
 #include "getopt.h"
 #endif
-#include "plans.h"
-#include "reasons.h"
-#include "parameters.h"
-#include "heuristics.h"
-#include "domains.h"
-#include "problems.h"
-#include "debug.h"
+
+#ifdef ALWAYS_DELETE_ALL
+#define ALWAY_DELETE_ALL 1
+#else
+#define ALWAYS_DELETE_ALL 0
+#endif
 
 
 /* The parse function. */
@@ -44,7 +49,7 @@ extern int yyparse();
 /* File to parse. */
 extern FILE* yyin;
 /* Name of current file. */
-extern string current_file;
+extern std::string current_file;
 /* Level of warnings. */
 extern int warning_level;
 
@@ -78,66 +83,77 @@ static const char OPTION_STRING[] = "d::f:gh:l:rs:t:T:v::Vw:W::?";
 
 /* Displays help. */
 static void display_help() {
-  cout << "usage: " << PACKAGE << " [options] [file ...]" << endl
-       << "options:" << endl
-       << "  -d[k], --domain-constraints=[k]" << endl
-       << "\t\t\tuse parameter domain constraints;" << endl
-       << "\t\t\t  if k is 0, static preconditions are pruned;" << endl
-       << "\t\t\t  otherwise (default) static preconditions are kept" << endl
-       << "  -f f,  --flaw-order=f\t"
-       << "use flaw selection order f" << endl
-       << "  -g,    --ground-actions" << endl
-       << "\t\t\tuse ground actions" << endl
-       << "  -h h,  --heuristic=h\t"
-       << "use heuristic h to rank plans" << endl
-       << "  -l l,  --limit=l\t"
-       << "search no more than l plans" << endl
-       << "  -r,    --reverse-open-conditions" << endl
-       << "\t\t\treverse the order that open conditions are added" << endl
-       << "  -s s,  --search-algorithm=s" << endl
-       << "\t\t\tuse search algorithm s" << endl
-       << "  -t t,  --tolerance=t\t"
-       << "use tolerance t with durative actions;" << endl
-       << "\t\t\t  time stamps less than t appart are considered" << endl
-       << "\t\t\t  indistinguishable (default is 0.01)" << endl
+  std::cout << "usage: " << PACKAGE << " [options] [file ...]" << std::endl
+	    << "options:" << std::endl
+	    << "  -d[k], --domain-constraints=[k]" << std::endl
+	    << "\t\t\tuse parameter domain constraints;" << std::endl
+	    << "\t\t\t  if k is 0, static preconditions are pruned;"
+	    << std::endl
+	    << "\t\t\t  otherwise (default) static preconditions are kept"
+	    << std::endl
+	    << "  -f f,  --flaw-order=f\t"
+	    << "use flaw selection order f" << std::endl
+	    << "  -g,    --ground-actions" << std::endl
+	    << "\t\t\tuse ground actions" << std::endl
+	    << "  -h h,  --heuristic=h\t"
+	    << "use heuristic h to rank plans" << std::endl
+	    << "  -l l,  --limit=l\t"
+	    << "search no more than l plans" << std::endl
+	    << "  -r,    --reverse-open-conditions" << std::endl
+	    << "\t\t\treverse the order that open conditions are added"
+	    << std::endl
+	    << "  -s s,  --search-algorithm=s" << std::endl
+	    << "\t\t\tuse search algorithm s" << std::endl
+	    << "  -t t,  --tolerance=t\t"
+	    << "use tolerance t with durative actions;" << std::endl
+	    << "\t\t\t  time stamps less than t appart are considered"
+	    << std::endl
+	    << "\t\t\t  indistinguishable (default is 0.01)" << std::endl
 #ifdef TRANSFORMATIONAL
-       << "         --transformational" << endl
-       << "\t\t\tuse transformational planner" << endl
+	    << "         --transformational" << std::endl
+	    << "\t\t\tuse transformational planner" << std::endl
 #endif
-       << "  -T t,  --time-limit=t\t"
-       << "limit search to t minutes" << endl
-       << "  -v[n], --verbose[=n]\t"
-       << "use verbosity level n;" << endl
-       << "\t\t\t  n is a number from 0 (verbose mode off) and up;" << endl
-       << "\t\t\t  default level is 1 if optional argument is left out" << endl
-       << "  -V,    --version\t"
-       << "display version information and exit" << endl
-       << "  -w,    --weight=w\t"
-       << "weight to use with heuristic (default is 1)" << endl
-       << "  -W[n], --warnings[=n]\t"
-       << "determines how warnings are treated;" << endl
-       << "\t\t\t  0 supresses warnings; 1 displays warnings;" << endl
-       << "\t\t\t  2 treats warnings as errors" << endl
-       << "  -?     --help\t\t"
-       << "display this help and exit" << endl
-       << "  file ...\t\t"
-       << "files containing domain and problem descriptions;" << endl
-       << "\t\t\t  if none, descriptions are read from standard input" << endl
-       << endl
-       << "Report bugs to <" PACKAGE_BUGREPORT ">." << endl;
+	    << "  -T t,  --time-limit=t\t"
+	    << "limit search to t minutes" << std::endl
+	    << "  -v[n], --verbose[=n]\t"
+	    << "use verbosity level n;" << std::endl
+	    << "\t\t\t  n is a number from 0 (verbose mode off) and up;"
+	    << std::endl
+	    << "\t\t\t  default level is 1 if optional argument is left out"
+	    << std::endl
+	    << "  -V,    --version\t"
+	    << "display version information and exit" << std::endl
+	    << "  -w,    --weight=w\t"
+	    << "weight to use with heuristic (default is 1)" << std::endl
+	    << "  -W[n], --warnings[=n]\t"
+	    << "determines how warnings are treated;" << std::endl
+	    << "\t\t\t  0 supresses warnings; 1 displays warnings;"
+	    << std::endl
+	    << "\t\t\t  2 treats warnings as errors" << std::endl
+	    << "  -?     --help\t\t"
+	    << "display this help and exit" << std::endl
+	    << "  file ...\t\t"
+	    << "files containing domain and problem descriptions;" << std::endl
+	    << "\t\t\t  if none, descriptions are read from standard input"
+	    << std::endl
+	    << std::endl
+	    << "Report bugs to <" PACKAGE_BUGREPORT ">." << std::endl;
 }
 
 
 /* Displays version information. */
 static void display_version() {
-  cout << PACKAGE " " VERSION << endl
-       << "Copyright (C) 2002 Carnegie Mellon University" << endl
-       << PACKAGE " comes with NO WARRANTY, to the extent permitted by law."
-       << endl
-       << "For information about the terms of redistribution," << endl
-       << "see the file named COPYING in the " PACKAGE " distribution." << endl
-       << endl
-       << "Written by H\345kan L. S. Younes." << endl;
+  std::cout << PACKAGE " " VERSION << std::endl
+	    << "Copyright (C) 2002 Carnegie Mellon University" << std::endl
+	    << PACKAGE
+	    << " comes with NO WARRANTY, to the extent permitted by law."
+	    << std::endl
+	    << "For information about the terms of redistribution,"
+	    << std::endl
+	    << "see the file named COPYING in the " PACKAGE " distribution."
+	    << std::endl
+	    << std::endl
+	    << "Written by H\345kan L. S. Younes." << std::endl;
 }
 
 
@@ -145,7 +161,8 @@ static void display_version() {
 static bool read_file(const char* name) {
   yyin = fopen(name, "r");
   if (yyin == NULL) {
-    cerr << PACKAGE << ':' << name << ": " << strerror(errno) << endl;
+    std::cerr << PACKAGE << ':' << name << ": " << strerror(errno)
+	      << std::endl;
     return false;
   } else {
     current_file = name;
@@ -162,23 +179,57 @@ static void cleanup() {
   Domain::clear();
 
 #ifdef DEBUG_MEMORY
-  cerr << "Plans created: " << created_plans << endl;
-  cerr << "Plans deleted: " << deleted_plans << endl;
-  cerr << "Chains created: " << created_chains << endl;
-  cerr << "Chains deleted: " << deleted_chains << endl;
-  cerr << "Collectibles created: " << created_collectibles << endl;
-  cerr << "Collectibles deleted: " << deleted_collectibles << endl;
+  std::cerr << "Variables created: " << created_variables << std::endl
+	    << "Variables deleted: " << deleted_variables << std::endl
+	    << "Formulas created: " << created_formulas << std::endl
+	    << "Formulas deleted: " << deleted_formulas << std::endl
+	    << "Name sets created: " << created_name_sets << std::endl
+	    << "Name sets deleted: " << deleted_name_sets << std::endl
+	    << "Action domains created: " << created_action_domains
+	    << std::endl
+	    << "Action domains deleted: " << deleted_action_domains
+	    << std::endl
+	    << "Bindings created: " << created_bindings << std::endl
+	    << "Bindings deleted: " << deleted_bindings << std::endl
+	    << "Bool vectors created: " << created_bool_vectors << std::endl
+	    << "Bool vectors deleted: " << deleted_bool_vectors << std::endl
+	    << "Float vectors created: " << created_float_vectors << std::endl
+	    << "Float vectors deleted: " << deleted_float_vectors << std::endl
+	    << "Orderings created: " << created_orderings << std::endl
+	    << "Orderings deleted: " << deleted_orderings << std::endl
+	    << "Plans created: " << created_plans << std::endl
+	    << "Plans deleted: " << deleted_plans << std::endl
+	    << "Chains created: " << created_chains << std::endl
+	    << "Chains deleted: " << deleted_chains << std::endl
+	    << "Reasons created: " << created_reasons << std::endl
+	    << "Reasons deleted: " << deleted_reasons << std::endl;
 #endif
 }
 
 
 #ifdef DEBUG_MEMORY
+size_t created_variables = 0;
+size_t deleted_variables = 0;
+size_t created_formulas = 0;
+size_t deleted_formulas = 0;
+size_t created_name_sets = 0;
+size_t deleted_name_sets = 0;
+size_t created_action_domains = 0;
+size_t deleted_action_domains = 0;
+size_t created_bindings = 0;
+size_t deleted_bindings = 0;
+size_t created_bool_vectors = 0;
+size_t deleted_bool_vectors = 0;
+size_t created_float_vectors = 0;
+size_t deleted_float_vectors = 0;
+size_t created_orderings = 0;
+size_t deleted_orderings = 0;
 size_t created_plans = 0;
 size_t deleted_plans = 0;
 size_t created_chains = 0;
 size_t deleted_chains = 0;
-size_t created_collectibles = 0;
-size_t deleted_collectibles = 0;
+size_t created_reasons = 0;
+size_t deleted_reasons = 0;
 #endif
 
 
@@ -218,9 +269,9 @@ int main(int argc, char* argv[]) {
 	}
 	params.flaw_orders.push_back(FlawSelectionOrder(optarg));
       } catch (const InvalidFlawSelectionOrder& e) {
-	cerr << PACKAGE << ": " << e << endl
+	std::cerr << PACKAGE << ": " << e << std::endl
 	     << "Try `" << PACKAGE << " --help' for more information."
-	     << endl;
+	     << std::endl;
 	return -1;
       }
       break;
@@ -231,9 +282,9 @@ int main(int argc, char* argv[]) {
       try {
 	params.heuristic = optarg;
       } catch (const InvalidHeuristic& e) {
-	cerr << PACKAGE << ": " << e << endl
-	     << "Try `" << PACKAGE << " --help' for more information."
-	     << endl;
+	std::cerr << PACKAGE ": " << e << std::endl
+		  << "Try `" PACKAGE " --help' for more information."
+		  << std::endl;
 	return -1;
       }
       break;
@@ -242,7 +293,7 @@ int main(int argc, char* argv[]) {
 	params.search_limits.clear();
 	no_search_limit = false;
       }
-      if (optarg == string("unlimited")) {
+      if (optarg == std::string("unlimited")) {
 	params.search_limits.push_back(UINT_MAX);
       } else {
 	params.search_limits.push_back(atoi(optarg));
@@ -255,14 +306,14 @@ int main(int argc, char* argv[]) {
       try {
 	params.set_search_algorithm(optarg);
       } catch (const InvalidSearchAlgorithm& e) {
-	cerr << PACKAGE << ": " << e << endl
-	     << "Try `" << PACKAGE << " --help' for more information."
-	     << endl;
+	std::cerr << PACKAGE ": " << e << std::endl
+		  << "Try `" PACKAGE " --help' for more information."
+		  << std::endl;
 	return -1;
       }
       break;
     case 't':
-      if (optarg == string("unlimited")) {
+      if (optarg == std::string("unlimited")) {
 	TemporalOrderings::threshold = UINT_MAX;
       } else {
 	TemporalOrderings::threshold = atof(optarg);
@@ -295,8 +346,8 @@ int main(int argc, char* argv[]) {
       }
     case ':':
     default:
-      cerr << "Try `" << PACKAGE << " --help' for more information."
-	   << endl;
+      std::cerr << "Try `" PACKAGE " --help' for more information."
+		<< std::endl;
       return -1;
     }
   }
@@ -334,22 +385,22 @@ int main(int argc, char* argv[]) {
       /*
        * Display domains and problems.
        */
-      cerr << "----------------------------------------"<< endl
-	   << "domains:" << endl;
+      std::cerr << "----------------------------------------"<< std::endl
+		<< "domains:" << std::endl;
       for (Domain::DomainMapIter di = Domain::begin();
 	   di != Domain::end(); di++) {
-	cerr << endl << *(*di).second << endl;
+	std::cerr << std::endl << *(*di).second << std::endl;
       }
-      cerr << "----------------------------------------"<< endl
-	   << "problems:" << endl;
+      std::cerr << "----------------------------------------"<< std::endl
+		<< "problems:" << std::endl;
       for (Problem::ProblemMapIter pi = Problem::begin();
 	   pi != Problem::end(); pi++) {
-	cerr << endl << *(*pi).second << endl;
+	std::cerr << std::endl << *(*pi).second << std::endl;
       }
-      cerr << "----------------------------------------"<< endl;
+      std::cerr << "----------------------------------------"<< std::endl;
     }
 
-    cerr.setf(ios::unitbuf);
+    std::cerr.setf(std::ios::unitbuf);
 
     /*
      * Solve the problems.
@@ -358,35 +409,38 @@ int main(int argc, char* argv[]) {
 	 pi != Problem::end(); ) {
       const Problem& problem = *(*pi).second;
       pi++;
-      cout << ';' << problem.name() << endl;
+      std::cout << ';' << problem.name() << std::endl;
       struct itimerval timer = { { 1000000, 900000 }, { 1000000, 900000 } };
 #ifdef PROFILING
       setitimer(ITIMER_VIRTUAL, &timer, NULL);
 #else
       setitimer(ITIMER_PROF, &timer, NULL);
 #endif
-#ifdef ALWAYS_DELETE_ALL
-      const Plan* plan = Plan::plan(problem, params, false);
-#else
-      const Plan* plan = Plan::plan(problem, params, pi == Problem::end());
-#endif
+      const Plan* plan =
+	Plan::plan(problem, params,
+		   !ALWAYS_DELETE_ALL && pi == Problem::end());
       if (plan != NULL) {
 	if (plan->complete()) {
 	  if (verbosity > 0) {
 #ifdef DEBUG
-	    cerr << "Depth of solution: " << plan->depth() << endl;
+	    std::cerr << "Depth of solution: " << plan->depth() << std::endl;
 #endif
-	    cerr << "Number of steps: " << plan->num_steps() << endl;
+	    std::cerr << "Number of steps: " << plan->num_steps() << std::endl;
 	  }
-	  cout << *plan << endl;
+	  std::cout << *plan << std::endl;
 	} else {
-	  cout << "no plan" << endl;
-	  cout << ";Search limit reached." << endl;
+	  std::cout << "no plan" << std::endl;
+	  std::cout << ";Search limit reached." << std::endl;
 	}
-	delete plan;
       } else {
-	cout << "no plan" << endl;
-	cout << ";Problem has no solution." << endl;
+	std::cout << "no plan" << std::endl;
+	std::cout << ";Problem has no solution." << std::endl;
+      }
+      if (ALWAYS_DELETE_ALL || pi != Problem::end()) {
+	if (plan != NULL) {
+	  delete plan;
+	}
+	Plan::cleanup();
       }
 #ifdef PROFILING
       getitimer(ITIMER_VIRTUAL, &timer);
@@ -396,13 +450,13 @@ int main(int argc, char* argv[]) {
       /* Planning time. */
       double t = 1000000.9
 	- (timer.it_value.tv_sec + timer.it_value.tv_usec*1e-6);
-      cout << "Time: " << max(0, int(1000.0*t + 0.5)) << endl;
+      std::cout << "Time: " << std::max(0, int(1000.0*t + 0.5)) << std::endl;
     }
   } catch (const Exception& e) {
-    cerr << PACKAGE << ": " << e << endl;
+    std::cerr << PACKAGE ": " << e << std::endl;
     return -1;
   } catch (...) {
-    cerr << PACKAGE << ": fatal error" << endl;
+    std::cerr << PACKAGE ": fatal error" << std::endl;
     return -1;
   }
 
