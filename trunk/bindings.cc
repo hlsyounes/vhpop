@@ -1,11 +1,12 @@
 /*
- * $Id: bindings.cc,v 1.14 2001-12-29 15:52:05 lorens Exp $
+ * $Id: bindings.cc,v 1.15 2001-12-29 22:12:16 lorens Exp $
  */
 #include <typeinfo>
 #include "bindings.h"
 #include "plans.h"
 #include "reasons.h"
 #include "heuristics.h"
+#include "domains.h"
 #include "formulas.h"
 #include "types.h"
 
