@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.h,v 4.6 2002-11-05 04:41:53 lorens Exp $
+ * $Id: domains.h,v 4.7 2002-12-06 04:34:04 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -55,13 +55,6 @@ struct Predicate {
   void add_parameter(const Type& type);
 
 private:
-  /* List of types. */
-  struct TypeList : vector<const Type*> {
-  };
-
-  /* Iterator for type list. */
-  typedef TypeList::const_iterator TypeListIter;
-
   /* Name of this predicate. */
   string name_;
   /* Parameter types. */
