@@ -13,8 +13,14 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 3.13 2002-05-26 10:22:21 lorens Exp $
+ * $Id: heuristics.cc,v 3.14 2002-06-28 20:13:58 lorens Exp $
  */
+#include <set>
+#include <typeinfo>
+#include <climits>
+#define __USE_ISOC99 1
+#define __USE_ISOC9X 1
+#include <cmath>
 #include "heuristics.h"
 #include "plans.h"
 #include "bindings.h"
@@ -23,11 +29,6 @@
 #include "problems.h"
 #include "domains.h"
 #include "debug.h"
-#include <set>
-#include <typeinfo>
-#include <climits>
-#define __USE_ISOC99 1
-#include <cmath>
 
 
 /* Returns the sum of two integers, avoiding overflow. */
@@ -485,10 +486,10 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
   /*
    * Add initial conditions at level 0.
    */
-  for (AtomListIter gi = problem.init.add_list.begin();
-       gi != problem.init.add_list.end(); gi++) {
+  for (AtomListIter gi = problem.init().add_list.begin();
+       gi != problem.init().add_list.end(); gi++) {
     const Atom& atom = **gi;
-    if (problem.domain.static_predicate(atom.predicate())) {
+    if (problem.domain().static_predicate(atom.predicate())) {
       atom_values.insert(make_pair(&atom, HeuristicValue::ZERO));
     } else {
       atom_values.insert(make_pair(&atom,
@@ -1023,7 +1024,7 @@ void Heuristic::plan_rank(vector<float>& rank, const Plan& plan,
 	hash_map<size_t, float> start_dist;
 	hash_map<size_t, float> end_dist;
 	max_cost = max_steps =
-	  int(plan.orderings().goal_distances(start_dist, end_dist) + 0.5);
+	  int(plan.orderings().schedule(start_dist, end_dist) + 0.5);
 	for (const OpenConditionChain* occ = plan.open_conds();
 	     occ != NULL; occ = occ->tail) {
 	  const OpenCondition& open_cond = occ->head;
@@ -1064,7 +1065,7 @@ void Heuristic::plan_rank(vector<float>& rank, const Plan& plan,
 	hash_map<size_t, float> start_dist;
 	hash_map<size_t, float> end_dist;
 	maxr_cost = max_steps =
-	  int(plan.orderings().goal_distances(start_dist, end_dist) + 0.5);
+	  int(plan.orderings().schedule(start_dist, end_dist) + 0.5);
 	for (const OpenConditionChain* occ = plan.open_conds();
 	     occ != NULL; occ = occ->tail) {
 	  const OpenCondition& open_cond = occ->head;

@@ -16,14 +16,14 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.h,v 3.12 2002-06-12 18:23:12 lorens Exp $
+ * $Id: orderings.h,v 3.13 2002-06-28 20:13:27 lorens Exp $
  */
 #ifndef ORDERINGS_H
 #define ORDERINGS_H
 
+#include <hash_map>
 #include "support.h"
 #include "chain.h"
-#include <hash_map>
 
 struct Reason;
 struct Step;

@@ -15,18 +15,11 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 3.18 2002-06-26 23:34:25 lorens Exp $
+ * $Id: vhpop.cc,v 3.19 2002-06-28 20:13:46 lorens Exp $
  */
-#include "plans.h"
-#include "reasons.h"
-#include "parameters.h"
-#include "heuristics.h"
-#include "domains.h"
-#include "problems.h"
-#include "debug.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cerrno>
 #include <sys/time.h>
 #ifdef HAVE_GETOPT_LONG
 #define _GNU_SOURCE
@@ -34,6 +27,13 @@
 #else
 #include "getopt.h"
 #endif
+#include "plans.h"
+#include "reasons.h"
+#include "parameters.h"
+#include "heuristics.h"
+#include "domains.h"
+#include "problems.h"
+#include "debug.h"
 
 
 /* The parse function. */
@@ -116,7 +116,7 @@ static void display_help() {
        << "files containing domain and problem descriptions;" << endl
        << "\t\t\t  if none, descriptions are read from standard input" << endl
        << endl
-       << "Report bugs to " PACKAGE_BUGREPORT "." << endl;
+       << "Report bugs to <" PACKAGE_BUGREPORT ">." << endl;
 }
 
 
@@ -124,8 +124,11 @@ static void display_help() {
 static void display_version() {
   cout << PACKAGE " " VERSION << endl
        << "Copyright (C) 2002 Carnegie Mellon University" << endl
-       << PACKAGE " comes with NO WARRANTY," << endl
-       << "to the extent permitted by law." << endl
+       << PACKAGE " comes with NO WARRANTY, to the extent permitted by law."
+       << endl
+       << "For information about the terms of redistribution," << endl
+       << "see the file named COPYING in the ProVer distribution." << endl
+       << endl
        << "Written by H\345kan L. S. Younes." << endl;
 }
 

@@ -16,12 +16,12 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: debug.h,v 1.5 2002-06-26 23:25:41 lorens Exp $
+ * $Id: debug.h,v 1.6 2002-06-28 20:13:42 lorens Exp $
  */
 #ifndef DEBUG_H
 #define DEBUG_H
 
-#include <stdlib.h>
+#include <cstdlib>
 
 
 /* Verbosity level. */

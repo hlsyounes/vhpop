@@ -13,15 +13,15 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 3.9 2002-03-25 00:44:50 lorens Exp $
+ * $Id: formulas.cc,v 3.10 2002-06-28 20:14:05 lorens Exp $
  */
 #include <typeinfo>
+#include <stack>
 #include "formulas.h"
 #include "bindings.h"
 #include "problems.h"
 #include "domains.h"
 #include "types.h"
-#include <stack>
 
 
 /*
@@ -526,8 +526,8 @@ const Formula& Atom::instantiation(const Bindings& bindings) const {
 const Formula& Atom::instantiation(const SubstitutionList& subst,
 				   const Problem& problem) const {
   const Atom& f = substitution(subst);
-  if (problem.domain.static_predicate(predicate_)) {
-    const AtomList& adds = problem.init.add_list;
+  if (problem.domain().static_predicate(predicate_)) {
+    const AtomList& adds = problem.init().add_list;
     for (AtomListIter gi = adds.begin(); gi != adds.end(); gi++) {
       if (f == **gi) {
 	return TRUE;
@@ -537,7 +537,7 @@ const Formula& Atom::instantiation(const SubstitutionList& subst,
     }
     return FALSE;
   } else {
-    const Type* type = problem.domain.find_type(predicate_);
+    const Type* type = problem.domain().find_type(predicate_);
     if (type != NULL) {
       return f.terms_[0]->type().subtype(*type) ? TRUE : FALSE;
     } else {

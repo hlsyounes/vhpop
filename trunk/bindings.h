@@ -16,14 +16,14 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.h,v 3.9 2002-06-12 23:10:14 lorens Exp $
+ * $Id: bindings.h,v 3.10 2002-06-28 20:13:23 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
 
+#include <set>
 #include "support.h"
 #include "chain.h"
-#include <set>
 
 
 struct Term;

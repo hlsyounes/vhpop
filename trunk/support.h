@@ -16,15 +16,15 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  * 
- * $Id: support.h,v 3.6 2002-05-27 22:00:44 lorens Exp $
+ * $Id: support.h,v 3.7 2002-06-28 20:13:44 lorens Exp $
  */
 #ifndef SUPPORT_H
 #define SUPPORT_H
 
-#include "debug.h"
 #include <iostream>
 #include <string>
 #include <hash_map>
+#include "debug.h"
 
 
 /*

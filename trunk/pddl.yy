@@ -16,20 +16,20 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 3.19 2002-06-28 11:54:57 lorens Exp $
+ * $Id: pddl.yy,v 3.20 2002-06-28 20:13:48 lorens Exp $
  */
 %{
+#include <typeinfo>
+#include <utility>
+#include <cstdlib>
+#define __USE_ISOC99 1
+#define __USE_ISOC9X 1
+#include <cmath>
 #include "requirements.h"
 #include "problems.h"
 #include "domains.h"
 #include "formulas.h"
 #include "types.h"
-#include <typeinfo>
-#include <utility>
-#include <stdlib.h>
-#define __USE_ISOC99 1
-#define __USE_ISOC9X 1
-#include <math.h>
 
 
 /* The lexer. */
