@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.51 2002-01-06 21:46:06 lorens Exp $
+ * $Id: plans.cc,v 1.52 2002-01-07 19:48:27 lorens Exp $
  */
 #include <queue>
 #include <algorithm>
@@ -847,6 +847,44 @@ void Plan::new_ordering(PlanList& plans, size_t before_id, size_t after_id,
 }
 
 
+/* Checks if the given open conditions is threatened. */
+bool Plan::unsafe_open_condition(const OpenCondition& open_cond) const {
+  const LiteralOpenCondition* loc =
+    dynamic_cast<const LiteralOpenCondition*>(&open_cond);
+  if (loc != NULL) {
+    const Literal& goal = loc->literal;
+    hash_set<size_t> seen_steps;
+    for (const StepChain* sc = steps; sc != NULL; sc = sc->tail) {
+      const Step& s = *sc->head;
+      if (seen_steps.find(s.id) == seen_steps.end()
+	  && orderings.possibly_before(s.id, open_cond.step_id)) {
+	seen_steps.insert(s.id);
+	const EffectList& effects = s.effects;
+	for (EffectListIter ei = effects.begin(); ei != effects.end(); ei++) {
+	  const Effect& e = **ei;
+	  if (typeid(goal) == typeid(Negation)) {
+	    const AtomList& adds = e.add_list;
+	    for (AtomListIter fi = adds.begin(); fi != adds.end(); fi++) {
+	      if (bindings_.affects(**fi, goal)) {
+		return true;
+	      }
+	    }
+	  } else {
+	    const NegationList& dels = e.del_list;
+	    for (NegationListIter fi = dels.begin(); fi != dels.end(); fi++) {
+	      if (bindings_.affects(**fi, goal)) {
+		return true;
+	      }
+	    }
+	  }
+	}
+      }
+    }
+  }
+  return false;
+}
+
+
 /* Handles an open condition. */
 void Plan::handle_open_condition(PlanList& plans,
 				 const OpenCondition& open_cond) const {
@@ -1413,29 +1451,32 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
   hash_set<size_t> seen_steps;
   for (const StepChain* sc = steps; sc != NULL; sc = sc->tail) {
     const Step& s = *sc->head;
-    if (seen_steps.find(s.id) == seen_steps.end() &&
-	new_orderings.possibly_before(link.from_id, s.id) &&
-	new_orderings.possibly_after(link.to_id, s.id)) {
+    if (seen_steps.find(s.id) == seen_steps.end()
+	&& new_orderings.possibly_before(link.from_id, s.id)
+	&& new_orderings.possibly_after(link.to_id, s.id)) {
       seen_steps.insert(s.id);
       const EffectList& effects = s.effects;
       for (EffectListIter ei = effects.begin(); ei != effects.end(); ei++) {
 	const Effect& e = **ei;
-	const AtomList& adds = e.add_list;
-	for (AtomListIter fi = adds.begin(); fi != adds.end(); fi++) {
-	  const Atom& atom = **fi;
-	  if (bindings->affects(atom, link.condition)) {
-	    new_unsafes = new UnsafeChain(new Unsafe(link, s.id, e, atom),
-					  new_unsafes);
-	    new_num_unsafes++;
+	if (typeid(link.condition) == typeid(Negation)) {
+	  const AtomList& adds = e.add_list;
+	  for (AtomListIter fi = adds.begin(); fi != adds.end(); fi++) {
+	    const Atom& atom = **fi;
+	    if (bindings->affects(atom, link.condition)) {
+	      new_unsafes = new UnsafeChain(new Unsafe(link, s.id, e, atom),
+					    new_unsafes);
+	      new_num_unsafes++;
+	    }
 	  }
-	}
-	const NegationList& dels = e.del_list;
-	for (NegationListIter fi = dels.begin(); fi != dels.end(); fi++) {
-	  const Negation& neg = **fi;
-	  if (bindings->affects(neg, link.condition)) {
-	    new_unsafes = new UnsafeChain(new Unsafe(link, s.id, e, neg),
-					  new_unsafes);
-	    new_num_unsafes++;
+	} else {
+	  const NegationList& dels = e.del_list;
+	  for (NegationListIter fi = dels.begin(); fi != dels.end(); fi++) {
+	    const Negation& neg = **fi;
+	    if (bindings->affects(neg, link.condition)) {
+	      new_unsafes = new UnsafeChain(new Unsafe(link, s.id, e, neg),
+					    new_unsafes);
+	      new_num_unsafes++;
+	    }
 	  }
 	}
       }
@@ -1453,22 +1494,25 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
 	const EffectList& effects = step.effects;
 	for (EffectListIter ei = effects.begin(); ei != effects.end(); ei++) {
 	  const Effect& e = **ei;
-	  const AtomList& adds = e.add_list;
-	  for (AtomListIter fi = adds.begin(); fi != adds.end(); fi++) {
-	    const Atom& atom = **fi;
-	    if (bindings->affects(atom, l.condition)) {
-	      new_unsafes = new UnsafeChain(new Unsafe(l, step.id, e, atom),
-					    new_unsafes);
-	      new_num_unsafes++;
+	  if (typeid(l.condition) == typeid(Negation)) {
+	    const AtomList& adds = e.add_list;
+	    for (AtomListIter fi = adds.begin(); fi != adds.end(); fi++) {
+	      const Atom& atom = **fi;
+	      if (bindings->affects(atom, l.condition)) {
+		new_unsafes = new UnsafeChain(new Unsafe(l, step.id, e, atom),
+					      new_unsafes);
+		new_num_unsafes++;
+	      }
 	    }
-	  }
-	  const NegationList& dels = e.del_list;
-	  for (NegationListIter fi = dels.begin(); fi != dels.end(); fi++) {
-	    const Negation& neg = **fi;
-	    if (bindings->affects(neg, l.condition)) {
-	      new_unsafes = new UnsafeChain(new Unsafe(l, step.id, e, neg),
-					    new_unsafes);
-	      new_num_unsafes++;
+	  } else {
+	    const NegationList& dels = e.del_list;
+	    for (NegationListIter fi = dels.begin(); fi != dels.end(); fi++) {
+	      const Negation& neg = **fi;
+	      if (bindings->affects(neg, l.condition)) {
+		new_unsafes = new UnsafeChain(new Unsafe(l, step.id, e, neg),
+					      new_unsafes);
+		new_num_unsafes++;
+	      }
 	    }
 	  }
 	}

@@ -1,5 +1,5 @@
 /*
- * $Id: heuristics.cc,v 1.22 2002-01-05 17:58:23 lorens Exp $
+ * $Id: heuristics.cc,v 1.23 2002-01-07 19:48:18 lorens Exp $
  */
 #include <set>
 #include <typeinfo>
@@ -988,6 +988,13 @@ ostream& operator<<(ostream& os, const SelectionCriterion& c) {
     os << 't';
     first = false;
   }
+  if (c.unsafe_open_cond) {
+    if (!first) {
+      os << ',';
+    }
+    os << 'u';
+    first = false;
+  }
   os << '}';
   if (c.max_refinements < INT_MAX) {
     os << c.max_refinements;
@@ -1126,6 +1133,7 @@ FlawSelectionOrder& FlawSelectionOrder::operator=(const string& name) {
     criterion.open_cond = false;
     criterion.local_open_cond = false;
     criterion.static_open_cond = false;
+    criterion.unsafe_open_cond = false;
     do {
       switch (name[pos]) {
       case 'n':
@@ -1158,10 +1166,25 @@ FlawSelectionOrder& FlawSelectionOrder::operator=(const string& name) {
 	  criterion.open_cond = true;
 	  criterion.local_open_cond = false;
 	  criterion.static_open_cond = false;
+	  criterion.unsafe_open_cond = false;
 	  if (first_open_cond_criterion_ > last_open_cond_criterion_) {
 	    first_open_cond_criterion_ = selection_criteria_.size();
 	  }
 	  last_open_cond_criterion_ = selection_criteria_.size();
+	} else {
+	  throw InvalidFlawSelectionOrder(name);
+	}
+	break;
+      case 'l':
+	pos++;
+	if (name[pos] == ',' || name[pos] == '}') {
+	  if (!criterion.open_cond) {
+	    criterion.local_open_cond = true;
+	    if (first_open_cond_criterion_ > last_open_cond_criterion_) {
+	      first_open_cond_criterion_ = selection_criteria_.size();
+	    }
+	    last_open_cond_criterion_ = selection_criteria_.size();
+	  }
 	} else {
 	  throw InvalidFlawSelectionOrder(name);
 	}
@@ -1180,11 +1203,11 @@ FlawSelectionOrder& FlawSelectionOrder::operator=(const string& name) {
 	  throw InvalidFlawSelectionOrder(name);
 	}
 	break;
-      case 'l':
+      case 'u':
 	pos++;
 	if (name[pos] == ',' || name[pos] == '}') {
 	  if (!criterion.open_cond) {
-	    criterion.local_open_cond = true;
+	    criterion.unsafe_open_cond = true;
 	    if (first_open_cond_criterion_ > last_open_cond_criterion_) {
 	      first_open_cond_criterion_ = selection_criteria_.size();
 	    }
@@ -1577,13 +1600,15 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
     }
     bool local = (open_cond.step_id == local_id);
     int is_static = -1;
+    int is_unsafe = -1;
     int refinements = -1;
     int addable = -1;
     int reusable = -1;
     /* Loop through selection criteria that are within limits. */
     for (int c = first_criterion; c <= last_criterion; c++) {
       const SelectionCriterion& criterion = selection_criteria_[c];
-      if (criterion.local_open_cond && !criterion.static_open_cond && !local) {
+      if (criterion.local_open_cond && !local
+	  && !criterion.static_open_cond && !criterion.unsafe_open_cond) {
 	if (c == last_criterion) {
 	  last_criterion--;
 	}
@@ -1594,10 +1619,14 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
       if (criterion.static_open_cond && is_static < 0) {
 	is_static = open_cond.is_static(domain) ? 1 : 0;
       }
+      if (criterion.unsafe_open_cond && is_unsafe < 0) {
+	is_unsafe = (plan.unsafe_open_condition(open_cond)) ? 1 : 0;
+      }
       /* Test if criterion applies. */
       if (criterion.open_cond
 	  || (criterion.local_open_cond && local)
-	  || (criterion.static_open_cond && is_static > 0)) {
+	  || (criterion.static_open_cond && is_static > 0)
+	  || (criterion.unsafe_open_cond && is_unsafe > 0)) {
 	/* Right type of open condition, so now check if the
            refinement constraint is satisfied. */
 	if (criterion.max_refinements == INT_MAX
