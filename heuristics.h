@@ -2,7 +2,7 @@
 /*
  * Heuristics.
  *
- * $Id: heuristics.h,v 1.14 2002-01-02 20:58:32 lorens Exp $
+ * $Id: heuristics.h,v 1.15 2002-01-03 12:54:01 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
@@ -197,22 +197,13 @@ struct InvalidHeuristic : public Exception {
  * UCPOP uses h(p) = |S(p)| + w*(|OC(p)| + |UC(p)|.
  * SUM_COST uses the additive cost heuristic.
  * SUM_WORK uses the additive work heuristic.
- * SUM = SUM_COST:SUM_WORK.
+ * SUM uses h(p) = |S(p)| + w*SUM_COST.
  * SUMR is like SUM, but tries to take reuse into account.
  * MAX is an admissible heuristic counting parallel cost.
  */
-struct Heuristic {
-private:
-  typedef enum { LIFO, FIFO, OC, UC, BUC, S_PLUS_OC, UCPOP,
-		 SUM, SUM_COST, SUM_WORK,
-		 SUMR, SUMR_COST, SUMR_WORK,
-		 MAX, MAX_COST, MAX_WORK } HVal;
-
-public:
+struct Heuristic : public gc {
   /* Constructs a heuristic from a name. */
-  Heuristic(const string& name = "SUM") {
-    *this = name;
-  }
+  Heuristic(const string& name = "SUM");
 
   /* Selects a heuristic from a name. */
   Heuristic& operator=(const string& name);
@@ -226,6 +217,11 @@ public:
 		 const PlanningGraph* planning_graph) const;
 
 private:
+  typedef enum { LIFO, FIFO, OC, UC, BUC, S_PLUS_OC, UCPOP,
+		 SUM, SUM_COST, SUM_WORK,
+		 SUMR, SUMR_COST, SUMR_WORK,
+		 MAX, MAX_COST, MAX_WORK } HVal;
+
   /* The selected heuristics. */
   vector<HVal> h_;
   /* Whether a planning graph is needed by this heuristic. */
@@ -238,9 +234,7 @@ private:
  */
 struct InvalidFlawSelectionOrder : public Exception {
   /* Constructs an invalid flaw selection order exception. */
-  InvalidFlawSelectionOrder(const string& name)
-    : Exception("invalid flaw selection order `" + name + "'") {
-  }
+  InvalidFlawSelectionOrder(const string& name);
 };
 
 
@@ -251,7 +245,7 @@ struct InvalidFlawSelectionOrder : public Exception {
  * be combined with LIFO/FIFO/RANDOM order, but work only with
  * heuristics that can estimate cost for open conditions.
  */
-struct FlawSelectionOrder : public Printable, public gc {
+struct FlawSelectionOrder : public gc {
 private:
   typedef enum { UNSPEC, MAX, SUM } FlawHeuristic;
   typedef enum { NONE, COST, WORK } PrimaryOrder;
@@ -276,10 +270,6 @@ public:
   const Flaw& select(const Plan& plan, const Domain& domain,
 		     const PlanningGraph* pg) const;
 
-protected:
-  /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const;
-
 private:
   /* Heuristic used for computing flaw value. */
   FlawHeuristic heuristic_;
@@ -292,5 +282,6 @@ private:
   /* Whether to select static preconditions before other flaws. */
   bool static_first_;
 };
+
 
 #endif /* HEURISTICS_H */

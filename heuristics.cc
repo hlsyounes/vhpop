@@ -1,5 +1,5 @@
 /*
- * $Id: heuristics.cc,v 1.17 2002-01-02 20:58:47 lorens Exp $
+ * $Id: heuristics.cc,v 1.18 2002-01-03 12:54:04 lorens Exp $
  */
 #include <set>
 #include <typeinfo>
@@ -596,6 +596,12 @@ InvalidHeuristic::InvalidHeuristic(const string& name)
 /* ====================================================================== */
 /* Heuristic */
 
+/* Constructs a heuristic from a name. */
+Heuristic::Heuristic(const string& name) {
+  *this = name;
+}
+
+
 /* Selects a heuristic from a name. */
 Heuristic& Heuristic::operator=(const string& name) {
   h_.clear();
@@ -713,14 +719,19 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
 	  sum_work = sum(sum_work, v.sum_work());
 	}
       }
-      if (h != SUM_WORK) {
+      if (h == SUM) {
 	if (sum_cost < INT_MAX) {
 	  rank.push_back(plan.num_steps + weight*sum_cost);
 	} else {
 	  rank.push_back(HUGE_VAL);
 	}
-      }
-      if (h != SUM_COST) {
+      } else if (h == SUM_COST) {
+	if (sum_cost < INT_MAX) {
+	  rank.push_back(sum_cost);
+	} else {
+	  rank.push_back(HUGE_VAL);
+	}
+      } else {
 	if (sum_work < INT_MAX) {
 	  rank.push_back(sum_work);
 	} else {
@@ -775,14 +786,19 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
 	  }
 	}
       }
-      if (h != SUMR_WORK) {
+      if (h == SUMR) {
 	if (sumr_cost < INT_MAX) {
 	  rank.push_back(plan.num_steps + weight*sumr_cost);
 	} else {
 	  rank.push_back(HUGE_VAL);
 	}
-      }
-      if (h != SUMR_COST) {
+      } else if (h == SUMR_COST) {
+	if (sumr_cost < INT_MAX) {
+	  rank.push_back(sumr_cost);
+	} else {
+	  rank.push_back(HUGE_VAL);
+	}
+      } else {
 	if (sumr_work < INT_MAX) {
 	  rank.push_back(sumr_work);
 	} else {
@@ -807,14 +823,19 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
 	  max_work = sum(max_work, v.max_work());
 	}
       }
-      if (h != MAX_WORK) {
+      if (h == MAX) {
 	if (max_cost < INT_MAX) {
 	  rank.push_back(max_steps + weight*(max_cost - max_steps));
 	} else {
 	  rank.push_back(HUGE_VAL);
 	}
-      }
-      if (h != MAX_COST) {
+      } else if (h == MAX_COST) {
+	if (max_cost < INT_MAX) {
+	  rank.push_back(max_cost);
+	} else {
+	  rank.push_back(HUGE_VAL);
+	}
+      } else {
 	if (max_work < INT_MAX) {
 	  rank.push_back(max_work);
 	} else {
@@ -826,6 +847,17 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
   }
 }
 
+
+/* ====================================================================== */
+/* InvalidFlawSelectionOrder */
+
+/* Constructs an invalid flaw selection order exception. */
+InvalidFlawSelectionOrder::InvalidFlawSelectionOrder(const string& name)
+  : Exception("invalid flaw selection order `" + name + "'") {}
+
+
+/* ====================================================================== */
+/* FlawSelectionOrder */
 
 /* Selects a flaw selection order from a name. */
 FlawSelectionOrder& FlawSelectionOrder::operator=(const string& name) {
@@ -972,54 +1004,4 @@ FlawSelectionOrder::select(const Plan& plan, const Domain& domain,
   } else {
     return *best_oc;
   }
-}
-
-
-/* Prints this object on the given stream. */
-void FlawSelectionOrder::print(ostream& os) const {
-  switch (heuristic_) {
-  case UNSPEC:
-    cout << "UNSPEC";
-    break;
-  case MAX:
-    cout << "MAX";
-    break;
-  case SUM:
-    cout << "SUM";
-    break;
-  }
-  cout << ':';
-  switch (primary_) {
-  case NONE:
-    cout << "NONE";
-    break;
-  case COST:
-    cout << "COST";
-    break;
-  case WORK:
-    cout << "WORK";
-    break;
-  }
-  cout << ':';
-  switch (extreme_) {
-  case MOST:
-    cout << "MOST";
-    break;
-  case LEAST:
-    cout << "LEAST";
-    break;
-  }
-  cout << ':';
-  switch (secondary_) {
-  case LIFO:
-    cout << "LIFO";
-    break;
-  case FIFO:
-    cout << "FIFO";
-    break;
-  case RANDOM:
-    cout << "RANDOM";
-    break;
-  }
-  cout << endl;
 }

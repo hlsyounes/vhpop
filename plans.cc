@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.46 2002-01-02 20:58:38 lorens Exp $
+ * $Id: plans.cc,v 1.47 2002-01-03 12:53:52 lorens Exp $
  */
 #include <queue>
 #include <algorithm>
@@ -8,6 +8,7 @@
 #include <cmath>
 #include <sys/time.h>
 #include "plans.h"
+#include "heuristics.h"
 #include "bindings.h"
 #include "orderings.h"
 #include "flaws.h"
