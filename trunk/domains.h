@@ -2,7 +2,7 @@
 /*
  * Domain descriptions.
  *
- * $Id: domains.h,v 1.5 2001-05-15 13:53:12 lorens Exp $
+ * $Id: domains.h,v 1.6 2001-07-29 17:43:56 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -13,8 +13,18 @@
 #include <hash_set>
 #include <vector>
 #include "support.h"
-#include "formulas.h"
+#include "types.h"
 
+
+struct SubstitutionList;
+struct TermList;
+struct VariableList;
+struct Name;
+struct NameList;
+struct NameMap;
+struct Formula;
+struct FormulaList;
+struct AtomicFormula;
 
 /*
  * Predicate declaration.
@@ -31,9 +41,7 @@ struct Predicate : public gc {
   }
 
   /* Returns the arity of this predicate. */
-  size_t arity() const {
-    return parameters.size();
-  }
+  size_t arity() const;
 
 private:
   /* Prints this predicate on the given stream. */
@@ -52,8 +60,10 @@ inline ostream& operator<<(ostream& os, const Predicate& p) {
 /*
  * Table of predicate declarations.
  */
-typedef hash_map<string, const Predicate*, hash<string>, equal_to<string>,
-  container_alloc> PredicateMap;
+struct PredicateMap : public gc,
+		      hash_map<string, const Predicate*, hash<string>,
+		      equal_to<string>, container_alloc> {
+};
 
 
 /*
@@ -68,20 +78,13 @@ struct Effect : public gc {
   const FormulaList& add_list;
 
   /* Constructs an unconditional single effect. */
-  Effect(const Formula& add)
-    : forall(*(new VariableList())), condition(NULL),
-      add_list(*(new FormulaList(&add))) {
-  }
+  Effect(const Formula& add);
 
   /* Constructs an unconditional multiple effect. */
-  Effect(const FormulaList& add_list)
-    : forall(*(new VariableList())), condition(NULL), add_list(add_list) {
-  }
+  Effect(const FormulaList& add_list);
 
   /* Constructs a conditional effect. */
-  Effect(const Formula* condition, const FormulaList& add_list)
-    : forall(*(new VariableList())), condition(condition), add_list(add_list) {
-  }
+  Effect(const Formula* condition, const FormulaList& add_list);
 
   /* Constructs a universally quantified conditional effect. */
   Effect(const VariableList& forall, const Formula* condition,
@@ -90,42 +93,18 @@ struct Effect : public gc {
   }
 
   /* Returns an instantiation of this effect. */
-  const Effect& instantiation(size_t id) const {
-    const Formula* inst_condition =
-      (condition != NULL) ? &condition->instantiation(id) : NULL;
-    return *(new Effect(forall.instantiation(id), inst_condition,
-			add_list.instantiation(id)));
-  }
+  const Effect& instantiation(size_t id) const;
 
-  /* Returns an effect subject to the given substitutions. */
-  const Effect& substitution(const SubstitutionList& subst) const {
-    SubstitutionList eff_subst;
-    if (forall.empty()) {
-      eff_subst = subst;
-    } else {
-      for (SubstitutionList::const_iterator i = subst.begin();
-	   i != subst.end(); i++) {
-	const Substitution& s = *i;
-	if (!forall.contains(*s.first)) {
-	  eff_subst.push_back(s);
-	}
-      }
-    }
-    const Formula* subst_condition =
-      (condition != NULL) ? &condition->substitution(eff_subst) : NULL;
-    return *(new Effect(forall, subst_condition,
-			add_list.substitution(eff_subst)));
-  }
+  /* Returns this effect subject to the given substitutions. */
+  const Effect& substitution(const SubstitutionList& subst) const;
 
-  /* Checks if the add list of this effect matches the given formula. */
-  bool matches(const Formula& f) const {
-    return add_list.matches(f);
-  }
+  /* Checks if the add list of this effect matches the given
+     formula. */
+  bool matches(const Formula& f) const;
 
-  /* Checks if the add list of this effect involves the given predicate. */
-  bool involves(const string& predicate) const {
-    return add_list.involves(predicate);
-  }
+  /* Checks if the add list of this effect involves the given
+     predicate. */
+  bool involves(const string& predicate) const;
 
 private:
   /* Prints this effect on the given stream. */
@@ -144,8 +123,7 @@ inline ostream& operator<<(ostream& os, const Effect& e) {
 /*
  * List of effect definitions.
  */
-struct EffectList : public gc,
-		    public vector<const Effect*, container_alloc> {
+struct EffectList : public gc, vector<const Effect*, container_alloc> {
   /* Constructs an empty effect list. */
   EffectList() {
   }
@@ -173,7 +151,8 @@ struct EffectList : public gc,
     return effects;
   }
 
-  /* Checks if any of the effects in this list matches the given formula. */
+  /* Checks if any of the effects in this list matches the given
+     formula. */
   bool matches(const Formula& f) const {
     for (const_iterator i = begin(); i != end(); i++) {
       if ((*i)->matches(f)) {
@@ -183,7 +162,8 @@ struct EffectList : public gc,
     return false;
   }
 
-  /* Checks if any of the effects in this list involves the given predicate. */
+  /* Checks if any of the effects in this list involves the given
+     predicate. */
   bool involves(const string& predicate) const {
     for (const_iterator i = begin(); i != end(); i++) {
       if ((*i)->involves(predicate)) {
@@ -195,15 +175,14 @@ struct EffectList : public gc,
 };
 
 
+struct ActionList;
+struct Problem;
+
 /*
- * Action definition.
+ * Abstract action definition.
  */
 struct Action : public gc {
-  /* Name of this action. */
-  const string name;
-  /* Action parameters. */
-  const VariableList& parameters;
-  /* Action precondition, or NULL is this action lacks preconditions. */
+  /* Action precondition, or NULL if this action lacks preconditions. */
   const Formula* const precondition;
   /* List of action effects. */
   const EffectList& effects;
@@ -211,12 +190,8 @@ struct Action : public gc {
      will give rise to. */
   const size_t cost;
 
-  /* Constructs an action. */
-  Action(const string& name, const VariableList& parameters,
-	 const Formula* precondition, const EffectList& effects)
-    : name(name), parameters(parameters), precondition(precondition),
-      effects(effects),
-      cost((precondition != NULL) ? precondition->cost() : 0) {
+  /* Deletes this action. */
+  virtual ~Action() {
   }
 
   /* Checks if any effect of this action can achive the given goal. */
@@ -224,11 +199,59 @@ struct Action : public gc {
     return effects.matches(goal);
   }
 
-private:
-  /* Prints this action on the given stream. */
-  void print(ostream& os) const;
+  /* Returns a formula representing this action. */
+  virtual const AtomicFormula& action_formula(size_t id) const = 0;
 
+  /* Fills the provided action list with all instantiations of this
+     action. */
+  virtual void instantiations(ActionList& actions,
+			      const Problem& problem) const = 0;
+
+protected:
+  /* Constructs an action. */
+  Action(const Formula* precondition, const EffectList& effects);
+
+  /* Tests if this action equals the given action. */
+  virtual bool equals(const Action& a) const = 0;
+
+  /* Returns the hash value of this action. */
+  virtual size_t hash_value() const = 0;
+
+  /* Prints this action on the given stream. */
+  virtual void print(ostream& os) const = 0;
+
+private:
+  friend bool operator==(const Action& a1, const Action& a2);
+  friend struct hash<const Action*>;
   friend ostream& operator<<(ostream& os, const Action& a);
+};
+
+/* Equality operator for actions. */
+inline bool operator==(const Action& a1, const Action& a2) {
+  return a1.equals(a2);
+}
+
+/* Inequality operator for actions. */
+inline bool operator!=(const Action& a1, const Action& a2) {
+  return !(a1 == a2);
+}
+
+/*
+ * Equality function object for action pointers.
+ */
+struct equal_to<const Action*> {
+  bool operator()(const Action* a1, const Action* a2) {
+    return *a1 == *a2;
+  }
+};
+
+/*
+ * Hash function object for actions pointers.
+ */
+struct hash<const Action*> {
+  size_t operator()(const Action* a) const {
+    return a->hash_value();
+  }
 };
 
 /* Output operator for actions. */
@@ -241,15 +264,95 @@ inline ostream& operator<<(ostream& os, const Action& a) {
 /*
  * List of action definitions.
  */
-typedef vector<const Action*, container_alloc> ActionList;
+struct ActionList : public gc, vector<const Action*, container_alloc> {
+};
 
 
 /*
  * Table of action definitions.
  */
-typedef hash_map<string, const Action*, hash<string>, equal_to<string>,
-  container_alloc> ActionMap;
+struct ActionMap : public gc,
+		   hash_map<string, const Action*, hash<string>,
+		   equal_to<string>, container_alloc> {
+};
 
+
+/*
+ * Action schema definition.
+ */
+struct ActionSchema : public Action {
+  /* Name of this action schema. */
+  const string name;
+  /* Action parameters. */
+  const VariableList& parameters;
+
+  ActionSchema(const string& name, const VariableList& parameters,
+	       const Formula* precondition, const EffectList& effects)
+    : Action(precondition, effects), name(name), parameters(parameters) {
+  }
+
+  /* Returns a formula representing this action. */
+  virtual const AtomicFormula& action_formula(size_t id) const;
+
+  /* Fills the provided action list with all instantiations of this
+     action. */
+  virtual void instantiations(ActionList& actions,
+			      const Problem& problem) const;
+
+protected:
+  /* Tests if this action equals the given action. */
+  virtual bool equals(const Action& a) const {
+    const ActionSchema* as = dynamic_cast<const ActionSchema*>(&a);
+    return as != NULL && name == as->name;
+  }
+
+  /* Returns the hash value of this action. */
+  virtual size_t hash_value() const {
+    return hash<string>()(name);
+  }
+
+  /* Prints this action on the given stream. */
+  virtual void print(ostream& os) const;
+};
+
+
+/*
+ * Ground action.
+ */
+struct GroundAction : public Action {
+  /* Constructs a ground action, assuming arguments are names. */
+  GroundAction(const string& name, const TermList& arguments,
+	       const Formula* precondition, const EffectList& effects);
+
+  /* Returns a formula representing this action. */
+  virtual const AtomicFormula& action_formula(size_t id) const {
+    return formula;
+  }
+
+  /* Fills the provided action list with all instantiations of this
+     action. */
+  virtual void instantiations(ActionList& actions,
+			      const Problem& problem) const {
+    actions.push_back(this);
+  }
+
+protected:
+  /* Tests if this action equals the given action. */
+  virtual bool equals(const Action& a) const;
+
+  /* Returns the hash value of this action. */
+  virtual size_t hash_value() const;
+
+  /* Prints this action on the given stream. */
+  virtual void print(ostream& os) const;
+
+private:
+  /* Atomic formula representing this ground action. */
+  const AtomicFormula& formula;
+};
+
+
+struct Requirements;
 
 /*
  * Domain definition.
@@ -258,13 +361,19 @@ struct Domain : public gc {
   /* Table of domain definitions. */
   typedef hash_map<string, const Domain*, hash<string>, equal_to<string>,
     container_alloc> DomainMap;
-  /* Action styles. */
-  typedef enum { STRIPS, ADL } ActionStyle;
 
   /* Name of this domain. */
   const string name;
   /* Action style used for actions of this domain. */
-  const ActionStyle action_style;
+  const Requirements& requirements;
+  /* Domain types. */
+  const TypeMap& types;
+  /* Domain constants. */
+  const NameMap& constants;
+  /* Domain predicates. */
+  const PredicateMap& predicates;
+  /* Domain actions. */
+  const ActionMap& actions;
 
   /* Returns a const_iterator pointing to the first domain. */
   static DomainMap::const_iterator begin() {
@@ -288,11 +397,11 @@ struct Domain : public gc {
   }
 
   /* Constructs a domain. */
-  Domain(const string& name, ActionStyle action_style,
+  Domain(const string& name, const Requirements& requirements,
 	 const TypeMap& types, const NameMap& constants,
 	 const PredicateMap& predicates, const ActionMap& actions)
-    : name(name), action_style(action_style), types_(types),
-      constants_(constants), predicates_(predicates), actions_(actions),
+    : name(name), requirements(requirements), types(types),
+      constants(constants), predicates(predicates), actions(actions),
       static_predicates_(static_predicates(predicates, actions)) {
     domains[name] = this;
   }
@@ -302,29 +411,26 @@ struct Domain : public gc {
     domains.erase(name);
   }
 
-  /* Returns the type with the given name, or NULL if it is undefined. */
-  const Type* find_type(const string& name) const {
-    TypeMap::const_iterator i = types_.find(name);
-    return (i != types_.end()) ? (*i).second : NULL;
-  }
+  /* Returns the type with the given name, or NULL if it is
+     undefined. */
+  const Type* find_type(const string& name) const;
 
-  /* Returns the constant with the given name, or NULL if it is undefined. */
-  const Name* find_constant(const string& name) const {
-    NameMap::const_iterator i = constants_.find(name);
-    return (i != constants_.end()) ? (*i).second : NULL;
-  }
+  /* Returns the constant with the given name, or NULL if it is
+     undefined. */
+  const Name* find_constant(const string& name) const;
 
-  /* Returns the predicate with the given name, or NULL if it is undefined. */
-  const Predicate* find_predicate(const string& name) const {
-    PredicateMap::const_iterator i = predicates_.find(name);
-    return (i != predicates_.end()) ? (*i).second : NULL;
-  }
+  /* Returns the predicate with the given name, or NULL if it is
+     undefined. */
+  const Predicate* find_predicate(const string& name) const;
 
-  /* Returns the action with the given name, or NULL if it is undefined. */
-  const Action* find_action(const string& name) const {
-    ActionMap::const_iterator i = actions_.find(name);
-    return (i != actions_.end()) ? (*i).second : NULL;
-  }
+  /* Returns the action with the given name, or NULL if it is
+     undefined. */
+  const Action* find_action(const string& name) const;
+
+  /* Fills the provided name list with constants that are compatible
+     with the given type. */
+  void compatible_constants(NameList& constants,
+			    const Type& t = SimpleType::OBJECT_TYPE) const;
 
   /* Tests if the given predicate is static. */
   bool static_predicate(const string& predicate) const {
@@ -333,26 +439,12 @@ struct Domain : public gc {
 
   /* Fills the provided action list with actions that can achive the
      give goal. */
-  void find_applicable_actions(ActionList& actions,
-			       const Formula& goal) const {
-    for (ActionMap::const_iterator i = actions_.begin();
-	 i != actions_.end(); i++) {
+  void applicable_actions(ActionList& actions, const Formula& goal) const {
+    for (ActionMap::const_iterator i = this->actions.begin();
+	 i != this->actions.end(); i++) {
       const Action& a = *(*i).second;
       if (a.applicable(goal)) {
 	actions.push_back(&a);
-      }
-    }
-  }
-
-  /* Fills the provided name list with constants that are compatible
-     with the given type. */
-  void compatible_constants(NameList& constants,
-			    const Type& t = SimpleType::OBJECT_TYPE) const {
-    for (NameMap::const_iterator i = constants_.begin();
-	 i != constants_.end(); i++) {
-      const Name& name = *(*i).second;
-      if (name.type.compatible(t)) {
-	constants.push_back(&name);
       }
     }
   }
@@ -361,38 +453,13 @@ private:
   /* Table of all defined domains. */
   static DomainMap domains;
 
-  /* Domain types. */
-  const TypeMap& types_;
-  /* Domain constants. */
-  const NameMap& constants_;
-  /* Domain predicates. */
-  const PredicateMap& predicates_;
-  /* Domain actions. */
-  const ActionMap& actions_;
   /* Static predicates. */
   const hash_set<string> static_predicates_;
 
   /* Returns a set of static predicates. */
   static hash_set<string> static_predicates(const PredicateMap& predicates,
-					    const ActionMap& actions) {
-    hash_set<string> preds;
-    for (PredicateMap::const_iterator i = predicates.begin();
-	 i != predicates.end(); i++) {
-      const string& p = (*i).first;
-      bool is_static = true;
-      for (ActionMap::const_iterator j = actions.begin();
-	 j != actions.end() && is_static; j++) {
-	if ((*j).second->effects.involves(p)) {
-	  is_static = false;
-	}
-      }
-      if (is_static) {
-	preds.insert((*i).first);
-      }
-    }
-    return preds;
-  }
-	  
+					    const ActionMap& actions);
+
   /* Prints this domain on the given stream. */
   void print(ostream& os) const;
 
