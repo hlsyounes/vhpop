@@ -1,5 +1,5 @@
 /*
- * $Id: formulas.cc,v 1.7 2001-08-18 21:15:07 lorens Exp $
+ * $Id: formulas.cc,v 1.8 2001-08-20 04:07:08 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -64,12 +64,6 @@ struct TrueFormula : public Formula {
     return *this;
   }
 
-  /* Roughly corresponds to the number of open conditions this formula
-     will give rise to. */
-  virtual size_t cost() const {
-    return 0;
-  }
-
 protected:
   /* Prints this formula on the given stream. */
   virtual void print(ostream& os) const {
@@ -112,12 +106,6 @@ struct FalseFormula : public Formula {
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const {
     return *this;
-  }
-
-  /* Roughly corresponds to the number of open conditions this formula
-     will give rise to. */
-  virtual size_t cost() const {
-    return 0;
   }
 
 protected:
@@ -399,6 +387,16 @@ const Formula& operator||(const Formula& f1, const Formula& f2) {
 }
 
 
+bool equal_to<const Formula*>::operator()(const Formula* f1,
+					  const Formula* f2) const {
+  return *f1 == *f2;
+}
+
+size_t hash<const Formula*>::operator()(const Formula* f) const {
+  return hash<Formula>()(*f);
+}
+
+
 /* Returns an instantiation of this formula list. */
 const FormulaList& FormulaList::instantiation(size_t id) const {
   FormulaList& formulas = *(new FormulaList());
@@ -525,6 +523,14 @@ AtomicFormula::substitution(const SubstitutionList& subst) const {
 bool AtomicFormula::negates(const Formula& f) const {
   const Negation* negation = dynamic_cast<const Negation*>(&f);
   return negation != NULL && negation->negates(*this);
+}
+
+
+/* Returns the heuristic cost of this formula. */
+Cost AtomicFormula::cost(const hash_map<const Formula*, Cost>& atom_cost,
+			 Heuristic h) const {
+  hash_map<const Formula*, Cost>::const_iterator ci = atom_cost.find(this);
+  return (ci != atom_cost.end()) ? (*ci).second : Cost(-1, -1);
 }
 
 
@@ -760,6 +766,27 @@ const Formula& Conjunction::substitution(const SubstitutionList& subst) const {
 }
 
 
+/* Returns the heuristic cost of this formula. */
+Cost Conjunction::cost(const hash_map<const Formula*, Cost>& atom_cost,
+		       Heuristic h) const {
+  Cost total_cost;
+  for (FLCI fi = conjuncts.begin(); fi != conjuncts.end(); fi++) {
+    Cost c = (*fi)->cost(atom_cost, h);
+    if (c.cost < 0) {
+      return c;
+    } else {
+      if (h.sum()) {
+	total_cost += c;
+      } else if (h.max()) {
+	total_cost.cost = max(total_cost.cost, c.cost);
+	total_cost.work += c.work;
+      }
+    }
+  }
+  return total_cost;
+}
+
+
 /* Fills the provided list with goals achievable by this formula. */
 void Conjunction::achievable_goals(FormulaList& goals) const {
   conjuncts.achievable_goals(goals);
@@ -825,6 +852,20 @@ const Formula& Disjunction::substitution(const SubstitutionList& subst) const {
     d = &(*d || (*fi)->substitution(subst));
   }
   return *d;
+}
+
+
+/* Returns the heuristic cost of this formula. */
+Cost Disjunction::cost(const hash_map<const Formula*, Cost>& atom_cost,
+		       Heuristic h) const {
+  Cost total_cost = Cost(INT_MAX, INT_MAX);
+  for (FLCI fi = disjuncts.begin(); fi != disjuncts.end(); fi++) {
+    Cost c = (*fi)->cost(atom_cost, h);
+    if (c.cost >= 0) {
+      total_cost = min(total_cost, c);
+    }
+  }
+  return total_cost;
 }
 
 
