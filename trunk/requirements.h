@@ -16,10 +16,12 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: requirements.h,v 3.3 2002-03-14 10:34:59 lorens Exp $
+ * $Id: requirements.h,v 3.4 2002-12-16 17:42:12 lorens Exp $
  */
 #ifndef REQUIREMENTS_H
 #define REQUIREMENTS_H
+
+#include <config.h>
 
 
 /* ====================================================================== */

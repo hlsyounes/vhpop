@@ -1,3 +1,15 @@
+2002-12-16  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Fixed memory leaks of actions effects, and formulas.
+
+	* All lists are now stored directly in objects, instead of being
+	stored indirectly as pointers to lists.
+
+2002-11-05  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Types are no longer required to be declared before they are used
+	as supertypes.
+
 2002-09-24  Håkan L. S. Younes  <lorens@cs.cmu.edu>
 
 	* Instead of stripping static preconditions before planning phase,

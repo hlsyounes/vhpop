@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: reasons.cc,v 3.4 2002-09-23 03:08:01 lorens Exp $
+ * $Id: reasons.cc,v 3.5 2002-12-16 17:41:55 lorens Exp $
  */
 #include "reasons.h"
 #include "plans.h"
@@ -28,14 +28,14 @@ struct DummyReason : public Reason {
   static const DummyReason THE_DUMMY;
 
   DummyReason() {
-    Collectible::register_use(this);
+    register_use(this);
 #ifdef DEBUG_MEMORY
-    created_collectibles--;
+    created_reasons--;
 #endif
   }
 
 protected:
-  virtual void print(ostream& os) const {
+  virtual void print(std::ostream& os) const {
     os << "DummyReason";
   }
 };
@@ -44,6 +44,23 @@ protected:
 /* A dummy reason. */
 const DummyReason DummyReason::THE_DUMMY = DummyReason();
 const Reason& Reason::DUMMY = DummyReason::THE_DUMMY;
+
+
+/* Constructs a reason. */
+Reason::Reason()
+  : ref_count_(0) {
+#ifdef DEBUG_MEMORY
+  created_reasons++;
+#endif
+}
+
+
+/* Deletes this reason. */
+Reason::~Reason() {
+#ifdef DEBUG_MEMORY
+    deleted_reasons++;
+#endif
+}
 
 
 /* Checks if this reason is a dummy reason. */
@@ -65,7 +82,7 @@ bool Reason::involves(const Step& step) const {
 
 
 /* Output operator for reasons. */
-ostream& operator<<(ostream& os, const Reason& r) {
+std::ostream& operator<<(std::ostream& os, const Reason& r) {
   r.print(os);
   return os;
 }
@@ -87,7 +104,7 @@ InitReason::InitReason() {}
 
 
 /* Prints this reason on the given stream. */
-void InitReason::print(ostream& os) const {
+void InitReason::print(std::ostream& os) const {
   os << "#<InitReason>";
 }
 
@@ -105,18 +122,18 @@ const Reason& AddStepReason::make(const Parameters& params, size_t step_id) {
 
 /* Constructs an AddStep reason. */
 AddStepReason::AddStepReason(size_t step_id)
-  : step_id(step_id) {}
+  : step_id_(step_id) {}
 
 
 /* Checks if this reason involves the given step. */
 bool AddStepReason::involves(const Step& step) const {
-  return step_id == step.id();
+  return step_id_ == step.id();
 }
 
 
 /* Prints this reason on the given stream. */
-void AddStepReason::print(ostream& os) const {
-  os << "#<AddStepReason " << step_id << ">";
+void AddStepReason::print(std::ostream& os) const {
+  os << "#<AddStepReason " << step_id_ << ">";
 }
 
 
@@ -133,19 +150,19 @@ const Reason& EstablishReason::make(const Parameters& params,
 
 /* Constructs an Establish reason. */
 EstablishReason::EstablishReason(const Link& link)
-  : link(link) {}
+  : link_(&link) {}
 
 
 /* Checks if this reason involves the given link. */
 bool EstablishReason::involves(const Link& link) const {
-  return &this->link == &link;
+  return link_ == &link;
 }
 
 
 /* Prints this reason on the given stream. */
-void EstablishReason::print(ostream& os) const {
-  os << "#<EstablishReason " << link.from_id() << ' ' << link.condition()
-     << ' ' << link.to_id() << ">";
+void EstablishReason::print(std::ostream& os) const {
+  os << "#<EstablishReason " << link_->from_id() << ' ' << link_->condition()
+     << ' ' << link_->to_id() << ">";
 }
 
 
@@ -163,23 +180,23 @@ const Reason& ProtectReason::make(const Parameters& params,
 
 /* Constructs a Protect reason. */
 ProtectReason::ProtectReason(const Link& link, size_t step_id)
-  : link(link), step_id(step_id) {}
+  : link_(&link), step_id_(step_id) {}
 
 
 /* Checks if this reason involves the given link. */
 bool ProtectReason::involves(const Link& link) const {
-  return &this->link == &link;
+  return link_ == &link;
 }
 
 
 /* Checks if this reason involves the given step. */
 bool ProtectReason::involves(const Step& step) const {
-  return step_id == step.id();
+  return step_id_ == step.id();
 }
 
 
 /* Prints this reason on the given stream. */
-void ProtectReason::print(ostream& os) const {
-  os << "#<ProtectReason " << link.from_id() << ' ' << link.condition()
-     << ' ' << link.to_id() << " step " << step_id << ">";
+void ProtectReason::print(std::ostream& os) const {
+  os << "#<ProtectReason " << link_->from_id() << ' ' << link_->condition()
+     << ' ' << link_->to_id() << " step " << step_id_ << ">";
 }

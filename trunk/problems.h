@@ -16,22 +16,16 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: problems.h,v 3.4 2002-11-05 04:42:09 lorens Exp $
+ * $Id: problems.h,v 3.5 2002-12-16 17:41:38 lorens Exp $
  */
 #ifndef PROBLEMS_H
 #define PROBLEMS_H
 
-#include "support.h"
+#include <config.h>
+#include "domains.h"
 #include "formulas.h"
 
 struct Type;
-struct Domain;
-struct NameMap;
-struct Effect;
-struct Formula;
-struct GroundActionList;
-struct Name;
-struct NameList;
 
 
 /*
@@ -39,7 +33,7 @@ struct NameList;
  */
 struct Problem {
   /* Table of problem definitions. */
-  struct ProblemMap : public hash_map<string, const Problem*> {
+  struct ProblemMap : public std::map<std::string, const Problem*> {
   };
 
   /* Iterator for problem tables. */
@@ -52,19 +46,19 @@ struct Problem {
   static ProblemMapIter end();
 
   /* Returns the problem with the given name, or NULL if it is undefined. */
-  static const Problem* find(const string& name);
+  static const Problem* find(const std::string& name);
 
   /* Removes all defined problems. */
   static void clear();
 
   /* Constructs a problem. */
-  Problem(const string& name, const Domain& domain);
+  Problem(const std::string& name, const Domain& domain);
 
   /* Deletes a problem. */
   ~Problem();
 
   /* Returns the name of this problem. */
-  const string& name() const { return name_; }
+  const std::string& name() const { return name_; }
 
   /* Returns the domain of this problem. */
   const Domain& domain() const { return *domain_; }
@@ -72,22 +66,25 @@ struct Problem {
   /* Adds an object to this problem. */
   void add_object(Name& object);
 
-  /* Sets the initial conditions of this problem. */
-  void set_init(const Effect& effect);
+  /* Adds an atomic formula to the initial conditions of this problem. */
+  void add_init(const Atom& atom);
 
   /* Sets the goal of this problem. */
   void set_goal(const Formula& goal);
 
   /* Returns the object with the given name, or NULL if it is
      undefined. */
-  Name* find_object(const string& name);
+  Name* find_object(const std::string& name);
 
   /* Returns the object with the given name, or NULL if it is
      undefined. */
-  const Name* find_object(const string& name) const;
+  const Name* find_object(const std::string& name) const;
 
   /* Returns the initial conditions of this problem. */
   const Effect& init() const { return *init_; }
+
+  /* Returns the action representing the initial conditions of this problem. */
+  const GroundAction& init_action() const { return init_action_; }
 
   /* Returns the goal of this problem. */
   const Formula& goal() const { return *goal_; }
@@ -106,21 +103,23 @@ private:
   static ProblemMap problems;
 
   /* Name of problem. */
-  string name_;
+  std::string name_;
   /* Problem domain. */
   const Domain* domain_;
   /* Problem objects. */
   NameMap objects_;
   /* Initial condition of problem. */
-  const Effect* init_;
+  Effect* init_;
+  /* Aciton representing initial conditions of problem. */
+  GroundAction init_action_;
   /* Goal of problem. */
   const Formula* goal_;
 
-  friend ostream& operator<<(ostream& os, const Problem& p);
+  friend std::ostream& operator<<(std::ostream& os, const Problem& p);
 };
 
 /* Output operator for problems. */
-ostream& operator<<(ostream& os, const Problem& p);
+std::ostream& operator<<(std::ostream& os, const Problem& p);
 
 
 #endif /* PROBLEMS_H */

@@ -13,9 +13,10 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: types.cc,v 4.5 2002-12-06 01:40:39 lorens Exp $
+ * $Id: types.cc,v 4.6 2002-12-16 17:42:54 lorens Exp $
  */
 #include "types.h"
+#include <algorithm>
 #include <iostream>
 
 
