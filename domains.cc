@@ -1,5 +1,5 @@
 /*
- * $Id: domains.cc,v 1.3 2001-07-29 17:42:03 lorens Exp $
+ * $Id: domains.cc,v 1.4 2001-08-11 06:13:17 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -95,6 +95,12 @@ bool Effect::involves(const string& predicate) const {
 }
 
 
+/* Fills the provided list with goals achievable by this effect. */
+void Effect::achievable_goals(FormulaList& goals) const {
+  add_list.achievable_goals(goals);
+}
+
+
 /* Prints this effect on the given stream. */
 void Effect::print(ostream& os) const {
   os << '[';
@@ -117,9 +123,8 @@ void Effect::print(ostream& os) const {
 
 
 /* Constructs an action. */
-Action::Action(const Formula* precondition, const EffectList& effects)
-  : precondition(precondition), effects(effects),
-    cost((precondition != NULL) ? precondition->cost() : 0) {
+Action::Action(const Formula& precondition, const EffectList& effects)
+  : precondition(precondition), effects(effects), cost(precondition.cost()) {
 }
 
 
@@ -138,7 +143,6 @@ const AtomicFormula& ActionSchema::action_formula(size_t id) const {
    action. */
 void ActionSchema::instantiations(ActionList& actions,
 				  const Problem& problem) const {
-  cout << "Instantiating action '" << action_formula(0) << "'" << endl;
   vector<NameList*, container_alloc> arguments;
   vector<NameList::const_iterator> next_arg;
   for (VariableList::const_iterator i = parameters.begin();
@@ -150,17 +154,11 @@ void ActionSchema::instantiations(ActionList& actions,
   SubstitutionList args;
   size_t n = parameters.size();
   for (size_t i = 0; i < n; ) {
-    if (args.size() > i) {
-      args[i] = new Substitution(*parameters[i], **next_arg[i]);
-    } else {
-      args.push_back(new Substitution(*parameters[i], **next_arg[i]));
-    }
-    if (i + 1 == n) {
-      // create instantiation
-      const Formula* new_precond = (precondition != NULL) ?
-	&precondition->substitution(args) : NULL;
-      if (new_precond == NULL || new_precond->consistent(problem)) {
-	// consistent instantiation
+    args.push_back(new Substitution(*parameters[i], **next_arg[i]));
+    const Formula& new_precond = precondition.instantiation(args, problem);
+    if (i + 1 == n || new_precond == Formula::FALSE) {
+      if (new_precond != Formula::FALSE) {
+	/* consistent instantiation */
 	TermList& terms = *(new TermList());
 	for (SubstitutionList::const_iterator s = args.begin();
 	     s != args.end(); s++) {
@@ -168,9 +166,9 @@ void ActionSchema::instantiations(ActionList& actions,
 	}
 	actions.push_back(new GroundAction(name, terms, new_precond,
 					   effects.substitution(args)));
-	cout << "instantiation: " << actions.back()->action_formula(0) << endl;
       }
       for (int j = i; j >= 0; j--) {
+	args.pop_back();
 	next_arg[j]++;
 	if (next_arg[j] == arguments[j]->end()) {
 	  if (j == 0) {
@@ -205,8 +203,8 @@ void ActionSchema::print(ostream& os) const {
     }
   }
   os << ") ";
-  if (precondition != NULL) {
-    os << *precondition;
+  if (precondition != Formula::TRUE) {
+    os << precondition;
   } else {
     os << "nil";
   }
@@ -224,7 +222,7 @@ void ActionSchema::print(ostream& os) const {
 
 /* Constructs a ground action, assuming arguments are names. */
 GroundAction::GroundAction(const string& name, const TermList& arguments,
-			   const Formula* precondition,
+			   const Formula& precondition,
 			   const EffectList& effects)
   : Action(precondition, effects),
     formula(*(new AtomicFormula(name, arguments))) {
@@ -256,8 +254,8 @@ void GroundAction::print(ostream& os) const {
     os << **i;
   }
   os << ") ";
-  if (precondition != NULL) {
-    os << *precondition;
+  if (precondition != Formula::TRUE) {
+    os << precondition;
   } else {
     os << "nil";
   }
@@ -311,7 +309,7 @@ void Domain::compatible_constants(NameList& constants, const Type& t) const {
   for (NameMap::const_iterator i = this->constants.begin();
        i != this->constants.end(); i++) {
     const Name& name = *(*i).second;
-    if (name.type.compatible(t)) {
+    if (name.type.subtype(t)) {
       constants.push_back(&name);
     }
   }
