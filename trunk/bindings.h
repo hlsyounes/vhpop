@@ -2,13 +2,14 @@
 /*
  * Binding constraints.
  *
- * $Id: bindings.h,v 1.2 2001-07-29 17:38:25 lorens Exp $
+ * $Id: bindings.h,v 1.3 2001-09-18 16:06:10 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
 
 #include <iostream>
 #include "support.h"
+#include "chain.h"
 #include "formulas.h"
 
 
@@ -96,7 +97,8 @@ protected:
 /*
  * List of bindings.
  */
-typedef vector<const Binding*, container_alloc> BindingList;
+struct BindingList : public gc, vector<const Binding*, container_alloc> {
+};
 
 
 /*
