@@ -2,7 +2,7 @@
 /*
  * PDDL parser.
  *
- * $Id: pddl.yy,v 1.21 2001-12-25 20:11:00 lorens Exp $
+ * $Id: pddl.yy,v 1.22 2001-12-27 18:41:12 lorens Exp $
  */
 %{
 #include <utility>
@@ -752,7 +752,7 @@ static const Predicate* find_predicate(const string& name) {
   if (pdomain != NULL) {
     return pdomain->find_predicate(name);
   } else if (domain_predicates != NULL) {
-    PredicateMap::const_iterator pi = domain_predicates->find(name);
+    PredicateMapIter pi = domain_predicates->find(name);
     return (pi != domain_predicates->end()) ? (*pi).second : NULL;
   } else {
     return NULL;
