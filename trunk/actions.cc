@@ -13,29 +13,39 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: actions.cc,v 6.4 2003-08-28 16:48:45 lorens Exp $
+ * $Id: actions.cc,v 6.5 2003-09-05 16:13:59 lorens Exp $
  */
 #include "actions.h"
 #include "bindings.h"
 #include "problems.h"
 #include "mathport.h"
 #include <stack>
+#include <typeinfo>
 
 
 /* ====================================================================== */
 /* Action */
 
+/* Next action id. */
+size_t Action::next_id = 0;
+
+
 /* Constructs an action with the given name. */
 Action::Action(const std::string& name, bool durative)
-  : name_(name), condition_(&Condition::TRUE), durative_(durative),
-    min_duration_(0.0f), max_duration_(durative ? INFINITY : 0.0f) {
+  : id_(next_id++), name_(name), condition_(&Condition::TRUE),
+    durative_(durative), min_duration_(new Value(0.0f)),
+    max_duration_(new Value(durative ? INFINITY : 0.0f)) {
   Condition::register_use(condition_);
+  Expression::register_use(min_duration_);
+  Expression::register_use(max_duration_);
 }
 
 
 /* Deletes this action. */
 Action::~Action() {
   Condition::unregister_use(condition_);
+  Expression::unregister_use(min_duration_);
+  Expression::unregister_use(max_duration_);
   for (EffectList::const_iterator ei = effects().begin();
        ei != effects().end(); ei++) {
     delete *ei;
@@ -60,23 +70,29 @@ void Action::add_effect(const Effect& effect) {
 
 
 /* Sets the minimum duration for this action. */
-void Action::set_min_duration(double min_duration) {
-  if (min_duration_ < min_duration) {
-    min_duration_ = min_duration;
+void Action::set_min_duration(const Expression& min_duration) {
+  const Expression& md = Maximum::make(*min_duration_, min_duration);
+  if (&md != min_duration_) {
+    Expression::unregister_use(min_duration_);
+    min_duration_ = &md;
+    Expression::register_use(min_duration_);
   }
 }
 
 
 /* Sets the maximum duration for this action. */
-void Action::set_max_duration(double max_duration) {
-  if (max_duration_ > max_duration) {
-    max_duration_ = max_duration;
+void Action::set_max_duration(const Expression& max_duration) {
+  const Expression& md = Minimum::make(*max_duration_, max_duration);
+  if (&md != max_duration_) {
+    Expression::unregister_use(max_duration_);
+    max_duration_ = &md;
+    Expression::register_use(max_duration_);
   }
 }
 
 
 /* Sets the duration for this action. */
-void Action::set_duration(double duration) {
+void Action::set_duration(const Expression& duration) {
   set_min_duration(duration);
   set_max_duration(duration);
 }
@@ -167,10 +183,6 @@ void ActionSchema::add_parameter(Variable var) {
    action schema. */
 void ActionSchema::instantiations(GroundActionList& actions,
 				  const Problem& problem) const {
-  if (min_duration() > max_duration()) {
-    return;
-  }
-
   size_t n = parameters().size();
   if (n == 0) {
     const GroundAction* inst_action =
@@ -260,8 +272,18 @@ ActionSchema::instantiation(const SubstitutionMap& args,
 	 ei != inst_effects.end(); ei++) {
       ga.add_effect(**ei);
     }
-    ga.set_min_duration(min_duration());
-    ga.set_max_duration(max_duration());
+    ga.set_min_duration(min_duration().instantiation(args, problem));
+    ga.set_max_duration(max_duration().instantiation(args, problem));
+    const Value* v1 = dynamic_cast<const Value*>(&ga.min_duration());
+    if (v1 != NULL) {
+      const Value* v2 = dynamic_cast<const Value*>(&ga.max_duration());
+      if (v2 != NULL) {
+	if (v1->value() > v2->value()) {
+	  delete &ga;
+	  return NULL;
+	}
+      }
+    }
     return &ga;
   } else {
     for (EffectList::const_iterator ei = inst_effects.begin();
@@ -275,30 +297,31 @@ ActionSchema::instantiation(const SubstitutionMap& args,
 
 /* Prints this action on the given stream. */
 void ActionSchema::print(std::ostream& os, const PredicateTable& predicates,
+			 const FunctionTable& functions,
 			 const TermTable& terms) const {
-  os << '(' << name() << " (";
+  os << "  " << name();
+  os << std::endl << "    parameters:";
   for (VariableList::const_iterator vi = parameters().begin();
        vi != parameters().end(); vi++) {
-    if (vi != parameters().begin()) {
-      os << ' ';
-    }
+    os << ' ';
     terms.print_term(os, *vi);
   }
-  os << ") ";
-  if (!condition().tautology()) {
-    condition().print(os, predicates, terms, 0, Bindings::EMPTY);
-  } else {
-    os << "nil";
+  if (durative()) {
+    os << std::endl << "    duration: [";
+    min_duration().print(os, functions, terms);
+    os << ',';
+    max_duration().print(os, functions, terms);
+    os << "]";
   }
-  os << " (";
+  os << std::endl << "    condition: ";
+  condition().print(os, predicates, terms, 0, Bindings::EMPTY);
+  os << std::endl << "    effect: (and";
   for (EffectList::const_iterator ei = effects().begin();
        ei != effects().end(); ei++) {
-    if (ei != effects().begin()) {
-      os << ' ';
-    }
+    os << ' ';
     (*ei)->print(os, predicates, terms);
   }
-  os << ")" << ')';
+  os << ")";
 }
 
 
