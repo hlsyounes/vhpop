@@ -1,5 +1,5 @@
 /*
- * $Id: domains.cc,v 1.31 2002-01-24 01:47:05 lorens Exp $
+ * $Id: domains.cc,v 1.32 2002-01-24 03:13:31 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -313,8 +313,8 @@ const Atom& ActionSchema::action_formula() const {
 void ActionSchema::instantiations(GroundActionList& actions,
 				  const Problem& problem) const {
   size_t n = parameters.size();
-  SubstitutionList args;
   if (n == 0) {
+    SubstitutionList args;
     actions.push_back(new GroundAction(name, *(new NameList()), precondition,
 				       effects.instantiation(args, problem)));
     return;
@@ -329,9 +329,17 @@ void ActionSchema::instantiations(GroundActionList& actions,
     }
     next_arg.push_back(arguments.back()->begin());
   }
+  Stack<const Formula*> preconds;
+  preconds.push(&precondition);
+  SubstitutionList args;
   for (size_t i = 0; i < n; ) {
-    args.push_back(new Substitution(*parameters[i], **next_arg[i]));
-    const Formula& new_precond = precondition.instantiation(args, problem);
+    const Substitution* subst =
+      new Substitution(*parameters[i], **next_arg[i]);
+    args.push_back(subst);
+    SubstitutionList pargs;
+    pargs.push_back(subst);
+    const Formula& new_precond = preconds.top()->instantiation(pargs, problem);
+    preconds.push(&new_precond);
     if (i + 1 == n || new_precond.contradiction()) {
       if (!new_precond.contradiction()) {
 	const EffectList& new_effects = effects.instantiation(args, problem);
@@ -348,6 +356,7 @@ void ActionSchema::instantiations(GroundActionList& actions,
       }
       for (int j = i; j >= 0; j--) {
 	args.pop_back();
+	preconds.pop();
 	next_arg[j]++;
 	if (next_arg[j] == arguments[j]->end()) {
 	  if (j == 0) {
