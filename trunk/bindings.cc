@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.cc,v 4.2 2002-09-22 01:40:51 lorens Exp $
+ * $Id: bindings.cc,v 4.3 2002-09-22 19:42:35 lorens Exp $
  */
 #include <typeinfo>
 #include "bindings.h"
@@ -1321,7 +1321,13 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
     }
   }
   /* New bindings are consistent with the current bindings. */
-  if (test_only) {
+  if (test_only
+      || (varsets == varsets_ && high_step == high_step_
+	  && step_domains == step_domains_
+#ifdef TRANSFORMATIONAL
+	  && equalities == equalities_ && inequalities == inequalities_
+#endif
+	  )) {
     VarsetChain::register_use(varsets);
     VarsetChain::unregister_use(varsets);
     StepDomainChain::register_use(step_domains);
