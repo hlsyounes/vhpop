@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: terms.cc,v 6.1 2003-07-13 16:16:25 lorens Exp $
+ * $Id: terms.cc,v 6.2 2003-07-21 02:20:12 lorens Exp $
  */
 #include "terms.h"
 #include "bindings.h"
@@ -81,6 +81,20 @@ Type TermTable::type(Term term) const {
     } else {
       return variable_types_[first_variable() - term];
     }
+  }
+}
+
+
+/* Prints the given term on the given stream. */
+void TermTable::print_term(std::ostream& os, Term term) const {
+  if (is_object(term)) {
+    if (Object(term) < first_object()) {
+      parent_->print_term(os, term);
+    } else {
+      os << names_[term - first_object()];
+    }
+  } else {
+    os << "?v" << -term;
   }
 }
 
