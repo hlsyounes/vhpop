@@ -2,7 +2,7 @@
 /*
  * PDDL parser.
  *
- * $Id: pddl.yy,v 1.5 2001-08-11 06:18:46 lorens Exp $
+ * $Id: pddl.yy,v 1.6 2001-08-18 15:47:24 lorens Exp $
  */
 %{
 #include <utility>
@@ -330,7 +330,7 @@ one_eff_formula : term_literal
 			yywarning("assuming ':conditional-effects' "
 				  "requirement.");
 		      }
-		      $$ = new Effect($3, *$4);
+		      $$ = new Effect(*$3, *$4);
 		    }
                 | '(' FORALL 
                     {
@@ -350,9 +350,9 @@ one_eff_formula : term_literal
                 ;
 
 atomic_effs_forall_body : atomic_effs
-                            { $$ = new Effect(*eff_forall, NULL, *$1); }
+                            { $$ = new Effect(*eff_forall, *$1); }
                         | '(' WHEN formula atomic_effs ')'
-                            { $$ = new Effect(*eff_forall, $3, *$4); }
+                            { $$ = new Effect(*eff_forall, *$3, *$4); }
                         ;
 
 atomic_effs : term_literal
