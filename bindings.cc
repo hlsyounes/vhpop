@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.cc,v 6.8 2003-09-01 19:33:11 lorens Exp $
+ * $Id: bindings.cc,v 6.9 2003-09-05 16:18:23 lorens Exp $
  */
 #include "bindings.h"
 #include "plans.h"
@@ -23,6 +23,7 @@
 #include "formulas.h"
 #include "types.h"
 #include "debug.h"
+#include <algorithm>
 #include <typeinfo>
 
 
@@ -604,7 +605,7 @@ bool Bindings::unifiable(const Literal& l1, size_t id1,
 bool Bindings::unifiable(BindingList& mgu,
 			 const Literal& l1, size_t id1,
 			 const Literal& l2, size_t id2) {
-  return EMPTY.unify(mgu, l1, id1, l2, id2);
+  return EMPTY.unify(mgu, l1, id1, l2, id2, NULL);
 }
 
 
@@ -685,9 +686,10 @@ const NameSet& Bindings::domain(Variable v, size_t step_id,
 /* Checks if one of the given formulas is the negation of the other,
    and the atomic formulas can be unified. */
 bool Bindings::affects(const Literal& l1, size_t id1,
-		       const Literal& l2, size_t id2) const {
+		       const Literal& l2, size_t id2,
+		       const Problem* problem) const {
   BindingList dummy;
-  return affects(dummy, l1, id1, l2, id2);
+  return affects(dummy, l1, id1, l2, id2, problem);
 }
 
 
@@ -695,14 +697,15 @@ bool Bindings::affects(const Literal& l1, size_t id1,
    and the atomic formulas can be unified; the most general unifier
    is added to the provided substitution list. */
 bool Bindings::affects(BindingList& mgu, const Literal& l1, size_t id1,
-		       const Literal& l2, size_t id2) const {
+		       const Literal& l2, size_t id2,
+		       const Problem* problem) const {
   const Negation* negation = dynamic_cast<const Negation*>(&l1);
   if (negation != NULL) {
-    return unify(mgu, l2, id2, negation->atom(), id1);
+    return unify(mgu, l2, id2, negation->atom(), id1, problem);
   } else {
     negation = dynamic_cast<const Negation*>(&l2);
     if (negation != NULL) {
-      return unify(mgu, negation->atom(), id2, l1, id1);
+      return unify(mgu, negation->atom(), id2, l1, id1, problem);
     } else {
       return false;
     }
@@ -712,18 +715,19 @@ bool Bindings::affects(BindingList& mgu, const Literal& l1, size_t id1,
 
 /* Checks if the given formulas can be unified. */
 bool Bindings::unify(const Literal& l1, size_t id1,
-		     const Literal& l2, size_t id2) const {
+		     const Literal& l2, size_t id2,
+		     const Problem* problem) const {
   BindingList dummy;
-  return unify(dummy, l1, id1, l2, id2);
+  return unify(dummy, l1, id1, l2, id2, problem);
 }
 
 
 /* Checks if the given formulas can be unified; the most general
    unifier is added to the provided substitution list. */
-bool Bindings::unify(BindingList& mgu,
-		     const Literal& l1, size_t id1,
-		     const Literal& l2, size_t id2) const {
-  if (id1 == 0 && id2 == 0) {
+bool Bindings::unify(BindingList& mgu, const Literal& l1, size_t id1,
+		     const Literal& l2, size_t id2,
+		     const Problem* problem) const {
+  if (l1.id() > 0 && l2.id() > 0) {
     /* Both literals are fully instantiated. */
     return &l1 == &l2;
   } else if (typeid(l1) != typeid(l2)) {
@@ -732,12 +736,12 @@ bool Bindings::unify(BindingList& mgu,
   } else if (l1.predicate() != l2.predicate()) {
     /* The predicates do not match. */
     return false;
-  } else if (id1 == 0 || id2 == 0) {
+  } else if (l1.id() > 0 || l2.id() > 0) {
     /* One of the literals is fully instantiated. */
     const Literal* ll;
     const Literal* lg;
     size_t idl;
-    if (id1 == 0) {
+    if (l1.id() > 0) {
       ll = &l2;
       lg = &l1;
       idl = id2;
@@ -800,10 +804,36 @@ bool Bindings::unify(BindingList& mgu,
 	  /*
 	   * The first term is a name and the second is a variable.
 	   */
+	  if (problem != NULL) {
+	    Type type1 = problem->terms().type(term1);
+	    Type type2 = problem->terms().type(term2);
+	    if (!problem->domain().types().subtype(type1, type2)) {
+	      /* Incompatible term types. */
+	      return false;
+	    }
+	  }
 	  mgu.push_back(Binding(term2, id2, term1, 0, true));
 	}
       } else {
-	/* The first term is a variable. */
+	/*
+	 * The first term is a variable.
+	 */
+	if (problem != NULL) {
+	  Type type1 = problem->terms().type(term1);
+	  Type type2 = problem->terms().type(term2);
+	  if (is_object(term2)) {
+	    if (!problem->domain().types().subtype(type2, type1)) {
+	      /* Incompatible term types. */
+	      return false;
+	    }
+	  } else {
+	    if (!(problem->domain().types().subtype(type1, type2)
+		  || problem->domain().types().subtype(type2, type1))) {
+	      /* Incompatible term types. */
+	      return false;
+	    }
+	  }
+	}
 	mgu.push_back(Binding(term1, id1, term2, id2, true));
       }
     }
