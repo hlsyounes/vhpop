@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 6.6 2003-09-05 16:27:19 lorens Exp $
+ * $Id: pddl.yy,v 6.7 2003-09-18 21:50:21 lorens Exp $
  */
 %{
 #include "requirements.h"
@@ -209,6 +209,8 @@ static const Formula* make_forall(const Formula& body);
 static void add_effect(const Literal& literal);
 /* Pops the top-most universally quantified variables. */
 static void pop_forall_effect();
+/* Adds a timed initial literal to the current problem. */
+static void add_init_literal(float time, const Literal& literal);
 %}
 
 %token DEFINE DOMAIN_TOKEN PROBLEM
@@ -217,6 +219,7 @@ static void pop_forall_effect();
 %token EXISTENTIAL_PRECONDITIONS UNIVERSAL_PRECONDITIONS
 %token QUANTIFIED_PRECONDITIONS CONDITIONAL_EFFECTS FLUENTS ADL
 %token DURATIVE_ACTIONS DURATION_INEQUALITIES CONTINUOUS_EFFECTS
+%token TIMED_INITIAL_LITERALS
 %token ACTION PARAMETERS PRECONDITION EFFECT
 %token DURATIVE_ACTION DURATION CONDITION
 %token PDOMAIN OBJECTS INIT GOAL METRIC
@@ -230,6 +233,7 @@ static void pop_forall_effect();
 %union {
   const Condition* condition;
   const Formula* formula;
+  const Literal* literal;
   const Atom* atom;
   const Expression* expr;
   const Application* appl;
@@ -243,6 +247,7 @@ static void pop_forall_effect();
 
 %type <condition> da_gd timed_gd timed_gds
 %type <formula> formula conjuncts disjuncts
+%type <literal> name_literal
 %type <atom> atomic_name_formula atomic_term_formula
 %type <expr> f_exp opt_f_exp ground_f_exp opt_ground_f_exp
 %type <appl> ground_f_head f_head
@@ -250,7 +255,7 @@ static void pop_forall_effect();
 %type <strs> name_seq variable_seq
 %type <type> type_spec type
 %type <types> types
-%type <str> type_name predicate function name variable
+%type <str> type_name predicate init_predicate function name variable
 %type <str> DEFINE DOMAIN_TOKEN PROBLEM
 %type <str> WHEN NOT AND OR IMPLY EXISTS FORALL
 %type <str> NUMBER_TOKEN OBJECT_TOKEN EITHER
@@ -369,6 +374,11 @@ require_key : STRIPS { requirements->strips = true; }
                 { requirements->duration_inequalities = true; }
             | CONTINUOUS_EFFECTS
                 { throw Exception("`:continuous-effects' not supported"); }
+            | TIMED_INITIAL_LITERALS
+                {
+		  requirements->durative_actions = true;
+		  requirements->timed_initial_literals = true;
+		}
             ;
 
 types_def : '(' TYPES { require_typing(); name_kind = TYPE_KIND; }
@@ -579,11 +589,16 @@ init_elements : /* empty */
               | init_elements init_element
               ;
 
-init_element : atomic_name_formula { problem->add_init_atom(*$1); }
+init_element : '(' init_predicate { prepare_atom($2); } names ')'
+                 { problem->add_init_atom(*make_atom()); }
+             | '(' AT { prepare_atom($2); } names ')'
+                 { problem->add_init_atom(*make_atom()); }
              | '(' not atomic_name_formula ')'
                  { Formula::register_use($3); Formula::unregister_use($3); }
              | '(' '=' ground_f_head NUMBER ')'
                  { problem->add_init_value(*$3, $4); }
+             | '(' at NUMBER name_literal ')'
+                 { add_init_literal($3, *$4); }
              ;
 
 goal_spec : goal
@@ -631,6 +646,10 @@ atomic_term_formula : '(' predicate { prepare_atom($2); } terms ')'
 atomic_name_formula : '(' predicate { prepare_atom($2); } names ')'
                         { $$ = make_atom(); }
                     ;
+
+name_literal : atomic_name_formula { $$ = $1; }
+             | '(' not atomic_name_formula ')' { $$ = &Negation::make(*$3); }
+             ;
 
 
 /* ====================================================================== */
@@ -803,6 +822,14 @@ type_name : DEFINE | DOMAIN_TOKEN | PROBLEM
 predicate : type_name
           | OBJECT_TOKEN | NUMBER_TOKEN
           ;
+
+init_predicate : DEFINE | DOMAIN_TOKEN | PROBLEM
+               | EITHER
+               | OVER | START | END | ALL
+               | MINIMIZE | MAXIMIZE | TOTAL_TIME
+               | NAME
+               | OBJECT_TOKEN | NUMBER_TOKEN
+               ;
 
 function : name
          ;
@@ -1400,4 +1427,13 @@ static void pop_forall_effect() {
     n--;
   }
   quantified.resize(n);
+}
+
+
+/* Adds a timed initial literal to the current problem. */
+static void add_init_literal(float time, const Literal& literal) {
+  problem->add_init_literal(time, literal);
+  if (time > 0.0f) {
+    domain->predicates().make_dynamic(literal.predicate());
+  }
 }

@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 6.10 2003-09-09 23:19:15 lorens Exp $
+ * $Id: heuristics.cc,v 6.11 2003-09-18 21:47:32 lorens Exp $
  */
 #include "heuristics.h"
 #include "plans.h"
@@ -395,6 +395,30 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
 					 HeuristicValue::ZERO_COST_UNIT_WORK));
     }
   }
+  for (TimedActionTable::const_iterator ai = problem.timed_actions().begin();
+       ai != problem.timed_actions().end(); ai++) {
+    float time = (*ai).first;
+    const GroundAction& action = *(*ai).second;
+    for (EffectList::const_iterator ei = action.effects().begin();
+	 ei != action.effects().end(); ei++) {
+      const Literal& literal = (*ei)->literal();
+      achievers_[&literal].insert(std::make_pair(&action, *ei));
+      const Atom* atom = dynamic_cast<const Atom*>(&literal);
+      if (atom != NULL) {
+	if (atom_values_.find(atom) == atom_values_.end()) {
+	  atom_values_.insert(std::make_pair(atom,
+					     HeuristicValue(1, 1, time)));
+	}
+      } else {
+	const Negation& negation = dynamic_cast<const Negation&>(literal);
+	if (negation_values_.find(&negation.atom()) == negation_values_.end()
+	    && heuristic_value(negation.atom(), 0).zero()) {
+	  negation_values_.insert(std::make_pair(&negation.atom(),
+						 HeuristicValue(1, 1, time)));
+	}
+      }
+    }
+  }
 
   /*
    * Generate the rest of the levels until no change occurs.
@@ -685,7 +709,7 @@ PlanningGraph::~PlanningGraph() {
        lai != achievers_.end(); lai++) {
     for (ActionEffectMap::const_iterator aei = (*lai).second.begin();
 	 aei != (*lai).second.end(); aei++) {
-      if ((*aei).first != &problem().init_action()) {
+      if ((*aei).first->name().substr(0, 1) != "<") {
 	useful_actions.insert(dynamic_cast<const GroundAction*>((*aei).first));
       }
     }

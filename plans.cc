@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 6.12 2003-09-10 22:25:34 lorens Exp $
+ * $Id: plans.cc,v 6.13 2003-09-18 21:50:57 lorens Exp $
  */
 #include "mathport.h"
 #include "plans.h"
@@ -397,19 +397,39 @@ const Plan* Plan::make_initial_plan(const Problem& problem) {
   }
   /* Make chain of initial steps. */
   const Chain<Step>* steps =
-    new Chain<Step>(Step(GOAL_ID, *goal_action),
-		    new Chain<Step>(Step(0, problem.init_action()), NULL));
+    new Chain<Step>(Step(0, problem.init_action()),
+		    new Chain<Step>(Step(GOAL_ID, *goal_action), NULL));
+  size_t num_steps = 0;
   /* Variable bindings. */
   const Bindings* bindings = &Bindings::EMPTY;
   /* Step orderings. */
   const Orderings* orderings;
   if (domain->requirements.durative_actions) {
-    orderings = new TemporalOrderings();
+    const TemporalOrderings* to = new TemporalOrderings();
+    /*
+     * Add steps for timed initial literals.
+     */
+    for (TimedActionTable::const_iterator ai = problem.timed_actions().begin();
+	 ai != problem.timed_actions().end(); ai++) {
+      num_steps++;
+      steps = new Chain<Step>(Step(num_steps, *(*ai).second), steps);
+      const TemporalOrderings* tmp = to->refine((*ai).first, steps->head);
+      delete to;
+      if (tmp == NULL) {
+	Chain<OpenCondition>::register_use(open_conds);
+	Chain<OpenCondition>::unregister_use(open_conds);
+	Chain<Step>::register_use(steps);
+	Chain<Step>::unregister_use(steps);
+	return NULL;
+      }
+      to = tmp;
+    }
+    orderings = to;
   } else {
     orderings = new BinaryOrderings();
   }
   /* Return initial plan. */
-  return new Plan(steps, 0, NULL, 0, *orderings, *bindings,
+  return new Plan(steps, num_steps, NULL, 0, *orderings, *bindings,
 		  NULL, 0, open_conds, num_open_conds, NULL);
 }
 
@@ -460,6 +480,21 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
 	 ei != ia.effects().end(); ei++) {
       const Literal& literal = (*ei)->literal();
       achieves_pred[literal.predicate()].insert(std::make_pair(&ia, *ei));
+    }
+    for (TimedActionTable::const_iterator ai = problem.timed_actions().begin();
+	 ai != problem.timed_actions().end(); ai++) {
+      const GroundAction& action = *(*ai).second;
+      for (EffectList::const_iterator ei = action.effects().begin();
+	   ei != action.effects().end(); ei++) {
+	const Literal& literal = (*ei)->literal();
+	if (typeid(literal) == typeid(Atom)) {
+	  achieves_pred[literal.predicate()].insert(std::make_pair(&action,
+								   *ei));
+	} else {
+	  achieves_neg_pred[literal.predicate()].insert(std::make_pair(&action,
+								       *ei));
+	}
+      }
     }
   }
   static_pred_flaw = false;
@@ -1002,8 +1037,6 @@ int Plan::separate(PlanList& plans, const Unsafe& unsafe,
   BindingList new_bindings;
   bool added = add_goal(new_open_conds, new_num_open_conds, new_bindings,
 			*goal, unsafe.step_id(), test_only);
-  Condition::register_use(goal);
-  Condition::unregister_use(goal);
   if (!test_only) {
     Chain<OpenCondition>::register_use(new_open_conds);
   }
@@ -1041,6 +1074,8 @@ int Plan::separate(PlanList& plans, const Unsafe& unsafe,
   if (!test_only) {
     Chain<OpenCondition>::unregister_use(new_open_conds);
   }
+  Condition::register_use(goal);
+  Condition::unregister_use(goal);
   return count;
 }
 
@@ -1310,7 +1345,7 @@ bool Plan::addable_steps(int& refinements, const Literal& literal,
     for (ActionEffectMap::const_iterator ai = achievers->begin();
 	 ai != achievers->end(); ai++) {
       const Action& action = *(*ai).first;
-      if (&action != &problem->init_action()) {
+      if (action.name().substr(0, 1) != "<") {
 	const Effect& effect = *(*ai).second;
 	count += new_link(dummy, Step(num_steps() + 1, action), effect,
 			  literal, open_cond, true);
@@ -1332,7 +1367,7 @@ void Plan::add_step(PlanList& plans, const Literal& literal,
   for (ActionEffectMap::const_iterator ai = achievers.begin();
        ai != achievers.end(); ai++) {
     const Action& action = *(*ai).first;
-    if (&action != &problem->init_action()) {
+    if (action.name().substr(0, 1) != "<") {
       const Effect& effect = *(*ai).second;
       new_link(plans, Step(num_steps() + 1, action), effect,
 	       literal, open_cond);
@@ -1826,16 +1861,20 @@ std::ostream& operator<<(std::ostream& os, const Plan& p) {
   }
   if (verbosity < 2) {
     std::cerr << "Makespan: " << makespan << std::endl;
+    bool first = true;
     for (std::vector<const Step*>::const_iterator si = ordered_steps.begin();
 	 si != ordered_steps.end(); si++) {
-      if (verbosity > 0 || si != ordered_steps.begin()) {
-	os << std::endl;
-      }
       const Step& s = **si;
-      os << start_times[s.id()] << ':';
-      s.action().print(os, problem->terms(), s.id(), *bindings);
-      if (s.action().durative()) {
-	os << '[' << (end_times[s.id()] - start_times[s.id()]) << ']';
+      if (s.action().name().substr(0, 1) != "<") {
+	if (verbosity > 0 || !first) {
+	  os << std::endl;
+	}
+	first = false;
+	os << start_times[s.id()] << ':';
+	s.action().print(os, problem->terms(), s.id(), *bindings);
+	if (s.action().durative()) {
+	  os << '[' << (end_times[s.id()] - start_times[s.id()]) << ']';
+	}
       }
     }
   } else {

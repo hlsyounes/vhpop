@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: problems.h,v 6.7 2003-09-05 16:31:32 lorens Exp $
+ * $Id: problems.h,v 6.8 2003-09-18 21:51:37 lorens Exp $
  */
 #ifndef PROBLEMS_H
 #define PROBLEMS_H
@@ -28,6 +28,19 @@
 #include "terms.h"
 #include "types.h"
 
+
+/* ====================================================================== */
+/* TimedActionTable */
+
+/*
+ * A table of timed actions.
+ */
+struct TimedActionTable : public std::map<float, GroundAction*> {
+};
+
+
+/* ====================================================================== */
+/* Problem */
 
 /*
  * Problem definition.
@@ -70,6 +83,9 @@ struct Problem {
   /* Adds an atomic formula to the initial conditions of this problem. */
   void add_init_atom(const Atom& atom);
 
+  /* Adds a timed initial literal to this problem. */
+  void add_init_literal(float time, const Literal& literal);
+
   /* Adds a function application value to the initial conditions of
      this problem. */
   void add_init_value(const Application& application, float value);
@@ -88,6 +104,9 @@ struct Problem {
 
   /* Returns the action representing the initial conditions of this problem. */
   const GroundAction& init_action() const { return init_action_; }
+
+  /* Returns the actions representing the timed initial literals. */
+  const TimedActionTable& timed_actions() const { return timed_actions_; }
 
   /* Returns the goal of this problem. */
   const Formula& goal() const { return *goal_; }
@@ -125,6 +144,8 @@ private:
   ValueMap init_values_;
   /* Aciton representing initial conditions of problem. */
   GroundAction init_action_;
+  /* Actions representing timed initial conditions of problem. */
+  TimedActionTable timed_actions_;
   /* Goal of problem. */
   const Formula* goal_;
   /* Metric to minimize. */
