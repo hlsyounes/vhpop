@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 6.5 2003-07-28 01:34:55 lorens Exp $
+ * $Id: formulas.cc,v 6.6 2003-07-28 21:34:33 lorens Exp $
  */
 #include "formulas.h"
 #include "bindings.h"
@@ -335,8 +335,8 @@ const Formula& Atom::instantiation(const SubstitutionMap& subst,
 				   const Problem& problem) const {
   const Atom& f = substitution(subst);
   if (problem.domain().predicates().static_predicate(predicate())) {
-    const AtomList& adds = problem.init().add_list();
-    for (AtomListIter gi = adds.begin(); gi != adds.end(); gi++) {
+    const AtomList& adds = problem.init();
+    for (AtomList::const_iterator gi = adds.begin(); gi != adds.end(); gi++) {
       if (&f == *gi) {
 	register_use(&f);
 	unregister_use(&f);

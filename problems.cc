@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: problems.cc,v 6.2 2003-07-21 02:24:53 lorens Exp $
+ * $Id: problems.cc,v 6.3 2003-07-28 21:39:05 lorens Exp $
  */
 #include "problems.h"
 #include "domains.h"
@@ -61,10 +61,7 @@ void Problem::clear() {
 /* Constructs a problem. */
 Problem::Problem(const std::string& name, const Domain& domain)
   : name_(name), domain_(&domain), terms_(TermTable(domain.terms())),
-    init_(new Effect(Effect::AT_END)),
-    init_action_(GroundAction("", false)),
-    goal_(&Formula::TRUE) {
-  init_action_.add_effect(*init_);
+    init_action_(GroundAction("", false)), goal_(&Formula::TRUE) {
   Formula::register_use(goal_);
   const Problem* p = find(name);
   if (p != NULL) {
@@ -83,7 +80,8 @@ Problem::~Problem() {
 
 /* Adds an atomic formula to the initial conditions of this problem. */
 void Problem::add_init(const Atom& atom) {
-  init_->add_positive(atom);
+  init_.push_back(&atom);
+  init_action_.add_effect(*new Effect(atom, Effect::AT_END));
 }
 
 
@@ -147,7 +145,8 @@ std::ostream& operator<<(std::ostream& os, const Problem& p) {
     p.domain().types().print_type(os, p.terms().type(i));
   }
   os << std::endl << "initial condition: ";
-  p.init().print(os, p.domain().predicates(), p.terms());
+  p.init_action().condition().print(os, p.domain().predicates(), p.terms(),
+				    0, Bindings());
   os << std::endl << "goal: ";
   p.goal().print(os, p.domain().predicates(), p.terms(), 0, Bindings());
   return os;

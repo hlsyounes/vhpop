@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 6.3 2003-07-21 18:14:11 lorens Exp $
+ * $Id: pddl.yy,v 6.4 2003-07-28 21:37:41 lorens Exp $
  */
 %{
 #include "requirements.h"
@@ -108,8 +108,6 @@ static bool parsing_predicate;
 static bool repeated_predicate;
 /* Action being parsed, or NULL if no action is being parsed. */
 static ActionSchema* action;
-/* Effect being parsed, or NULL if no effect is being parsed. */
-static Effect* effect;
 /* Time of current effect. */
 static Effect::EffectTime effect_time;
 /* Condition for effect being parsed, or NULL if unconditional effect. */
@@ -184,16 +182,10 @@ static void add_names(const std::vector<std::string>* names, Type type);
 static void add_variables(const std::vector<std::string>* names, Type type);
 /* Adds the current action to the current domain. */ 
 static void add_action();
-/* Adds the given atom to the add list of the current effect. */
-static void add_positive(const Atom& atom);
-/* Adds the given atom to the delete list of the current effect. */
-static void add_negative(const Atom& atom);
-/* Adds the current effect to the currect action. */
-static void add_effect();
-/* Adds the current universally quantified effect to the currect action. */
-static void add_forall_effect();
-/* Adds the current conditional effect to the currect action. */
-static void add_conditional_effect();
+/* Adds the given literal as an effect to the currect action. */
+static void add_effect(const Literal& literal);
+/* Pops the top-most universally quantified variables. */
+static void pop_forall_effect();
 /* Prepares for the parsning of an atomic formula. */ 
 static void prepare_atom(const std::string* name);
 /* Adds a term with the given name to the current atomic formula. */
@@ -372,7 +364,7 @@ precondition : PRECONDITION formula
                  { action->set_condition(Condition::make(*$2, OVER_ALL)); }
              ;
 
-effect : EFFECT { effect_time = Effect::AT_END; } eff_formula { add_effect(); }
+effect : EFFECT { effect_time = Effect::AT_END; } eff_formula
        ;
 
 da_body : CONDITION da_gd da_body2 { action->set_condition(*$2); }
@@ -380,7 +372,7 @@ da_body : CONDITION da_gd da_body2 { action->set_condition(*$2); }
         ;
 
 da_body2 : /* empty */
-         | EFFECT da_effect { add_effect(); }
+         | EFFECT da_effect
          ;
 
 
@@ -438,10 +430,10 @@ timed_gd : '(' at start formula ')'
 eff_formula : term_literal
             | '(' and eff_formulas ')'
             | '(' forall { prepare_forall_effect(); }
-                '(' opt_variables ')' eff_formula ')' { add_forall_effect(); }
+                '(' opt_variables ')' eff_formula ')' { pop_forall_effect(); }
             | '(' when formula
                 { prepare_conditional_effect(Condition::make(*$3, OVER_ALL)); }
-                one_eff_formula ')' { add_conditional_effect(); }
+                one_eff_formula ')' { effect_condition = NULL; }
             ;
 
 eff_formulas : /* empty */
@@ -452,8 +444,9 @@ one_eff_formula : term_literal
                 | '(' and term_literals ')'
                 ;
 
-term_literal : atomic_term_formula { add_positive(*$1); }
-             | '(' not atomic_term_formula ')' { add_negative(*$3); }
+term_literal : atomic_term_formula { add_effect(*$1); }
+             | '(' not atomic_term_formula ')'
+                 { add_effect(Negation::make(*$3)); }
              ;
 
 term_literals : /* empty */
@@ -463,9 +456,9 @@ term_literals : /* empty */
 da_effect : timed_effect
           | '(' and da_effects ')'
           | '(' forall { prepare_forall_effect(); }
-              '(' opt_variables ')' da_effect ')' { add_forall_effect(); }
+              '(' opt_variables ')' da_effect ')' { pop_forall_effect(); }
           | '(' when da_gd { prepare_conditional_effect(*$3); }
-              timed_effect ')' { add_conditional_effect(); }
+              timed_effect ')' { effect_condition = NULL; }
           ;
 
 da_effects : /* empty */
@@ -473,9 +466,9 @@ da_effects : /* empty */
            ;
 
 timed_effect : '(' at start { effect_time = Effect::AT_START; }
-                 one_eff_formula ')' { add_effect(); }
+                 one_eff_formula ')'
              | '(' at end { effect_time = Effect::AT_END; }
-                 one_eff_formula ')' { add_effect(); }
+                 one_eff_formula ')'
              ;
 
 
@@ -932,7 +925,6 @@ static void prepare_forall_effect() {
     yywarning("assuming `:conditional-effects' requirement");
     requirements->conditional_effects = true;
   }
-  add_effect();
   context.push_frame();
   quantified.push_back(NULL_TERM);
 }
@@ -944,7 +936,6 @@ static void prepare_conditional_effect(const Condition& condition) {
     yywarning("assuming `:conditional-effects' requirement");
     requirements->conditional_effects = true;
   }
-  add_effect();
   effect_condition = &condition;
 }
 
@@ -1169,58 +1160,30 @@ static void add_action() {
 }
 
 
-/* Adds the given atom to the add list of the current effect. */
-static void add_positive(const Atom& atom) {
-  if (effect == NULL) {
-    effect = new Effect(effect_time);
-  }
-  effect->add_positive(atom);
-}
-
-
-/* Adds the given atom to the delete list of the current effect. */
-static void add_negative(const Atom& atom) {
-  if (effect == NULL) {
-    effect = new Effect(effect_time);
-  }
-  effect->add_negative(Negation::make(atom));
-}
-
-
 /* Adds the current effect to the currect action. */
-static void add_effect() {
-  if (effect != NULL) {
-    for (VariableList::const_iterator vi = quantified.begin();
-	 vi != quantified.end(); vi++) {
-      if (is_variable(*vi)) {
-	effect->add_forall(*vi);
-      }
+static void add_effect(const Literal& literal) {
+  Effect* effect = new Effect(literal, effect_time);
+  for (VariableList::const_iterator vi = quantified.begin();
+       vi != quantified.end(); vi++) {
+    if (is_variable(*vi)) {
+      effect->add_parameter(*vi);
     }
-    if (effect_condition != NULL) {
-      effect->set_condition(*effect_condition);
-    }
-    action->add_effect(*effect);
-    effect = NULL;
   }
+  if (effect_condition != NULL) {
+    effect->set_condition(*effect_condition);
+  }
+  action->add_effect(*effect);
 }
 
 
-/* Adds the current universally quantified effect to the currect action. */
-static void add_forall_effect() {
+/* Pops the top-most universally quantified variables. */
+static void pop_forall_effect() {
   context.pop_frame();
-  add_effect();
   size_t n = quantified.size() - 1;
   while (is_variable(quantified[n])) {
     n--;
   }
   quantified.resize(n);
-}
-
-
-/* Adds the current conditional effect to the currect action. */
-static void add_conditional_effect() {
-  add_effect();
-  effect_condition = NULL;
 }
 
 
