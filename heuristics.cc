@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 6.8 2003-09-05 16:24:25 lorens Exp $
+ * $Id: heuristics.cc,v 6.9 2003-09-08 21:26:17 lorens Exp $
  */
 #include "heuristics.h"
 #include "plans.h"
@@ -137,69 +137,61 @@ struct GroundActionSet : public std::set<const GroundAction*> {
 /* HeuristicValue */
 
 /* A zero heuristic value. */
-const HeuristicValue HeuristicValue::ZERO = HeuristicValue();
+const HeuristicValue HeuristicValue::ZERO =
+HeuristicValue(0, 0, Orderings::threshold);
 /* A zero cost, unit work, heuristic value. */
-const HeuristicValue
-HeuristicValue::ZERO_COST_UNIT_WORK = HeuristicValue(0, 1, 0, 1);
+const HeuristicValue HeuristicValue::ZERO_COST_UNIT_WORK =
+HeuristicValue(0, 1, Orderings::threshold);
 /* An infinite heuristic value. */
 const HeuristicValue
-HeuristicValue::INFINITE = HeuristicValue(INT_MAX, INT_MAX, INT_MAX, INT_MAX);
-
-
-/* Constructs a zero heuristic value. */
-HeuristicValue::HeuristicValue()
-  : max_cost_(0), max_work_(0), add_cost_(0), add_work_(0) {}
-
-
-/* Constructs a heuristic value. */
-HeuristicValue::HeuristicValue(int max_cost, int max_work,
-			       int add_cost, int add_work)
-  : max_cost_(max_cost), max_work_(max_work),
-    add_cost_(add_cost), add_work_(add_work) {}
+HeuristicValue::INFINITE = HeuristicValue(INT_MAX, INT_MAX, INFINITY);
 
 
 /* Checks if this heuristic value is zero. */
 bool HeuristicValue::zero() const {
-  return max_cost() == 0;
+  return add_cost() == 0;
 }
 
 
 /* Checks if this heuristic value is infinite. */
 bool HeuristicValue::infinite() const {
-  return max_cost() == INT_MAX;
+  return isinf(makespan());
 }
 
 
 /* Adds the given heuristic value to this heuristic value. */
 HeuristicValue& HeuristicValue::operator+=(const HeuristicValue& v) {
-  if (max_cost() < v.max_cost()) {
-    max_cost_ = v.max_cost();
-  }
-  max_work_ = sum(max_work(), v.max_work());
   add_cost_ = sum(add_cost(), v.add_cost());
   add_work_ = sum(add_work(), v.add_work());
+  if (makespan() < v.makespan()) {
+    makespan_ = v.makespan();
+  }
   return *this;
 }
 
 
-/* Adds the given cost to this heuristic value. */
-void HeuristicValue::add_cost(int c) {
-  max_cost_ = sum(max_cost(), c);
-  add_cost_ = sum(add_cost(), c);
+/* Increments the cost of this heuristic value. */
+void HeuristicValue::increment_cost() {
+  add_cost_ = sum(add_cost(), 1);
 }
 
 
-/* Adds the given work to this heuristic value. */
-void HeuristicValue::add_work(int w) {
-  max_work_ = sum(max_work(), w);
-  add_work_ = sum(add_work(), w);
+/* Increments the work of this heuristic value. */
+void HeuristicValue::increment_work() {
+  add_work_ = sum(add_work(), 1);
+}
+
+
+/* Increases the makespan of this heuristic value. */
+void HeuristicValue::increase_makespan(float x) {
+  makespan_ += x;
 }
 
 
 /* Equality operator for heuristic values. */
 bool operator==(const HeuristicValue& v1, const HeuristicValue& v2) {
-  return (v1.max_cost() == v2.max_cost() && v1.max_work() == v2.max_work()
-	  && v1.add_cost() == v2.add_cost() && v1.add_work() == v2.add_work());
+  return (v1.add_cost() == v2.add_cost() && v1.add_work() == v2.add_work()
+	  && v1.makespan() == v2.makespan());
 }
 
 
@@ -223,32 +215,22 @@ bool operator>(const HeuristicValue& v1, const HeuristicValue& v2) {
 
 /* Less than or equal to operator for heuristic values. */
 bool operator<=(const HeuristicValue& v1, const HeuristicValue& v2) {
-  return (v1.max_cost() <= v2.max_cost() && v1.max_work() <= v2.max_work()
-	  && v1.add_cost() <= v2.add_cost() && v1.add_work() <= v2.add_work());
+  return (v1.add_cost() <= v2.add_cost() && v1.add_work() <= v2.add_work()
+	  && v1.makespan() <= v2.makespan());
 }
 
 
 /* Greater than or equal to operator for heuristic values. */
 bool operator>=(const HeuristicValue& v1, const HeuristicValue& v2) {
-  return (v1.max_cost() >= v2.max_cost() && v1.max_work() >= v2.max_work()
-	  && v1.add_cost() >= v2.add_cost() && v1.add_work() >= v2.add_work());
+  return (v1.add_cost() >= v2.add_cost() && v1.add_work() >= v2.add_work()
+	  && v1.makespan() >= v2.makespan());
 }
 
 
 /* Returns the componentwise minimum heuristic value, given two
    heuristic values. */
 HeuristicValue min(const HeuristicValue& v1, const HeuristicValue& v2) {
-  int max_cost, max_work, add_cost, add_work;
-  if (v1.max_cost() == v2.max_cost()) {
-    max_cost = v1.max_cost();
-    max_work = std::min(v1.max_work(), v2.max_work());
-  } else if (v1.max_cost() < v2.max_cost()) {
-    max_cost = v1.max_cost();
-    max_work = v1.max_work();
-  } else {
-    max_cost = v2.max_cost();
-    max_work = v2.max_work();
-  }
+  int add_cost, add_work;
   if (v1.add_cost() == v2.add_cost()) {
     add_cost = v1.add_cost();
     add_work = std::min(v1.add_work(), v2.add_work());
@@ -259,14 +241,15 @@ HeuristicValue min(const HeuristicValue& v1, const HeuristicValue& v2) {
     add_cost = v2.add_cost();
     add_work = v2.add_work();
   }
-  return HeuristicValue(max_cost, max_work, add_cost, add_work);
+  return HeuristicValue(add_cost, add_work, 
+			std::min(v1.makespan(), v2.makespan()));
 }
 
 
 /* Output operator for heuristic values. */
 std::ostream& operator<<(std::ostream& os, const HeuristicValue& v) {
-  os << "MAX<" << v.max_cost() << ',' << v.max_work() << '>'
-     << " ADD<" << v.add_cost() << ',' << v.add_work() << '>';
+  os << "ADD<" << v.add_cost() << ',' << v.add_work() << '>'
+     << " MS<" << v.makespan() << '>';
   return os;
 }
 
@@ -489,7 +472,14 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
 	    } else {
 	      cond_value += pre_value;
 	    }
-	    cond_value.add_cost(1);
+	    cond_value.increment_cost();
+	    const Value* min_v =
+	      dynamic_cast<const Value*>(&action.min_duration());
+	    if (min_v == NULL) {
+	      throw Exception("non-constant minimum duration");
+	    }
+	    cond_value.increase_makespan(Orderings::threshold
+					 + min_v->value());
 
 	    /*
 	     * Update heuristic values of literal added by effect.
@@ -522,7 +512,7 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
 		if (vi == atom_values_.end()) {
 		  /* First level this atom is achieved. */
 		  HeuristicValue new_value = cond_value;
-		  new_value.add_work(1);
+		  new_value.increment_work();
 		  new_atom_values.insert(std::make_pair(atom, new_value));
 		  changed = true;
 		  continue;
@@ -531,7 +521,7 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
 	      /* This atom has been achieved earlier. */
 	      HeuristicValue old_value = (*vi).second;
 	      HeuristicValue new_value = cond_value;
-	      new_value.add_work(1);
+	      new_value.increment_work();
 	      new_value = min(new_value, old_value);
 	      if (new_value < old_value) {
 		new_atom_values[atom] = new_value;
@@ -548,7 +538,7 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
 		  if (heuristic_value(negation.atom(), 0).zero()) {
 		    /* First level this negated atom is achieved. */
 		    HeuristicValue new_value = cond_value;
-		    new_value.add_work(1);
+		    new_value.increment_work();
 		    new_negation_values.insert(std::make_pair(&negation.atom(),
 							      new_value));
 		    changed = true;
@@ -562,7 +552,7 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
 	      /* This negated atom has been achieved earlier. */
 	      HeuristicValue old_value = (*vi).second;
 	      HeuristicValue new_value = cond_value;
-	      new_value.add_work(1);
+	      new_value.increment_work();
 	      new_value = min(new_value, old_value);
 	      if (new_value < old_value) {
 		new_negation_values[&negation.atom()] = new_value;
@@ -874,23 +864,8 @@ Heuristic& Heuristic::operator=(const std::string& name) {
     } else if (strcasecmp(n, "ADDR_WORK") == 0) {
       h_.push_back(ADDR_WORK);
       needs_pg_ = true;
-    } else if (strcasecmp(n, "MAX") == 0) {
-      h_.push_back(MAX);
-      needs_pg_ = true;
-    } else if (strcasecmp(n, "MAX_COST") == 0) {
-      h_.push_back(MAX_COST);
-      needs_pg_ = true;
-    } else if (strcasecmp(n, "MAX_WORK") == 0) {
-      h_.push_back(MAX_WORK);
-      needs_pg_ = true;
-    } else if (strcasecmp(n, "MAXR") == 0) {
-      h_.push_back(MAXR);
-      needs_pg_ = true;
-    } else if (strcasecmp(n, "MAXR_COST") == 0) {
-      h_.push_back(MAXR_COST);
-      needs_pg_ = true;
-    } else if (strcasecmp(n, "MAXR_WORK") == 0) {
-      h_.push_back(MAXR_WORK);
+    } else if (strcasecmp(n, "MAKESPAN") == 0) {
+      h_.push_back(MAKESPAN);
       needs_pg_ = true;
     } else {
       throw InvalidHeuristic(name);
@@ -923,13 +898,6 @@ void Heuristic::plan_rank(std::vector<float>& rank, const Plan& plan,
   bool addr_done = false;
   int addr_cost = 0;
   int addr_work = 0;
-  bool max_done = false;
-  int max_cost = 0;
-  int max_work = 0;
-  bool maxr_done = false;
-  int maxr_cost = 0;
-  int maxr_work = 0;
-  int max_steps = 0;
   for (std::vector<HVal>::const_iterator hi = h_.begin();
        hi != h_.end(); hi++) {
     HVal h = *hi;
@@ -1027,88 +995,29 @@ void Heuristic::plan_rank(std::vector<float>& rank, const Plan& plan,
 	}
       }
       break;
-    case MAX:
-    case MAX_COST:
-    case MAX_WORK:
-      if (!max_done) {
-	max_done = true;
-	std::map<size_t, float> start_dist;
-	std::map<size_t, float> end_dist;
-	max_cost = max_steps =
-	  int(plan.orderings().schedule(start_dist, end_dist) + 0.5);
-	for (const Chain<OpenCondition>* occ = plan.open_conds();
-	     occ != NULL; occ = occ->tail) {
-	  const OpenCondition& open_cond = occ->head;
-	  HeuristicValue v =
-	    formula_value(open_cond.condition(), open_cond.when(),
-			  open_cond.step_id(), plan, domain, *planning_graph);
-	  max_cost = std::max(max_cost,
-			      int(start_dist[open_cond.step_id()] + 0.5)
-			      + v.max_cost());
-	  max_work = sum(max_work, v.max_work());
+    case MAKESPAN:
+      std::map<std::pair<size_t, StepTime>, float> min_times;
+      for (const Chain<OpenCondition>* occ = plan.open_conds();
+	   occ != NULL; occ = occ->tail) {
+	const OpenCondition& open_cond = occ->head;
+	HeuristicValue v = formula_value(open_cond.condition(),
+					 open_cond.when(),
+					 open_cond.step_id(), plan, domain,
+					 *planning_graph);
+	StepTime st = start_time(open_cond.when());
+	std::map<std::pair<size_t, StepTime>, float>::iterator di =
+	  min_times.find(std::make_pair(open_cond.step_id(), st));
+	if (di != min_times.end()) {
+	  if (weight*v.makespan() > (*di).second) {
+	    (*di).second = weight*v.makespan();
+	  }
+	} else {
+	  min_times.insert(std::make_pair(std::make_pair(open_cond.step_id(),
+							 st),
+					  weight*v.makespan()));
 	}
       }
-      if (h == MAX) {
-	if (max_cost < INT_MAX) {
-	  rank.push_back(max_steps + weight*(max_cost - max_steps));
-	} else {
-	  rank.push_back(INFINITY);
-	}
-      } else if (h == MAX_COST) {
-	if (max_cost < INT_MAX) {
-	  rank.push_back(max_cost);
-	} else {
-	  rank.push_back(INFINITY);
-	}
-      } else {
-	if (max_work < INT_MAX) {
-	  rank.push_back(max_work);
-	} else {
-	  rank.push_back(INFINITY);
-	}
-      }
-      break;
-    case MAXR:
-    case MAXR_COST:
-    case MAXR_WORK:
-      if (!maxr_done) {
-	maxr_done = true;
-	std::map<size_t, float> start_dist;
-	std::map<size_t, float> end_dist;
-	maxr_cost = max_steps =
-	  int(plan.orderings().schedule(start_dist, end_dist) + 0.5);
-	for (const Chain<OpenCondition>* occ = plan.open_conds();
-	     occ != NULL; occ = occ->tail) {
-	  const OpenCondition& open_cond = occ->head;
-	  HeuristicValue v =
-	    formula_value(open_cond.condition(), open_cond.when(),
-			  open_cond.step_id(), plan,
-			  domain, *planning_graph, true);
-	  maxr_cost = std::max(maxr_cost,
-			       int(start_dist[open_cond.step_id()] + 0.5)
-			       + v.max_cost());
-	  maxr_work = sum(maxr_work, v.max_work());
-	}
-      }
-      if (h == MAXR) {
-	if (maxr_cost < INT_MAX) {
-	  rank.push_back(max_steps + weight*(maxr_cost - max_steps));
-	} else {
-	  rank.push_back(INFINITY);
-	}
-      } else if (h == MAXR_COST) {
-	if (maxr_cost < INT_MAX) {
-	  rank.push_back(maxr_cost);
-	} else {
-	  rank.push_back(INFINITY);
-	}
-      } else {
-	if (maxr_work < INT_MAX) {
-	  rank.push_back(maxr_work);
-	} else {
-	  rank.push_back(INFINITY);
-	}
-      }
+      rank.push_back(plan.orderings().makespan(min_times));
       break;
     }
   }
@@ -1207,11 +1116,8 @@ std::ostream& operator<<(std::ostream& os, const SelectionCriterion& c) {
 	os << 'R';
       }
       break;
-    case SelectionCriterion::MAX:
-      os << "MAX";
-      if (c.reuse) {
-	os << 'R';
-      }
+    case SelectionCriterion::MAKESPAN:
+      os << "MAKESPAN";
       break;
     }
     break;
@@ -1224,11 +1130,8 @@ std::ostream& operator<<(std::ostream& os, const SelectionCriterion& c) {
 	os << 'R';
       }
       break;
-    case SelectionCriterion::MAX:
-      os << "MAX";
-      if (c.reuse) {
-	os << 'R';
-      }
+    case SelectionCriterion::MAKESPAN:
+      os << "MAKESPAN";
       break;
     }
     break;
@@ -1241,11 +1144,8 @@ std::ostream& operator<<(std::ostream& os, const SelectionCriterion& c) {
 	os << 'R';
       }
       break;
-    case SelectionCriterion::MAX:
-      os << "MAX";
-      if (c.reuse) {
-	os << 'R';
-      }
+    case SelectionCriterion::MAKESPAN:
+      os << "MAKESPAN";
       break;
     }
     break;
@@ -1258,11 +1158,8 @@ std::ostream& operator<<(std::ostream& os, const SelectionCriterion& c) {
 	os << 'R';
       }
       break;
-    case SelectionCriterion::MAX:
-      os << "MAX";
-      if (c.reuse) {
-	os << 'R';
-      }
+    case SelectionCriterion::MAKESPAN:
+      os << "MAKESPAN";
       break;
     }
     break;
@@ -1508,12 +1405,9 @@ FlawSelectionOrder& FlawSelectionOrder::operator=(const std::string& name) {
 	} else if (strcasecmp(n + 3, "ADDR") == 0) {
 	  criterion.heuristic = SelectionCriterion::ADD;
 	  criterion.reuse = true;
-	} else if (strcasecmp(n + 3, "MAX") == 0) {
-	  criterion.heuristic = SelectionCriterion::MAX;
+	} else if (strcasecmp(n + 3, "MAKESPAN") == 0) {
+	  criterion.heuristic = SelectionCriterion::MAKESPAN;
 	  criterion.reuse = false;
-	} else if (strcasecmp(n + 3, "MAXR") == 0) {
-	  criterion.heuristic = SelectionCriterion::MAX;
-	  criterion.reuse = true;
 	} else {
 	  throw InvalidFlawSelectionOrder(name);
 	}
@@ -1526,12 +1420,9 @@ FlawSelectionOrder& FlawSelectionOrder::operator=(const std::string& name) {
 	} else if (strcasecmp(n + 3, "ADDR") == 0) {
 	  criterion.heuristic = SelectionCriterion::ADD;
 	  criterion.reuse = true;
-	} else if (strcasecmp(n + 3, "MAX") == 0) {
-	  criterion.heuristic = SelectionCriterion::MAX;
+	} else if (strcasecmp(n + 3, "MAKESPAN") == 0) {
+	  criterion.heuristic = SelectionCriterion::MAKESPAN;
 	  criterion.reuse = false;
-	} else if (strcasecmp(n + 3, "MAXR") == 0) {
-	  criterion.heuristic = SelectionCriterion::MAX;
-	  criterion.reuse = true;
 	} else {
 	  throw InvalidFlawSelectionOrder(name);
 	}
@@ -1544,12 +1435,6 @@ FlawSelectionOrder& FlawSelectionOrder::operator=(const std::string& name) {
 	} else if (strcasecmp(n + 3, "ADDR") == 0) {
 	  criterion.heuristic = SelectionCriterion::ADD;
 	  criterion.reuse = true;
-	} else if (strcasecmp(n + 3, "MAX") == 0) {
-	  criterion.heuristic = SelectionCriterion::MAX;
-	  criterion.reuse = false;
-	} else if (strcasecmp(n + 3, "MAXR") == 0) {
-	  criterion.heuristic = SelectionCriterion::MAX;
-	  criterion.reuse = true;
 	} else {
 	  throw InvalidFlawSelectionOrder(name);
 	}
@@ -1561,12 +1446,6 @@ FlawSelectionOrder& FlawSelectionOrder::operator=(const std::string& name) {
 	  criterion.reuse = false;
 	} else if (strcasecmp(n + 3, "ADDR") == 0) {
 	  criterion.heuristic = SelectionCriterion::ADD;
-	  criterion.reuse = true;
-	} else if (strcasecmp(n + 3, "MAX") == 0) {
-	  criterion.heuristic = SelectionCriterion::MAX;
-	  criterion.reuse = false;
-	} else if (strcasecmp(n + 3, "MAXR") == 0) {
-	  criterion.heuristic = SelectionCriterion::MAX;
 	  criterion.reuse = true;
 	} else {
 	  throw InvalidFlawSelectionOrder(name);
@@ -1950,7 +1829,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 			      open_cond.step_id(), plan,
 			      problem.domain(), *pg, criterion.reuse);
 	      int rank = ((criterion.heuristic == SelectionCriterion::ADD)
-			  ? h.add_cost() : h.max_cost());
+			  ? h.add_cost() : int(h.makespan() + 0.5));
 	      if (c < selection.criterion || rank < selection.rank) {
 		selection.flaw = &open_cond;
 		selection.criterion = c;
@@ -1973,7 +1852,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 			      open_cond.step_id(), plan,
 			      problem.domain(), *pg, criterion.reuse);
 	      int rank = ((criterion.heuristic == SelectionCriterion::ADD)
-			  ? h.add_cost() : h.max_cost());
+			  ? h.add_cost() : int(h.makespan() + 0.5));
 	      if (c < selection.criterion || rank > selection.rank) {
 		selection.flaw = &open_cond;
 		selection.criterion = c;
@@ -1995,8 +1874,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 		formula_value(open_cond.condition(), open_cond.when(),
 			      open_cond.step_id(), plan,
 			      problem.domain(), *pg, criterion.reuse);
-	      int rank = ((criterion.heuristic == SelectionCriterion::ADD)
-			  ? h.add_work() : h.max_work());
+	      int rank = h.add_work();
 	      if (c < selection.criterion || rank < selection.rank) {
 		selection.flaw = &open_cond;
 		selection.criterion = c;
@@ -2018,8 +1896,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 		formula_value(open_cond.condition(), open_cond.when(),
 			      open_cond.step_id(), plan,
 			      problem.domain(), *pg, criterion.reuse);
-	      int rank = ((criterion.heuristic == SelectionCriterion::ADD)
-			  ? h.add_work() : h.max_work());
+	      int rank = h.add_work();
 	      if (c < selection.criterion || rank > selection.rank) {
 		selection.flaw = &open_cond;
 		selection.criterion = c;
