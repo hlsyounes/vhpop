@@ -2,7 +2,7 @@
 /*
  * Domain descriptions.
  *
- * $Id: domains.h,v 1.11 2001-08-18 15:46:54 lorens Exp $
+ * $Id: domains.h,v 1.12 2001-08-20 04:10:14 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -172,9 +172,6 @@ struct Action : public gc {
   const Formula& precondition;
   /* List of action effects. */
   const EffectList& effects;
-  /* Roughly corresponds to the number of open conditions this action
-     will give rise to. */
-  const size_t cost;
 
   /* Deletes this action. */
   virtual ~Action() {
