@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: types.h,v 3.1 2002-03-18 09:41:01 lorens Exp $
+ * $Id: types.h,v 3.2 2002-03-18 09:41:15 lorens Exp $
  */
 #ifndef TYPES_H
 #define TYPES_H
@@ -67,6 +67,25 @@ protected:
 
 
 /*
+ * Table of simple types.
+ */
+struct TypeMap : hash_map<string, const SimpleType*> {
+};
+
+/* Iterator for type tables. */
+typedef TypeMap::const_iterator TypeMapIter;
+
+
+/* Set of simple types. */
+struct TypeSet : public set<const SimpleType*,
+		 less<const LessThanComparable*> > {
+};
+
+/* Iterator for type lists. */
+typedef TypeSet::const_iterator TypeSetIter;
+
+
+/*
  * Union type.
  */
 struct UnionType : public Type {
@@ -78,6 +97,9 @@ struct UnionType : public Type {
 
   /* Constructs a singleton union type. */
   explicit UnionType(const SimpleType& type);
+
+  /* Constituent types. */
+  const TypeSet& types() const;
 
   /* Adds the given simple type to this union. */
   void add(const SimpleType& t);
@@ -93,29 +115,9 @@ protected:
   virtual void print(ostream& os) const;
 
 private:
-  /* Set of simple types. */
-  struct TypeSet : public set<const SimpleType*,
-		   less<const LessThanComparable*> > {
-  };
-
-  /* Iterator for type lists. */
-  typedef TypeSet::const_iterator TypeSetIter;
-
   /* Constituent types. */
-  TypeSet types;
-
-  friend const Type& SimpleType::subtype(const Type& t) const;
+  TypeSet types_;
 };
-
-
-/*
- * Table of simple types.
- */
-struct TypeMap : hash_map<string, const SimpleType*> {
-};
-
-/* Iterator for type tables. */
-typedef TypeMap::const_iterator TypeMapIter;
 
 
 #endif /* TYPES_H */
