@@ -2,7 +2,7 @@
 /*
  * Domain descriptions.
  *
- * $Id: domains.h,v 1.10 2001-08-16 00:39:01 lorens Exp $
+ * $Id: domains.h,v 1.11 2001-08-18 15:46:54 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -25,6 +25,7 @@ struct NameMap;
 struct Formula;
 struct FormulaList;
 struct AtomicFormula;
+struct Problem;
 
 /*
  * Predicate declaration.
@@ -72,8 +73,8 @@ struct PredicateMap : public gc,
 struct Effect : public gc {
   /* List of universally quantified variables for this effect. */
   const VariableList& forall;
-  /* Condition for this effect, or NULL if unconditional effect. */
-  const Formula* const condition;
+  /* Condition for this effect, or TRUE if unconditional effect. */
+  const Formula& condition;
   /* Add list for this effect. */
   const FormulaList& add_list;
 
@@ -84,16 +85,23 @@ struct Effect : public gc {
   Effect(const FormulaList& add_list);
 
   /* Constructs a conditional effect. */
-  Effect(const Formula* condition, const FormulaList& add_list);
+  Effect(const Formula& condition, const FormulaList& add_list);
+
+  /* Constructs a universally quantified unconditional effect. */
+  Effect(const VariableList& forall, const FormulaList& add_list);
 
   /* Constructs a universally quantified conditional effect. */
-  Effect(const VariableList& forall, const Formula* condition,
+  Effect(const VariableList& forall, const Formula& condition,
 	 const FormulaList& add_list)
     : forall(forall), condition(condition), add_list(add_list) {
   }
 
   /* Returns an instantiation of this effect. */
   const Effect& instantiation(size_t id) const;
+
+  /* Returns an instantiation of this effect. */
+  const Effect& instantiation(const SubstitutionList& subst,
+			      const Problem& problem) const;
 
   /* Returns this effect subject to the given substitutions. */
   const Effect& substitution(const SubstitutionList& subst) const;
@@ -136,6 +144,10 @@ struct EffectList : public gc, vector<const Effect*, container_alloc> {
   /* Returns an instantiation of this effect list. */
   const EffectList& instantiation(size_t id) const;
 
+  /* Returns an instantiation of this effect list. */
+  const EffectList& instantiation(const SubstitutionList& subst,
+				  const Problem& problem) const;
+
   /* Returns this effect list subject to the given substitutions. */
   const EffectList& substitution(const SubstitutionList& subst) const;
 
@@ -151,7 +163,6 @@ struct EffectList : public gc, vector<const Effect*, container_alloc> {
 
 
 struct ActionList;
-struct Problem;
 
 /*
  * Abstract action definition.
