@@ -1,7 +1,7 @@
 /*
  * Main program.
  *
- * $Id: vhpop.cc,v 1.6 2001-08-18 17:36:00 lorens Exp $
+ * $Id: vhpop.cc,v 1.7 2001-08-20 04:08:45 lorens Exp $
  */
 #include <iostream>
 #include <cstdio>
@@ -26,6 +26,7 @@ static const string PROGRAM_NAME = "tpop";
 
 /* Program options. */
 static struct option long_options[] = {
+  { "flaw-order", required_argument, NULL, 'f' },
   { "ground", no_argument, NULL, 'g' },
   { "heuristic", required_argument, NULL, 'h' },
   { "limit", required_argument, NULL, 'l' },
@@ -43,11 +44,15 @@ static void display_help() {
   cout << PROGRAM_NAME << endl
        << "usage: " << PROGRAM_NAME << " [options] [file ...]" << endl
        << "options:" << endl
+       << "  -f f,  --flaw-order=f\t"
+       << "use flaw selection order f;" << endl
+       << "\t\t\t  f can be `lifo' (default), `fifo', `hardest', or `easiest'"
+       << endl
        << "  -g,    --ground\t"
        << "only use ground actions" << endl
        << "  -h h,  --heuristic=h\t"
        << "use heuristic h;" << endl
-       << "\t\t\t  h can be `MAX' (default), `SUM', or `UCPOP'" << endl
+       << "\t\t\t  h can be `MAX', `SUM', `SUMR' (default), or `UCPOP'" << endl
        << "  -l l,  --limit=l\t"
        << "search no more than l plans" << endl
        << "  -t,    --trans\t"
@@ -72,7 +77,7 @@ static void display_help() {
 
 /* Displays version information. */
 static void display_version() {
-  cout << PROGRAM_NAME << endl
+  cout << PROGRAM_NAME << " (" << __DATE__ << ")" << endl
        << "Written by H\345kan L. Younes (lorens@cs.cmu.edu)." << endl;
 }
 
@@ -93,8 +98,10 @@ static bool read_file(const char* name) {
 
 /* The main program. */
 int main(int argc, char* argv[]) {
+  /* Flaw selection order. */
+  FlawSelectionOrder flaw_order;
   /* Set default heuristic. */
-  Heuristic heuristic = MAX_HEURISTIC;
+  Heuristic heuristic;
   /* Whether to just use ground actions. */
   bool ground_actions = false;
   /* Whether to allow transformational plan operators. */
@@ -109,22 +116,41 @@ int main(int argc, char* argv[]) {
    */
   while (1) {
     int option_index = 0;
-    int c = getopt_long(argc, argv, "gh:l:tv::Vw::?",
+    int c = getopt_long(argc, argv, "f:gh:l:tv::Vw::?",
 			long_options, &option_index);
     if (c == -1) {
       break;
     }
     switch (c) {
+    case 'f':
+      if (strcasecmp(optarg, "lifo") == 0) {
+	flaw_order.set_lifo();
+      } else if (strcasecmp(optarg, "fifo") == 0) {
+	flaw_order.set_fifo();
+      } else if (strcasecmp(optarg, "hardest") == 0) {
+	flaw_order.set_hardest_first();
+      } else if (strcasecmp(optarg, "easiest") == 0) {
+	flaw_order.set_easiest_first();
+      } else {
+	cerr << PROGRAM_NAME << ": invalid flaw selection order `" << optarg
+	     << "'" << endl
+	     << "Try `" << PROGRAM_NAME << " --help' for more information."
+	     << endl;
+	return -1;
+      }
+      break;
     case 'g':
       ground_actions = true;
       break;
     case 'h':
       if (strcasecmp(optarg, "MAX") == 0) {
-	heuristic = MAX_HEURISTIC;
+	heuristic.set_max();
       } else if (strcasecmp(optarg, "SUM") == 0) {
-	heuristic = SUM_HEURISTIC;
+	heuristic.set_sum();
+      } else if (strcasecmp(optarg, "SUMR") == 0) {
+	heuristic.set_sum_reuse();
       } else if (strcasecmp(optarg, "UCPOP") == 0) {
-	heuristic = UCPOP_HEURISTIC;
+	heuristic.set_ucpop();
       } else {
 	cerr << PROGRAM_NAME << ": invalid heuristic `" << optarg << "'"
 	     << endl
@@ -215,8 +241,9 @@ int main(int argc, char* argv[]) {
       struct itimerval timer = { { 1000000, 900000 }, { 1000000, 900000 } };
       const Problem& problem = *(*i).second;
       setitimer(ITIMER_PROF, &timer, NULL);
-      const Plan* plan = Plan::plan(problem, heuristic, ground_actions,
-				    transformations, limit, verbosity);
+      const Plan* plan = Plan::plan(problem, flaw_order, heuristic,
+				    ground_actions, transformations, limit,
+				    verbosity);
       getitimer(ITIMER_PROF, &timer);
       /* Planning time. */
       double t = 1000000.9
@@ -242,7 +269,10 @@ int main(int argc, char* argv[]) {
       }
     }
   } catch (const Unimplemented& ex) {
-    cerr << ex;
+    cerr << ex << endl;
+    return -1;
+  } catch (...) {
+    cerr << "fatal error" << endl;
     return -1;
   }
 
