@@ -2,7 +2,7 @@
 /*
  * Domain descriptions.
  *
- * $Id: domains.h,v 1.25 2001-10-30 16:01:52 lorens Exp $
+ * $Id: domains.h,v 1.26 2001-12-23 15:50:04 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -35,8 +35,7 @@ struct Predicate : public Printable, public gc {
 
   /* Constructs a predicate with the given names and parameters. */
   Predicate(const string& name, const VariableList& params)
-    : name(name), parameters(params) {
-  }
+    : name(name), parameters(params) {}
 
   /* Returns the arity of this predicate. */
   size_t arity() const;
@@ -86,8 +85,7 @@ struct Effect : public Printable, public gc {
   Effect(const VariableList& forall, const Formula& condition,
 	 const AtomList& add_list, const NegationList& del_list)
     : forall(forall), condition(condition),
-      add_list(add_list), del_list(del_list) {
-  }
+      add_list(add_list), del_list(del_list) {}
 
   /* Returns an instantiation of this effect. */
   const Effect& instantiation(size_t id) const;
@@ -115,8 +113,7 @@ protected:
  */
 struct EffectList : public Vector<const Effect*> {
   /* Constructs an empty effect list. */
-  EffectList() {
-  }
+  EffectList() {}
 
   /* Constructs an effect list with a single effect. */
   EffectList(const Effect* effect) {
@@ -165,8 +162,7 @@ protected:
   /* Constructs an action. */
   Action(const string& name, const Formula& precondition,
 	 const EffectList& effects)
-    : name(name), precondition(precondition), effects(effects) {
-  }
+    : name(name), precondition(precondition), effects(effects) {}
 };
 
 
@@ -191,8 +187,7 @@ struct ActionSchema : public Action {
 
   ActionSchema(const string& name, const VariableList& parameters,
 	       const Formula& precondition, const EffectList& effects)
-    : Action(name, precondition, effects), parameters(parameters) {
-  }
+    : Action(name, precondition, effects), parameters(parameters) {}
 
   /* Returns a formula representing this action. */
   virtual const Atom& action_formula() const;
@@ -235,8 +230,7 @@ struct GroundAction : public Action {
   GroundAction(const string& name, const NameList& arguments,
 	       const Formula& precondition, const EffectList& effects)
     : Action(name, precondition, effects), arguments(arguments),
-      formula(NULL) {
-  }
+      formula(NULL) {}
 
   /* Returns a formula representing this action. */
   virtual const Atom& action_formula() const;
