@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 3.18 2002-06-28 11:51:23 lorens Exp $
+ * $Id: pddl.yy,v 3.19 2002-06-28 11:54:57 lorens Exp $
  */
 %{
 #include "requirements.h"
@@ -30,10 +30,6 @@
 #define __USE_ISOC99 1
 #define __USE_ISOC9X 1
 #include <math.h>
-
-#ifdef DOMAIN
-#undef DOMAIN
-#endif
 
 
 /* The lexer. */
@@ -124,7 +120,7 @@ static VariableList* variables;
 static Context free_variables;
 %}
 
-%token DEFINE DOMAIN PROBLEM
+%token DEFINE DOMAIN_TOKEN PROBLEM
 %token REQUIREMENTS
 %token STRIPS TYPING NEGATIVE_PRECONDITIONS DISJUNCTIVE_PRECONDITIONS EQUALITY
 %token EXISTENTIAL_PRECONDITIONS UNIVERSAL_PRECONDITIONS
@@ -180,7 +176,7 @@ static Context free_variables;
 %type <type> type_spec type
 %type <str> predicate function_symbol name NAME variable DURATION_VAR VARIABLE
 %type <num> NUMBER
-%type <str> DEFINE DOMAIN PROBLEM
+%type <str> DEFINE DOMAIN_TOKEN PROBLEM
 %type <str> WHEN NOT AND OR IMPLY EXISTS FORALL EITHER
 %type <str> AT OVER START END ALL
 %type <str> MINIMIZE MAXIMIZE TOTAL_TIME
@@ -983,7 +979,7 @@ type : predicate            { $$ = &make_type(*$1); delete $1; }
 define : DEFINE { delete $1; }
        ;
 
-domain : DOMAIN { delete $1; }
+domain : DOMAIN_TOKEN { delete $1; }
        ;
 
 problem : PROBLEM { delete $1; }
@@ -1037,7 +1033,7 @@ variable : DURATION_VAR
 
 predicate : NAME
           | DEFINE
-          | DOMAIN
+          | DOMAIN_TOKEN
           | PROBLEM
           | AT
           | OVER
@@ -1050,7 +1046,7 @@ predicate : NAME
 
 function_symbol : NAME
                 | DEFINE
-                | DOMAIN
+                | DOMAIN_TOKEN
                 | PROBLEM
                 | WHEN
                 | NOT
@@ -1072,7 +1068,7 @@ function_symbol : NAME
 
 name : NAME
      | DEFINE
-     | DOMAIN
+     | DOMAIN_TOKEN
      | PROBLEM
      | WHEN
      | NOT

@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: tokens.ll,v 3.6 2002-06-26 23:54:47 lorens Exp $
+ * $Id: tokens.ll,v 3.7 2002-06-28 11:55:15 lorens Exp $
  */
 %{
 struct Type;
@@ -56,7 +56,7 @@ static int make_number(const char* s);
 \<=                          return LE;
 >=                           return GE;
 define                       return make_string(yytext, DEFINE);
-domain                       return make_string(yytext, DOMAIN);
+domain                       return make_string(yytext, DOMAIN_TOKEN);
 problem                      return make_string(yytext, PROBLEM);
 :requirements                return REQUIREMENTS;
 :strips                      return STRIPS;
