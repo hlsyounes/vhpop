@@ -2,7 +2,7 @@
 /*
  * Domain descriptions.
  *
- * $Id: domains.h,v 1.4 2001-05-11 22:11:28 lorens Exp $
+ * $Id: domains.h,v 1.5 2001-05-15 13:53:12 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -31,7 +31,7 @@ struct Predicate : public gc {
   }
 
   /* Returns the arity of this predicate. */
-  unsigned int arity() const {
+  size_t arity() const {
     return parameters.size();
   }
 
@@ -90,7 +90,7 @@ struct Effect : public gc {
   }
 
   /* Returns an instantiation of this effect. */
-  const Effect& instantiation(unsigned int id) const {
+  const Effect& instantiation(size_t id) const {
     const Formula* inst_condition =
       (condition != NULL) ? &condition->instantiation(id) : NULL;
     return *(new Effect(forall.instantiation(id), inst_condition,
@@ -156,7 +156,7 @@ struct EffectList : public gc,
   }
 
   /* Returns an instantiation of this effect list. */
-  const EffectList& instantiation(unsigned int id) const {
+  const EffectList& instantiation(size_t id) const {
     EffectList& effects = *(new EffectList());
     for (const_iterator i = begin(); i != end(); i++) {
       effects.push_back(&(*i)->instantiation(id));
@@ -207,12 +207,16 @@ struct Action : public gc {
   const Formula* const precondition;
   /* List of action effects. */
   const EffectList& effects;
+  /* Roughly corresponds to the number of open conditions this action
+     will give rise to. */
+  const size_t cost;
 
   /* Constructs an action. */
   Action(const string& name, const VariableList& parameters,
 	 const Formula* precondition, const EffectList& effects)
     : name(name), parameters(parameters), precondition(precondition),
-      effects(effects) {
+      effects(effects),
+      cost((precondition != NULL) ? precondition->cost() : 0) {
   }
 
   /* Checks if any effect of this action can achive the given goal. */
