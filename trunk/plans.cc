@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 6.15 2003-12-05 23:17:21 lorens Exp $
+ * $Id: plans.cc,v 6.16 2003-12-10 02:28:51 lorens Exp $
  */
 #include "mathport.h"
 #include "plans.h"
@@ -1537,8 +1537,8 @@ int Plan::new_link(PlanList& plans, const Step& step, const Effect& effect,
 		   const Literal& literal, const OpenCondition& open_cond,
 		   bool test_only) const {
   BindingList mgu;
-  if (bindings_->unify(mgu, literal, open_cond.step_id(),
-		       effect.literal(), step.id(),
+  if (bindings_->unify(mgu, effect.literal(), step.id(),
+		       literal, open_cond.step_id(),
 		       problem->domain().types(), problem->terms())) {
     return make_link(plans, step, effect, literal, open_cond, mgu, test_only);
   } else {
@@ -1559,8 +1559,8 @@ int Plan::new_cw_link(PlanList& plans, const EffectList& effects,
        ei != effects.end(); ei++) {
     const Effect& effect = **ei;
     BindingList mgu;
-    if (bindings_->unify(mgu, goal, open_cond.step_id(),
-			 effect.literal(), 0,
+    if (bindings_->unify(mgu, effect.literal(), 0,
+			 goal, open_cond.step_id(),
 			 problem->domain().types(), problem->terms())) {
       if (mgu.empty()) {
 	/* Impossible to separate goal and initial condition. */
