@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.h,v 3.16 2002-09-27 21:09:55 lorens Exp $
+ * $Id: orderings.h,v 3.17 2002-11-03 20:21:22 lorens Exp $
  */
 #ifndef ORDERINGS_H
 #define ORDERINGS_H
@@ -187,7 +187,7 @@ protected:
   /* Schedules the given instruction. */
   virtual float schedule(hash_map<size_t, float>& start_times,
 			 hash_map<size_t, float>& end_times,
-			 size_t step_id, StepTime t = STEP_START) const = 0;
+			 size_t step_id) const = 0;
 
   /* Prints this object on the given stream. */
   virtual void print(ostream& os) const = 0;
@@ -245,7 +245,7 @@ protected:
   /* Schedules the given instruction. */
   virtual float schedule(hash_map<size_t, float>& start_times,
 			 hash_map<size_t, float>& end_times,
-			 size_t step_id, StepTime t = STEP_START) const;
+			 size_t step_id) const;
 
   /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
@@ -313,7 +313,7 @@ protected:
   /* Schedules the given instruction. */
   virtual float schedule(hash_map<size_t, float>& start_times,
 			 hash_map<size_t, float>& end_times,
-			 size_t step_id, StepTime t = STEP_START) const;
+			 size_t step_id) const;
 
   /* Prints this opbject on the given stream. */
   virtual void print(ostream& os) const;

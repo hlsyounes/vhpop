@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.cc,v 4.2 2002-09-22 23:14:33 lorens Exp $
+ * $Id: orderings.cc,v 4.3 2002-11-03 20:18:36 lorens Exp $
  */
 #include "orderings.h"
 #include "plans.h"
@@ -450,7 +450,7 @@ const BinaryOrderings* BinaryOrderings::refine(const Ordering& new_ordering,
 /* Schedules the given instruction. */
 float BinaryOrderings::schedule(hash_map<size_t, float>& start_times,
 				hash_map<size_t, float>& end_times,
-				size_t step_id, StepTime t) const {
+				size_t step_id) const {
   hash_map<size_t, float>::const_iterator d = start_times.find(step_id);
   if (d != start_times.end()) {
     return (*d).second;
@@ -727,20 +727,17 @@ TemporalOrderings::refine(const Ordering& new_ordering,
 /* Schedules the given instruction. */
 float TemporalOrderings::schedule(hash_map<size_t, float>& start_times,
 				  hash_map<size_t, float>& end_times,
-				  size_t step_id, StepTime t) const {
-  if (t == STEP_START) {
-    hash_map<size_t, float>::const_iterator d = end_times.find(step_id);
-    if (d != end_times.end()) {
-      return (*d).second;
-    }
-    size_t i = time_node(step_id, t);
-    start_times.insert(make_pair(step_id, -distance(i + 1, 0)));
-    return schedule(start_times, end_times, step_id, STEP_END);
+				  size_t step_id) const {
+  hash_map<size_t, float>::const_iterator d = end_times.find(step_id);
+  if (d != end_times.end()) {
+    return (*d).second;
   } else {
-    size_t i = time_node(step_id, t);
-    float d = -distance(i + 1, 0);
-    end_times.insert(make_pair(step_id, d));
-    return d;
+    size_t i = time_node(step_id, STEP_START);
+    start_times.insert(make_pair(step_id, -distance(i + 1, 0)));
+    size_t j = time_node(step_id, STEP_END);
+    float ed = -distance(i + 1, 0);
+    end_times.insert(make_pair(step_id, ed));
+    return ed;
   }
 }
 
