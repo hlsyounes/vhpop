@@ -2,7 +2,21 @@
 /*
  * Planning parameters.
  *
- * $Id: parameters.h,v 1.7 2002-01-06 21:46:03 lorens Exp $
+ * Copyright (C) 2002 Carnegie Mellon University
+ * Written by Håkan L. S. Younes.
+ *
+ * Permission is hereby granted to distribute this software for
+ * non-commercial research purposes, provided that this copyright
+ * notice is included with any such distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
+ * EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE
+ * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
+ * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
+ *
+ * $Id: parameters.h,v 1.8 2002-01-25 18:23:30 lorens Exp $
  */
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
