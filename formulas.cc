@@ -1,5 +1,5 @@
 /*
- * $Id: formulas.cc,v 1.22 2001-10-16 19:31:26 lorens Exp $
+ * $Id: formulas.cc,v 1.23 2001-10-18 21:15:52 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -55,6 +55,11 @@ private:
 struct TrueFormula : public Formula {
   /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(size_t id) const {
+    return *this;
+  }
+
+  /* Returns an instantiation of this formula. */
+  virtual const Formula& instantiation(const Bindings& bindings) const {
     return *this;
   }
 
@@ -116,6 +121,11 @@ struct FalseFormula : public Formula {
   }
 
   /* Returns an instantiation of this formula. */
+  virtual const Formula& instantiation(const Bindings& bindings) const {
+    return *this;
+  }
+
+  /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionList& subst,
 				       const Problem& problem) const {
     return *this;
@@ -166,6 +176,19 @@ private:
 /* Prints this object on the given stream. */
 void Substitution::print(ostream& os) const {
   os << '[' << var << '/' << term << ']';
+}
+
+
+/* Returns an instantiation of this term. */
+const Term& Term::instantiation(const Bindings& bindings) const {
+  return bindings.binding(*this);
+}
+
+
+/* Checks if this object is less than the given object. */
+bool Term::less(const LessThanComparable& o) const {
+  const Term* t = dynamic_cast<const Term*>(&o);
+  return t != NULL && name < t->name;
 }
 
 
@@ -242,6 +265,16 @@ const TermList& TermList::instantiation(size_t id) const {
   TermList& terms = *(new TermList());
   for (const_iterator ti = begin(); ti != end(); ti++) {
     terms.push_back(&(*ti)->instantiation(id));
+  }
+  return terms;
+}
+
+
+/* Returns an instantiation of this term list. */
+const TermList& TermList::instantiation(const Bindings& bindings) const {
+  TermList& terms = *(new TermList());
+  for (const_iterator ti = begin(); ti != end(); ti++) {
+    terms.push_back(&(*ti)->instantiation(bindings));
   }
   return terms;
 }
@@ -382,34 +415,6 @@ const FormulaList& FormulaList::instantiation(size_t id) const {
 }
 
 
-/* Returns an instantiation of this formula list. */
-const FormulaList& FormulaList::instantiation(const SubstitutionList& subst,
-					      const Problem& problem) const {
-  FormulaList& formulas = *(new FormulaList());
-  for (const_iterator i = begin(); i != end(); i++) {
-    const Formula& f = (*i)->instantiation(subst, problem);
-    if (f == Formula::FALSE) {
-      formulas.clear();
-      break;
-    } else if (f != Formula::TRUE) {
-      formulas.push_back(&f);
-    }
-  }
-  return formulas;
-}
-
-
-/* Returns this formula list subject to the given substitutions. */
-const FormulaList&
-FormulaList::substitution(const SubstitutionList& subst) const {
-  FormulaList& formulas = *(new FormulaList());
-  for (const_iterator i = begin(); i != end(); i++) {
-    formulas.push_back(&(*i)->substitution(subst));
-  }
-  return formulas;
-}
-
-
 /* Checks if this formula list is equivalent to the given formula list. */
 bool FormulaList::equivalent(const FormulaList& formulas) const {
   if (size() != formulas.size()) {
@@ -443,6 +448,12 @@ const Atom& Atom::instantiation(size_t id) const {
 
 
 /* Returns an instantiation of this formula. */
+const Formula& Atom::instantiation(const Bindings& bindings) const {
+  return *(new Atom(predicate, terms.instantiation(bindings)));
+}
+
+
+/* Returns an instantiation of this formula. */
 const Formula& Atom::instantiation(const SubstitutionList& subst,
 				   const Problem& problem) const {
   const Formula& f = substitution(subst);
@@ -451,7 +462,7 @@ const Formula& Atom::instantiation(const SubstitutionList& subst,
     for (AtomListIter gi = adds.begin(); gi != adds.end(); gi++) {
       if (f == **gi) {
 	return TRUE;
-      } else if (Bindings().unify(f, **gi)) {
+      } else if (Bindings::unifiable(f, **gi)) {
 	return f;
       }
     }
@@ -542,6 +553,12 @@ const Negation& Negation::instantiation(size_t id) const {
 
 
 /* Returns an instantiation of this formula. */
+const Formula& Negation::instantiation(const Bindings& bindings) const {
+  return !atom.instantiation(bindings);
+}
+
+
+/* Returns an instantiation of this formula. */
 const Formula& Negation::instantiation(const SubstitutionList& subst,
 				       const Problem& problem) const {
   return !atom.instantiation(subst, problem);
@@ -618,6 +635,18 @@ const Equality& Equality::instantiation(size_t id) const {
 
 
 /* Returns an instantiation of this formula. */
+const Formula& Equality::instantiation(const Bindings& bindings) const {
+  const Term& t1 = term1.instantiation(bindings);
+  const Term& t2 = term2.instantiation(bindings);
+  if (typeid(t1) == typeid(Name) && typeid(t2) == typeid(Name)) {
+    return (t1 == t2) ? TRUE : FALSE;
+  } else {
+    return (&t1 == &term1 && &t2 == &term2) ? *this : *(new Equality(t1, t2));
+  }
+}
+
+
+/* Returns an instantiation of this formula. */
 const Formula& Equality::instantiation(const SubstitutionList& subst,
 				       const Problem& problem) const {
   return substitution(subst);
@@ -674,6 +703,19 @@ const Inequality& Inequality::instantiation(size_t id) const {
 
 
 /* Returns an instantiation of this formula. */
+const Formula& Inequality::instantiation(const Bindings& bindings) const {
+  const Term& t1 = term1.instantiation(bindings);
+  const Term& t2 = term2.instantiation(bindings);
+  if (typeid(t1) == typeid(Name) && typeid(t2) == typeid(Name)) {
+    return (t1 != t2) ? TRUE : FALSE;
+  } else {
+    return ((&t1 == &term1 && &t2 == &term2)
+	    ? *this : *(new Inequality(t1, t2)));
+  }
+}
+
+
+/* Returns an instantiation of this formula. */
 const Formula& Inequality::instantiation(const SubstitutionList& subst,
 					 const Problem& problem) const {
   return substitution(subst);
@@ -725,6 +767,16 @@ const Formula& Inequality::negation() const {
 /* Returns an instantiation of this formula. */
 const Conjunction& Conjunction::instantiation(size_t id) const {
   return *(new Conjunction(conjuncts.instantiation(id)));
+}
+
+
+/* Returns an instantiation of this formula. */
+const Formula& Conjunction::instantiation(const Bindings& bindings) const {
+  const Formula* c = &TRUE;
+  for (FormulaListIter fi = conjuncts.begin(); fi != conjuncts.end(); fi++) {
+    c = &(*c && (*fi)->instantiation(bindings));
+  }
+  return *c;
 }
 
 
@@ -802,6 +854,16 @@ const Disjunction& Disjunction::instantiation(size_t id) const {
 
 
 /* Returns an instantiation of this formula. */
+const Formula& Disjunction::instantiation(const Bindings& bindings) const {
+  const Formula* d = &FALSE;
+  for (FormulaListIter fi = disjuncts.begin(); fi != disjuncts.end(); fi++) {
+    d = &(*d || (*fi)->instantiation(bindings));
+  }
+  return *d;
+}
+
+
+/* Returns an instantiation of this formula. */
 const Formula& Disjunction::instantiation(const SubstitutionList& subst,
 					  const Problem& problem) const {
   const Formula* d = &TRUE;
@@ -868,6 +930,13 @@ const ExistsFormula& ExistsFormula::instantiation(size_t id) const {
 
 
 /* Returns an instantiation of this formula. */
+const Formula& ExistsFormula::instantiation(const Bindings& bindings) const {
+  const Formula& b = body.instantiation(bindings);
+  return (b == FALSE || b == TRUE) ? b : *(new ExistsFormula(parameters, b));
+}
+
+
+/* Returns an instantiation of this formula. */
 const Formula& ExistsFormula::instantiation(const SubstitutionList& subst,
 					    const Problem& problem) const {
   const Formula& b = body.instantiation(subst, problem);
@@ -930,6 +999,13 @@ const Formula& ExistsFormula::negation() const {
 const ForallFormula& ForallFormula::instantiation(size_t id) const {
   return *(new ForallFormula(parameters.instantiation(id),
 			     body.instantiation(id)));
+}
+
+
+/* Returns an instantiation of this formula. */
+const Formula& ForallFormula::instantiation(const Bindings& bindings) const {
+  const Formula& b = body.instantiation(bindings);
+  return (b == FALSE || b == TRUE) ? b : *(new ForallFormula(parameters, b));
 }
 
 

@@ -2,7 +2,7 @@
 /*
  * Auxiliary types and functions.
  *
- * $Id: support.h,v 1.8 2001-10-16 19:31:51 lorens Exp $
+ * $Id: support.h,v 1.9 2001-10-18 21:16:43 lorens Exp $
  */
 #ifndef SUPPORT_H
 #define SUPPORT_H
@@ -10,6 +10,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <set>
 #include <hash_map>
 #include <hash_set>
 #include <gc/gc_cpp.h>
@@ -27,6 +28,14 @@ typedef single_client_traceable_alloc container_alloc;
  */
 template<typename T>
 struct Vector : public vector<T, container_alloc>, public gc {
+};
+
+
+/*
+ * A set using a traceable allocator.
+ */
+template<typename T, typename L = less<T> >
+struct Set : public set<T, L, container_alloc>, public gc {
 };
 
 
@@ -105,6 +114,46 @@ struct equal_to<const EqualityComparable*>
   bool operator()(const EqualityComparable* o1,
 		  const EqualityComparable* o2) const {
     return *o1 == *o2;
+  }
+};
+
+
+/*
+ * A less than comparable object.
+ */
+struct LessThanComparable {
+  virtual ~LessThanComparable() {}
+
+protected:
+  /* Checks if this object is less than the given object. */
+  virtual bool less(const LessThanComparable& o) const = 0;
+
+  friend bool operator<(const LessThanComparable& o1,
+			const LessThanComparable& o2);
+};
+
+/* Less than operator for less than comparable objects. */
+inline bool operator<(const LessThanComparable& o1,
+		      const LessThanComparable& o2) {
+  return o1.less(o2);
+}
+
+
+/* Greater than operator for less than comparable objects. */
+inline bool operator>(const LessThanComparable& o1,
+		      const LessThanComparable& o2) {
+  return o2 < o1;
+}
+
+/*
+ * Less than function object for less than comparable object pointers.
+ */
+struct less<const LessThanComparable*>
+  : public binary_function<const LessThanComparable*,
+			   const LessThanComparable*, bool> {
+  bool operator()(const LessThanComparable* o1,
+		  const LessThanComparable* o2) const {
+    return *o1 < *o2;
   }
 };
 

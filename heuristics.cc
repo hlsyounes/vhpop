@@ -1,5 +1,5 @@
 /*
- * $Id: heuristics.cc,v 1.5 2001-10-16 19:31:31 lorens Exp $
+ * $Id: heuristics.cc,v 1.6 2001-10-18 21:16:03 lorens Exp $
  */
 #include <set>
 #include "heuristics.h"
@@ -235,7 +235,7 @@ PlanningGraph::PlanningGraph(const Problem& problem) {
   /*
    * Find all consistent action instantiations.
    */
-  ActionList actions;
+  GroundActionList actions;
   problem.instantiated_actions(actions);
   if (verbosity > 0) {
     cout << endl << "instantiated actions: " << actions.size() << endl;
@@ -254,6 +254,7 @@ PlanningGraph::PlanningGraph(const Problem& problem) {
    */
   bool changed;
   int level = 0;
+  set<const GroundAction*> applicable_actions;
   do {
     if (verbosity > 3) {
       /*
@@ -278,11 +279,25 @@ PlanningGraph::PlanningGraph(const Problem& problem) {
      */
     AtomValueMap new_atom_values;
     AtomValueMap new_negation_values;
-    for (ActionListIter ai = actions.begin(); ai != actions.end(); ai++) {
-      const Action& action = **ai;
+    for (GroundActionListIter ai = actions.begin();
+	 ai != actions.end(); ai++) {
+      const GroundAction& action = **ai;
       HeuristicValue pre_value = action.precondition.heuristic_value(*this);
       if (!pre_value.infinite()) {
 	/* Precondition is achievable at this level. */
+	if (applicable_actions.find(&action) == applicable_actions.end()) {
+	  /* First time this action is applicable. */
+	  applicable_actions.insert(&action);
+	  if (!action.arguments.empty()) {
+	    ActionDomainMapIter di = action_domains.find(action.name);
+	    if (di == action_domains.end()) {
+	      ActionDomain* domain = new ActionDomain(action.arguments);
+	      action_domains.insert(make_pair(action.name, domain));
+	    } else {
+	      (*di).second->add(action.arguments);
+	    }
+	  }
+	}
 	for (EffectListIter ei = action.effects.begin();
 	     ei != action.effects.end(); ei++) {
 	  const Effect& effect = **ei;
@@ -414,18 +429,14 @@ PlanningGraph::PlanningGraph(const Problem& problem) {
     /*
      * Print statistics.
      */
-    set<const Action*> performable_actions;
-    for (FormulaActionsMapIter i = achieves.begin();
-	 i != achieves.end(); i++) {
-      performable_actions.insert((*i).second);
-    }
-    cout << "performable actions: " << performable_actions.size() << endl;
+    cout << "applicable actions: " << applicable_actions.size() << endl;
     if (verbosity > 2) {
       /*
-       * Print performable actions.
+       * Print applicable actions.
        */
-      for (set<const Action*>::const_iterator ai = performable_actions.begin();
-	   ai != performable_actions.end(); ai++) {
+      for (set<const GroundAction*>::const_iterator ai =
+	     applicable_actions.begin();
+	   ai != applicable_actions.end(); ai++) {
 	cout << "  " << (*ai)->action_formula() << endl;
       }
       /*
@@ -519,6 +530,14 @@ void PlanningGraph::achieves_formula(ActionList& actions,
   for (FormulaActionsMapIter i = bounds.first; i != bounds.second; i++) {
     actions.push_back((*i).second);
   }
+}
+
+
+/* Returns the parameter domain for the given action, or NULL if the
+   parameter domain is empty. */
+const ActionDomain* PlanningGraph::action_domain(const string& name) const {
+  ActionDomainMapIter di = action_domains.find(name);
+  return (di != action_domains.end()) ? (*di).second : NULL;
 }
 
 

@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.21 2001-10-16 19:31:46 lorens Exp $
+ * $Id: plans.h,v 1.22 2001-10-18 21:16:23 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -17,7 +17,23 @@
 #include "bindings.h"
 
 
-struct Reason;
+struct Link;
+struct Step;
+
+/*
+ * Abstract reason.
+ */
+struct Reason : public Printable, public gc {
+  /* Checks if this reason involves the given link. */
+  virtual bool involves(const Link& link) const {
+    return false;
+  }
+
+  /* Checks if this reason involves the given step. */
+  virtual bool involves(const Step& step) const {
+    return false;
+  }
+};
 
 
 /*
@@ -144,8 +160,8 @@ typedef Chain<const Link*> LinkChain;
 struct Step : public gc {
   /* Step id. */
   const size_t id;
-  /* Action formula, or NULL if step is not instantiated from an action. */
-  const Atom* const action;
+  /* Action, or NULL if step is not instantiated from an action. */
+  const Action* const action;
   /* Precondition of step, or TRUE if step has no precondition. */
   const Formula& precondition;
   /* List of effects. */
@@ -155,36 +171,29 @@ struct Step : public gc {
 
   /* Constructs a step. */
   Step(size_t id, const Formula& precondition, const EffectList& effects,
-       const Reason& reason)
-    : id(id), action(NULL), precondition(precondition.instantiation(id)),
-      effects(effects.instantiation(id)), reason(reason) {
-  }
+       const Reason& reason);
 
   /* Constructs a step instantiated from an action. */
-  Step(size_t id, const Action& action, const Reason& reason)
-    : id(id), action((typeid(action) == typeid(ActionSchema))
-		     ? &action.action_formula().instantiation(id)
-		     : &action.action_formula()),
-      precondition((typeid(action) == typeid(ActionSchema))
-		   ? action.precondition.instantiation(id)
-		   : action.precondition),
-      effects((typeid(action) == typeid(ActionSchema))
-	      ? action.effects.instantiation(id) : action.effects),
-      reason(reason) {
-  }
+  Step(size_t id, const Action& action, const Reason& reason);
 
   /* Returns a copy of this step with a new reason. */
   const Step& new_reason(const Reason& reason) const {
-    return *(new Step(id, action, precondition, effects, reason));
+    return *(new Step(id, action, precondition, effects, reason, formula));
   }
+
+  /* Returns a formula representing this step. */
+  const Atom* step_formula() const;
 
 private:
   /* Constructs a step. */
-  Step(size_t id, const Atom* action, const Formula& precondition,
-       const EffectList& effects, const Reason& reason)
+  Step(size_t id, const Action* action, const Formula& precondition,
+       const EffectList& effects, const Reason& reason, const Atom* formula)
     : id(id), action(action), precondition(precondition), effects(effects),
-      reason(reason) {
+      reason(reason), formula(formula) {
   }
+
+  /* Atomic representation of this step. */
+  mutable const Atom* formula;
 };
 
 

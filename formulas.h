@@ -2,7 +2,7 @@
 /*
  * Formulas.
  *
- * $Id: formulas.h,v 1.25 2001-10-16 19:31:22 lorens Exp $
+ * $Id: formulas.h,v 1.26 2001-10-18 21:15:57 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -48,10 +48,13 @@ struct SubstitutionList : public Vector<const Substitution*> {
 typedef SubstitutionList::const_iterator SubstListIter;
 
 
+struct Bindings;
+
 /*
  * Abstract term.
  */
-struct Term : public Hashable, public Printable, public gc {
+struct Term
+  : public LessThanComparable, public Hashable, public Printable, public gc {
   /* Name of term. */
   const string name;
   /* Type of term. */
@@ -65,6 +68,9 @@ struct Term : public Hashable, public Printable, public gc {
   /* Returns an instantiation of this term. */
   virtual const Term& instantiation(size_t id) const = 0;
 
+  /* Returns an instantiation of this term. */
+  const Term& instantiation(const Bindings& bindings) const;
+
   /* Returns this term subject to the given substitutions. */
   virtual const Term& substitution(const SubstitutionList& subst) const = 0;
 
@@ -74,6 +80,9 @@ struct Term : public Hashable, public Printable, public gc {
   virtual bool equivalent(const Term& t) const = 0;
 
 protected:
+  /* Checks if this object is less than the given object. */
+  virtual bool less(const LessThanComparable& o) const;
+
   /* Returns the hash value of this object. */
   virtual size_t hash_value() const;
 
@@ -144,6 +153,9 @@ struct TermList : public Vector<const Term*> {
 
   /* Returns an instantiation of this term list. */
   const TermList& instantiation(size_t id) const;
+
+  /* Returns an instantiation of this term list. */
+  const TermList& instantiation(const Bindings& bindings) const;
 
   /* Returns this term list subject to the given substitutions. */
   const TermList& substitution(const SubstitutionList& subst) const;
@@ -227,6 +239,9 @@ struct Formula : public Hashable, public Printable, public gc {
   virtual const Formula& instantiation(size_t id) const = 0;
 
   /* Returns an instantiation of this formula. */
+  virtual const Formula& instantiation(const Bindings& bindings) const = 0;
+
+  /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionList& subst,
 				       const Problem& problem) const = 0;
 
@@ -282,13 +297,6 @@ struct FormulaList : public Vector<const Formula*> {
   /* Returns an instantiation of this formula list. */
   const FormulaList& instantiation(size_t id) const;
 
-  /* Returns an instantiation of this formula list. */
-  const FormulaList& instantiation(const SubstitutionList& subst,
-				   const Problem& problem) const;
-
-  /* Returns this formula list subject to the given substitutions. */
-  const FormulaList& substitution(const SubstitutionList& subst) const;
-
   /* Checks if this formula list is equivalent to the given formula list. */
   bool equivalent(const FormulaList& formulas) const;
 
@@ -316,6 +324,9 @@ struct Atom : public Formula {
 
   /* Returns an instantiation of this formula. */
   virtual const Atom& instantiation(size_t id) const;
+
+  /* Returns an instantiation of this formula. */
+  virtual const Formula& instantiation(const Bindings& bindings) const;
 
   /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionList& subst,
@@ -385,6 +396,9 @@ struct Negation : public Formula {
 
   /* Returns an instantiation of this formula. */
   virtual const Negation& instantiation(size_t id) const;
+
+  /* Returns an instantiation of this formula. */
+  virtual const Formula& instantiation(const Bindings& bindings) const;
 
   /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionList& subst,
@@ -459,6 +473,9 @@ struct Equality : public Formula {
   virtual const Equality& instantiation(size_t id) const;
 
   /* Returns an instantiation of this formula. */
+  virtual const Formula& instantiation(const Bindings& bindings) const;
+
+  /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionList& subst,
 				       const Problem& problem) const;
 
@@ -505,6 +522,9 @@ struct Inequality : public Formula {
   virtual const Inequality& instantiation(size_t id) const;
 
   /* Returns an instantiation of this formula. */
+  virtual const Formula& instantiation(const Bindings& bindings) const;
+
+  /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionList& subst,
 				       const Problem& problem) const;
 
@@ -541,6 +561,9 @@ struct Conjunction : public Formula {
 
   /* Returns an instantiation of this formula. */
   virtual const Conjunction& instantiation(size_t id) const;
+
+  /* Returns an instantiation of this formula. */
+  virtual const Formula& instantiation(const Bindings& bindings) const;
 
   /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionList& subst,
@@ -587,6 +610,9 @@ struct Disjunction : public Formula {
 
   /* Returns an instantiation of this formula. */
   virtual const Disjunction& instantiation(size_t id) const;
+
+  /* Returns an instantiation of this formula. */
+  virtual const Formula& instantiation(const Bindings& bindings) const;
 
   /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionList& subst,
@@ -657,6 +683,9 @@ struct ExistsFormula : public QuantifiedFormula {
   virtual const ExistsFormula& instantiation(size_t id) const;
 
   /* Returns an instantiation of this formula. */
+  virtual const Formula& instantiation(const Bindings& bindings) const;
+
+  /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionList& subst,
 				       const Problem& problem) const;
 
@@ -691,6 +720,9 @@ struct ForallFormula : public QuantifiedFormula {
 
   /* Returns an instantiation of this formula. */
   virtual const ForallFormula& instantiation(size_t id) const;
+
+  /* Returns an instantiation of this formula. */
+  virtual const Formula& instantiation(const Bindings& bindings) const;
 
   /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionList& subst,

@@ -2,7 +2,7 @@
 /*
  * Heuristics.
  *
- * $Id: heuristics.h,v 1.7 2001-10-16 19:31:35 lorens Exp $
+ * $Id: heuristics.h,v 1.8 2001-10-18 21:16:08 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
@@ -14,6 +14,7 @@
 struct Formula;
 struct Atom;
 struct Negation;
+struct NameList;
 struct ActionList;
 struct Action;
 struct Problem;
@@ -194,6 +195,8 @@ bool operator>=(const HeuristicValue& v1, const HeuristicValue& v2);
 HeuristicValue min(const HeuristicValue& v1, const HeuristicValue& v2);
 
 
+struct ActionDomain;
+
 /*
  * A planning graph.
  */
@@ -212,6 +215,10 @@ struct PlanningGraph : public gc {
   /* Fills the provided list with actions that achieve the given
      formula. */
   void achieves_formula(ActionList& actions, const Formula& f) const;
+
+  /* Returns the parameter domain for the given action, or NULL if the
+     parameter domain is empty. */
+  const ActionDomain* action_domain(const string& name) const;
 
 private:
   /* Atom value map. */
@@ -239,6 +246,13 @@ private:
   /* Iterator for PredicateAtomsMap. */
   typedef PredicateAtomsMap::const_iterator PredicateAtomsMapIter;
 
+  /* Mapping of action name to parameter domain. */
+  struct ActionDomainMap : public HashMap<string, ActionDomain*> {
+  };
+
+  /* Iterator for ActionDomainMap. */
+  typedef ActionDomainMap::const_iterator ActionDomainMapIter;
+
   /* Atom values. */
   AtomValueMap atom_values;
   /* Negated atom values. */
@@ -249,6 +263,8 @@ private:
   PredicateAtomsMap predicate_atoms;
   /* Maps predicates to negated ground atoms. */
   PredicateAtomsMap predicate_negations;
+  /* Maps action names to possible parameter lists. */
+  ActionDomainMap action_domains;
 };
 
 

@@ -1,5 +1,5 @@
 /*
- * $Id: problems.cc,v 1.5 2001-10-08 03:09:03 lorens Exp $
+ * $Id: problems.cc,v 1.6 2001-10-18 21:16:34 lorens Exp $
  */
 #include "problems.h"
 #include "domains.h"
@@ -34,8 +34,8 @@ void Problem::compatible_objects(NameList& objects, const Type& t) const {
 
 /* Fills the provided action list with ground actions instantiated
    from the action schemas of the domain. */
-void Problem::instantiated_actions(ActionList& actions) const {
-  for (ActionMapIter ai = domain.actions.begin();
+void Problem::instantiated_actions(GroundActionList& actions) const {
+  for (ActionSchemaMapIter ai = domain.actions.begin();
        ai != domain.actions.end(); ai++) {
     (*ai).second->instantiations(actions, *this);
   }
