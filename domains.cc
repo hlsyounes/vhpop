@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.cc,v 4.8 2002-12-17 17:14:58 lorens Exp $
+ * $Id: domains.cc,v 4.9 2002-12-17 18:29:09 lorens Exp $
  */
 #include "domains.h"
 #include "bindings.h"
@@ -142,7 +142,8 @@ void Effect::add_negative(const Negation& negation) {
 
 
 /* Fills the provided list with instantiations of this effect. */
-void Effect::instantiations(EffectList& effects, const SubstitutionList& subst,
+void Effect::instantiations(EffectList& effects, size_t& useful,
+			    const SubstitutionList& subst,
 			    const Problem& problem) const {
   size_t n = forall().size();
   if (n == 0) {
@@ -151,6 +152,9 @@ void Effect::instantiations(EffectList& effects, const SubstitutionList& subst,
       const Effect* inst_effect = instantiation(subst, problem, inst_cond);
       if (inst_effect != NULL) {
 	effects.push_back(inst_effect);
+	if (!inst_effect->link_condition().contradiction()) {
+	  useful++;
+	}
       } else {
 	Formula::register_use(&inst_cond);
 	Formula::unregister_use(&inst_cond);
@@ -188,6 +192,9 @@ void Effect::instantiations(EffectList& effects, const SubstitutionList& subst,
 	  const Effect* inst_effect = instantiation(args, problem, inst_cond);
 	  if (inst_effect != NULL) {
 	    effects.push_back(inst_effect);
+	    if (!inst_effect->link_condition().contradiction()) {
+	      useful++;
+	    }
 	  }
 	}
 	for (int j = i; j >= 0; j--) {
@@ -583,10 +590,11 @@ const GroundAction* ActionSchema::instantiation(const SubstitutionList& args,
 						const Problem& problem,
 						const Formula& precond) const {
   EffectList inst_effects;
+  size_t useful = 0;
   for (EffectListIter ei = effects().begin(); ei != effects().end(); ei++) {
-    (*ei)->instantiations(inst_effects, args, problem);
+    (*ei)->instantiations(inst_effects, useful, args, problem);
   }
-  if (!inst_effects.empty()) {
+  if (useful > 0) {
     GroundAction& ga = *(new GroundAction(name(), durative()));
     for (SubstListIter si = args.begin(); si != args.end(); si++) {
       ga.add_argument(dynamic_cast<const Name&>((*si).term()));
@@ -600,6 +608,10 @@ const GroundAction* ActionSchema::instantiation(const SubstitutionList& args,
     ga.set_max_duration(max_duration());
     return &ga;
   } else {
+    for (EffectListIter ei = inst_effects.begin();
+	 ei != inst_effects.end(); ei++) {
+      delete *ei;
+    }
     return NULL;
   }
 }
