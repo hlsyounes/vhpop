@@ -2,7 +2,7 @@
 /*
  * Formulas.
  *
- * $Id: formulas.h,v 1.8 2001-08-11 06:17:16 lorens Exp $
+ * $Id: formulas.h,v 1.9 2001-08-12 06:58:24 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -280,14 +280,6 @@ struct Formula : public gc {
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const = 0;
 
-  /* Checks if this formula matches the given formula; two formulas
-     matches if they are both atomic formulas, or negations of atomic
-     formulas, and the predicates of the atomic formulas are the
-     same. */
-  virtual bool matches(const Formula& f) const {
-    return false;
-  }
-
   /* Checks if this formula is equivalent to the given formula; two
      formulas are equivalent if they match (as defined above), and the
      term lists of the atomic formulas are equivalent. */
@@ -311,6 +303,13 @@ struct Formula : public gc {
   virtual void achievable_goals(FormulaList& goals) const {
   }
 
+  /* Fills the provided list with predicates achievable by this
+     formula.  N.B. Will only add predicates for atomic formulas that
+     are not fully instantiated. */
+  virtual void achievable_predicates(vector<string>& preds,
+				     vector<string>& neg_preds) const {
+  }
+
 protected:
   /* Prints this formula on the given stream. */
   virtual void print(ostream& os) const = 0;
@@ -318,7 +317,7 @@ protected:
   /* Checks if this formula equals the given formula. */
   virtual bool equals(const Formula& f) const = 0;
 
-  /* Returns a negation of this formula. */
+  /* Returns the negation of this formula. */
   virtual const Formula& negation() const = 0;
 
   /* Returns the hash value of this formula. */
@@ -360,20 +359,20 @@ const Formula& operator&&(const Formula& f1, const Formula& f2);
 const Formula& operator||(const Formula& f1, const Formula& f2);
     
 /*
- * Equality function object for formula pointers.
- */
-struct equal_to<const Formula*> {
-  bool operator()(const Formula* f1, const Formula* f2) const {
-    return *f1 == *f2;
-  }
-};
-
-/*
  * Hash function object for formulas.
  */
 struct hash<Formula> {
   size_t operator()(const Formula& f) const {
     return f.hash_value();
+  }
+};
+
+/*
+ * Equality function object for formula pointers.
+ */
+struct equal_to<const Formula*> {
+  bool operator()(const Formula* f1, const Formula* f2) const {
+    return *f1 == *f2;
   }
 };
 
@@ -401,32 +400,10 @@ struct FormulaList : public gc, vector<const Formula*, container_alloc> {
   }
 
   /* Returns an instantiation of this formula list. */
-  const FormulaList& instantiation(size_t id) const {
-    FormulaList& formulas = *(new FormulaList());
-    for (const_iterator i = begin(); i != end(); i++) {
-      formulas.push_back(&(*i)->instantiation(id));
-    }
-    return formulas;
-  }
+  const FormulaList& instantiation(size_t id) const;
 
   /* Returns this formula list subject to the given substitutions. */
-  const FormulaList& substitution(const SubstitutionList& subst) const {
-    FormulaList& formulas = *(new FormulaList());
-    for (const_iterator i = begin(); i != end(); i++) {
-      formulas.push_back(&(*i)->substitution(subst));
-    }
-    return formulas;
-  }
-
-  /* Checks if any of the formulas in this list matches the given formula. */
-  bool matches(const Formula& f) const {
-    for (const_iterator i = begin(); i != end(); i++) {
-      if ((*i)->matches(f)) {
-	return true;
-      }
-    }
-    return false;
-  }
+  const FormulaList& substitution(const SubstitutionList& subst) const;
 
   /* Checks if any of the formulas in this list involves the given
    * predicate. */
@@ -441,11 +418,12 @@ struct FormulaList : public gc, vector<const Formula*, container_alloc> {
 
   /* Fills the provided list with goals achievable by the formulas in
      this list. */
-  void achievable_goals(FormulaList& goals) const {
-    for (const_iterator i = begin(); i != end(); i++) {
-      (*i)->achievable_goals(goals);
-    }
-  }
+  void achievable_goals(FormulaList& goals) const;
+
+  /* Fills the provided list with predicates achievable by the
+     formulas in this list. */
+  void achievable_predicates(vector<string>& preds,
+			     vector<string>& neg_preds) const;
 
   /* Roughly corresponds to the number of open conditions the formulas
      in this list will give rise to. */
@@ -458,33 +436,13 @@ struct FormulaList : public gc, vector<const Formula*, container_alloc> {
   }
 
   /* Equality operator for formula lists. */
-  bool operator==(const FormulaList& formulas) const {
-    if (size() != formulas.size()) {
-      return false;
-    } else {
-      for (const_iterator i = begin(), j = formulas.begin();
-	   i != end(); i++, j++) {
-	if (**i != **j) {
-	  return false;
-	}
-      }
-      return true;
-    }
-  }
+  bool operator==(const FormulaList& formulas) const;
 
   /* Inequality operator for formula lists. */
-  bool operator!=(const FormulaList& formulas) const {
-    return !(*this == formulas);
-  }
+  bool operator!=(const FormulaList& formulas) const;
 
-  /* Returns a negation of this formula list. */
-  const FormulaList& operator!() const {
-    FormulaList& formulas = *(new FormulaList());
-    for (const_iterator i = begin(); i != end(); i++) {
-      formulas.push_back(&!**i);
-    }
-    return formulas;
-  }
+  /* Returns the negation of this formula list. */
+  const FormulaList& operator!() const;
 };
 
 
@@ -512,12 +470,6 @@ struct AtomicFormula : public Formula {
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
 
-  /* Checks if this atomic formula matches the given formula. */
-  virtual bool matches(const Formula& f) const {
-    const AtomicFormula* atom = dynamic_cast<const AtomicFormula*>(&f);
-    return atom != NULL && predicate == atom->predicate;
-  }
-
   /* Checks if this atomic formula is equivalent to the given formula. */
   virtual bool equivalent(const Formula& f) const {
     const AtomicFormula* atom = dynamic_cast<const AtomicFormula*>(&f);
@@ -540,28 +492,25 @@ struct AtomicFormula : public Formula {
   }
 
   /* Fills the provided list with goals achievable by this formula. */
-  virtual void achievable_goals(FormulaList& goals) const {
-    goals.push_back(this);
-  }
+  virtual void achievable_goals(FormulaList& goals) const;
+
+  /* Fills the provided list with predicates achievable by this
+     formula. */
+  virtual void achievable_predicates(vector<string>& preds,
+				     vector<string>& neg_preds) const;
 
 protected:
-  /* Prints this atomic formula on the given stream. */
+  /* Prints this formula on the given stream. */
   virtual void print(ostream& os) const;
 
-  /* Checks if this atomic formula equals the given formula. */
-  virtual bool equals(const Formula& f) const {
-    const AtomicFormula* atom = dynamic_cast<const AtomicFormula*>(&f);
-    return (atom != NULL &&
-	    predicate == atom->predicate && terms == atom->terms);
-  }
+  /* Checks if this formula equals the given formula. */
+  virtual bool equals(const Formula& f) const;
 
-  /* Returns a negation of this atomic formula. */
+  /* Returns the negation of this formula. */
   virtual const Formula& negation() const;
 
   /* Returns the hash value of this formula. */
-  virtual size_t hash_value() const {
-    return hash<string>()(predicate) + hash<TermList>()(terms);
-  }
+  virtual size_t hash_value() const;
 };
 
 
@@ -581,12 +530,6 @@ struct Negation : public Formula {
 
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
-
-  /* Checks if this negation matches the given formula. */
-  virtual bool matches(const Formula& f) const {
-    const Negation* negation = dynamic_cast<const Negation*>(&f);
-    return negation != NULL && atom.matches(negation->atom);
-  }
 
   /* Checks if this negation is equivalent to the given formula. */
   virtual bool equivalent(const Formula& f) const {
@@ -610,18 +553,26 @@ struct Negation : public Formula {
     return 1;
   }
 
+  /* Fills the provided list with goals achievable by this formula. */
+  virtual void achievable_goals(FormulaList& goals) const;
+
+  /* Fills the provided list with predicates achievable by this
+     formula. */
+  virtual void achievable_predicates(vector<string>& preds,
+				     vector<string>& neg_preds) const;
+
 protected:
-  /* Prints this negation on the given stream. */
+  /* Prints this formula on the given stream. */
   virtual void print(ostream& os) const;
 
-  /* Checks if this negation equals the given formula. */
-  virtual bool equals(const Formula& f) const {
-    const Negation* negation = dynamic_cast<const Negation*>(&f);
-    return negation != NULL && atom == negation->atom;
-  }
+  /* Checks if this formula equals the given formula. */
+  virtual bool equals(const Formula& f) const;
 
-  /* Returns an atomic formula that this is a negation of. */
+  /* Returns the negation of this formula. */
   virtual const Formula& negation() const;
+
+  /* Returns the hash value of this formula. */
+  virtual size_t hash_value() const;
 
 private:
   /* Constructs a negated atomic formula. */
@@ -677,18 +628,13 @@ struct Equality : public Formula {
   }
 
 protected:
-  /* Prints this equality on the given stream. */
+  /* Prints this formula on the given stream. */
   virtual void print(ostream& os) const;
 
-  /* Checks if this equality equals the given formula. */
-  virtual bool equals(const Formula& f) const {
-    const Equality* eq = dynamic_cast<const Equality*>(&f);
-    return (eq != NULL &&
-	    ((term1 == eq->term1 && term2 == eq->term2) ||
-	     (term1 == eq->term2 && term2 == eq->term1)));
-  }
+  /* Checks if this formula equals the given formula. */
+  virtual bool equals(const Formula& f) const;
 
-  /* Returns a negation of this equality. */
+  /* Returns the negation of this formula. */
   virtual const Formula& negation() const;
 };
 
@@ -730,23 +676,16 @@ struct Inequality : public Formula {
   }
 
 protected:
-  /* Prints this inequality on the given stream. */
+  /* Prints this formula on the given stream. */
   virtual void print(ostream& os) const;
 
-  /* Checks if this inequality equals the given formula. */
-  virtual bool equals(const Formula& f) const {
-    const Inequality* neq = dynamic_cast<const Inequality*>(&f);
-    return (neq != NULL &&
-	    ((term1 == neq->term1 && term2 == neq->term2) ||
-	     (term1 == neq->term2 && term2 == neq->term1)));
-  }
+  /* Checks if this formula equals the given formula. */
+  virtual bool equals(const Formula& f) const;
 
-  /* Returns a negation of this inequality formula. */
+  /* Returns the negation of this formula. */
   virtual const Formula& negation() const;
 };
 
-
-struct Disjunction;
 
 /*
  * Conjunction.
@@ -777,24 +716,21 @@ struct Conjunction : public Formula {
   }
 
   /* Fills the provided list with goals achievable by this formula. */
-  virtual void achievable_goals(FormulaList& goals) const {
-    for (FormulaList::const_iterator c = conjuncts.begin();
-	 c != conjuncts.end(); c++) {
-      goals.push_back(*c);
-    }
-  }
+  virtual void achievable_goals(FormulaList& goals) const;
+
+  /* Fills the provided list with predicates achievable by this
+     formula. */
+  virtual void achievable_predicates(vector<string>& preds,
+				     vector<string>& neg_preds) const;
 
 protected:
-  /* Prints this conjunction on the given stream. */
+  /* Prints this formula on the given stream. */
   virtual void print(ostream& os) const;
 
-  /* Checks if this conjunction equals the given formula. */
-  virtual bool equals(const Formula& f) const {
-    const Conjunction* conjunction = dynamic_cast<const Conjunction*>(&f);
-    return conjunction != NULL && conjuncts == conjunction->conjuncts;
-  }
+  /* Checks if this formula equals the given formula. */
+  virtual bool equals(const Formula& f) const;
 
-  /* Returns the negation of this conjunction. */
+  /* Returns the negation of this formula. */
   virtual const Formula& negation() const;
 
 private:
@@ -836,24 +772,21 @@ struct Disjunction : public Formula {
   }
 
   /* Fills the provided list with goals achievable by this formula. */
-  virtual void achievable_goals(FormulaList& goals) const {
-    for (FormulaList::const_iterator d = disjuncts.begin();
-	 d != disjuncts.end(); d++) {
-      goals.push_back(*d);
-    }
-  }
+  virtual void achievable_goals(FormulaList& goals) const;
+
+  /* Fills the provided list with predicates achievable by this
+     formula. */
+  virtual void achievable_predicates(vector<string>& preds,
+				     vector<string>& neg_preds) const;
 
 protected:
-  /* Prints this disjunction on the given stream. */
+  /* Prints this formula on the given stream. */
   virtual void print(ostream& os) const;
 
-  /* Checks if this disjunction equals the given formula. */
-  virtual bool equals(const Formula& f) const {
-    const Disjunction* disjunction = dynamic_cast<const Disjunction*>(&f);
-    return disjunction != NULL && disjuncts == disjunction->disjuncts;
-  }
+  /* Checks if this formula equals the given formula. */
+  virtual bool equals(const Formula& f) const;
 
-  /* Returns a negation of this disjunction. */
+  /* Returns the negation of this formula. */
   virtual const Formula& negation() const;
 
 private:
@@ -867,17 +800,33 @@ private:
 
 
 /*
- * Existentially quantified formula.
+ * Abstract quantified formula.
  */
-struct ExistsFormula : public Formula {
-  /* Existentially quanitfied variables. */
+struct QuantifiedFormula : public Formula {
+  /* Quanitfied variables. */
   const VariableList& parameters;
   /* The quantified formula. */
   const Formula& body;
 
+  /* Fills the provided list with predicates achievable by this
+     formula. */
+  virtual void achievable_predicates(vector<string>& preds,
+				     vector<string>& neg_preds) const;
+
+protected:
+  QuantifiedFormula(const VariableList& parameters, const Formula& body)
+    : parameters(parameters), body(body) {
+  }
+};
+
+
+/*
+ * Existentially quantified formula.
+ */
+struct ExistsFormula : public QuantifiedFormula {
   /* Constructs an existentially quantified formula. */
   ExistsFormula(const VariableList& parameters, const Formula& body)
-    : parameters(parameters), body(body) {
+    : QuantifiedFormula(parameters, body) {
   }
 
   /* Returns an instantiation of this formula. */
@@ -901,23 +850,14 @@ struct ExistsFormula : public Formula {
     return 1;
   }
 
-  /* Fills the provided list with goals achievable by this formula. */
-  virtual void achievable_goals(FormulaList& goals) const {
-    body.achievable_goals(goals);
-  }
-
 protected:
   /* Prints this formula on the given stream. */
   virtual void print(ostream& os) const;
 
   /* Checks if this formula equals the given formula. */
-  virtual bool equals(const Formula& f) const {
-    const ExistsFormula* exists = dynamic_cast<const ExistsFormula*>(&f);
-    return (exists != NULL &&
-	    parameters == exists->parameters && body == exists->body);
-  }
+  virtual bool equals(const Formula& f) const;
 
-  /* Returns a negation of this formula. */
+  /* Returns the negation of this formula. */
   virtual const Formula& negation() const;
 };
 
@@ -925,15 +865,10 @@ protected:
 /*
  * Universally quantified formula.
  */
-struct ForallFormula : public Formula {
-  /* Existentially quantified variables. */
-  const VariableList& parameters;
-  /* The quantified formula. */
-  const Formula& body;
-
+struct ForallFormula : public QuantifiedFormula {
   /* Constructs a universally quantified formula. */
   ForallFormula(const VariableList& parameters, const Formula& body)
-    : parameters(parameters), body(body) {
+    : QuantifiedFormula(parameters, body) {
   }
 
   /* Returns an instantiation of this formula. */
@@ -957,21 +892,12 @@ struct ForallFormula : public Formula {
     return 1;
   }
 
-  /* Fills the provided list with goals achievable by this formula. */
-  virtual void achievable_goals(FormulaList& goals) const {
-    body.achievable_goals(goals);
-  }
-
 protected:
   /* Prints this formula on the given stream. */
   virtual void print(ostream& os) const;
 
   /* Checks if this formula equals the given formula. */
-  virtual bool equals(const Formula& f) const {
-    const ForallFormula* forall = dynamic_cast<const ForallFormula*>(&f);
-    return (forall != NULL &&
-	    parameters == forall->parameters && body == forall->body);
-  }
+  virtual bool equals(const Formula& f) const;
 
   /* Returns the negation of this formula. */
   virtual const Formula& negation() const;
