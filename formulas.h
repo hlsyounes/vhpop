@@ -2,7 +2,7 @@
 /*
  * Formulas.
  *
- * $Id: formulas.h,v 1.9 2001-08-12 06:58:24 lorens Exp $
+ * $Id: formulas.h,v 1.10 2001-08-12 16:30:29 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -10,6 +10,7 @@
 #include <iostream>
 #include <string>
 #include <hash_map>
+#include <hash_set>
 #include <vector>
 #include "support.h"
 #include "types.h"
@@ -287,13 +288,11 @@ struct Formula : public gc {
     return false;
   }
 
-  /* Checks if this formula negates the given formula. */
+  /* Checks if this formula negates the given formula.  N.B. Only
+     works for atomic formulas and negated atomic formulas. */
   virtual bool negates(const Formula& f) const {
     return false;
   }
-
-  /* Checks if this formula involves the given predicate. */
-  virtual bool involves(const string& predicate) const = 0;
 
   /* Roughly corresponds to the number of open conditions this formula
      will give rise to. */
@@ -303,11 +302,11 @@ struct Formula : public gc {
   virtual void achievable_goals(FormulaList& goals) const {
   }
 
-  /* Fills the provided list with predicates achievable by this
+  /* Fills the provided sets with predicates achievable by this
      formula.  N.B. Will only add predicates for atomic formulas that
      are not fully instantiated. */
-  virtual void achievable_predicates(vector<string>& preds,
-				     vector<string>& neg_preds) const {
+  virtual void achievable_predicates(hash_set<string>& preds,
+				     hash_set<string>& neg_preds) const {
   }
 
 protected:
@@ -405,25 +404,14 @@ struct FormulaList : public gc, vector<const Formula*, container_alloc> {
   /* Returns this formula list subject to the given substitutions. */
   const FormulaList& substitution(const SubstitutionList& subst) const;
 
-  /* Checks if any of the formulas in this list involves the given
-   * predicate. */
-  bool involves(const string& predicate) const {
-    for (const_iterator i = begin(); i != end(); i++) {
-      if ((*i)->involves(predicate)) {
-	return true;
-      }
-    }
-    return false;
-  }
-
   /* Fills the provided list with goals achievable by the formulas in
      this list. */
   void achievable_goals(FormulaList& goals) const;
 
-  /* Fills the provided list with predicates achievable by the
+  /* Fills the provided sets with predicates achievable by the
      formulas in this list. */
-  void achievable_predicates(vector<string>& preds,
-			     vector<string>& neg_preds) const;
+  void achievable_predicates(hash_set<string>& preds,
+			     hash_set<string>& neg_preds) const;
 
   /* Roughly corresponds to the number of open conditions the formulas
      in this list will give rise to. */
@@ -480,11 +468,6 @@ struct AtomicFormula : public Formula {
   /* Checks if this atomic formula negates the given formula. */
   virtual bool negates(const Formula& f) const;
 
-  /* Checks if this formula involves the given predicate. */
-  virtual bool involves(const string& predicate) const {
-    return this->predicate == predicate;
-  }
-
   /* Roughly corresponds to the number of open conditions this formula
      will give rise to. */
   virtual size_t cost() const {
@@ -494,10 +477,10 @@ struct AtomicFormula : public Formula {
   /* Fills the provided list with goals achievable by this formula. */
   virtual void achievable_goals(FormulaList& goals) const;
 
-  /* Fills the provided list with predicates achievable by this
+  /* Fills the provided sets with predicates achievable by this
      formula. */
-  virtual void achievable_predicates(vector<string>& preds,
-				     vector<string>& neg_preds) const;
+  virtual void achievable_predicates(hash_set<string>& preds,
+				     hash_set<string>& neg_preds) const;
 
 protected:
   /* Prints this formula on the given stream. */
@@ -538,14 +521,7 @@ struct Negation : public Formula {
   }
 
   /* Checks if this is a negation of the given formula. */
-  virtual bool negates(const Formula& f) const {
-    return atom == f;
-  }
-
-  /* Checks if this formula involves the given predicate. */
-  virtual bool involves(const string& predicate) const {
-    return atom.involves(predicate);
-  }
+  virtual bool negates(const Formula& f) const;
 
   /* Roughly corresponds to the number of open conditions this formula
      will give rise to. */
@@ -556,10 +532,10 @@ struct Negation : public Formula {
   /* Fills the provided list with goals achievable by this formula. */
   virtual void achievable_goals(FormulaList& goals) const;
 
-  /* Fills the provided list with predicates achievable by this
+  /* Fills the provided sets with predicates achievable by this
      formula. */
-  virtual void achievable_predicates(vector<string>& preds,
-				     vector<string>& neg_preds) const;
+  virtual void achievable_predicates(hash_set<string>& preds,
+				     hash_set<string>& neg_preds) const;
 
 protected:
   /* Prints this formula on the given stream. */
@@ -582,13 +558,6 @@ private:
 
   friend const Formula& AtomicFormula::negation() const;
 };
-
-
-/* Checks if this atomic formula negates the given formula. */
-inline bool AtomicFormula::negates(const Formula& f) const {
-  const Negation* negation = dynamic_cast<const Negation*>(&f);
-  return negation != NULL && negation->negates(*this);
-}
 
 
 /*
@@ -615,11 +584,6 @@ struct Equality : public Formula {
 
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
-
-  /* Checks if this formula involves the given predicate. */
-  virtual bool involves(const string& predicate) const {
-    return "=" == predicate;
-  }
 
   /* Roughly corresponds to the number of open conditions this formula
      will give rise to. */
@@ -664,11 +628,6 @@ struct Inequality : public Formula {
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
 
-  /* Checks if this formula involves the given predicate. */
-  virtual bool involves(const string& predicate) const {
-    return "=" == predicate;
-  }
-
   /* Roughly corresponds to the number of open conditions this formula
      will give rise to. */
   virtual size_t cost() const {
@@ -704,11 +663,6 @@ struct Conjunction : public Formula {
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
 
-  /* Checks if this formula involves the given predicate. */
-  virtual bool involves(const string& predicate) const {
-    return conjuncts.involves(predicate);
-  }
-
   /* Roughly corresponds to the number of open conditions this formula
      will give rise to. */
   virtual size_t cost() const {
@@ -718,10 +672,10 @@ struct Conjunction : public Formula {
   /* Fills the provided list with goals achievable by this formula. */
   virtual void achievable_goals(FormulaList& goals) const;
 
-  /* Fills the provided list with predicates achievable by this
+  /* Fills the provided sets with predicates achievable by this
      formula. */
-  virtual void achievable_predicates(vector<string>& preds,
-				     vector<string>& neg_preds) const;
+  virtual void achievable_predicates(hash_set<string>& preds,
+				     hash_set<string>& neg_preds) const;
 
 protected:
   /* Prints this formula on the given stream. */
@@ -760,11 +714,6 @@ struct Disjunction : public Formula {
   /* Returns this formula subject to the given substitution. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
 
-  /* Checks if this formula involves the given predicate. */
-  virtual bool involves(const string& predicate) const {
-    return disjuncts.involves(predicate);
-  }
-
   /* Roughly corresponds to the number of open conditions this formula
      will give rise to. */
   virtual size_t cost() const {
@@ -774,10 +723,10 @@ struct Disjunction : public Formula {
   /* Fills the provided list with goals achievable by this formula. */
   virtual void achievable_goals(FormulaList& goals) const;
 
-  /* Fills the provided list with predicates achievable by this
+  /* Fills the provided sets with predicates achievable by this
      formula. */
-  virtual void achievable_predicates(vector<string>& preds,
-				     vector<string>& neg_preds) const;
+  virtual void achievable_predicates(hash_set<string>& preds,
+				     hash_set<string>& neg_preds) const;
 
 protected:
   /* Prints this formula on the given stream. */
@@ -808,10 +757,10 @@ struct QuantifiedFormula : public Formula {
   /* The quantified formula. */
   const Formula& body;
 
-  /* Fills the provided list with predicates achievable by this
+  /* Fills the provided sets with predicates achievable by this
      formula. */
-  virtual void achievable_predicates(vector<string>& preds,
-				     vector<string>& neg_preds) const;
+  virtual void achievable_predicates(hash_set<string>& preds,
+				     hash_set<string>& neg_preds) const;
 
 protected:
   QuantifiedFormula(const VariableList& parameters, const Formula& body)
@@ -838,11 +787,6 @@ struct ExistsFormula : public QuantifiedFormula {
 
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
-
-  /* Checks if this formula involves the given predicate. */
-  virtual bool involves(const string& predicate) const {
-    return body.involves(predicate);
-  }
 
   /* Roughly corresponds to the number of open conditions this formula
      will give rise to. */
@@ -880,11 +824,6 @@ struct ForallFormula : public QuantifiedFormula {
 
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
-
-  /* Checks if this formula involves the given predicate. */
-  virtual bool involves(const string& predicate) const {
-    return body.involves(predicate);
-  }
 
   /* Roughly corresponds to the number of open conditions this formula
      will give rise to. */
