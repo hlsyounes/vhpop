@@ -1,5 +1,5 @@
 /*
- * $Id: formulas.cc,v 1.10 2001-09-04 23:01:48 lorens Exp $
+ * $Id: formulas.cc,v 1.11 2001-09-29 18:54:44 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -504,7 +504,7 @@ AtomicFormula::substitution(const SubstitutionList& subst) const {
 Cost AtomicFormula::cost(const hash_map<const Formula*, Cost>& atom_cost,
 			 Heuristic h) const {
   hash_map<const Formula*, Cost>::const_iterator ci = atom_cost.find(this);
-  return (ci != atom_cost.end()) ? (*ci).second : Cost(-1, -1);
+  return (ci != atom_cost.end()) ? (*ci).second : Cost::INFINITE;
 }
 
 
@@ -742,7 +742,7 @@ Cost Conjunction::cost(const hash_map<const Formula*, Cost>& atom_cost,
   Cost total_cost;
   for (FLCI fi = conjuncts.begin(); fi != conjuncts.end(); fi++) {
     Cost c = (*fi)->cost(atom_cost, h);
-    if (c.cost < 0) {
+    if (c.infinite()) {
       return c;
     } else {
       if (h.sum()) {
@@ -829,12 +829,10 @@ const Formula& Disjunction::substitution(const SubstitutionList& subst) const {
 /* Returns the heuristic cost of this formula. */
 Cost Disjunction::cost(const hash_map<const Formula*, Cost>& atom_cost,
 		       Heuristic h) const {
-  Cost total_cost = Cost(INT_MAX, INT_MAX);
+  Cost total_cost = Cost::INFINITE;
   for (FLCI fi = disjuncts.begin(); fi != disjuncts.end(); fi++) {
     Cost c = (*fi)->cost(atom_cost, h);
-    if (c.cost >= 0) {
-      total_cost = min(total_cost, c);
-    }
+    total_cost = min(total_cost, c);
   }
   return total_cost;
 }
