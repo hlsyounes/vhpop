@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.cc,v 3.18 2002-07-01 19:35:14 lorens Exp $
+ * $Id: bindings.cc,v 3.19 2002-07-04 10:27:13 lorens Exp $
  */
 #include <typeinfo>
 #include "bindings.h"
@@ -954,7 +954,12 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
    * Add new bindings one at a time.
    */
   for (size_t i = 0; i < new_binds.size(); i++) {
-    const Binding& bind = new_binds[i];
+    /*
+     * N.B. Make a copy of the binding instead of just saving a
+     * reference, because new_binds can be expanded in the loop in
+     * which case the reference may become invalid.
+     */
+    const Binding bind = new_binds[i];
     if (bind.equality()) {
       /*
        * Adding equality binding.
