@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.cc,v 3.11 2002-04-08 09:56:41 lorens Exp $
+ * $Id: domains.cc,v 3.12 2002-05-26 23:40:30 lorens Exp $
  */
 #include "bindings.h"
 #include "domains.h"
@@ -328,7 +328,7 @@ void EffectList::achievable_predicates(hash_set<string>& preds,
 
 
 /* "Strengthens" this effect list. */
-const EffectList& EffectList::stengthen(const Formula& condition) const {
+const EffectList& EffectList::strengthen(const Formula& condition) const {
   /*
    * First make sure there is only one add or del per effect.
    */

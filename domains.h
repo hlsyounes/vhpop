@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.h,v 3.9 2002-04-08 09:56:46 lorens Exp $
+ * $Id: domains.h,v 3.10 2002-05-26 23:40:15 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -172,7 +172,7 @@ struct EffectList : public vector<const Effect*> {
 			     hash_set<string>& neg_preds) const;
 
   /* "Strengthens" this effect list. */
-  const EffectList& stengthen(const Formula& condition) const;
+  const EffectList& strengthen(const Formula& condition) const;
 };
 
 /* Iterator for effect lists. */
