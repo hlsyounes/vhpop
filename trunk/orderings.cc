@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.cc,v 3.7 2002-03-29 10:04:04 lorens Exp $
+ * $Id: orderings.cc,v 3.8 2002-03-29 14:35:38 lorens Exp $
  */
 #include "orderings.h"
 #include "plans.h"
@@ -513,15 +513,18 @@ void BinaryOrderings::fill_transitive(hash_map<size_t, BoolVector*>& own_data,
   size_t i = id_map1_[ordering.before_id()];
   size_t j = id_map1_[ordering.after_id()];
   if (!order(i, j)) {
+    /*
+     * All steps ordered before i (and i itself) must be ordered
+     * before j and all steps ordered after j.
+     */
     size_t n = size();
     for (size_t k = 0; k < n; k++) {
-      if (k != i && (k == j || order(j, k)) && !order(i, k)) {
+      if ((k == i || order(k, i)) && !order(k, j)) {
 	for (size_t l = 0; l < n; l++) {
-	  if (l != i && l != j && l != k && order(l, i) && !order(l, k)) {
-	    set_order(own_data, l, k);
+	  if ((j == l || order(j, l)) && !order(k, l)) {
+	    set_order(own_data, k, l);
 	  }
 	}
-	set_order(own_data, i, k);
       }
     }
   }
@@ -864,38 +867,43 @@ TemporalOrderings::fill_transitive(hash_map<size_t, BoolVector*>& own_data1,
 				   const Ordering& ordering) {
   size_t i = time_node(ordering.before_id(), ordering.before_time());
   size_t j = time_node(ordering.after_id(), ordering.after_time());
-  bool change = false;
   if (!order(i, j)) {
+    /*
+     * All steps ordered before i (and i itself) must be ordered
+     * before j and all steps ordered after j.
+     *
+     * If i is ordered before j, then -d_ij < 0 must hold (d_ij > 0).
+     */
     size_t n = size();
     for (size_t k = 0; k < 2*n; k++) {
-      if (k != i && (k == j || order(j, k)) && !order(i, k)) {
+      if ((k == i || order(k, i)) && !order(k, j)) {
 	for (size_t l = 0; l < 2*n; l++) {
-	  if (l != i && l != j && l != k && order(l, i) && !order(l, k)) {
-	    set_order(own_data1, l, k);
-	    if (distance(k, l) > 0.0f) {
-	      set_distance(own_data2, k, l, 0.0f);
-	      change = true;
+	  if ((j == l || order(j, l)) && !order(k, l)) {
+	    set_order(own_data1, k, l);
+	    if (distance(k, l) <= 0.0f) {
+	      return false;
 	    }
 	  }
 	}
-	set_order(own_data1, i, k);
-	if (distance(k, i) > 0.0f) {
-	  set_distance(own_data2, k, i, 0.0f);
-	  change = true;
-	}
       }
     }
-    if (change) {
-      for (size_t k = 0; k < 2*n; k++) {
-	for (size_t i = 0; i < 2*n; i++) {
-	  for (size_t j = 0; j < 2*n; j++) {
-	    float d = distance(i, k) + distance(k, j);
-	    if (d < distance(i, j)) {
-	      set_distance(own_data2, i, j, d);
-	      if (order(i, j) && d <= 0.0) {
-		/* Inconsistent with ordering constraints. */
-		return false;
-	      }
+  }
+  if (distance(j, i) > 0.0f) {
+    /*
+     * Now update the temporal constraints in a similar way.
+     *
+     * Make sure that -d_ij <= d_ji always holds.
+     */
+    size_t n = size();
+    for (size_t k = 0; k < 2*n; k++) {
+      float d_ik = distance(i, k);
+      if (!isinf(d_ik) && distance(j, k) > d_ik) {
+	for (size_t l = 0; l < 2*n; l++) {
+	  float d_lj = distance(l, j);
+	  if (!isinf(d_lj) && distance(l, k) > d_ik + d_lj) {
+	    set_distance(own_data2, l, k, d_ik + d_lj);
+	    if (-distance(k, l) > d_ik + d_lj) {
+	      return false;
 	    }
 	  }
 	}

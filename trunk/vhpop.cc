@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 3.9 2002-03-29 10:04:38 lorens Exp $
+ * $Id: vhpop.cc,v 3.10 2002-03-29 14:35:32 lorens Exp $
  */
 #include "plans.h"
 #include "parameters.h"
@@ -317,13 +317,21 @@ int main(int argc, char* argv[]) {
       pi++;
       cout << ';' << problem.name << endl;
       struct itimerval timer = { { 1000000, 900000 }, { 1000000, 900000 } };
+#ifdef PROFILING
+      setitimer(ITIMER_VIRTUAL, &timer, NULL);
+#else
       setitimer(ITIMER_PROF, &timer, NULL);
+#endif
 #ifdef ALWAYS_DELETE_ALL
       const Plan* plan = Plan::plan(problem, params, false);
 #else
       const Plan* plan = Plan::plan(problem, params, pi == Problem::end());
 #endif
+#ifdef PROFILING
+      getitimer(ITIMER_VIRTUAL, &timer);
+#else
       getitimer(ITIMER_PROF, &timer);
+#endif
       /* Planning time. */
       double t = 1000000.9
 	- (timer.it_value.tv_sec + timer.it_value.tv_usec*1e-6);
