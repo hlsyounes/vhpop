@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.cc,v 3.17 2002-06-30 23:03:15 lorens Exp $
+ * $Id: bindings.cc,v 3.18 2002-07-01 19:35:14 lorens Exp $
  */
 #include <typeinfo>
 #include "bindings.h"
@@ -491,7 +491,7 @@ ostream& operator<<(ostream& os, const Binding& b) {
 /* Constructs an action domain with a single tuple. */
 ActionDomain::ActionDomain(const NameList& tuple) {
   for (size_t i = 0; i < tuple.size(); i++) {
-    projections.push_back(new NameSet());
+    projections_.push_back(new NameSet());
   }
   add(tuple);
 }
@@ -499,28 +499,28 @@ ActionDomain::ActionDomain(const NameList& tuple) {
 
 /* Number of tuples. */
 size_t ActionDomain::size() const {
-  return tuples.size();
+  return tuples_.size();
 }
 
 
 /* Adds a tuple to this domain. */
 void ActionDomain::add(const NameList& tuple) {
-  tuples.push_back(&tuple);
+  tuples_.push_back(&tuple);
   for (size_t i = 0; i < tuple.size(); i++) {
-    projections[i]->insert(tuple[i]);
+    projections_[i]->insert(tuple[i]);
   }
 }
 
 
 /* Returns the set of names from the given column. */
 const NameSet& ActionDomain::projection(size_t column) const {
-  return *projections[column];
+  return *projections_[column];
 }
 
 
 /* Returns the size of the projection of the given column. */
 const size_t ActionDomain::projection_size(size_t column) const {
-  return projections[column]->size();
+  return projections_[column]->size();
 }
 
 
@@ -529,7 +529,7 @@ const size_t ActionDomain::projection_size(size_t column) const {
 const ActionDomain* ActionDomain::restrict(const Name& name,
 					   size_t column) const {
   ActionDomain* new_domain = NULL;
-  for (TupleListIter ti = tuples.begin(); ti != tuples.end(); ti++) {
+  for (TupleListIter ti = tuples_.begin(); ti != tuples_.end(); ti++) {
     const NameList& tuple = **ti;
     if (*tuple[column] == name) {
       if (new_domain == NULL) {
@@ -549,7 +549,7 @@ const ActionDomain* ActionDomain::restrict(const Name& name,
 const ActionDomain* ActionDomain::restrict(const NameSet& names,
 					   size_t column) const {
   ActionDomain* new_domain = NULL;
-  for (TupleListIter ti = tuples.begin(); ti != tuples.end(); ti++) {
+  for (TupleListIter ti = tuples_.begin(); ti != tuples_.end(); ti++) {
     const NameList& tuple = **ti;
     if (names.find(tuple[column]) != names.end()) {
       if (new_domain == NULL) {
@@ -568,7 +568,7 @@ const ActionDomain* ActionDomain::restrict(const NameSet& names,
 const ActionDomain* ActionDomain::exclude(const Name& name,
 					  size_t column) const {
   ActionDomain* new_domain = NULL;
-  for (TupleListIter ti = tuples.begin(); ti != tuples.end(); ti++) {
+  for (TupleListIter ti = tuples_.begin(); ti != tuples_.end(); ti++) {
     const NameList& tuple = **ti;
     if (*tuple[column] != name) {
       if (new_domain == NULL) {
@@ -582,11 +582,12 @@ const ActionDomain* ActionDomain::exclude(const Name& name,
 }
 
 
-/* Prints this object on the given stream. */
-void ActionDomain::print(ostream& os) const {
+/* Output operator for action domains. */
+ostream& operator<<(ostream& os, const ActionDomain& ad) {
   os << '{';
-  for (TupleListIter ti = tuples.begin(); ti != tuples.end(); ti++) {
-    if (ti != tuples.begin()) {
+  for (ActionDomain::TupleListIter ti = ad.tuples_.begin();
+       ti != ad.tuples_.end(); ti++) {
+    if (ti != ad.tuples_.begin()) {
       os << ' ';
     }
     os << '<';
@@ -600,6 +601,7 @@ void ActionDomain::print(ostream& os) const {
     os << '>';
   }
   os << '}';
+  return os;
 }
 
 

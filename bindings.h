@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.h,v 3.10 2002-06-28 20:13:23 lorens Exp $
+ * $Id: bindings.h,v 3.11 2002-07-01 19:35:08 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
@@ -127,7 +127,7 @@ typedef NameSet::const_iterator NameSetIter;
 /*
  * Domain for action parameters.
  */
-struct ActionDomain : public Printable {
+struct ActionDomain {
   /* Constructs an action domain with a single tuple. */
   ActionDomain(const NameList& tuple);
 
@@ -156,10 +156,6 @@ struct ActionDomain : public Printable {
      or NULL if this would leave an empty domain. */
   const ActionDomain* exclude(const Name& name, size_t column) const;
 
-protected:
-  /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const;
-
 private:
   /* A list of parameter tuples. */
   struct TupleList : public vector<const NameList*> {
@@ -169,10 +165,15 @@ private:
   typedef TupleList::const_iterator TupleListIter;
 
   /* Possible parameter tuples. */
-  TupleList tuples;
+  TupleList tuples_;
   /* Projections. */
-  vector<NameSet*> projections;
+  vector<NameSet*> projections_;
+
+  friend ostream& operator<<(ostream& os, const ActionDomain& ad);
 };
+
+/* Output operator for action domains. */
+ostream& operator<<(ostream& os, const ActionDomain& ad);
 
 
 /* ====================================================================== */
