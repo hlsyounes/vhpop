@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.13 2001-09-03 20:21:02 lorens Exp $
+ * $Id: plans.h,v 1.14 2001-09-18 16:14:17 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -186,7 +186,9 @@ struct Step : public gc {
 
   /* Constructs a step instantiated from an action. */
   Step(size_t id, const Action& action, const Reason& reason)
-    : id(id), action(&action.action_formula(id)),
+    : id(id), action((typeid(action) == typeid(ActionSchema))
+		     ? &action.action_formula().instantiation(id)
+		     : &action.action_formula()),
       precondition((typeid(action) == typeid(ActionSchema))
 		   ? action.precondition.instantiation(id)
 		   : action.precondition),
@@ -412,6 +414,10 @@ private:
   mutable const OpenCondition* most_work_open_cond_;
   /* The open condition requiring least work. */
   mutable const OpenCondition* least_work_open_cond_;
+  /* The most linkable open condition. */
+  mutable const OpenCondition* most_linkable_open_cond_;
+  /* The least linkable open condition. */
+  mutable const OpenCondition* least_linkable_open_cond_;
 
   /* Returns the initial plan representing the given problem, or NULL
      if goals of problem are inconsistent. */
@@ -437,9 +443,8 @@ private:
 	    TRANSFORMED_PLAN : type),
       rank1_(-1), rank2_(-1),
       most_cost_open_cond_(NULL), least_cost_open_cond_(NULL),
-      most_work_open_cond_(NULL), least_work_open_cond_(NULL) {
-    if (type_ != INTERMEDIATE_PLAN) {
-    }
+      most_work_open_cond_(NULL), least_work_open_cond_(NULL),
+      most_linkable_open_cond_(NULL), least_linkable_open_cond_(NULL) {
   }
 
   const Flaw& get_flaw() const;
