@@ -1,27 +1,9 @@
 /*
- * $Id: formulas.cc,v 1.1 2001-05-03 15:15:08 lorens Exp $
+ * $Id: formulas.cc,v 1.2 2001-07-29 17:55:36 lorens Exp $
  */
 #include "formulas.h"
-
-
-/* The object type. */
-const SimpleType& SimpleType::OBJECT_TYPE = *(new SimpleType("object"));
-
-
-/* Prints this type on the given stream. */
-void SimpleType::print(ostream& os) const {
-  os << name;
-}
-
-
-/* Prints this type on the given stream. */
-void UnionType::print(ostream& os) const {
-  os << "(either";
-  for (TypeList::const_iterator i = types.begin(); i != types.end(); i++) {
-    os << ' ' << **i;
-  }
-  os << ")";
-}
+#include "domains.h"
+#include "problems.h"
 
 
 /* Prints this term on the given stream. */
@@ -30,9 +12,35 @@ void Term::print(ostream& os) const {
 }
 
 
+/* Prints this substitution on the given stream. */
+void Substitution::print(ostream& os) const {
+  os << '[' << var << '/' << term << ']';
+}
+
+
 /* Prints this instantiated variable on the given stream. */
 void StepVar::print(ostream& os) const {
   os << name << '(' << id_ << ')';
+}
+
+
+/* Checks if this formula is consistent. */
+bool AtomicFormula::consistent(const Problem& problem) const {
+  if (problem.domain.static_predicate(predicate)) {
+    if (problem.init != NULL) {
+      const FormulaList& adds = problem.init->add_list;
+      for (FormulaList::const_iterator i = adds.begin();
+	   i != adds.end(); i++) {
+	/* N.B. assumes this is a ground atomic formula (needs to
+           unify otherwise) */
+	if (*this == **i) {
+	  return true;
+	}
+      }
+      return false;
+    }
+  }
+  return true;
 }
 
 
