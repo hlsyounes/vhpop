@@ -2,7 +2,7 @@
 /*
  * Ordering constraints.
  *
- * $Id: orderings.h,v 1.1 2001-12-29 19:07:11 lorens Exp $
+ * $Id: orderings.h,v 1.2 2002-01-02 20:58:58 lorens Exp $
  */
 #ifndef ORDERINGS_H
 #define ORDERINGS_H
@@ -72,6 +72,14 @@ struct Orderings : public Printable, public gc {
 
   /* Returns the ordering collection with the given additions. */
   const Orderings& refine(const Ordering& new_ordering, size_t new_step) const;
+
+  /* Returns the distance of the given step to the goal step, and also
+     enters it into the given distance table. */
+  size_t goal_distance(hash_map<size_t, size_t>& dist, size_t step_id) const;
+
+  /* Fills the given table with distances for each step to the goal
+     step, and returns the greatest distance. */
+  size_t goal_distances(hash_map<size_t, size_t>& dist) const;
 
 protected:
   /* Prints this ordering collection on the given stream. */

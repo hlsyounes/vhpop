@@ -1,5 +1,5 @@
 /*
- * $Id: orderings.cc,v 1.3 2001-12-29 19:07:08 lorens Exp $
+ * $Id: orderings.cc,v 1.4 2002-01-02 20:58:49 lorens Exp $
  */
 #include "orderings.h"
 #include "plans.h"
@@ -31,13 +31,11 @@ Orderings::Orderings()
 Orderings::Orderings(const StepChain* steps, const OrderingChain* orderings)
   : orderings_(orderings) {
   size_ = 0;
-  hash_set<size_t> seen_steps;
   for (const StepChain* s = steps; s != NULL; s = s->tail) {
     const Step& step = *s->head;
     if (step.id != 0 && step.id != Plan::GOAL_ID
-	&& seen_steps.find(step.id) == seen_steps.end()) {
-      seen_steps.insert(step.id);
-      id_map1_[step.id] = size_++;
+	&& id_map1_.find(step.id) == id_map1_.end()) {
+      id_map1_.insert(make_pair(step.id, size_++));
     }
   }
   id_map2_.reserve(size_);
@@ -120,7 +118,7 @@ const Orderings& Orderings::refine(const Ordering& new_ordering,
       for (size_t i = 0; i < size_; i++) {
 	orderings.order_[i].push_back(false);
       }
-      orderings.id_map1_[new_step] = orderings.size_++;
+      orderings.id_map1_.insert(make_pair(new_step, orderings.size_++));
       orderings.id_map2_.push_back(new_step);
       orderings.order_.push_back(vector<bool>(orderings.size_, false));
     }
@@ -166,4 +164,36 @@ void Orderings::fill_transitive(const Ordering& ordering) {
       }
     }
   }
+}
+
+
+/* Returns the distance of the given step to the goal step, and also
+   enters it into the given distance table. */
+size_t Orderings::goal_distance(hash_map<size_t, size_t>& dist,
+				size_t step_id) const {
+  hash_map<size_t, size_t>::const_iterator d = dist.find(step_id);
+  if (d != dist.end()) {
+    return (*d).second;
+  } else {
+    size_t sd = 1;
+    size_t i = (*id_map1_.find(step_id)).second;
+    for (size_t j = 0; j < size_; j++) {
+      if (i != j && order_[i][j]) {
+	sd = max(sd, 1 + goal_distance(dist, id_map2_[j]));
+      }
+    }
+    dist.insert(make_pair(step_id, sd));
+    return sd;
+  }
+}
+
+
+/* Fills the given table with distances for each step to the goal
+   step, and returns the greatest distance. */
+size_t Orderings::goal_distances(hash_map<size_t, size_t>& dist) const {
+  size_t max_dist = 0;
+  for (size_t i = 0; i < size_; i++) {
+    max_dist = max(max_dist, goal_distance(dist, id_map2_[i]));
+  }
+  return max_dist;
 }
