@@ -1,5 +1,5 @@
 /*
- * $Id: bindings.cc,v 1.15 2001-12-29 22:12:16 lorens Exp $
+ * $Id: bindings.cc,v 1.16 2002-01-04 20:25:06 lorens Exp $
  */
 #include <typeinfo>
 #include "bindings.h"
@@ -1037,12 +1037,12 @@ const Bindings* Bindings::add(const BindingList& new_bindings) const {
 /* Returns the binding collection obtained by adding the constraints
    associated with the given step to this binding collection, or
    NULL if the new binding collection would be inconsistent. */
-const Bindings* Bindings::add(const Step& step,
+const Bindings* Bindings::add(size_t step_id, const Action* step_action,
 			      const PlanningGraph& pg) const {
-  if (step.action == NULL) {
+  if (step_action == NULL) {
     return this;
   }
-  const ActionSchema* action = dynamic_cast<const ActionSchema*>(step.action);
+  const ActionSchema* action = dynamic_cast<const ActionSchema*>(step_action);
   if (action == NULL || action->parameters.empty()) {
     return this;
   }
@@ -1051,7 +1051,7 @@ const Bindings* Bindings::add(const Step& step,
     return NULL;
   }
   const StepDomain* step_domain =
-    new StepDomain(step.id, action->parameters.instantiation(step.id),
+    new StepDomain(step_id, action->parameters.instantiation(step_id),
 		   *domain);
   const StepDomainChain* step_domains = new StepDomainChain(step_domain,
 							    step_domains_);
@@ -1063,7 +1063,7 @@ const Bindings* Bindings::add(const Step& step,
 	new VariableChain(step_domain->parameters[c], NULL);
       varsets = new VarsetChain(new Varset(*step_domain->projection(c).begin(),
 					   cd_set, NULL), varsets);
-      high_step = max(high_step, step.id);
+      high_step = max(high_step, step_id);
     }
   }
   return new Bindings(equalities, inequalities, varsets, high_step,

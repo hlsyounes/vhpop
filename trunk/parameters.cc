@@ -1,5 +1,5 @@
 /*
- * $Id: parameters.cc,v 1.2 2002-01-03 12:40:08 lorens Exp $
+ * $Id: parameters.cc,v 1.3 2002-01-04 20:25:29 lorens Exp $
  */
 #include "parameters.h"
 #include "heuristics.h"
@@ -20,7 +20,7 @@ InvalidSearchAlgorithm::InvalidSearchAlgorithm(const string& name)
 Parameters::Parameters()
   : search_limit(2000), time_limit(1440), search_algorithm(A_STAR),
     heuristic(*(new Heuristic("SUM"))), weight(1.0),
-    flaw_order(*(new FlawSelectionOrder("LIFO"))),
+    flaw_order(*(new FlawSelectionOrder("UCPOP"))),
     ground_actions(false), domain_constraints(false),
     transformational(false) {}
 

@@ -1,7 +1,7 @@
 /*
  * Main program.
  *
- * $Id: vhpop.cc,v 1.21 2002-01-03 12:53:47 lorens Exp $
+ * $Id: vhpop.cc,v 1.22 2002-01-04 20:25:58 lorens Exp $
  */
 #include <iostream>
 #include <cstdio>
@@ -281,7 +281,9 @@ int main(int argc, char* argv[]) {
       }
       if (plan != NULL) {
 	if (plan->complete()) {
-	  cout << "Depth of solution: " << plan->depth << endl;
+	  if (verbosity > 0) {
+	    cout << "Depth of solution: " << plan->depth << endl;
+	  }
 	  cout << problem.name << ' ' << t << ' ' << *plan << endl;
 	} else {
 	  if (verbosity > 0) {

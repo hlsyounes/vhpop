@@ -2,7 +2,7 @@
 /*
  * Binding constraints.
  *
- * $Id: bindings.h,v 1.13 2001-12-26 18:51:45 lorens Exp $
+ * $Id: bindings.h,v 1.14 2002-01-04 20:25:11 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
@@ -20,6 +20,7 @@ struct NameList;
 struct Literal;
 struct Equality;
 struct Inequality;
+struct Action;
 struct Reason;
 struct Step;
 struct PlanningGraph;
@@ -246,7 +247,8 @@ struct Bindings : public Printable, public gc {
   /* Returns the binding collection obtained by adding the constraints
      associated with the given step to this binding collection, or
      NULL if the new binding collection would be inconsistent. */
-  const Bindings* add(const Step& step, const PlanningGraph& pg) const;
+  const Bindings* add(size_t step_id, const Action* step_action,
+		      const PlanningGraph& pg) const;
 
 protected:
   /* Prints this object on the given stream. */

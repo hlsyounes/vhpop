@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.47 2002-01-03 12:53:52 lorens Exp $
+ * $Id: plans.cc,v 1.48 2002-01-04 20:25:48 lorens Exp $
  */
 #include <queue>
 #include <algorithm>
@@ -516,23 +516,6 @@ size_t Plan::serial_no() const {
 }
 
 
-/* Fills the provided list with possible refinements that repair the
-   given flaw. */
-void Plan::refinements(PlanList& plans, const Flaw& flaw) const {
-  const Unsafe* unsafe = dynamic_cast<const Unsafe*>(&flaw);
-  if (unsafe != NULL) {
-    handle_unsafe(plans, *unsafe);
-  } else {
-    const OpenCondition* open_cond = dynamic_cast<const OpenCondition*>(&flaw);
-    if (open_cond != NULL) {
-      handle_open_condition(plans, *open_cond);
-    } else {
-      throw Unimplemented("unknown kind of flaw");
-    }
-  }
-}
-
-
 /* Checks if this object is less than the given object. */
 bool Plan::less(const LessThanComparable& o) const {
   const Plan& p = dynamic_cast<const Plan&>(o);
@@ -649,7 +632,17 @@ void Plan::refinements(PlanList& plans) const {
   if (verbosity > 1) {
     cout << endl << "handle " << flaw << endl;
   }
-  refinements(plans, flaw);
+  const Unsafe* unsafe = dynamic_cast<const Unsafe*>(&flaw);
+  if (unsafe != NULL) {
+    handle_unsafe(plans, *unsafe);
+  } else {
+    const OpenCondition* open_cond = dynamic_cast<const OpenCondition*>(&flaw);
+    if (open_cond != NULL) {
+      handle_open_condition(plans, *open_cond);
+    } else {
+      throw Unimplemented("unknown kind of flaw");
+    }
+  }
 }
 
 
@@ -683,6 +676,56 @@ void Plan::handle_unsafe(PlanList& plans, const Unsafe& unsafe) const {
 			     open_conds, num_open_conds,
 			     orderings, bindings_, this));
   }
+}
+
+
+/* Checks if the given threat is separable. */
+int Plan::separable(const Unsafe& unsafe) const {
+  SubstitutionList unifier;
+  if (orderings.possibly_before(unsafe.link.from_id, unsafe.step_id) &&
+      orderings.possibly_after(unsafe.link.to_id, unsafe.step_id) &&
+      bindings_.affects(unifier, unsafe.effect_add, unsafe.link.condition)) {
+    const VariableList& effect_forall = unsafe.effect.forall;
+    const Formula* goal = &Formula::FALSE;
+    for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
+      const Substitution& subst = **si;
+      if (!member(effect_forall.begin(), effect_forall.end(), &subst.var)) {
+	const Inequality& neq = *new Inequality(subst.var, subst.term);
+	if (bindings_.consistent_with(neq)) {
+	  goal = &(*goal || neq);
+	}
+      }
+    }
+    const Formula& effect_cond = unsafe.effect.condition;
+    if (!effect_cond.tautology()) {
+      if (!effect_forall.empty()) {
+	SubstitutionList forall_subst;
+	for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
+	  const Substitution& subst = **si;
+	  if (member(effect_forall.begin(), effect_forall.end(), &subst.var)) {
+	    forall_subst.push_back(&subst);
+	  }
+	}
+	goal = &(*goal || !effect_cond.substitution(forall_subst));
+      } else {
+	goal = &(*goal || !effect_cond);
+      }
+    }
+    const OpenConditionChain* new_open_conds = NULL;
+    size_t new_num_open_conds = 0;
+    BindingList new_bindings;
+    if (add_goal(new_open_conds, new_num_open_conds, new_bindings, *goal,
+		 unsafe.step_id, Reason::DUMMY)) {
+      const Bindings* bindings = bindings_.add(new_bindings);
+      if (bindings != NULL) {
+	return 1;
+      }
+    }
+  } else {
+    /* Threat is no longer active. */
+    return -1;
+  }
+  return 0;
 }
 
 
@@ -734,6 +777,13 @@ void Plan::separate(PlanList& plans, const Unsafe& unsafe) const {
 }
 
 
+/* Checsk if the given threat is demotable. */
+int Plan::demotable(const Unsafe& unsafe) const {
+  return orderings.possibly_before(unsafe.step_id,
+				   unsafe.link.from_id) ? 1 : 0;
+}
+
+
 /* Handles an unsafe link through demotion. */
 void Plan::demote(PlanList& plans, const Unsafe& unsafe) const {
   size_t before_id = unsafe.step_id;
@@ -741,6 +791,12 @@ void Plan::demote(PlanList& plans, const Unsafe& unsafe) const {
   if (orderings.possibly_before(before_id, after_id)) {
     new_ordering(plans, before_id, after_id, unsafe);
   }
+}
+
+
+/* Checks if the given threat is promotable. */
+int Plan::promotable(const Unsafe& unsafe) const {
+  return orderings.possibly_before(unsafe.link.to_id, unsafe.step_id) ? 1 : 0;
 }
 
 
@@ -794,6 +850,28 @@ void Plan::handle_open_condition(PlanList& plans,
 }
 
 
+/* Counts the number of refinements for the given disjunctive open
+   condition. */
+int Plan::disjunction_refinements(const DisjunctiveOpenCondition& open_cond) const {
+  int count = 0;
+  const Disjunction& disj = open_cond.disjunction;
+  const FormulaList& disjuncts = disj.disjuncts;
+  for (FormulaListIter fi = disjuncts.begin(); fi != disjuncts.end(); fi++) {
+    BindingList new_bindings;
+    const OpenConditionChain* new_open_conds = NULL;
+    size_t new_num_open_conds = 0;
+    if (add_goal(new_open_conds, new_num_open_conds, new_bindings, **fi,
+		 open_cond.step_id, open_cond.reason)) {
+      const Bindings* bindings = bindings_.add(new_bindings);
+      if (bindings != NULL) {
+	count++;
+      }
+    }
+  }
+  return count;
+}
+
+
 /* Handles a disjunctive open condition. */
 void
 Plan::handle_disjunction(PlanList& plans,
@@ -818,14 +896,53 @@ Plan::handle_disjunction(PlanList& plans,
 }
 
 
+/* Counts the number of refinements for the given inequality open
+   condition. */
+int Plan::inequality_refinements(const InequalityOpenCondition& open_cond) const {
+  int count = 0;
+  const Inequality& neq = open_cond.neq;
+  const StepVar& v1 = dynamic_cast<const StepVar&>(neq.term1);
+  const StepVar& v2 = dynamic_cast<const StepVar&>(neq.term2);
+  const NameSet* d1 = bindings_.domain(v1);
+  const NameSet* d2 = bindings_.domain(v2);
+  if (d1 == NULL || d2 == NULL) {
+    /* Domain constraints not found for both variables. */
+    return 0;
+  }
+
+  /*
+   * Branch on the variable with the smallest domain.
+   */
+  const StepVar* var1;
+  const StepVar* var2;
+  const NameSet* var_domain;
+  if (d1->size() < d2->size()) {
+    var1 = &v1;
+    var2 = &v2;
+    var_domain = d1;
+  } else {
+    var1 = &v2;
+    var2 = &v1;
+    var_domain = d2;
+  }
+  for (NameSetIter ni = var_domain->begin(); ni != var_domain->end(); ni++) {
+    const Name& name = **ni;
+    BindingList new_bindings;
+    new_bindings.push_back(new EqualityBinding(*var1, name, open_cond.reason));
+    new_bindings.push_back(new InequalityBinding(*var2, name,
+						 open_cond.reason));
+    const Bindings* bindings = bindings_.add(new_bindings);
+    if (bindings != NULL) {
+      count++;
+    }
+  }
+  return count;
+}
+
+  
 /* Handles inequality open condition. */
 void Plan::handle_inequality(PlanList& plans,
 			     const InequalityOpenCondition& open_cond) const {
-  if (!params->domain_constraints) {
-    /* No parameter domain constraints. */
-    return;
-  }
-
   const Inequality& neq = open_cond.neq;
   const StepVar& v1 = dynamic_cast<const StepVar&>(neq.term1);
   const StepVar& v2 = dynamic_cast<const StepVar&>(neq.term2);
@@ -869,6 +986,39 @@ void Plan::handle_inequality(PlanList& plans,
 }
 
 
+/* Counts the number of add-step refinements for the given literal
+   open condition. */
+int Plan::addable_steps(const LiteralOpenCondition& open_cond) const {
+  int count = 0;
+  ActionList actions;
+  if (params->ground_actions) {
+    planning_graph->achieves_formula(actions, open_cond.literal);
+  } else if (typeid(open_cond.literal) == typeid(Atom)) {
+    pair<PredicateActionsMapIter, PredicateActionsMapIter> bounds =
+      achieves_pred.equal_range(open_cond.literal.predicate());
+    for (PredicateActionsMapIter pai = bounds.first;
+	 pai != bounds.second; pai++) {
+      actions.push_back((*pai).second);
+    }
+  } else {
+    pair<PredicateActionsMapIter, PredicateActionsMapIter> bounds =
+      achieves_neg_pred.equal_range(open_cond.literal.predicate());
+    for (PredicateActionsMapIter pai = bounds.first;
+	 pai != bounds.second; pai++) {
+      actions.push_back((*pai).second);
+    }
+  }
+  if (!actions.empty()) {
+    for (ActionListIter ai = actions.begin(); ai != actions.end(); ai++) {
+      const Action& action = **ai;
+      count += count_new_links(action.precondition, action.effects,
+			       high_step_id_ + 1, &action, open_cond);
+    }
+  }
+  return count;
+}
+
+
 /* Handles a literal open condition by adding a new step. */
 void Plan::add_step(PlanList& plans,
 		    const LiteralOpenCondition& open_cond) const {
@@ -902,6 +1052,24 @@ void Plan::add_step(PlanList& plans,
 }
 
 
+/* Counts the number of reuse-step refinements for the given literal
+   open condition. */
+int Plan::reusable_steps(const LiteralOpenCondition& open_cond) const {
+  int count = 0;
+  hash_set<size_t> seen_steps;
+  for (const StepChain* sc = steps; sc != NULL; sc = sc->tail) {
+    const Step& step = *sc->head;
+    if (seen_steps.find(step.id) == seen_steps.end() &&
+	orderings.possibly_before(step.id, open_cond.step_id)) {
+      seen_steps.insert(step.id);
+      count += count_new_links(step.precondition, step.effects, step.id,
+			       step.action, open_cond);
+    }
+  }
+  return count;
+}
+
+
 /* Handles a literal open condition by reusing an existing step. */
 void Plan::reuse_step(PlanList& plans,
 		      const LiteralOpenCondition& open_cond) const {
@@ -916,6 +1084,47 @@ void Plan::reuse_step(PlanList& plans,
       new_link(plans, step, open_cond, link, establish_reason);
     }
   }
+}
+
+
+/* Counts the number of new links that can be established between the
+   given effects and the open condition. */
+int Plan::count_new_links(const Formula& precondition,
+			  const EffectList& effects, size_t step_id,
+			  const Action* action,
+			  const LiteralOpenCondition& open_cond) const {
+  int count = 0;
+  if (step_id == 0) {
+    const Negation* negation =
+      dynamic_cast<const Negation*>(&open_cond.literal);
+    if (negation != NULL) {
+      count += cw_link_possible(effects, *negation);
+    }
+  }
+  const Literal& goal = open_cond.literal;
+  for (EffectListIter ei = effects.begin(); ei != effects.end(); ei++) {
+    const Effect& effect = **ei;
+    if (typeid(goal) == typeid(Atom)) {
+      const AtomList& adds = effect.add_list;
+      for (AtomListIter gi = adds.begin(); gi != adds.end(); gi++) {
+	SubstitutionList mgu;
+	if (bindings_.unify(mgu, goal, **gi)) {
+	  count += link_possible(precondition, effect, step_id, action,
+				 open_cond, mgu);
+	}
+      }
+    } else {
+      const NegationList& dels = effect.del_list;
+      for (NegationListIter gi = dels.begin(); gi != dels.end(); gi++) {
+	SubstitutionList mgu;
+	if (bindings_.unify(mgu, goal, **gi)) {
+	  count += link_possible(precondition, effect, step_id, action,
+				 open_cond, mgu);
+	}
+      }
+    }
+  }
+  return count;
 }
 
 
@@ -960,14 +1169,52 @@ void Plan::new_link(PlanList& plans, const Step& step,
 }
 
 
+/* Checks if a new link be established between the given effects and
+   the open condition using the closed world assumption. */
+int Plan::cw_link_possible(const EffectList& effects,
+			   const Negation& negation) const {
+  const Atom& goal = negation.atom;
+  const Formula* goals = &Formula::TRUE;
+  for (EffectListIter ei = effects.begin(); ei != effects.end(); ei++) {
+    const Effect& effect = **ei;
+    const AtomList& adds = effect.add_list;
+    for (AtomListIter gi = adds.begin(); gi != adds.end(); gi++) {
+      SubstitutionList mgu;
+      if (bindings_.unify(mgu, goal, **gi)) {
+	if (mgu.empty()) {
+	  /* Impossible to separate goal and initial condition. */
+	  return 0;
+	}
+	const Formula* binds = &Formula::FALSE;
+	for (SubstListIter si = mgu.begin(); si != mgu.end(); si++) {
+	  const Substitution& subst = **si;
+	  binds = &(*binds || *(new Inequality(subst.var, subst.term)));
+	}
+	goals = &(*goals && *binds);
+      }
+    }
+  }
+  BindingList new_bindings;
+  const OpenConditionChain* new_open_conds = NULL;
+  size_t new_num_open_conds = 0;
+  if (add_goal(new_open_conds, new_num_open_conds, new_bindings, *goals,
+	       0, Reason::DUMMY)) {
+    const Bindings* bindings = bindings_.add(new_bindings);
+    if (bindings != NULL) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+
 /* Adds plans to the given plan list with a link from the given step
    to the given open condition added using the closed world
    assumption. */
 void Plan::new_cw_link(PlanList& plans, const Step& step,
 		       const LiteralOpenCondition& open_cond, const Link& link,
 		       const Reason& reason) const {
-  const Negation& negation =
-    dynamic_cast<const Negation&>(open_cond.condition());
+  const Negation& negation = dynamic_cast<const Negation&>(open_cond.literal);
   const Atom& goal = negation.atom;
   const Formula* goals = &Formula::TRUE;
   const EffectList& effs = step.effects;
@@ -1004,6 +1251,70 @@ void Plan::new_cw_link(PlanList& plans, const Step& step,
 			       orderings, *bindings, this));
     }
   }
+}
+
+
+/* Checks if a new link can be established between the given effect
+   and the open condition. */
+int Plan::link_possible(const Formula& precondition, const Effect& effect,
+			size_t step_id, const Action* action,
+			const LiteralOpenCondition& open_cond,
+			const SubstitutionList& unifier) const {
+  /*
+   * Add bindings needed to unify effect and goal.
+   */
+  const VariableList& effect_forall = effect.forall;
+  BindingList new_bindings;
+  for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
+    const Substitution& subst = **si;
+    if (!member(effect_forall.begin(), effect_forall.end(), &subst.var)) {
+      new_bindings.push_back(new EqualityBinding(subst, Reason::DUMMY));
+    }
+  }
+
+  /*
+   * If the effect is conditional, add condition as goal.
+   */
+  const OpenConditionChain* new_open_conds = NULL;
+  size_t new_num_open_conds = 0;
+  const Formula* cond_goal = NULL;
+  if (!effect.condition.tautology()) {
+    if (!effect_forall.empty()) {
+      SubstitutionList forall_subst;
+      for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
+	const Substitution& subst = **si;
+	if (member(effect_forall.begin(), effect_forall.end(), &subst.var)) {
+	  forall_subst.push_back(&subst);
+	}
+      }
+      cond_goal = &effect.condition.substitution(forall_subst);
+    } else {
+      cond_goal = &effect.condition;
+    }
+    if (!add_goal(new_open_conds, new_num_open_conds, new_bindings, *cond_goal,
+		  step_id, Reason::DUMMY)) {
+      return 0;
+    }
+  }
+
+  /*
+   * See if this is a new step.
+   */
+  const Bindings* bindings = &bindings_;
+  if (step_id > high_step_id_) {
+    if (!add_goal(new_open_conds, new_num_open_conds, new_bindings,
+		  precondition, step_id, Reason::DUMMY)) {
+      return 0;
+    }
+    if (params->domain_constraints) {
+      bindings = bindings->add(step_id, action, *planning_graph);
+      if (bindings == NULL) {
+	return 0;
+      }
+    }
+  }
+  bindings = bindings->add(new_bindings);
+  return (bindings != NULL) ? 1 : 0;
 }
 
 
@@ -1063,7 +1374,7 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
       return NULL;
     }
     if (params->domain_constraints) {
-      bindings = bindings->add(step, *planning_graph);
+      bindings = bindings->add(step.id, step.action, *planning_graph);
       if (bindings == NULL) {
 	return NULL;
       }
