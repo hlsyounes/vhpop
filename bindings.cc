@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.cc,v 3.13 2002-06-12 18:34:48 lorens Exp $
+ * $Id: bindings.cc,v 3.14 2002-06-12 19:54:50 lorens Exp $
  */
 #include <typeinfo>
 #include "bindings.h"
@@ -264,103 +264,126 @@ ostream& operator<<(ostream& os, const Varset& vs) {
 }
 
 
+/* ====================================================================== */
+/* StepDomain */
+
 /*
  * A step domain.
  */
-struct StepDomain : public Printable {
-  const size_t id;
-  const VariableList& parameters;
-  const ActionDomain& domain;
-
+struct StepDomain {
   StepDomain(size_t id, const VariableList& parameters,
 	     const ActionDomain& domain)
-    : id(id), parameters(parameters), domain(domain) {
+    : id_(id), parameters_(&parameters), domain_(&domain) {
   }
+
+  /* Returns the step id. */
+  size_t id() const { return id_; }
+
+  /* Returns the step parameters. */
+  const VariableList& parameters() const { return *parameters_; }
+
+  /* Returns the parameter domains. */
+  const ActionDomain& domain() const { return *domain_; }
 
   /* Returns the number of columns in this domain. */
   size_t width() const {
-    return parameters.size();
+    return parameters().size();
   }
 
   /* Returns the index of the variable in this step domain, or -1 if
      the variable is not included. */
   int index_of(const Variable& v) const {
-    VarListIter i = find_if(parameters.begin(), parameters.end(),
+    VarListIter i = find_if(parameters().begin(), parameters().end(),
 			    bind1st(equal_to<const EqualityComparable*>(),
 				    &v));
-    return (i != parameters.end()) ? i - parameters.begin() : -1;
+    return (i != parameters().end()) ? i - parameters().begin() : -1;
   }
 
   /* Checks if this step domain includes the given name in the given
      column. */
   bool includes(const Name& name, size_t column) const {
-    const NameSet& names = domain.projection(column);
+    const NameSet& names = domain().projection(column);
     return names.find(&name) != names.end();
   }
 
   /* Returns the set of names from the given column. */
   const NameSet& projection(size_t column) const {
-    return domain.projection(column);
+    return domain().projection(column);
   }
 
   /* Returns the size of the projection of the given column. */
   const size_t projection_size(size_t column) const {
-    return domain.projection_size(column);
+    return domain().projection_size(column);
   }
 
   /* Returns a domain where the given column has been restricted to
      the given name, or NULL if this would leave an empty domain. */
-  const StepDomain* restrict(const Name& name, size_t column) const {
-    const ActionDomain* ad = domain.restrict(name, column);
+  const StepDomain* restrict(const StepDomainChain*& sdc,
+			     const Name& name, size_t column) const {
+    const ActionDomain* ad = domain().restrict(name, column);
     if (ad == NULL) {
       return NULL;
-    } else if (ad->size() == domain.size()) {
+    } else if (ad->size() == domain().size()) {
       return this;
     } else {
-      return new StepDomain(id, parameters, *ad);
+      sdc = new StepDomainChain(StepDomain(id(), parameters(), *ad), sdc);
+      return &sdc->head;
     }
   }
 
   /* Returns a domain where the given column has been restricted to
      the given set of names, or NULL if this would leave an empty
      domain. */
-  const StepDomain* restrict(const NameSet& names, size_t column) const {
-    const ActionDomain* ad = domain.restrict(names, column);
+  const StepDomain* restrict(const StepDomainChain*& sdc,
+			     const NameSet& names, size_t column) const {
+    const ActionDomain* ad = domain().restrict(names, column);
     if (ad == NULL) {
       return NULL;
-    } else if (ad->size() == domain.size()) {
+    } else if (ad->size() == domain().size()) {
       return this;
     } else {
-      return new StepDomain(id, parameters, *ad);
+      sdc = new StepDomainChain(StepDomain(id(), parameters(), *ad), sdc);
+      return &sdc->head;
     }
   }
 
   /* Returns a domain where the given column exclues the given name,
      or NULL if this would leave an empty domain. */
-  const StepDomain* exclude(const Name& name, size_t column) const {
-    const ActionDomain* ad = domain.exclude(name, column);
+  const StepDomain* exclude(const StepDomainChain*& sdc,
+			    const Name& name, size_t column) const {
+    const ActionDomain* ad = domain().exclude(name, column);
     if (ad == NULL) {
       return NULL;
-    } else if (ad->size() == domain.size()) {
+    } else if (ad->size() == domain().size()) {
       return this;
     } else {
-      return new StepDomain(id, parameters, *ad);
+      sdc = new StepDomainChain(StepDomain(id(), parameters(), *ad), sdc);
+      return &sdc->head;
     }
   }
 
-protected:
-  /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const {
-    os << "<";
-    for (VarListIter vi = parameters.begin(); vi != parameters.end(); vi++) {
-      if (vi != parameters.begin()) {
-	os << ' ';
-      }
-      os << **vi;
-    }
-    os << "> in " << domain;
-  }
+private:
+  /* The id of the step. */
+  size_t id_;
+  /* Parameters of the step. */
+  const VariableList* parameters_;
+  /* Domain of the parameters. */
+  const ActionDomain* domain_;
 };
+
+/* Output operator for step domains. */
+ostream& operator<<(ostream& os, const StepDomain& sd) {
+  os << "<";
+  for (VarListIter vi = sd.parameters().begin();
+       vi != sd.parameters().end(); vi++) {
+    if (vi != sd.parameters().begin()) {
+      os << ' ';
+    }
+    os << **vi;
+  }
+  os << "> in " << sd.domain();
+  return os;
+}
 
 
 /* Returns the varset containing the given constant, or NULL if none do. */
@@ -409,8 +432,8 @@ find_step_domain(const StepDomainChain* step_domains, const Variable& var) {
   if (sv != NULL) {
     size_t id = sv->id;
     for (const StepDomainChain* sd = step_domains; sd != NULL; sd = sd->tail) {
-      const StepDomain& step_domain = *sd->head;
-      if (step_domain.id == id) {
+      const StepDomain& step_domain = sd->head;
+      if (step_domain.id() == id) {
 	int column = step_domain.index_of(var);
 	if (column >= 0) {
 	  return make_pair(&step_domain, column);
@@ -601,11 +624,11 @@ const Bindings* Bindings::make_bindings(const StepChain* steps,
       if (action != NULL && !action->parameters.empty()) {
 	const ActionDomain* domain = pg->action_domain(action->name);
 	if (domain != NULL) {
-	  const StepDomain* step_domain =
-	    new StepDomain(step.id(),
-			   action->parameters.instantiation(step.id()),
-			   *domain);
-	  step_domains = new StepDomainChain(step_domain, step_domains);
+	  step_domains =
+	    new StepDomainChain(StepDomain(step.id(),
+					   action->parameters.instantiation(step.id()),
+					   *domain),
+				step_domains);
 	}
       }
     }
@@ -656,6 +679,7 @@ Bindings::Bindings(const VarsetChain* varsets, size_t high_step,
 		   const BindingChain* inequalities)
   : varsets_(varsets), high_step_(high_step), step_domains_(step_domains) {
   VarsetChain::register_use(varsets_);
+  StepDomainChain::register_use(step_domains_);
 #ifdef TRANSFORMATIONAL
   equalities_ = equalities;
   BindingChain::register_use(equalities_);
@@ -668,6 +692,7 @@ Bindings::Bindings(const VarsetChain* varsets, size_t high_step,
 /* Deletes this binding collection. */
 Bindings::~Bindings() {
   VarsetChain::unregister_use(varsets_);
+  StepDomainChain::unregister_use(step_domains_);
 #ifdef TRANSFORMATIONAL
   BindingChain::unregister_use(equalities_);
   BindingChain::unregister_use(inequalities_);
@@ -891,7 +916,7 @@ static void add_domain_bindings(BindingList& bindings,
   for (size_t c = 0; c < old_sd.width(); c++) {
     if (c != ex_column && new_sd.projection_size(c) == 1
 	&& old_sd.projection_size(c) > 1) {
-      bindings.push_back(Binding(*new_sd.parameters[c],
+      bindings.push_back(Binding(*new_sd.parameters()[c],
 				 **new_sd.projection(c).begin(), true,
 				 Reason::DUMMY));
     }
@@ -985,6 +1010,8 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 	/* Binding is inconsistent with current bindings. */
 	VarsetChain::register_use(varsets);
 	VarsetChain::unregister_use(varsets);
+	StepDomainChain::register_use(step_domains);
+	StepDomainChain::unregister_use(step_domains);
 	return NULL;
       } else {
 	/* Binding is consistent with current bindings. */
@@ -1042,31 +1069,34 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 	      if (sd.first != NULL) {
 		if (name != NULL) {
 		  const StepDomain* new_sd =
-		    sd.first->restrict(*name, sd.second);
+		    sd.first->restrict(step_domains, *name, sd.second);
 		  if (new_sd == NULL) {
 		    /* Domain became empty. */
 		    VarsetChain::register_use(varsets);
 		    VarsetChain::unregister_use(varsets);
+		    StepDomainChain::register_use(step_domains);
+		    StepDomainChain::unregister_use(step_domains);
 		    return NULL;
 		  }
 		  if (sd.first != new_sd) {
 		    add_domain_bindings(new_binds, *sd.first, *new_sd,
 					sd.second);
-		    step_domains = new StepDomainChain(new_sd, step_domains);
 		  }
 		} else {
 		  if (phase > 4) {
 		    const StepDomain* new_sd =
-		      sd.first->restrict(*intersection, sd.second);
+		      sd.first->restrict(step_domains,
+					 *intersection, sd.second);
 		    if (new_sd == NULL) {
 		      /* Domain became empty. */
 		      VarsetChain::register_use(varsets);
 		      VarsetChain::unregister_use(varsets);
+		      StepDomainChain::register_use(step_domains);
+		      StepDomainChain::unregister_use(step_domains);
 		      return NULL;
 		    }
 		    if (sd.first != new_sd) {
 		      add_domain_bindings(new_binds, *sd.first, *new_sd);
-		      step_domains = new StepDomainChain(new_sd, step_domains);
 		    }
 		  } else if (intersection == NULL) {
 		    intersection = &sd.first->projection(sd.second);
@@ -1083,6 +1113,8 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 		      /* Domain became empty. */
 		      VarsetChain::register_use(varsets);
 		      VarsetChain::unregister_use(varsets);
+		      StepDomainChain::register_use(step_domains);
+		      StepDomainChain::unregister_use(step_domains);
 		      return NULL;
 		    }
 		  }
@@ -1128,6 +1160,8 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 	/* The terms are already bound to eachother. */
 	VarsetChain::register_use(varsets);
 	VarsetChain::unregister_use(varsets);
+	StepDomainChain::register_use(step_domains);
+	StepDomainChain::unregister_use(step_domains);
 	return NULL;
       } else {
 	/* The terms are not bound to eachother. */
@@ -1172,16 +1206,17 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 		find_step_domain(step_domains, *vc->head);
 	      if (sd.first != NULL) {
 		const StepDomain* new_sd =
-		  sd.first->exclude(*vs1->constant(), sd.second);
+		  sd.first->exclude(step_domains, *vs1->constant(), sd.second);
 		if (new_sd == NULL) {
 		  /* Domain became empty. */
 		  VarsetChain::register_use(varsets);
 		  VarsetChain::unregister_use(varsets);
+		  StepDomainChain::register_use(step_domains);
+		  StepDomainChain::unregister_use(step_domains);
 		  return NULL;
 		}
 		if (sd.first != new_sd) {
 		  add_domain_bindings(new_binds, *sd.first, *new_sd);
-		  step_domains = new StepDomainChain(new_sd, step_domains);
 		}
 	      }
 	    }
@@ -1197,16 +1232,17 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 		find_step_domain(step_domains, *var);
 	      if (sd.first != NULL) {
 		const StepDomain* new_sd =
-		  sd.first->exclude(*vs2->constant(), sd.second);
+		  sd.first->exclude(step_domains, *vs2->constant(), sd.second);
 		if (new_sd == NULL) {
 		  /* Domain became empty. */
 		  VarsetChain::register_use(varsets);
 		  VarsetChain::unregister_use(varsets);
+		  StepDomainChain::register_use(step_domains);
+		  StepDomainChain::unregister_use(step_domains);
 		  return NULL;
 		}
 		if (sd.first != new_sd) {
 		  add_domain_bindings(new_binds, *sd.first, *new_sd);
-		  step_domains = new StepDomainChain(new_sd, step_domains);
 		}
 	      }
 	      vc = (vs1 != NULL) ? vc->tail : NULL;
@@ -1227,6 +1263,8 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
   if (test_only) {
     VarsetChain::register_use(varsets);
     VarsetChain::unregister_use(varsets);
+    StepDomainChain::register_use(step_domains);
+    StepDomainChain::unregister_use(step_domains);
     return this;
   } else {
     return new Bindings(varsets, high_step, step_domains,
@@ -1251,24 +1289,27 @@ const Bindings* Bindings::add(size_t step_id, const Action* step_action,
   if (domain == NULL) {
     return NULL;
   }
-  const StepDomain* step_domain =
-    new StepDomain(step_id, action->parameters.instantiation(step_id),
-		   *domain);
-  const StepDomainChain* step_domains = new StepDomainChain(step_domain,
-							    step_domains_);
+  const StepDomainChain* step_domains =
+    new StepDomainChain(StepDomain(step_id,
+				   action->parameters.instantiation(step_id),
+				   *domain),
+			step_domains_);
   const VarsetChain* varsets = varsets_;
   size_t high_step = high_step_;
-  for (size_t c = 0; c < step_domain->width(); c++) {
-    if (step_domain->projection_size(c) == 1) {
+  const StepDomain& step_domain = step_domains->head;
+  for (size_t c = 0; c < step_domain.width(); c++) {
+    if (step_domain.projection_size(c) == 1) {
       const VariableChain* cd_set =
-	new VariableChain(step_domain->parameters[c], NULL);
-      varsets = new VarsetChain(Varset(*step_domain->projection(c).begin(),
+	new VariableChain(step_domain.parameters()[c], NULL);
+      varsets = new VarsetChain(Varset(*step_domain.projection(c).begin(),
 				       cd_set, NULL),
 				varsets);
       high_step = max(high_step, step_id);
     }
   }
   if (test_only) {
+    StepDomainChain::register_use(step_domains);
+    StepDomainChain::unregister_use(step_domains);
     return this;
   } else {
     return new Bindings(varsets, high_step, step_domains,
@@ -1322,9 +1363,9 @@ void Bindings::print(ostream& os) const {
   }
   hash_set<size_t> seen_steps;
   for (const StepDomainChain* sd = step_domains_; sd != NULL; sd = sd->tail) {
-    if (seen_steps.find(sd->head->id) == seen_steps.end()) {
-      seen_steps.insert(sd->head->id);
-      os << endl << *sd->head;
+    if (seen_steps.find(sd->head.id()) == seen_steps.end()) {
+      seen_steps.insert(sd->head.id());
+      os << endl << sd->head;
     }
   }
 }
