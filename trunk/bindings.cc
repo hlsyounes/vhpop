@@ -13,11 +13,12 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.cc,v 6.7 2003-08-28 16:50:57 lorens Exp $
+ * $Id: bindings.cc,v 6.8 2003-09-01 19:33:11 lorens Exp $
  */
 #include "bindings.h"
 #include "plans.h"
 #include "heuristics.h"
+#include "problems.h"
 #include "domains.h"
 #include "formulas.h"
 #include "types.h"
@@ -651,10 +652,33 @@ Term Bindings::binding(Term t, size_t step_id) const {
 
 
 /* Returns the domain for the given step variable. */
-const NameSet* Bindings::domain(Variable v, size_t step_id) const {
+const NameSet& Bindings::domain(Variable v, size_t step_id,
+				const Problem& problem) const {
   std::pair<const StepDomain*, size_t> sd =
     find_step_domain(step_domains_, v, step_id);
-  return (sd.first != NULL) ? &sd.first->projection(sd.second) : NULL;
+  if (sd.first != NULL) {
+    return sd.first->projection(sd.second);
+  } else {
+    const ObjectList& objects =
+      problem.compatible_objects(problem.terms().type(v));
+    NameSet* names = new NameSet();
+    names->insert(objects.begin(), objects.end());
+    const Varset* vs =
+      (step_id <= high_step_) ? find_varset(varsets_, v, step_id) : NULL;
+    if (vs != NULL) {
+      for (const Chain<StepVariable>* vc = vs->ncd_set();
+	   vc != NULL; vc = vc->tail) {
+	const StepVariable& sv = vc->head;
+	const Varset* vs2 = ((step_id <= high_step_)
+			     ? find_varset(varsets_, sv.first, sv.second)
+			     : NULL);
+	if (vs2 != NULL && vs2->constant() != Object(NULL_TERM)) {
+	  names->erase(vs2->constant());
+	}
+      }
+    }
+    return *names;
+  }
 }
 
 
