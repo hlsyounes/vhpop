@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: reasons.h,v 1.3 2002-03-23 19:06:51 lorens Exp $
+ * $Id: reasons.h,v 1.4 2002-03-24 23:56:28 lorens Exp $
  */
 #ifndef REASONS_H
 #define REASONS_H
@@ -31,7 +31,7 @@ struct Step;
 /*
  * Abstract reason.
  */
-struct Reason : public Printable, public gc {
+struct Reason : public Printable {
   /* A dummy reason. */
   static const Reason& DUMMY;
 

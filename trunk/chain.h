@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: chain.h,v 3.1 2002-03-23 18:23:21 lorens Exp $
+ * $Id: chain.h,v 3.2 2002-03-24 23:55:37 lorens Exp $
  */
 #ifndef CHAIN_H
 #define CHAIN_H
@@ -26,7 +26,7 @@
  * Template chain class.
  */
 template<typename T>
-struct Chain : public gc {
+struct Chain {
   T head;
   const Chain<T>* tail;
 
@@ -113,7 +113,7 @@ struct CollectibleChain {
 
   /* Constructs a chain with the given head and tail. */
   CollectibleChain<T>(const T& head, const CollectibleChain<T>* tail)
-    : head(head), tail(tail) {
+    : head(head), tail(tail), ref_count_(0) {
 #ifdef DEBUG
     created_chains++;
 #endif

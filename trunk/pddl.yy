@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 3.10 2002-03-24 00:07:58 lorens Exp $
+ * $Id: pddl.yy,v 3.11 2002-03-24 23:56:13 lorens Exp $
  */
 %{
 #include "requirements.h"
@@ -1298,7 +1298,7 @@ static void add_variable(const string& name, const Type& type) {
  */
 static const pair<AtomList*, NegationList*>& make_add_del(AtomList* adds,
 							  NegationList* dels) {
-  return *(new (GC) pair<AtomList*, NegationList*>(adds, dels));
+  return *(new pair<AtomList*, NegationList*>(adds, dels));
 }
 
 

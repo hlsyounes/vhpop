@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.h,v 3.6 2002-03-19 17:19:34 lorens Exp $
+ * $Id: domains.h,v 3.7 2002-03-24 23:55:47 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -75,7 +75,7 @@ struct EffectList;
 /*
  * Effect definition.
  */
-struct Effect : public Printable, public gc {
+struct Effect : public Printable {
   /* Possible temporal annotations for effects. */
   typedef enum { AT_START, AT_END } EffectTime;
 
@@ -261,7 +261,7 @@ typedef ActionSchemaMap::const_iterator ActionSchemaMapIter;
 /*
  * Ground action.
  */
-struct GroundAction : public Action, public gc {
+struct GroundAction : public Action {
   /* Action arguments. */
   const NameList& arguments;
 
