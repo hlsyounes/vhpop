@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.h,v 6.4 2003-09-01 19:38:39 lorens Exp $
+ * $Id: heuristics.h,v 6.5 2003-09-08 21:26:39 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
@@ -62,22 +62,21 @@ struct HeuristicValue {
   static const HeuristicValue INFINITE;
 
   /* Constructs a zero heuristic value. */
-  HeuristicValue();
+  HeuristicValue()
+    : add_cost_(0), add_work_(0), makespan_(0.0f) {}
 
   /* Constructs a heuristic value. */
-  HeuristicValue(int max_cost, int max_work, int add_cost, int add_work);
-
-  /* Returns the cost according to the max heuristic. */
-  int max_cost() const { return max_cost_; }
-
-  /* Returns the work according to the max heuristic. */
-  int max_work() const { return max_work_; }
+  HeuristicValue(int add_cost, int add_work, float makespan)
+    : add_cost_(add_cost), add_work_(add_work), makespan_(makespan) {}
 
   /* Returns the cost according to the additive heurisitc. */
   int add_cost() const { return add_cost_; }
 
   /* Returns the work according to the additive heuristic. */
   int add_work() const { return add_work_; }
+
+  /* Returns the value according to the makespan heuristic. */
+  float makespan() const { return makespan_; }
 
   /* Checks if this heuristic value is zero. */
   bool zero() const;
@@ -88,21 +87,22 @@ struct HeuristicValue {
   /* Adds the given heuristic value to this heuristic value. */
   HeuristicValue& operator+=(const HeuristicValue& v);
 
-  /* Adds the given cost to this heuristic value. */
-  void add_cost(int c);
+  /* Increments the cost of this heuristic value. */
+  void increment_cost();
 
-  /* Adds the given work to this heuristic value. */
-  void add_work(int w);
+  /* Increments the work of this heuristic value. */
+  void increment_work();
+
+  /* Increases the makespan of this heuristic value. */
+  void increase_makespan(float x);
 
 private:
-  /* Cost according to max heuristic. */
-  int max_cost_;
-  /* Work according to max heuristic. */
-  int max_work_;
   /* Cost according to additive heuristic. */
   int add_cost_;
   /* Work according to additive heuristic. */
   int add_work_;
+  /* Value according to the makespan heursitic. */
+  float makespan_;
 };
 
 /* Equality operator for heuristic values. */
@@ -230,8 +230,7 @@ struct InvalidHeuristic : public Exception {
  * ADD_WORK uses the additive work heuristic.
  * ADD uses h(p) = |S(p)| + w*ADD_COST.
  * ADDR is like ADD, but tries to take reuse into account.
- * MAX is an admissible heuristic counting parallel cost.
- * MAXR is like MAX, but tries to take reuse into account.
+ * MAKESPAN gives priority to plans with low makespan.
  */
 struct Heuristic {
   /* Constructs a heuristic from a name. */
@@ -251,10 +250,8 @@ struct Heuristic {
 private:
   /* Heuristics. */
   typedef enum { LIFO, FIFO, OC, UC, BUC, S_PLUS_OC, UCPOP,
-		 ADD, ADD_COST, ADD_WORK,
-		 ADDR, ADDR_COST, ADDR_WORK,
-		 MAX, MAX_COST, MAX_WORK,
-		 MAXR, MAXR_COST, MAXR_WORK } HVal;
+		 ADD, ADD_COST, ADD_WORK, ADDR, ADDR_COST, ADDR_WORK,
+		 MAKESPAN } HVal;
 
   /* The selected heuristics. */
   std::vector<HVal> h_;
@@ -301,7 +298,7 @@ struct SelectionCriterion {
   typedef enum { LIFO, FIFO, RANDOM, LR, MR,
 		 NEW, REUSE, LC, MC, LW, MW } OrderType;
   /* A heuristic. */
-  typedef enum { ADD, MAX } RankHeuristic;
+  typedef enum { ADD, MAKESPAN } RankHeuristic;
 
   /* Whether this criterion applies to non-separable threats. */
   bool non_separable;
