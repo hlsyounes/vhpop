@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.cc,v 3.16 2002-06-30 14:57:01 lorens Exp $
+ * $Id: bindings.cc,v 3.17 2002-06-30 23:03:15 lorens Exp $
  */
 #include <typeinfo>
 #include "bindings.h"
@@ -430,7 +430,7 @@ static pair<const StepDomain*, size_t>
 find_step_domain(const StepDomainChain* step_domains, const Variable& var) {
   const StepVar* sv = dynamic_cast<const StepVar*>(&var);
   if (sv != NULL) {
-    size_t id = sv->id;
+    size_t id = sv->id();
     for (const StepDomainChain* sd = step_domains; sd != NULL; sd = sd->tail) {
       const StepDomain& step_domain = sd->head;
       if (step_domain.id() == id) {
@@ -756,11 +756,11 @@ bool Bindings::affects(SubstitutionList& mgu,
 		       const Literal& l1, const Literal& l2) const {
   const Negation* negation = dynamic_cast<const Negation*>(&l1);
   if (negation != NULL) {
-    return unify(mgu, l2, negation->atom);
+    return unify(mgu, l2, negation->atom());
   } else {
     negation = dynamic_cast<const Negation*>(&l2);
     if (negation != NULL) {
-      return unify(mgu, negation->atom, l1);
+      return unify(mgu, negation->atom(), l1);
     } else {
       return false;
     }
@@ -860,16 +860,16 @@ bool Bindings::unify(SubstitutionList& mgu,
 /* Checks if the given equality is consistent with the current
    bindings. */
 bool Bindings::consistent_with(const Equality& eq) const {
-  const Variable* var = dynamic_cast<const Variable*>(&eq.term1);
+  const Variable* var = dynamic_cast<const Variable*>(&eq.term1());
   const Term* term;
   if (var != NULL) {
-    term = &eq.term2;
+    term = &eq.term2();
   } else {
-    var = dynamic_cast<const Variable*>(&eq.term2);
+    var = dynamic_cast<const Variable*>(&eq.term2());
     if (var != NULL) {
-      term = &eq.term1;
+      term = &eq.term1();
     } else {
-      return eq.term1 == eq.term2;
+      return eq.term1() == eq.term2();
     }
   }
   const Varset* vs2 = find_varset(varsets_, *term);
@@ -890,16 +890,16 @@ bool Bindings::consistent_with(const Equality& eq) const {
 /* Checks if the given inequality is consistent with the current
    bindings. */
 bool Bindings::consistent_with(const Inequality& neq) const {
-  const Variable* var = dynamic_cast<const Variable*>(&neq.term1);
+  const Variable* var = dynamic_cast<const Variable*>(&neq.term1());
   const Term* term;
   if (var != NULL) {
-    term = &neq.term2;
+    term = &neq.term2();
   } else {
-    var = dynamic_cast<const Variable*>(&neq.term2);
+    var = dynamic_cast<const Variable*>(&neq.term2());
     if (var != NULL) {
-      term = &neq.term1;
+      term = &neq.term1();
     } else {
-      return neq.term1 != neq.term2;
+      return neq.term1() != neq.term2();
     }
   }
   const Varset* vs2 = find_varset(varsets_, *term);
@@ -960,22 +960,22 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
       /* Varset for variable. */
       const Varset* vs1;
       const StepVar* sv = dynamic_cast<const StepVar*>(&bind.var());
-      if (sv == NULL || sv->id <= high_step_
+      if (sv == NULL || sv->id() <= high_step_
 	  || high_step_vars.find(sv) != high_step_vars.end()) {
 	vs1 = find_varset(varsets, bind.var());
       } else {
-	high_step = sv->id;
+	high_step = sv->id();
 	high_step_vars.insert(sv);
 	vs1 = NULL;
       }
       /* Varset for term. */
       const Varset* vs2;
       sv = dynamic_cast<const StepVar*>(&bind.term());
-      if (sv == NULL || sv->id <= high_step_
+      if (sv == NULL || sv->id() <= high_step_
 	  || high_step_vars.find(sv) != high_step_vars.end()) {
 	vs2 = find_varset(varsets, bind.term());
       } else {
-	high_step = sv->id;
+	high_step = sv->id();
 	high_step_vars.insert(sv);
 	vs2 = NULL;
       }
@@ -1137,22 +1137,22 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
       /* Varset for variable. */
       const Varset* vs1;
       const StepVar* sv = dynamic_cast<const StepVar*>(&bind.var());
-      if (sv == NULL || sv->id <= high_step_
+      if (sv == NULL || sv->id() <= high_step_
 	  || high_step_vars.find(sv) != high_step_vars.end()) {
 	vs1 = find_varset(varsets, bind.var());
       } else {
-	high_step = sv->id;
+	high_step = sv->id();
 	high_step_vars.insert(sv);
 	vs1 = NULL;
       }
       /* Varset for term. */
       const Varset* vs2;
       sv = dynamic_cast<const StepVar*>(&bind.term());
-      if (sv == NULL || sv->id <= high_step_
+      if (sv == NULL || sv->id() <= high_step_
 	  || high_step_vars.find(sv) != high_step_vars.end()) {
 	vs2 = find_varset(varsets, bind.term());
       } else {
-	high_step = sv->id;
+	high_step = sv->id();
 	high_step_vars.insert(sv);
 	vs2 = NULL;
       }

@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 3.15 2002-06-30 14:56:44 lorens Exp $
+ * $Id: heuristics.cc,v 3.16 2002-06-30 23:03:13 lorens Exp $
  */
 #include <set>
 #include <typeinfo>
@@ -91,8 +91,8 @@ formula_value(const Formula& formula, size_t step_id, const Plan& plan,
       const Disjunction* disj = dynamic_cast<const Disjunction*>(&formula);
       if (disj != NULL) {
 	HeuristicValue h = HeuristicValue::INFINITE;
-	for (FormulaListIter fi = disj->disjuncts.begin();
-	     fi != disj->disjuncts.end(); fi++) {
+	for (FormulaListIter fi = disj->disjuncts().begin();
+	     fi != disj->disjuncts().end(); fi++) {
 	  h = min(h, formula_value(**fi, step_id, plan, domain, pg, true));
 	}
 	return h;
@@ -100,8 +100,8 @@ formula_value(const Formula& formula, size_t step_id, const Plan& plan,
 	const Conjunction* conj = dynamic_cast<const Conjunction*>(&formula);
 	if (conj != NULL) {
 	  HeuristicValue h = HeuristicValue::ZERO;
-	  for (FormulaListIter fi = conj->conjuncts.begin();
-	       fi != conj->conjuncts.end(); fi++) {
+	  for (FormulaListIter fi = conj->conjuncts().begin();
+	       fi != conj->conjuncts().end(); fi++) {
 	    h += formula_value(**fi, step_id, plan, domain, pg, true);
 	  }
 	  return h;
@@ -109,7 +109,7 @@ formula_value(const Formula& formula, size_t step_id, const Plan& plan,
 	  const ExistsFormula* exists =
 	    dynamic_cast<const ExistsFormula*>(&formula);
 	  if (exists != NULL) {
-	    return formula_value(exists->body, step_id, plan, domain, pg,
+	    return formula_value(exists->body(), step_id, plan, domain, pg,
 				 true);
 	  }
 	}
@@ -290,7 +290,7 @@ void Atom::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
 			   const PlanningGraph& pg,
 			   const Bindings* b) const {
   h = pg.heuristic_value(*this, b);
-  hs = (when != AT_END) ? h : HeuristicValue::ZERO;
+  hs = (when() != AT_END) ? h : HeuristicValue::ZERO;
 }
 
 
@@ -306,7 +306,7 @@ void Negation::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
 			       const PlanningGraph& pg,
 			       const Bindings* b) const {
   h = pg.heuristic_value(*this, b);
-  hs = (when != AT_END) ? h : HeuristicValue::ZERO;
+  hs = (when() != AT_END) ? h : HeuristicValue::ZERO;
 }
 
 
@@ -364,8 +364,8 @@ void Inequality::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
 void Conjunction::heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
 				  const Bindings* b) const {
   h = HeuristicValue::ZERO;
-  for (FormulaListIter fi = conjuncts.begin();
-       fi != conjuncts.end() && !h.infinite(); fi++) {
+  for (FormulaListIter fi = conjuncts().begin();
+       fi != conjuncts().end() && !h.infinite(); fi++) {
     HeuristicValue hi;
     (*fi)->heuristic_value(hi, pg, b);
     h += hi;
@@ -378,8 +378,8 @@ void Conjunction::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
 				  const PlanningGraph& pg,
 				  const Bindings* b) const {
   hs = h = HeuristicValue::ZERO;
-  for (FormulaListIter fi = conjuncts.begin();
-       fi != conjuncts.end() && !h.infinite(); fi++) {
+  for (FormulaListIter fi = conjuncts().begin();
+       fi != conjuncts().end() && !h.infinite(); fi++) {
     HeuristicValue hi, hsi;
     (*fi)->heuristic_value(hi, hsi, pg, b);
     h += hi;
@@ -392,8 +392,8 @@ void Conjunction::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
 void Disjunction::heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
 				  const Bindings* b) const {
   h = HeuristicValue::INFINITE;
-  for (FormulaListIter fi = disjuncts.begin();
-       fi != disjuncts.end() && !h.zero(); fi++) {
+  for (FormulaListIter fi = disjuncts().begin();
+       fi != disjuncts().end() && !h.zero(); fi++) {
     HeuristicValue hi;
     (*fi)->heuristic_value(hi, pg, b);
     h = min(h, hi);
@@ -406,8 +406,8 @@ void Disjunction::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
 				  const PlanningGraph& pg,
 				  const Bindings* b) const {
   hs = h = HeuristicValue::INFINITE;
-  for (FormulaListIter fi = disjuncts.begin();
-       fi != disjuncts.end() && !h.zero(); fi++) {
+  for (FormulaListIter fi = disjuncts().begin();
+       fi != disjuncts().end() && !h.zero(); fi++) {
     HeuristicValue hi, hsi;
     (*fi)->heuristic_value(hi, hsi, pg, b);
     h = min(h, hi);
@@ -419,7 +419,7 @@ void Disjunction::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
 /* Returns the heuristic value of this formula. */
 void ExistsFormula::heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
 				    const Bindings* b) const {
-  body.heuristic_value(h, pg, b);
+  body().heuristic_value(h, pg, b);
 }
 
 
@@ -427,7 +427,7 @@ void ExistsFormula::heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
 void ExistsFormula::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
 				    const PlanningGraph& pg,
 				    const Bindings* b) const {
-  body.heuristic_value(h, hs, pg, b);
+  body().heuristic_value(h, hs, pg, b);
 }
 
 
@@ -618,15 +618,15 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
 		       << negation << endl;
 		}
 	      }
-	      AtomValueMapIter vi = new_negation_values.find(&negation.atom);
+	      AtomValueMapIter vi = new_negation_values.find(&negation.atom());
 	      if (vi == new_negation_values.end()) {
-		vi = negation_values.find(&negation.atom);
+		vi = negation_values.find(&negation.atom());
 		if (vi == negation_values.end()) {
-		  if (heuristic_value(negation.atom).zero()) {
+		  if (heuristic_value(negation.atom()).zero()) {
 		    /* First level this negated atom is achieved. */
 		    HeuristicValue new_value = cond_value;
 		    new_value.add_work(1);
-		    new_negation_values.insert(make_pair(&negation.atom,
+		    new_negation_values.insert(make_pair(&negation.atom(),
 							 new_value));
 		    changed = true;
 		    continue;
@@ -642,7 +642,7 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
 	      new_value.add_work(1);
 	      new_value = min(new_value, old_value);
 	      if (new_value < old_value) {
-		new_negation_values[&negation.atom] = new_value;
+		new_negation_values[&negation.atom()] = new_value;
 		changed = true;
 	      }
 	    }
@@ -754,18 +754,18 @@ HeuristicValue PlanningGraph::heuristic_value(const Negation& negation,
 					      const Bindings* bindings) const {
   if (bindings == NULL) {
     /* Assume ground negated atom. */
-    AtomValueMapIter vi = negation_values.find(&negation.atom);
+    AtomValueMapIter vi = negation_values.find(&negation.atom());
     if (vi != negation_values.end()) {
       return (*vi).second;
     } else {
-      vi = atom_values.find(&negation.atom);
+      vi = atom_values.find(&negation.atom());
       return ((vi == atom_values.end() || !(*vi).second.zero())
 	      ? HeuristicValue::ZERO_COST_UNIT_WORK
 	      : HeuristicValue::INFINITE);
     }
   } else {
     /* Take minimum value of ground negated atoms that unify. */
-    const Atom& atom = negation.atom;
+    const Atom& atom = negation.atom();
     if (!heuristic_value(atom, bindings).zero()) {
       return HeuristicValue::ZERO;
     }
