@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: predicates.h,v 6.1 2003-03-23 10:51:27 lorens Exp $
+ * $Id: predicates.h,v 6.2 2003-07-13 16:08:22 lorens Exp $
  */
 #ifndef PREDICATES_H
 #define PREDICATES_H
@@ -24,13 +24,14 @@
 #include <config.h>
 #include "types.h"
 #include "hashing.h"
+#include <iostream>
 #include <map>
 #include <string>
 #include <vector>
 
 
 /* Predicate index. */
-typedef size_t Predicate;
+typedef int Predicate;
 
 
 /* ====================================================================== */
@@ -57,17 +58,20 @@ struct PredicateTable {
      the result. */
   std::pair<Predicate, bool> find_predicate(const std::string& name) const;
 
-  /* Returns the size of this predicate table. */
-  Predicate size() const { return names_.size(); }
+  /* Returns the first predicate of this predicate table. */
+  Predicate first_predicate() const { return 0; }
 
-  /* Returns the name of the given predicate. */
-  const std::string& name(Predicate predicate) const {
-    return names_[predicate];
-  }
+  /* Returns the last predicate of this predicate table. */
+  Predicate last_predicate() const { return names_.size() - 1; }
 
   /* Adds a parameter with the given type to the given predicate. */
   void add_parameter(Predicate predicate, Type type) {
     parameters_[predicate].push_back(type);
+  }
+
+  /* Returns the name of the given predicate. */
+  const std::string& name(Predicate predicate) const {
+    return names_[predicate];
   }
 
   /* Returns the arity of the given predicate. */
@@ -89,6 +93,9 @@ struct PredicateTable {
   bool static_predicate(Predicate predicate) const {
     return static_predicates_.find(predicate) != static_predicates_.end();
   }
+
+  /* Prints the given predicate on the given stream. */
+  void print_predicate(std::ostream& os, Predicate predicate) const;
 
 private:
   /* Predicate names. */
