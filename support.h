@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  * 
- * $Id: support.h,v 1.18 2002-01-26 04:17:35 lorens Exp $
+ * $Id: support.h,v 3.1 2002-03-18 09:34:44 lorens Exp $
  */
 #ifndef SUPPORT_H
 #define SUPPORT_H
@@ -270,6 +270,41 @@ protected:
 
 /* Output operator for printable objects. */
 ostream& operator<<(ostream& os, const Printable& o);
+
+
+/* An ostream iterator outputting a space before each object. */
+template <typename T>
+struct pre_ostream_iterator {
+  typedef output_iterator_tag iterator_category;
+  typedef void                value_type;
+  typedef void                difference_type;
+  typedef void                pointer;
+  typedef void                reference;
+
+  /* Constructs an ostream iterator. */
+  pre_ostream_iterator(ostream& s)
+    : stream_(&s) {}
+
+  /* Assigns to this ostream iterator. */
+  pre_ostream_iterator<T>& operator=(const T* v) { 
+    *stream_ << ' ' << *v;
+    return *this;
+  }
+
+  /* Assigns to this ostream iterator. */
+  pre_ostream_iterator<T>& operator=(const T& v) { 
+    *stream_ << ' ' << v;
+    return *this;
+  }
+
+  pre_ostream_iterator<T>& operator*() { return *this; }
+  pre_ostream_iterator<T>& operator++() { return *this; } 
+  pre_ostream_iterator<T>& operator++(int) { return *this; } 
+
+private:
+  /* The stream associated with this iterator. */
+  ostream* stream_;
+};
 
 
 /*
