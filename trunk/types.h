@@ -16,154 +16,92 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: types.h,v 3.17 2003-03-01 18:48:31 lorens Exp $
+ * $Id: types.h,v 6.1 2003-03-23 10:41:49 lorens Exp $
  */
 #ifndef TYPES_H
 #define TYPES_H
 
 #include <config.h>
+#include "hashing.h"
+#include <iostream>
+#include <map>
 #include <string>
 #include <vector>
-#include <map>
 
 
-/* ====================================================================== */
-/* Type */
+/* Type index. */
+typedef int Type;
 
-/*
- * Abstract type.
- */
-struct Type {
-  /* The object type. */
-  static const Type& OBJECT;
-
-  /* Checks if this type is the object type. */
-  bool object() const;
-
-  /* Checks if this type is a subtype of the given type. */
-  virtual bool subtype(const Type& t) const = 0;
-
-protected:
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const = 0;
-
-  friend std::ostream& operator<<(std::ostream& os, const Type& t);
-};
-
-/* Output operator for types. */
-std::ostream& operator<<(std::ostream& os, const Type& t);
-
-
-/* ====================================================================== */
-/* SimpleType */
-
-/*
- * Simple type.
- */
-struct SimpleType : public Type {
-  /* Constructs a simple type with the given name. */
-  SimpleType(const std::string& name, const Type& supertype);
-
-  /* Attemts to add the given supertype to this type.  Returns false
-     if the intended supertype is a subtype of this type. */
-  bool add_supertype(const Type& supertype);
-
-  /* Returns the name of this simple type. */
-  const std::string& name() const { return name_; }
-
-  /* Returns the supertype of this simple type. */
-  const Type& supertype() const { return *supertype_; }
-
-  /* Checks if this type is a subtype of the given type. */
-  virtual bool subtype(const Type& t) const;
-
-protected:
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const;
-
-private:
-  /* The object type. */
-  static const SimpleType OBJECT_;
-
-  /* Name of type. */
-  std::string name_;
-  /* Supertype */
-  const Type* supertype_;
-
-  friend struct Type;
-};
+/* The object type */
+const Type OBJECT_TYPE = 0;
+/* Name of object type. */
+const std::string OBJECT_NAME("object");
 
 
 /* ====================================================================== */
 /* TypeList */
 
-/* List of types. */
-struct TypeList : std::vector<const Type*> {
+struct TypeList : public std::vector<Type> {
 };
-
-/* Iterator for type list. */
-typedef TypeList::const_iterator TypeListIter;
 
 
 /* ====================================================================== */
-/* SimpleTypeList */
+/* TypeSet */
 
-/* List of simple types. */
-struct SimpleTypeList : public std::vector<const SimpleType*> {
+struct TypeSet : public hashing::hash_set<Type> {
 };
-
-/* Iterator for simple type list. */
-typedef SimpleTypeList::const_iterator SimpleTypeListIter;
 
 
 /* ====================================================================== */
-/* UnionType */
+/* TypeTable */
+
 /*
- * Union type.
+ * Type table.
  */
-struct UnionType : public Type {
-  /* Simplifies the given union type. */
-  static const Type& simplify(const UnionType& t);
+struct TypeTable {
+  /* Constructs an empty type table. */
+  TypeTable() : names_(std::vector<std::string>(1, OBJECT_NAME)) {}
 
-  /* Returns the union of two types. */
-  static const Type& add(const Type& t1, const Type& t2);
+  /* Adds a simple type with the given name to this table and returns
+     the type. */
+  Type add_type(const std::string& name);
 
-  /* Constructs an empty union type. */
-  UnionType();
+  /* Adds the union of the given types to this table and returns the
+     type. */
+  Type add_type(const TypeSet& types);
 
-  /* Constructs a singleton union type. */
-  explicit UnionType(const SimpleType& t);
+  /* Returns the type with the given name.  If no type with the given
+     name exists, false is returned in the second part of the
+     result. */
+  std::pair<Type, bool> find_type(const std::string& name) const;
 
-  /* Adds the given simple type to this union type. */
-  void add(const SimpleType& t);
+  /* Returns the size of this type table. */
+  Type size() const { return names_.size(); }
 
-  /* Returns the constituent types of this union type. */
-  const SimpleTypeList& types() const { return types_; }
+  /* Adds the second type as a supertype of the first type.  Returns
+     false if the second type is a proper subtype of the first
+     type. */
+  bool add_supertype(Type type1, Type type2);
 
-  /* Checks if this type is a subtype of the given type. */
-  virtual bool subtype(const Type& t) const;
+  /* Checks if the first type is a subtype of the second type. */
+  bool subtype(Type type1, Type type2) const;
 
-protected:
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const;
+  /* Fills the provided set with the components of the given type. */
+  void components(TypeSet& components, Type type) const;
+
+  /* Prints the name of the given type on the given stream. */
+  void print_name(std::ostream& os, Type type) const;
 
 private:
-  /* Constituent types. */
-  SimpleTypeList types_;
+  /* Type names. */
+  std::vector<std::string> names_;
+  /* Mapping of type names to types. */
+  std::map<std::string, Type> types_;
+  /* Transitive closure of subtype relation. */
+  std::vector<std::vector<bool> > subtype_;
+  /* Union types. */
+  std::vector<TypeSet> utypes_;
 };
-
-
-/* ====================================================================== */
-/* TypeMap */
-
-/*
- * Table of simple types.
- */
-struct TypeMap : std::map<std::string, SimpleType*> {
-};
-
-/* Iterator for type tables. */
-typedef TypeMap::const_iterator TypeMapIter;
 
 
 #endif /* TYPES_H */
