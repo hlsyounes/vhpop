@@ -21,6 +21,7 @@
 #ifndef MATHCOMP_H
 #define MATHPORT_H
 
+#include <config.h>
 #define __USE_ISOC99 1
 #define __USE_ISOC9X 1
 #include <cmath>

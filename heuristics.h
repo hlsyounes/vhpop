@@ -16,16 +16,18 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.h,v 4.3 2002-09-23 18:22:56 lorens Exp $
+ * $Id: heuristics.h,v 4.4 2002-12-16 17:29:23 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
 
-#include "support.h"
-#include "formulas.h"
+#include <config.h>
 #include "domains.h"
+#include "formulas.h"
+#include "exceptions.h"
 
-
+struct Action;
+struct ActionList;
 struct Problem;
 struct ActionDomain;
 struct Bindings;
@@ -116,7 +118,7 @@ bool operator>=(const HeuristicValue& v1, const HeuristicValue& v2);
 HeuristicValue min(const HeuristicValue& v1, const HeuristicValue& v2);
 
 /* Output operator for heuristic values. */
-ostream& operator<<(ostream& os, const HeuristicValue& v);
+std::ostream& operator<<(std::ostream& os, const HeuristicValue& v);
 
 
 /* ====================================================================== */
@@ -146,13 +148,14 @@ struct PlanningGraph {
 
   /* Returns the parameter domain for the given action, or NULL if the
      parameter domain is empty. */
-  const ActionDomain* action_domain(const string& name) const;
+  const ActionDomain* action_domain(const std::string& name) const;
 
 private:
   /* Atom value map. */
   struct AtomValueMap
-    : public hash_map<const Atom*, HeuristicValue, hash<const Literal*>,
-    equal_to<const Literal*> > {
+    : public hashing::hash_map<const Atom*, HeuristicValue,
+			       hashing::hash<const Literal*>,
+			       std::equal_to<const Literal*> > {
   };
 
   /* Iterator for AtomValueMap. */
@@ -160,22 +163,22 @@ private:
 
   /* Mapping of literals to actions. */
   struct LiteralActionsMap
-    : public HashMultimap<const Literal*, const Action*> {
+    : public hashing::hash_multimap<const Literal*, const GroundAction*> {
   };
 
   /* Iterator for LiteralActionsMap. */
   typedef LiteralActionsMap::const_iterator LiteralActionsMapIter;
 
   /* Mapping of predicate names to ground atoms. */
-  struct PredicateAtomsMap :
-    public HashMultimap<const Predicate*, const Atom*> {
+  struct PredicateAtomsMap
+    : public hashing::hash_multimap<const Predicate*, const Atom*> {
   };
 
   /* Iterator for PredicateAtomsMap. */
   typedef PredicateAtomsMap::const_iterator PredicateAtomsMapIter;
 
   /* Mapping of action name to parameter domain. */
-  struct ActionDomainMap : public hash_map<string, ActionDomain*> {
+  struct ActionDomainMap : public std::map<std::string, ActionDomain*> {
   };
 
   /* Iterator for ActionDomainMap. */
@@ -193,6 +196,10 @@ private:
   PredicateAtomsMap predicate_negations_;
   /* Maps action names to possible parameter lists. */
   ActionDomainMap action_domains_;
+
+  /* Finds an element in a LiteralActionsMap. */
+  LiteralActionsMapIter find(const LiteralActionsMap& m,
+			     const Literal &l, const Action& a) const;
 };
 
 
@@ -204,7 +211,7 @@ private:
  */
 struct InvalidHeuristic : public Exception {
   /* Constructs an invalid heuristic exception. */
-  InvalidHeuristic(const string& name);
+  InvalidHeuristic(const std::string& name);
 };
 
 
@@ -230,16 +237,16 @@ struct InvalidHeuristic : public Exception {
  */
 struct Heuristic {
   /* Constructs a heuristic from a name. */
-  Heuristic(const string& name = "UCPOP");
+  Heuristic(const std::string& name = "UCPOP");
 
   /* Selects a heuristic from a name. */
-  Heuristic& operator=(const string& name);
+  Heuristic& operator=(const std::string& name);
 
   /* Checks if this heuristic needs a planning graph. */
   bool needs_planning_graph() const;
 
   /* Fills the provided vector with the ranks for the given plan. */
-  void plan_rank(vector<float>& rank, const Plan& plan,
+  void plan_rank(std::vector<float>& rank, const Plan& plan,
 		 float weight, const Domain& domain,
 		 const PlanningGraph* planning_graph) const;
 
@@ -252,7 +259,7 @@ private:
 		 MAXR, MAXR_COST, MAXR_WORK } HVal;
 
   /* The selected heuristics. */
-  vector<HVal> h_;
+  std::vector<HVal> h_;
   /* Whether a planning graph is needed by this heuristic. */
   bool needs_pg_;
 };
@@ -266,7 +273,7 @@ private:
  */
 struct InvalidFlawSelectionOrder : public Exception {
   /* Constructs an invalid flaw selection order exception. */
-  InvalidFlawSelectionOrder(const string& name);
+  InvalidFlawSelectionOrder(const std::string& name);
 };
 
 
@@ -332,10 +339,10 @@ struct SelectionCriterion {
  */
 struct FlawSelectionOrder {
   /* Constructs a default flaw selection order. */
-  FlawSelectionOrder(const string& name = "UCPOP");
+  FlawSelectionOrder(const std::string& name = "UCPOP");
 
   /* Selects a flaw selection order from a name. */
-  FlawSelectionOrder& operator=(const string& name);
+  FlawSelectionOrder& operator=(const std::string& name);
 
   /* Checks if this flaw order needs a planning graph. */
   bool needs_planning_graph() const;
@@ -358,7 +365,7 @@ private:
   };
 
   /* Selection criteria. */
-  vector<SelectionCriterion> selection_criteria_;
+  std::vector<SelectionCriterion> selection_criteria_;
   /* Whether a planning graph is needed by this flaw selection order. */
   bool needs_pg_;
   /* Index of the first selection criterion involving threats. */

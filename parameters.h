@@ -16,11 +16,12 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: parameters.h,v 3.7 2002-11-05 04:47:37 lorens Exp $
+ * $Id: parameters.h,v 3.8 2002-12-16 17:35:14 lorens Exp $
  */
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
 
+#include <config.h>
 #include "heuristics.h"
 
 
@@ -32,7 +33,7 @@
  */
 struct InvalidSearchAlgorithm : public Exception {
   /* Constructs an invalid search algorithm exception. */
-  InvalidSearchAlgorithm(const string& name);
+  InvalidSearchAlgorithm(const std::string& name);
 };
 
 
@@ -55,9 +56,9 @@ struct Parameters {
   /* Weight to use with heuristic. */
   float weight;
   /* Flaw selecion orders. */
-  vector<FlawSelectionOrder> flaw_orders;
+  std::vector<FlawSelectionOrder> flaw_orders;
   /* Search limits. */
-  vector<size_t> search_limits;
+  std::vector<size_t> search_limits;
   /* Whether to reverse the order that open conditions are added. */
   bool reverse_open_conditions;
   /* Whether to use ground actions. */
@@ -76,7 +77,7 @@ struct Parameters {
   bool strip_static_preconditions() const;
 
   /* Selects a search algorithm from a name. */
-  void set_search_algorithm(const string& name);
+  void set_search_algorithm(const std::string& name);
 };
 
 

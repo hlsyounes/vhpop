@@ -14,10 +14,10 @@
 ## SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
 ## ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
 ##
-## $Id: Makefile.am,v 1.4 2002-09-25 16:02:01 lorens Exp $
+## $Id: Makefile.am,v 1.5 2002-12-16 17:34:18 lorens Exp $
 
 bin_PROGRAMS = vhpop
-vhpop_SOURCES = vhpop.cc bindings.cc domains.cc flaws.cc formulas.cc heuristics.cc orderings.cc parameters.cc plans.cc problems.cc reasons.cc requirements.cc support.cc types.cc pddl.yy tokens.ll bindings.h chain.h debug.h domains.h flaws.h formulas.h heuristics.h mathport.h orderings.h parameters.h plans.h problems.h reasons.h requirements.h support.h types.h
+vhpop_SOURCES = vhpop.cc exceptions.cc exceptions.h parameters.cc parameters.h types.cc types.h formulas.cc formulas.h domains.cc domains.h problems.cc problems.h bindings.cc bindings.h orderings.cc orderings.h flaws.cc flaws.h reasons.cc reasons.h heuristics.cc heuristics.h plans.cc plans.h requirements.cc requirements.h pddl.yy tokens.ll chain.h debug.h hashing.h mathport.h
 vhpop_LDADD = @LIBOBJS@
 MAINTAINERCLEANFILES = pddl.cc tokens.cc
 EXTRA_DIST = getopt.c getopt1.c getopt.h ipc3-vhpop examples scripts
