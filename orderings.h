@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.h,v 3.5 2002-03-28 18:41:49 lorens Exp $
+ * $Id: orderings.h,v 3.6 2002-03-28 23:34:31 lorens Exp $
  */
 #ifndef ORDERINGS_H
 #define ORDERINGS_H
@@ -99,41 +99,13 @@ private:
 /*
  * Chain of ordering constraints.
  */
-typedef Chain<Ordering> OrderingChain;
-
-
-/* ====================================================================== */
-/* BoolVector */
-
-/*
- * A collectible bool vector.
- */
-struct BoolVector : public vector<bool> {
-  /* Register use of the given vector. */
-  static void register_use(const BoolVector* v);
-
-  /* Unregister use of the given vector. */
-  static void unregister_use(const BoolVector* v);
-
-  /* Constructs a vector with n copies of b. */
-  BoolVector(size_t n, bool b);
-
-  /* Constructs a copy of the given vector. */
-  BoolVector(const BoolVector& v);
-
-#ifdef DEBUG
-  /* Deletes this vector. */
-  ~BoolVector();
-#endif
-
-private:
-  /* Reference counter. */
-  mutable size_t ref_count_;
-};
+typedef CollectibleChain<Ordering> OrderingChain;
 
 
 /* ====================================================================== */
 /* Orderings */
+
+struct BoolVector;
 
 /*
  * Collection of ordering constraints.
@@ -258,17 +230,19 @@ private:
   /* Constructs a copy of this ordering collection. */
   BinaryOrderings(const BinaryOrderings& o);
 
+  /* Checks if the first step is ordered before the second step. */
+  bool before(size_t id1, size_t id2) const;
+
   /* Updates the transitive closure given a new ordering constraint. */
   void fill_transitive(hash_map<size_t, BoolVector*>& own_data,
 		       const Ordering& ordering);
-
-  /* Checks if the first step is ordered before the second step. */
-  bool before(size_t id1, size_t id2) const;
 };
 
 
 /* ====================================================================== */
 /* TemporalOrderings */
+
+struct FloatVector;
 
 /*
  * Collection of temporal ordering constraints.
@@ -280,6 +254,9 @@ struct TemporalOrderings : public Orderings {
   /* Constructs an ordering collection. */
   TemporalOrderings(const CollectibleChain<Step>* steps,
 		    const OrderingChain* orderings);
+
+  /* Deletes this ordering collection. */
+  virtual ~TemporalOrderings();
 
   /* Checks if the first step could be ordered before the second step. */
   virtual bool possibly_before(size_t id1, StepTime t1,
@@ -305,16 +282,29 @@ protected:
 
 private:
   /* Matrix representing the minimal network for the ordering constraints. */
-  vector<vector<float> > distance_;
+  vector<const FloatVector*> distance_;
 
   /* Constructs a copy of this ordering collection. */
   TemporalOrderings(const TemporalOrderings& o);
 
+  /* Returns the entry at (r,c) in the matrix representing the minimal
+     network for the ordering constraints. */
+  float distance(size_t r, size_t c) const;
+
+  /* Sets the entry at (r,c) in the matrix representing the minimal
+     network for the ordering constraints. */
+  void set_distance(hash_map<size_t, FloatVector*>& own_data,
+		    size_t r, size_t c, float d);
+
   /* Returns the time node for the given step. */
   size_t time_node(size_t id, StepTime t) const;
 
+  /* Checks if the first step is ordered before the second step. */
+  bool before(size_t id1, StepTime t1, size_t id2, StepTime t2) const;
+
   /* Updates the transitive closure given a new ordering constraint. */
-  bool fill_transitive(hash_map<size_t, BoolVector*>& own_data,
+  bool fill_transitive(hash_map<size_t, BoolVector*>& own_data1,
+		       hash_map<size_t, FloatVector*>& own_data2,
 		       const Ordering& ordering);
 };
 
