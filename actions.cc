@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: actions.cc,v 6.1 2003-08-24 22:11:41 lorens Exp $
+ * $Id: actions.cc,v 6.2 2003-08-27 16:59:04 lorens Exp $
  */
 #include "actions.h"
 #include "bindings.h"
@@ -180,15 +180,15 @@ void ActionSchema::instantiations(GroundActionList& actions,
     }
   } else {
     SubstitutionMap args;
-    std::vector<ObjectList> arguments(n, ObjectList());
+    std::vector<const ObjectList*> arguments(n);
     std::vector<ObjectList::const_iterator> next_arg;
     for (size_t i = 0; i < n; i++) {
-      Type type = problem.domain().terms().type(parameters()[i]);
-      problem.compatible_objects(arguments[i], type);
-      if (arguments[i].empty()) {
+      Type t = problem.domain().terms().type(parameters()[i]);
+      arguments[i] = &problem.compatible_objects(t);
+      if (arguments[i]->empty()) {
 	return;
       }
-      next_arg.push_back(arguments[i].begin());
+      next_arg.push_back(arguments[i]->begin());
     }
     std::stack<const Condition*> conds;
     conds.push(&condition());
@@ -213,12 +213,12 @@ void ActionSchema::instantiations(GroundActionList& actions,
 	  conds.pop();
 	  args.erase(parameters()[j]);
 	  next_arg[j]++;
-	  if (next_arg[j] == arguments[j].end()) {
+	  if (next_arg[j] == arguments[j]->end()) {
 	    if (j == 0) {
 	      i = n;
 	      break;
 	    } else {
-	      next_arg[j] = arguments[j].begin();
+	      next_arg[j] = arguments[j]->begin();
 	    }
 	  } else {
 	    i = j;

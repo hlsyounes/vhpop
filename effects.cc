@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: effects.cc,v 6.1 2003-07-28 21:40:32 lorens Exp $
+ * $Id: effects.cc,v 6.2 2003-08-27 16:59:18 lorens Exp $
  */
 #include "effects.h"
 #include "bindings.h"
@@ -92,15 +92,15 @@ void Effect::instantiations(EffectList& effects, size_t& useful,
     }
   } else {
     SubstitutionMap args(subst);
-    std::vector<ObjectList> arguments(n, ObjectList());
+    std::vector<const ObjectList*> arguments(n);
     std::vector<ObjectList::const_iterator> next_arg;
     for (size_t i = 0; i < n; i++) {
-      problem.compatible_objects(arguments[i],
-				 problem.domain().terms().type(parameter(i)));
-      if (arguments[i].empty()) {
+      Type t = problem.domain().terms().type(parameter(i));
+      arguments[i] = &problem.compatible_objects(t);
+      if (arguments[i]->empty()) {
 	return;
       }
-      next_arg.push_back(arguments[i].begin());
+      next_arg.push_back(arguments[i]->begin());
     }
     std::stack<const Condition*> conds;
     conds.push(&condition().instantiation(args, problem));
@@ -125,12 +125,12 @@ void Effect::instantiations(EffectList& effects, size_t& useful,
 	  conds.pop();
 	  args.erase(parameter(j));
 	  next_arg[j]++;
-	  if (next_arg[j] == arguments[j].end()) {
+	  if (next_arg[j] == arguments[j]->end()) {
 	    if (j == 0) {
 	      i = n;
 	      break;
 	    } else {
-	      next_arg[j] = arguments[j].begin();
+	      next_arg[j] = arguments[j]->begin();
 	    }
 	  } else {
 	    i = j;

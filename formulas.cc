@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 6.8 2003-08-24 21:21:07 lorens Exp $
+ * $Id: formulas.cc,v 6.9 2003-08-27 16:59:33 lorens Exp $
  */
 #include "formulas.h"
 #include "bindings.h"
@@ -1329,15 +1329,15 @@ const Formula& Exists::instantiation(const SubstitutionMap& subst,
     return body().instantiation(subst, problem);
   } else {
     SubstitutionMap args(subst);
-    std::vector<ObjectList> arguments(n, ObjectList());
+    std::vector<const ObjectList*> arguments(n);
     std::vector<ObjectList::const_iterator> next_arg;
     for (int i = 0; i < n; i++) {
-      problem.compatible_objects(arguments[i],
-				 problem.terms().type(parameters()[i]));
-      if (arguments[i].empty()) {
+      Type t = problem.terms().type(parameters()[i]);
+      arguments[i] = &problem.compatible_objects(t);
+      if (arguments[i]->empty()) {
 	return FALSE;
       }
-      next_arg.push_back(arguments[i].begin());
+      next_arg.push_back(arguments[i]->begin());
     }
     const Formula* result = &FALSE;
     std::stack<const Formula*> disjuncts;
@@ -1359,12 +1359,12 @@ const Formula& Exists::instantiation(const SubstitutionMap& subst,
 	  }
 	  disjuncts.pop();
 	  next_arg[j]++;
-	  if (next_arg[j] == arguments[j].end()) {
+	  if (next_arg[j] == arguments[j]->end()) {
 	    if (j == 0) {
 	      i = n;
 	      break;
 	    } else {
-	      next_arg[j] = arguments[j].begin();
+	      next_arg[j] = arguments[j]->begin();
 	    }
 	  } else {
 	    i = j;
@@ -1470,15 +1470,15 @@ const Formula& Forall::instantiation(const SubstitutionMap& subst,
     return body().instantiation(subst, problem);
   } else {
     SubstitutionMap args(subst);
-    std::vector<ObjectList> arguments(n, ObjectList());
+    std::vector<const ObjectList*> arguments(n);
     std::vector<ObjectList::const_iterator> next_arg;
     for (int i = 0; i < n; i++) {
-      problem.compatible_objects(arguments[i],
-				 problem.terms().type(parameters()[i]));
-      if (arguments[i].empty()) {
+      Type t = problem.terms().type(parameters()[i]);
+      arguments[i] = &problem.compatible_objects(t);
+      if (arguments[i]->empty()) {
 	return TRUE;
       }
-      next_arg.push_back(arguments[i].begin());
+      next_arg.push_back(arguments[i]->begin());
     }
     const Formula* result = &TRUE;
     std::stack<const Formula*> conjuncts;
@@ -1500,12 +1500,12 @@ const Formula& Forall::instantiation(const SubstitutionMap& subst,
 	  }
 	  conjuncts.pop();
 	  next_arg[j]++;
-	  if (next_arg[j] == arguments[j].end()) {
+	  if (next_arg[j] == arguments[j]->end()) {
 	    if (j == 0) {
 	      i = n;
 	      break;
 	    } else {
-	      next_arg[j] = arguments[j].begin();
+	      next_arg[j] = arguments[j]->begin();
 	    }
 	  } else {
 	    i = j;
@@ -1537,16 +1537,16 @@ const Formula& Forall::universal_base(const SubstitutionMap& subst,
     universal_base_ = &body().universal_base(subst, problem);
   } else {
     SubstitutionMap args(subst);
-    std::vector<ObjectList> arguments(n, ObjectList());
+    std::vector<const ObjectList*> arguments(n);
     std::vector<ObjectList::const_iterator> next_arg;
     for (int i = 0; i < n; i++) {
-      problem.compatible_objects(arguments[i],
-				 problem.terms().type(parameters()[i]));
-      if (arguments[i].empty()) {
+      Type t = problem.terms().type(parameters()[i]);
+      arguments[i] = &problem.compatible_objects(t);
+      if (arguments[i]->empty()) {
 	universal_base_ = &TRUE;
 	return TRUE;
       }
-      next_arg.push_back(arguments[i].begin());
+      next_arg.push_back(arguments[i]->begin());
     }
     universal_base_ = &TRUE;
     std::stack<const Formula*> conjuncts;
@@ -1569,12 +1569,12 @@ const Formula& Forall::universal_base(const SubstitutionMap& subst,
 	  }
 	  conjuncts.pop();
 	  next_arg[j]++;
-	  if (next_arg[j] == arguments[j].end()) {
+	  if (next_arg[j] == arguments[j]->end()) {
 	    if (j == 0) {
 	      i = n;
 	      break;
 	    } else {
-	      next_arg[j] = arguments[j].begin();
+	      next_arg[j] = arguments[j]->begin();
 	    }
 	  } else {
 	    i = j;
