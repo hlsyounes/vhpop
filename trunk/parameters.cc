@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: parameters.cc,v 3.4 2002-07-04 08:32:06 lorens Exp $
+ * $Id: parameters.cc,v 3.5 2002-09-24 17:37:27 lorens Exp $
  */
 #include "parameters.h"
 
@@ -38,6 +38,12 @@ Parameters::Parameters()
     transformational(false) {
   flaw_orders.push_back(FlawSelectionOrder("UCPOP")),
   search_limits.push_back(UINT_MAX);
+}
+
+
+/* Whether to strip static preconditions. */
+bool Parameters::strip_static_preconditions() const {
+  return !ground_actions && domain_constraints && !keep_static_preconditions;
 }
 
 

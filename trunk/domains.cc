@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.cc,v 4.4 2002-09-23 18:24:35 lorens Exp $
+ * $Id: domains.cc,v 4.5 2002-09-24 17:32:29 lorens Exp $
  */
 #include <stack>
 #include "bindings.h"
@@ -521,20 +521,6 @@ void ActionSchema::instantiations(GroundActionList& actions,
 }
 
 
-/* Returns this action schema with all static preconditions assumed
-   true. */
-const ActionSchema& ActionSchema::strip_static(const Domain& domain) const {
-  if (durative()) {
-    return *(new ActionSchema(name(), parameters(),
-			      precondition().strip_static(domain), effects(),
-			      min_duration(), max_duration()));
-  } else {
-    return *(new ActionSchema(name(), parameters(),
-			      precondition().strip_static(domain), effects()));
-  }
-}
-
-
 /* Prints this action on the given stream with the given bindings. */
 void ActionSchema::print(ostream& os, size_t step_id,
 			 const Bindings* bindings) const {
@@ -796,7 +782,8 @@ void Domain::compatible_constants(NameList& constants, const Type& t) const {
 
 /* Tests if the given predicate is static. */
 bool Domain::static_predicate(const Predicate& predicate) const {
-  return (static_predicates_.find(&predicate) != static_predicates_.end());
+  return (static_predicates_.find(&predicate) != static_predicates_.end()
+	  || find_type(predicate.name()) != NULL);
 }
 
 
