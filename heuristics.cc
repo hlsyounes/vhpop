@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 1.29 2002-01-26 03:51:44 lorens Exp $
+ * $Id: heuristics.cc,v 1.30 2002-01-26 04:21:36 lorens Exp $
  */
 #include <set>
 #include <typeinfo>
@@ -1613,6 +1613,9 @@ int FlawSelectionOrder::select_unsafe(FlawSelection& selection,
 		     << criterion << " with rank " << refinements << endl;
 	      }
 	    }
+	    break;
+	  default:
+	    /* No other ordering criteria apply to threats. */
 	    break;
 	  }
 	}

@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  * 
- * $Id: support.h,v 1.17 2002-01-25 18:23:26 lorens Exp $
+ * $Id: support.h,v 1.18 2002-01-26 04:17:35 lorens Exp $
  */
 #ifndef SUPPORT_H
 #define SUPPORT_H
@@ -24,6 +24,8 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <deque>
+#include <stack>
 #include <set>
 #include <hash_map>
 #include <hash_set>

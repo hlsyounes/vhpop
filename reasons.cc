@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: reasons.cc,v 1.2 2002-01-25 18:23:13 lorens Exp $
+ * $Id: reasons.cc,v 1.3 2002-01-26 04:17:32 lorens Exp $
  */
 #include "reasons.h"
 #include "plans.h"
@@ -60,7 +60,7 @@ bool Reason::involves(const Step& step) const {
 /* Returns an init reason (or a dummy reason if reasons are not
    needed. */
 const Reason& InitReason::make(const Parameters& params) {
-  return params.transformational ? *(new InitReason()) : DUMMY;
+  return params.transformational ? (const Reason&) *(new InitReason()) : DUMMY;
 }
 
 
@@ -80,7 +80,8 @@ void InitReason::print(ostream& os) const {
 /* Returns an AddStep reason (or a dummy reason if reasons are not
    needed. */
 const Reason& AddStepReason::make(const Parameters& params, size_t step_id) {
-  return params.transformational ? *(new AddStepReason(step_id)) : DUMMY;
+  return (params.transformational
+	  ? (const Reason&) *(new AddStepReason(step_id)) : DUMMY);
 }
 
 
@@ -108,7 +109,8 @@ void AddStepReason::print(ostream& os) const {
    needed. */
 const Reason& EstablishReason::make(const Parameters& params,
 				    const Link& link) {
-  return params.transformational ? *(new EstablishReason(link)) : DUMMY;
+  return (params.transformational
+	  ? (const Reason&) *(new EstablishReason(link)) : DUMMY);
 }
 
 /* Constructs an Establish reason. */
@@ -135,7 +137,8 @@ void EstablishReason::print(ostream& os) const {
    needed. */
 const Reason& ProtectReason::make(const Parameters& params,
 				  const Link& link, const size_t step_id) {
-  return params.transformational ? *(new ProtectReason(link, step_id)) : DUMMY;
+  return (params.transformational
+	  ? (const Reason&) *(new ProtectReason(link, step_id)) : DUMMY);
 }
 
 
