@@ -2,7 +2,7 @@
 /*
  * Formulas.
  *
- * $Id: formulas.h,v 1.28 2001-10-30 16:02:10 lorens Exp $
+ * $Id: formulas.h,v 1.29 2001-10-30 21:33:25 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -151,6 +151,9 @@ struct StepVar : public Variable {
   const size_t id;
 
 protected:
+  /* Checks if this object is less than the given object. */
+  virtual bool less(const LessThanComparable& o) const;
+
   /* Checks if this object equals the given object. */
   virtual bool equals(const EqualityComparable& o) const;
 

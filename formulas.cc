@@ -1,5 +1,5 @@
 /*
- * $Id: formulas.cc,v 1.25 2001-10-30 16:02:05 lorens Exp $
+ * $Id: formulas.cc,v 1.26 2001-10-30 21:33:20 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -18,6 +18,16 @@ struct Substitutes
     return s->var == *v;
   }
 };
+
+
+/* Checks if this object is less than the given object. */
+bool StepVar::less(const LessThanComparable& o) const {
+  if (typeid(o) != typeid(StepVar)) {
+    return false;
+  }
+  const StepVar* vt = dynamic_cast<const StepVar*>(&o);
+  return id < vt->id || (id == vt->id && name < vt->name);
+}
 
 
 /* Checks if this object equals the given object. */
@@ -191,6 +201,9 @@ const Term& Term::instantiation(const Bindings& bindings) const {
 
 /* Checks if this object is less than the given object. */
 bool Term::less(const LessThanComparable& o) const {
+  if (typeid(o) == typeid(StepVar)) {
+    return true;
+  }
   const Term* t = dynamic_cast<const Term*>(&o);
   return t != NULL && name < t->name;
 }
