@@ -16,19 +16,14 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  * 
- * $Id: support.h,v 3.3 2002-03-24 23:56:34 lorens Exp $
+ * $Id: support.h,v 3.4 2002-03-25 00:45:09 lorens Exp $
  */
 #ifndef SUPPORT_H
 #define SUPPORT_H
 
 #include <iostream>
 #include <string>
-#include <vector>
-#include <deque>
-#include <stack>
-#include <set>
 #include <hash_map>
-#include <hash_set>
 
 
 #ifdef DEBUG
@@ -100,55 +95,6 @@ template<typename I, typename P>
 inline bool member_if(I first, I last, P pred) {
   return find_if(first, last, pred) != last;
 }
-
-
-/*
- * A vector using a traceable allocator.
- */
-template<typename T>
-struct Vector : public vector<T> {
-  Vector<T>() {}
-
-  Vector<T>(size_t n, T x)
-    : vector<T>(n, x) {}
-};
-
-
-/*
- * A deque using a traceable allocator.
- */
-template<typename T>
-struct Deque : public deque<T> {
-  Deque<T>() {}
-
-  Deque<T>(size_t n, T x)
-    : deque<T>(n, x) {}
-};
-
-
-/*
- * A stack using a traceable allocator.
- */
-template<typename T>
-struct Stack : public stack<T, Deque<T> > {
-};
-
-
-/*
- * A set using a traceable allocator.
- */
-template<typename T, typename L = less<T> >
-struct Set : public set<T, L> {
-};
-
-
-/*
- * A hash map using a traceable allocator.
- */
-template<typename K, typename T,
-	 typename H = hash<K>, typename E = equal_to<K> >
-struct HashMap : public hash_map<K, T, H, E> {
-};
 
 
 /*

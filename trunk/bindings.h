@@ -16,13 +16,14 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.h,v 3.5 2002-03-24 22:05:59 lorens Exp $
+ * $Id: bindings.h,v 3.6 2002-03-25 00:44:30 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
 
 #include "support.h"
 #include "chain.h"
+#include <set>
 
 
 struct Term;
@@ -117,7 +118,7 @@ protected:
 /*
  * List of bindings.
  */
-struct BindingList : Vector<const Binding*> {
+struct BindingList : vector<const Binding*> {
 };
 
 /* Iterator for binding lists. */
@@ -133,7 +134,7 @@ typedef Chain<const Binding*> BindingChain;
 /*
  * A set of names.
  */
-struct NameSet : public Set<const Name*, less<const LessThanComparable*> > {
+struct NameSet : public set<const Name*, less<const LessThanComparable*> > {
 };
 
 /* Iterator for name sets. */
@@ -144,7 +145,7 @@ typedef NameSet::const_iterator NameSetIter;
  * A set of variables.
  */
 struct VariableSet
-  : public Set<const Variable*, less<const LessThanComparable*> > {
+  : public set<const Variable*, less<const LessThanComparable*> > {
   static const VariableSet& EMPTY;
 };
 
@@ -190,7 +191,7 @@ protected:
 
 private:
   /* A list of parameter tuples. */
-  struct TupleList : public Vector<const NameList*> {
+  struct TupleList : public vector<const NameList*> {
   };
 
   /* A tuple list iterator. */
@@ -199,7 +200,7 @@ private:
   /* Possible parameter tuples. */
   TupleList tuples;
   /* Projections. */
-  Vector<NameSet*> projections;
+  vector<NameSet*> projections;
 };
 
 

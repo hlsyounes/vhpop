@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 3.8 2002-03-19 17:19:26 lorens Exp $
+ * $Id: formulas.cc,v 3.9 2002-03-25 00:44:50 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -21,6 +21,7 @@
 #include "problems.h"
 #include "domains.h"
 #include "types.h"
+#include <stack>
 
 
 /*
@@ -361,7 +362,7 @@ FormulaList::FormulaList() {}
 
 /* Constructs a formula list with a single formula. */
 FormulaList::FormulaList(const Formula* formula)
-  : Vector<const Formula*>(1, formula) {}
+  : vector<const Formula*>(1, formula) {}
 
 
 /* Returns an instantiation of this formula list. */
@@ -1097,8 +1098,8 @@ const Formula& ExistsFormula::instantiation(const SubstitutionList& subst,
 					    const Problem& problem) const {
   const Formula& b = body.instantiation(subst, problem);
   size_t n = parameters.size();
-  Vector<NameList*> arguments;
-  Vector<NameListIter> next_arg;
+  vector<NameList*> arguments;
+  vector<NameListIter> next_arg;
   for (VarListIter vi = parameters.begin(); vi != parameters.end(); vi++) {
     arguments.push_back(new NameList());
     problem.compatible_objects(*arguments.back(), (*vi)->type());
@@ -1108,7 +1109,7 @@ const Formula& ExistsFormula::instantiation(const SubstitutionList& subst,
     next_arg.push_back(arguments.back()->begin());
   }
   const Formula* result = &FALSE;
-  Stack<const Formula*> disjuncts;
+  stack<const Formula*> disjuncts;
   disjuncts.push(&b);
   for (size_t i = 0; i < n; ) {
     SubstitutionList pargs;
@@ -1218,8 +1219,8 @@ const Formula& ForallFormula::instantiation(const SubstitutionList& subst,
 					    const Problem& problem) const {
   const Formula& b = body.instantiation(subst, problem);
   size_t n = parameters.size();
-  Vector<NameList*> arguments;
-  Vector<NameListIter> next_arg;
+  vector<NameList*> arguments;
+  vector<NameListIter> next_arg;
   for (VarListIter vi = parameters.begin(); vi != parameters.end(); vi++) {
     arguments.push_back(new NameList());
     problem.compatible_objects(*arguments.back(), (*vi)->type());
@@ -1229,7 +1230,7 @@ const Formula& ForallFormula::instantiation(const SubstitutionList& subst,
     next_arg.push_back(arguments.back()->begin());
   }
   const Formula* result = &TRUE;
-  Stack<const Formula*> conjuncts;
+  stack<const Formula*> conjuncts;
   conjuncts.push(&b);
   for (size_t i = 0; i < n; ) {
     SubstitutionList pargs;
@@ -1323,7 +1324,7 @@ AtomList::AtomList() {}
 
 /* Constructs an atom list with a single atom. */
 AtomList::AtomList(const Atom* atom)
-  : Vector<const Atom*>(1, atom) {}
+  : vector<const Atom*>(1, atom) {}
 
 
 /* Returns an instantiation of this atom list. */
@@ -1359,7 +1360,7 @@ NegationList::NegationList() {}
 
 /* Constructs a negation list with a single negated atom. */
 NegationList::NegationList(const Atom* atom)
-  : Vector<const Negation*>(1, new Negation(*atom)) {}
+  : vector<const Negation*>(1, new Negation(*atom)) {}
 
 
 /* Returns an instantiation of this negation list. */

@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.h,v 3.7 2002-03-24 23:55:47 lorens Exp $
+ * $Id: domains.h,v 3.8 2002-03-25 00:44:44 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -25,6 +25,7 @@
 #include "requirements.h"
 #include "types.h"
 #include "formulas.h"
+#include <hash_set>
 
 struct Problem;
 
@@ -133,7 +134,7 @@ protected:
 /*
  * List of effect definitions.
  */
-struct EffectList : public Vector<const Effect*> {
+struct EffectList : public vector<const Effect*> {
   /* An empty effect list. */
   static const EffectList& EMPTY;
 
@@ -205,7 +206,7 @@ protected:
 /*
  * List of action definitions.
  */
-struct ActionList : public Vector<const Action*> {
+struct ActionList : public vector<const Action*> {
 };
 
 /* Iterator for action lists. */
@@ -290,7 +291,7 @@ private:
 /*
  * List of ground actions.
  */
-struct GroundActionList : public Vector<const GroundAction*> {
+struct GroundActionList : public vector<const GroundAction*> {
 };
 
 /* Iterator for ground action lists. */

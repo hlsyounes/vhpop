@@ -15,9 +15,15 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 3.7 2002-03-24 23:56:39 lorens Exp $
+ * $Id: vhpop.cc,v 3.8 2002-03-25 00:43:59 lorens Exp $
  */
-#include <iostream>
+#include "plans.h"
+#include "parameters.h"
+#include "orderings.h"
+#include "heuristics.h"
+#include "domains.h"
+#include "problems.h"
+#include "debug.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cerrno>
@@ -28,13 +34,6 @@
 #else
 #include <unistd.h>
 #endif
-#include "domains.h"
-#include "problems.h"
-#include "plans.h"
-#include "orderings.h"
-#include "heuristics.h"
-#include "parameters.h"
-#include "debug.h"
 
 
 /* The parse function. */

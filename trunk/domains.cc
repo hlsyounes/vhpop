@@ -13,11 +13,12 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.cc,v 3.9 2002-03-19 17:19:24 lorens Exp $
+ * $Id: domains.cc,v 3.10 2002-03-25 00:44:40 lorens Exp $
  */
 #include "bindings.h"
 #include "domains.h"
 #include "problems.h"
+#include <stack>
 
 
 /* ====================================================================== */
@@ -131,8 +132,8 @@ void Effect::instantiations(EffectList& effects, const SubstitutionList& subst,
 	args.push_back(s);
       }
     }
-    Vector<NameList*> arguments;
-    Vector<NameListIter> next_arg;
+    vector<NameList*> arguments;
+    vector<NameListIter> next_arg;
     for (VarListIter vi = forall.begin(); vi != forall.end(); vi++) {
       arguments.push_back(new NameList());
       problem.compatible_objects(*arguments.back(), (*vi)->type());
@@ -256,7 +257,7 @@ EffectList::EffectList() {}
 
 /* Constructs an effect list with a single effect. */
 EffectList::EffectList(const Effect* effect)
-  : Vector<const Effect*>(1, effect) {}
+  : vector<const Effect*>(1, effect) {}
 
 
 /* Returns an instantiation of this effect list. */
@@ -471,8 +472,8 @@ void ActionSchema::instantiations(GroundActionList& actions,
     }
     return;
   }
-  Vector<NameList*> arguments;
-  Vector<NameListIter> next_arg;
+  vector<NameList*> arguments;
+  vector<NameListIter> next_arg;
   for (VarListIter vi = parameters.begin(); vi != parameters.end(); vi++) {
     arguments.push_back(new NameList());
     problem.compatible_objects(*arguments.back(), (*vi)->type());
@@ -481,7 +482,7 @@ void ActionSchema::instantiations(GroundActionList& actions,
     }
     next_arg.push_back(arguments.back()->begin());
   }
-  Stack<const Formula*> preconds;
+  stack<const Formula*> preconds;
   preconds.push(&precondition);
   SubstitutionList args;
   for (size_t i = 0; i < n; ) {

@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 3.9 2002-03-24 23:55:57 lorens Exp $
+ * $Id: formulas.h,v 3.10 2002-03-25 00:44:53 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -197,7 +197,7 @@ private:
 /*
  * List of terms.
  */
-struct TermList : public Vector<const Term*> {
+struct TermList : public vector<const Term*> {
   /* Returns an instantiation of this term list. */
   const TermList& instantiation(size_t id) const;
 
@@ -235,7 +235,7 @@ typedef NameMap::const_iterator NameMapIter;
 /*
  * List of variables.
  */
-struct VariableList : public Vector<const Variable*> {
+struct VariableList : public vector<const Variable*> {
   /* An empty variable list. */
   static const VariableList& EMPTY;
 
@@ -326,7 +326,7 @@ const Formula& operator||(const Formula& f1, const Formula& f2);
 /*
  * List of formulas.
  */
-struct FormulaList : public Vector<const Formula*> {
+struct FormulaList : public vector<const Formula*> {
   /* Constructs an empty formula list. */
   FormulaList();
 
@@ -930,7 +930,7 @@ protected:
 /*
  * List of atoms.
  */
-struct AtomList : public Vector<const Atom*> {
+struct AtomList : public vector<const Atom*> {
   /* An empty atom list. */
   static const AtomList EMPTY;
 
@@ -954,7 +954,7 @@ typedef AtomList::const_iterator AtomListIter;
 /*
  * List of negated atoms.
  */
-struct NegationList : public Vector<const Negation*> {
+struct NegationList : public vector<const Negation*> {
   /* An empty negation list. */
   static const NegationList EMPTY;
 
