@@ -2,7 +2,7 @@
 /*
  * Types, terms, and formulas.
  *
- * $Id: formulas.h,v 1.4 2001-05-04 17:55:07 lorens Exp $
+ * $Id: formulas.h,v 1.5 2001-05-11 22:12:23 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -470,6 +470,11 @@ struct Formula : public gc {
   /* Checks if this formula involves the given predicate. */
   virtual bool involves(const string& predicate) const = 0;
 
+  /* Checks if this formula is consistent. */
+  virtual bool consistent() const {
+    return true;
+  }
+
 protected:
   /* Prints this formula on the given stream. */
   virtual void print(ostream& os) const = 0;
@@ -751,6 +756,11 @@ struct Equality : public Formula {
     return "=" == predicate;
   }
 
+  /* Checks if this formula is consistent. */
+  virtual bool consistent() const {
+    return term1 == term2;
+  }
+
 protected:
   /* Prints this equality on the given stream. */
   virtual void print(ostream& os) const;
@@ -799,6 +809,11 @@ struct Inequality : public Formula {
   /* Checks if this formula involves the given predicate. */
   virtual bool involves(const string& predicate) const {
     return "=" == predicate;
+  }
+
+  /* Checks if this formula is consistent. */
+  virtual bool consistent() const {
+    return term1 != term2;
   }
 
 protected:
