@@ -2,7 +2,7 @@
 /*
  * Types.
  *
- * $Id: types.h,v 1.1 2001-07-29 18:12:20 lorens Exp $
+ * $Id: types.h,v 1.2 2001-08-10 04:41:03 lorens Exp $
  */
 #ifndef TYPES_H
 #define TYPES_H
@@ -19,13 +19,8 @@ struct Type : public gc {
   virtual ~Type() {
   }
 
-  /* Checks if this type is object type. */
+  /* Checks if this type is the object type. */
   bool object() const;
-
-  /* Checks if this type is compatible with the given type. */
-  bool compatible(const Type& t) const {
-    return subtype(t) || t.subtype(*this);
-  }
 
   /* Checks if this type is a subtype of the given type. */
   virtual bool subtype(const Type& t) const = 0;
@@ -35,9 +30,7 @@ protected:
   virtual void print(ostream& os) const = 0;
 
   /* Checks if this type equals the given type. */
-  bool equals(const Type& t) const {
-    return subtype(t) && t.subtype(*this);
-  }
+  virtual bool equals(const Type& t) const = 0;
 
   /* Returns the union of this type and the given type. */
   virtual const Type& add(const Type& t) const = 0;
@@ -62,27 +55,17 @@ inline bool operator==(const Type& t1, const Type& t2) {
   return t1.equals(t2);
 }
 
-/* Equality operator for types. */
-inline bool operator==(const Type* t1, const Type& t2) {
-  return *t1 == t2;
-}
-
 /* Inequality operator for types. */
 inline bool operator!=(const Type& t1, const Type& t2) {
   return !(t1 == t2);
 }
 
-/* Inequality operator for types. */
-inline bool operator!=(const Type* t1, const Type& t2) {
-  return !(*t1 == t2);
-}
-
-/* Addition operator for types. */
+/* Type union. */
 inline const Type& operator+(const Type& t1, const Type& t2) {
   return t1.add(t2);
 }
 
-/* Subtraction operator for types. */
+/* Type subtraction. */
 inline const Type& operator-(const Type& t1, const Type& t2) {
   return t1.subtract(t2);
 }
@@ -93,7 +76,7 @@ inline const Type& operator-(const Type& t1, const Type& t2) {
  */
 struct SimpleType : public Type {
   /* The object type. */
-  static const SimpleType& OBJECT_TYPE;
+  static const SimpleType& OBJECT;
 
   /* Name of type. */
   const string name;
@@ -101,7 +84,7 @@ struct SimpleType : public Type {
   const Type& supertype;
 
   /* Constructs a simple type with the given name. */
-  SimpleType(const string& name, const Type& supertype = OBJECT_TYPE)
+  SimpleType(const string& name, const Type& supertype = OBJECT)
     : name(name), supertype(name == "object" ? *this : supertype) {
   }
 
@@ -111,6 +94,9 @@ struct SimpleType : public Type {
 protected:
   /* Prints this type on the given stream. */
   virtual void print(ostream& os) const;
+
+  /* Checks if this type equals the given type. */
+  virtual bool equals(const Type& t) const;
 
   /* Returns the union of this type and the given type. */
   virtual const Type& add(const Type& t) const;
@@ -143,7 +129,7 @@ struct TypeMap : public gc,
 		 equal_to<string>, container_alloc> {
   /* Constructs an empty type table. */
   TypeMap() {
-    (*this)[SimpleType::OBJECT_TYPE.name] = &SimpleType::OBJECT_TYPE;
+    (*this)[SimpleType::OBJECT.name] = &SimpleType::OBJECT;
   }
 };
 
@@ -162,6 +148,9 @@ protected:
   /* Prints this type on the given stream. */
   virtual void print(ostream& os) const;
 
+  /* Checks if this type equals the given type. */
+  virtual bool equals(const Type& t) const;
+
   /* Returns the union of this type and the given type. */
   virtual const Type& add(const Type& t) const;
 
@@ -169,12 +158,13 @@ protected:
   virtual const Type& subtract(const Type& t) const;
 
 private:
-  /* Constructs the type that is the union of the given types. */
+  /* Constructs the type that is the union of the given types.
+     N.B. Assumes type list is sorted. */
   UnionType(const TypeList& types)
     : types(types) {
   }
 
-  friend struct SimpleType;
+  friend const Type& SimpleType::add(const Type& t) const;
 };
 
 #endif /* TYPES_H */
