@@ -2,7 +2,7 @@
 /*
  * Formulas.
  *
- * $Id: formulas.h,v 1.10 2001-08-12 16:30:29 lorens Exp $
+ * $Id: formulas.h,v 1.11 2001-08-18 15:46:10 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -237,6 +237,9 @@ struct NameMap : public gc,
  * List of variables.
  */
 struct VariableList : public gc, vector<const Variable*, container_alloc> {
+  /* An empty variable list. */
+  static const VariableList& EMPTY;
+
   /* Constructs an empty variable list. */
   VariableList() {
   }
@@ -400,6 +403,10 @@ struct FormulaList : public gc, vector<const Formula*, container_alloc> {
 
   /* Returns an instantiation of this formula list. */
   const FormulaList& instantiation(size_t id) const;
+
+  /* Returns an instantiation of this formula list. */
+  const FormulaList& instantiation(const SubstitutionList& subst,
+				   const Problem& problem) const;
 
   /* Returns this formula list subject to the given substitutions. */
   const FormulaList& substitution(const SubstitutionList& subst) const;

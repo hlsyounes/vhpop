@@ -1,5 +1,5 @@
 /*
- * $Id: formulas.cc,v 1.5 2001-08-12 16:30:46 lorens Exp $
+ * $Id: formulas.cc,v 1.6 2001-08-18 15:46:06 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -288,6 +288,10 @@ bool TermList::operator!=(const TermList& terms) const {
 }
 
 
+/* An empty variable list. */
+const VariableList& VariableList::EMPTY = *(new VariableList());
+
+
 /* Checks if this variable list contains the given variable. */
 bool VariableList::contains(const Variable& v) const {
   for (const_iterator vi = begin(); vi != end(); vi++) {
@@ -400,6 +404,23 @@ const FormulaList& FormulaList::instantiation(size_t id) const {
   FormulaList& formulas = *(new FormulaList());
   for (const_iterator i = begin(); i != end(); i++) {
     formulas.push_back(&(*i)->instantiation(id));
+  }
+  return formulas;
+}
+
+
+/* Returns an instantiation of this formula list. */
+const FormulaList& FormulaList::instantiation(const SubstitutionList& subst,
+					      const Problem& problem) const {
+  FormulaList& formulas = *(new FormulaList());
+  for (const_iterator i = begin(); i != end(); i++) {
+    const Formula& f = (*i)->instantiation(subst, problem);
+    if (f == Formula::FALSE) {
+      formulas.clear();
+      break;
+    } else if (f != Formula::TRUE) {
+      formulas.push_back(&f);
+    }
   }
   return formulas;
 }
