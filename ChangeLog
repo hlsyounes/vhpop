@@ -1,3 +1,9 @@
+2002-09-23  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Removed known memory leaks in handling of variable bindings.
+
+	* Compute projections lazily for ActionDomain objects.
+
 2002-09-21  Håkan L. S. Younes  <lorens@cs.cmu.edu>
 
 	* Fixed compatibility problems with GCC 3.x.

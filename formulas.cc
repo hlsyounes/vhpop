@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 4.5 2002-09-22 22:55:52 lorens Exp $
+ * $Id: formulas.cc,v 4.6 2002-09-23 18:24:44 lorens Exp $
  */
 #include <typeinfo>
 #include <stack>
@@ -479,7 +479,7 @@ bool Negation::equals(const Literal& o) const {
 
 /* Returns the hash value of this object. */
 size_t Negation::hash_value() const {
-  return 5*hash<Literal>()(atom());
+  return 5*hash<const Literal*>()(&atom());
 }
 
 

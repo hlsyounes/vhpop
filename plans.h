@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.h,v 4.2 2002-09-20 16:48:46 lorens Exp $
+ * $Id: plans.h,v 4.3 2002-09-23 18:26:02 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -53,6 +53,9 @@ struct Link {
   /* Constructs a causal link. */
   Link(size_t from_id, StepTime effect_time, const OpenCondition& open_cond);
 
+  /* Deletes this causal link. */
+  ~Link();
+
   /* Returns the id of step that link goes from. */
   size_t from_id() const { return from_id_; }
 
@@ -84,7 +87,9 @@ private:
 };
 
 /* Equality operator for links. */
-bool operator==(const Link& l1, const Link& l2);
+inline bool operator==(const Link& l1, const Link& l2) {
+  return &l1 == &l2;
+}
 
 
 /* ====================================================================== */
@@ -108,6 +113,9 @@ struct Step {
 
   /* Constructs a step instantiated from an action. */
   Step(size_t id, const Action& action, const Reason& reason);
+
+  /* Deletes this step. */
+  ~Step();
 
   /* Returns the step id. */
   size_t id() const { return id_; }
@@ -380,14 +388,6 @@ private:
 			const Literal& literal, const OpenCondition& open_cond,
 			const LinkChain* new_links, const Reason& reason,
 			const SubstitutionList& unifier) const;
-
-  /* Adds plans to the given plan list with the given link removed and
-     the resulting open condition relinked. */
-  void relink(PlanList& new_plans, const Link& link) const;
-
-  /* Adds plans to the given plan list with the given link removed and
-     the resulting open condition relinked. */
-  pair<const Plan*, const OpenCondition*> unlink(const Link& link) const;
 
   /* Checks if this plan is a duplicate of a previous plan. */
   bool duplicate() const;
