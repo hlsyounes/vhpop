@@ -2,7 +2,7 @@
 /*
  * Domain descriptions.
  *
- * $Id: domains.h,v 1.2 2001-05-04 03:46:19 lorens Exp $
+ * $Id: domains.h,v 1.3 2001-05-04 17:55:49 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -307,6 +307,19 @@ struct Domain : public gc {
       const Action& a = *(*i).second;
       if (a.applicable(goal)) {
 	actions.push_back(&a);
+      }
+    }
+  }
+
+  /* Fills the provided name list with constants that are compatible
+     with the given type. */
+  void compatible_constants(NameList& constants,
+			    const Type& t = SimpleType::OBJECT_TYPE) const {
+    for (NameMap::const_iterator i = constants_.begin();
+	 i != constants_.end(); i++) {
+      const Name& name = *(*i).second;
+      if (name.type.compatible(t)) {
+	constants.push_back(&name);
       }
     }
   }
