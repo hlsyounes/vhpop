@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 4.1 2002-07-22 22:39:27 lorens Exp $
+ * $Id: plans.cc,v 4.2 2002-09-18 02:42:04 lorens Exp $
  */
 #include <queue>
 #include <stack>
@@ -2112,72 +2112,6 @@ bool Plan::duplicate() const {
 }
 
 
-/* Maps step ids to formulas. */
-struct FormulaMap : public hash_map<size_t, const Formula*> {
-};
-
-
-/* Checks if the steps match for two plans. */
-static bool matching_plans(hash_map<size_t, size_t>& step_map,
-			   const FormulaMap& steps1, const FormulaMap& steps2,
-			   FormulaMap::const_iterator s1) {
-  if (s1 == steps1.end()) {
-    // try to match orderings, links, and bindings given step_map
-    return true; // true if matches
-  }
-  for (FormulaMap::const_iterator s2 = steps2.begin();
-       s2 != steps2.end(); s2++) {
-    if (step_map.find((*s2).first) == step_map.end()
-	&& (*s1).second->equivalent(*(*s2).second)) {
-      step_map[(*s2).first] = (*s1).first;
-      if (matching_plans(step_map, steps1, steps2, ++s1)) {
-	return true;
-      }
-      step_map.erase((*s2).first);
-    }
-  }
-  return false;
-}
-
-
-/* Checks if this plan is equivalent to the given plan. */
-bool Plan::equivalent(const Plan& p) const {
-  if (num_steps() == p.num_steps() && num_open_conds() == p.num_open_conds()
-      && num_links() == p.num_links()) {
-    if (verbosity > 2) {
-      cerr << "matching number of steps, etc..." << endl;
-    }
-    // instantiate steps in this and p
-    FormulaMap steps1;
-    for (const StepChain* sc = steps(); sc != NULL; sc = sc->tail) {
-      size_t id = sc->head.id();
-      if (sc->head.action() != NULL && steps1.find(id) == steps1.end()) {
-	if (params->ground_actions) {
-	  steps1[id] = sc->head.step_formula();
-	} else {
-	  steps1[id] = &sc->head.step_formula()->instantiation(*bindings_);
-	}
-      }
-    }
-    FormulaMap steps2;
-    for (const StepChain* sc = p.steps(); sc != NULL; sc = sc->tail) {
-      size_t id = sc->head.id();
-      if (sc->head.action() != NULL && steps2.find(id) == steps2.end()) {
-	if (params->ground_actions) {
-	  steps2[id] = sc->head.step_formula();
-	} else {
-	  steps2[id] = &sc->head.step_formula()->instantiation(*p.bindings_);
-	}
-      }
-    }
-    // try to find mapping between steps so that bindings and orderings match
-    hash_map<size_t, size_t> step_map;
-    return matching_plans(step_map, steps1, steps2, steps1.begin());
-  }
-  return false;
-}
-
-
 /* Less than operator for plans. */
 bool operator<(const Plan& p1, const Plan& p2) {
   float diff = p1.primary_rank() - p2.primary_rank();
@@ -2367,7 +2301,7 @@ ostream& operator<<(ostream& os, const Plan& p) {
       const Step& s = **si;
       os << start_times[s.id()] << ':';
       if (bindings != NULL) {
-	os << s.step_formula()->instantiation(*bindings);
+	s.step_formula()->print(os, *bindings);
       } else {
 	os << *s.step_formula();
       }
@@ -2400,7 +2334,7 @@ ostream& operator<<(ostream& os, const Plan& p) {
 	}
 	os << " : ";
 	if (bindings != NULL) {
-	  os << step.step_formula()->instantiation(*bindings);
+	  step.step_formula()->print(os, *bindings);
 	} else {
 	  os << *step.step_formula();
 	}
@@ -2417,7 +2351,7 @@ ostream& operator<<(ostream& os, const Plan& p) {
 	  }
 	  os << " -> ";
 	  if (bindings != NULL) {
-	    os << link.condition().instantiation(*bindings);
+	    link.condition().print(os, *bindings);
 	  } else {
 	    os << link.condition();
 	  }
@@ -2436,7 +2370,7 @@ ostream& operator<<(ostream& os, const Plan& p) {
 	if (open_cond.step_id() == step.id()) {
 	  os << endl << "           ?? -> ";
 	  if (bindings != NULL) {
-	    os << open_cond.condition().instantiation(*bindings);
+	    open_cond.condition().print(os, *bindings);
 	  } else {
 	    os << open_cond.condition();
 	  }
