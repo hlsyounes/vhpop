@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.h,v 3.14 2002-09-22 01:40:27 lorens Exp $
+ * $Id: orderings.h,v 3.15 2002-09-22 23:14:27 lorens Exp $
  */
 #ifndef ORDERINGS_H
 #define ORDERINGS_H
@@ -114,7 +114,24 @@ typedef CollectibleChain<Ordering> OrderingChain;
 /*
  * Collection of ordering constraints.
  */
-struct Orderings : public Collectible, public Printable {
+struct Orderings {
+  /* Register use of this object. */
+  static void register_use(const Orderings* o) {
+    if (o != NULL) {
+      o->ref_count_++;
+    }
+  }
+
+  /* Unregister use of this object. */
+  static void unregister_use(const Orderings* o) {
+    if (o != NULL) {
+      o->ref_count_--;
+      if (o->ref_count_ == 0) {
+	delete o;
+      }
+    }
+  }
+
   /* Deletes this ordering collection. */
   virtual ~Orderings();
 
@@ -171,7 +188,19 @@ protected:
   virtual float schedule(hash_map<size_t, float>& start_times,
 			 hash_map<size_t, float>& end_times,
 			 size_t step_id, StepTime t = STEP_START) const = 0;
+
+  /* Prints this object on the given stream. */
+  virtual void print(ostream& os) const = 0;
+
+private:
+  /* Reference counter. */
+  mutable size_t ref_count_;
+
+  friend ostream& operator<<(ostream& os, const Orderings& o);
 };
+
+/* Output operator for orderings. */
+ostream& operator<<(ostream& os, const Orderings& o);
 
 
 /* ====================================================================== */

@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.cc,v 4.1 2002-09-20 16:47:57 lorens Exp $
+ * $Id: orderings.cc,v 4.2 2002-09-22 23:14:33 lorens Exp $
  */
 #include "orderings.h"
 #include "plans.h"
@@ -214,7 +214,11 @@ private:
 /* Orderings */
 
 /* Constructs an empty ordering collection. */
-Orderings::Orderings() {
+Orderings::Orderings()
+  : ref_count_(0) {
+#ifdef DEBUG_MEMORY
+    created_collectibles++;
+#endif
 #ifdef TRANSFORMATIONAL
   orderings_ = NULL;
 #endif
@@ -223,7 +227,10 @@ Orderings::Orderings() {
 
 /* Constructs a copy of this ordering collection. */
 Orderings::Orderings(const Orderings& o)
-  : id_map1_(o.id_map1_), id_map2_(o.id_map2_) {
+  : id_map1_(o.id_map1_), id_map2_(o.id_map2_), ref_count_(0) {
+#ifdef DEBUG_MEMORY
+    created_collectibles++;
+#endif
 #ifdef TRANSFORMATIONAL
   orderings_ = o.orderings_;
   OrderingChain::register_use(orderings_);
@@ -233,6 +240,9 @@ Orderings::Orderings(const Orderings& o)
 
 /* Deletes this ordering collection. */
 Orderings::~Orderings() {
+#ifdef DEBUG_MEMORY
+    deleted_collectibles++;
+#endif
 #ifdef TRANSFORMATIONAL
   OrderingChain::unregister_use(orderings_);
 #endif
@@ -265,6 +275,13 @@ float Orderings::schedule(hash_map<size_t, float>& start_times,
     max_dist = max(max_dist, schedule(start_times, end_times, id_map2_[i]));
   }
   return max_dist;
+}
+
+
+/* Output operator for orderings. */
+ostream& operator<<(ostream& os, const Orderings& o) {
+  o.print(os);
+  return os;
 }
 
 
