@@ -1,3 +1,8 @@
+2002-12-18  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Fixed bug that made end times equal start times when scheduling
+	steps with temporal orderings.
+
 2002-12-17  Håkan L. S. Younes  <lorens@cs.cmu.edu>
 
 	* Effects with a false link condition must not be removed during
