@@ -1,5 +1,5 @@
 /*
- * $Id: domains.cc,v 1.12 2001-09-03 20:05:08 lorens Exp $
+ * $Id: domains.cc,v 1.13 2001-09-18 15:45:16 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -19,8 +19,7 @@ size_t Predicate::arity() const {
 /* Prints this predicate on the given stream. */
 void Predicate::print(ostream& os) const {
   os << '(' << name;
-  for (VariableList::const_iterator i = parameters.begin();
-       i != parameters.end(); i++) {
+  for (VLCI i = parameters.begin(); i != parameters.end(); i++) {
     os << ' ' << **i;
     if (!(*i)->type.object()) {
       os << " - " << (*i)->type;
@@ -62,23 +61,59 @@ const Effect& Effect::instantiation(size_t id) const {
 }
 
 
-/* Returns an instantiation of this effect. */
-const Effect& Effect::instantiation(const SubstitutionList& subst,
-				    const Problem& problem) const {
+/* Fills the provided list with instantiations of this effect. */
+void Effect::instantiations(EffectList& effects, const SubstitutionList& subst,
+			    const Problem& problem) const {
   if (forall.empty()) {
-    return *(new Effect(forall, condition.instantiation(subst, problem),
-			add_list.instantiation(subst, problem)));
+    const Formula& new_condition = condition.instantiation(subst, problem);
+    const FormulaList& new_add_list = add_list.instantiation(subst, problem);
+    if (!(new_condition == Formula::FALSE || new_add_list.empty())) {
+      effects.push_back(new Effect(new_condition, new_add_list));
+    }
   } else {
-    SubstitutionList eff_subst;
-    for (SubstitutionList::const_iterator i = subst.begin();
-	 i != subst.end(); i++) {
+    SubstitutionList args;
+    for (SLCI i = subst.begin(); i != subst.end(); i++) {
       const Substitution& s = **i;
       if (!forall.contains(s.var)) {
-	eff_subst.push_back(&s);
+	args.push_back(&s);
       }
     }
-    return *(new Effect(forall, condition.instantiation(eff_subst, problem),
-			add_list.instantiation(eff_subst, problem)));
+    vector<NameList*, container_alloc> arguments;
+    vector<NameList::const_iterator> next_arg;
+    for (VLCI vi = forall.begin(); vi != forall.end(); vi++) {
+      arguments.push_back(new NameList());
+      problem.compatible_objects(*arguments.back(), (*vi)->type);
+      next_arg.push_back(arguments.back()->begin());
+    }
+    size_t n = forall.size();
+    for (size_t i = 0; i < n; ) {
+      args.push_back(new Substitution(*forall[i], **next_arg[i]));
+      const Formula& new_condition = condition.instantiation(args, problem);
+      const FormulaList& new_add_list = add_list.instantiation(args, problem);
+      if (i + 1 == n
+	  || new_condition == Formula::FALSE || new_add_list.empty()) {
+	if (!(new_condition == Formula::FALSE || new_add_list.empty())) {
+	  effects.push_back(new Effect(new_condition, new_add_list));
+	}
+	for (int j = i; j >= 0; j--) {
+	  args.pop_back();
+	  next_arg[j]++;
+	  if (next_arg[j] == arguments[j]->end()) {
+	    if (j == 0) {
+	      i = n;
+	      break;
+	    } else {
+	      next_arg[j] = arguments[j]->begin();
+	    }
+	  } else {
+	    i = j;
+	    break;
+	  }
+	}
+      } else {
+	i++;
+      }
+    }
   }
 }
 
@@ -90,8 +125,7 @@ const Effect& Effect::substitution(const SubstitutionList& subst) const {
 			add_list.substitution(subst)));
   } else {
     SubstitutionList eff_subst;
-    for (SubstitutionList::const_iterator i = subst.begin();
-	 i != subst.end(); i++) {
+    for (SLCI i = subst.begin(); i != subst.end(); i++) {
       const Substitution& s = **i;
       if (!forall.contains(s.var)) {
 	eff_subst.push_back(&s);
@@ -152,11 +186,8 @@ const EffectList& EffectList::instantiation(size_t id) const {
 const EffectList& EffectList::instantiation(const SubstitutionList& subst,
 					    const Problem& problem) const {
   EffectList& effects = *(new EffectList());
-  for (const_iterator i = begin(); i != end(); i++) {
-    const Effect& e = (*i)->instantiation(subst, problem);
-    if (!(e.condition == Formula::FALSE || e.add_list.empty())) {
-      effects.push_back(&e);
-    }
+  for (const_iterator ei = begin(); ei != end(); ei++) {
+    (*ei)->instantiations(effects, subst, problem);
   }
   return effects;
 }
@@ -215,11 +246,10 @@ void Action::achievable_predicates(hash_set<string>& preds,
 
 
 /* Returns a formula representing this action. */
-const AtomicFormula& ActionSchema::action_formula(size_t id) const {
+const AtomicFormula& ActionSchema::action_formula() const {
   TermList& terms = *(new TermList());
-  for (VariableList::const_iterator i = parameters.begin();
-       i != parameters.end(); i++) {
-    terms.push_back(&(*i)->instantiation(id));
+  for (VLCI vi = parameters.begin(); vi != parameters.end(); vi++) {
+    terms.push_back(*vi);
   }
   return *(new AtomicFormula(name, terms));
 }
@@ -231,8 +261,7 @@ void ActionSchema::instantiations(ActionList& actions,
 				  const Problem& problem) const {
   vector<NameList*, container_alloc> arguments;
   vector<NameList::const_iterator> next_arg;
-  for (VariableList::const_iterator i = parameters.begin();
-       i != parameters.end(); i++) {
+  for (VLCI i = parameters.begin(); i != parameters.end(); i++) {
     arguments.push_back(new NameList());
     problem.compatible_objects(*arguments.back(), (*i)->type);
     next_arg.push_back(arguments.back()->begin());
@@ -247,8 +276,7 @@ void ActionSchema::instantiations(ActionList& actions,
       if (!(new_precond == Formula::FALSE || new_effects.empty())) {
 	/* consistent instantiation */
 	TermList& terms = *(new TermList());
-	for (SubstitutionList::const_iterator s = args.begin();
-	     s != args.end(); s++) {
+	for (SLCI s = args.begin(); s != args.end(); s++) {
 	  terms.push_back(&(*s)->term);
 	}
 	actions.push_back(new GroundAction(name, terms, new_precond,
@@ -279,8 +307,7 @@ void ActionSchema::instantiations(ActionList& actions,
 /* Prints this action on the given stream. */
 void ActionSchema::print(ostream& os) const {
   os << '(' << name << " (";
-  for (VariableList::const_iterator i = parameters.begin();
-       i != parameters.end(); i++) {
+  for (VLCI i = parameters.begin(); i != parameters.end(); i++) {
     if (i != parameters.begin()) {
       os << ' ';
     }
@@ -330,7 +357,7 @@ GroundAction::GroundAction(const string& name, const TermList& arguments,
 
 
 /* Returns a formula representing this action. */
-const AtomicFormula& GroundAction::action_formula(size_t id) const {
+const AtomicFormula& GroundAction::action_formula() const {
   return formula;
 }
 
