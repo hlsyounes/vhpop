@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.14 2001-09-18 16:14:17 lorens Exp $
+ * $Id: plans.h,v 1.15 2001-09-28 16:28:01 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -418,6 +418,8 @@ private:
   mutable const OpenCondition* most_linkable_open_cond_;
   /* The least linkable open condition. */
   mutable const OpenCondition* least_linkable_open_cond_;
+  /* Plan id (for debugging). */
+  mutable size_t id;
 
   /* Returns the initial plan representing the given problem, or NULL
      if goals of problem are inconsistent. */

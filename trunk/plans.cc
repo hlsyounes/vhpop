@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.16 2001-09-18 18:53:20 lorens Exp $
+ * $Id: plans.cc,v 1.17 2001-09-28 16:27:27 lorens Exp $
  */
 #include <queue>
 #include <hash_set>
@@ -407,8 +407,20 @@ const Plan* Plan::plan(const Problem& problem, const FlawSelectionOrder& f,
   achieves.clear();
   achieves_pred.clear();
   achieves_neg_pred.clear();
-  problem.instantiated_actions(all_actions);
-  compute_cost(problem, h, all_actions);
+  if (!least_commitment || !heuristic.ucpop()) {
+    ActionList inst_actions;
+    problem.instantiated_actions(inst_actions);
+    if (verbosity > 0) {
+      cout << endl << inst_actions.size() << " instantiated actions." << endl;
+    }
+    compute_cost(problem, h, inst_actions);
+    for (ActionList::const_iterator i = inst_actions.begin();
+	 i != inst_actions.end(); i++) {
+      if ((*i)->precondition.cost(atom_cost, heuristic).cost >= 0) {
+	all_actions.push_back(*i);
+      }
+    }
+  }
   if (!least_commitment) {
     for (ActionList::const_iterator i = all_actions.begin();
 	 i != all_actions.end(); i++) {
@@ -426,7 +438,7 @@ const Plan* Plan::plan(const Problem& problem, const FlawSelectionOrder& f,
 	  cout << "  " << *(*i).first << endl;
 	}
       }
-      cout << endl << all_actions.size() << " instantiated actions." << endl;
+      cout << endl << all_actions.size() << " performable actions." << endl;
       if (verbosity > 3) {
 	for (ActionList::const_iterator i = all_actions.begin();
 	     i != all_actions.end(); i++) {
@@ -466,6 +478,7 @@ const Plan* Plan::plan(const Problem& problem, const FlawSelectionOrder& f,
   priority_queue<const Plan*, PlanList> plans;
   /* Construct the initial plan. */
   const Plan* current_plan = make_initial_plan(problem);
+  current_plan->id = 0;
   num_generated_plans++;
   /*
    * Search for complete plan.
@@ -481,12 +494,10 @@ const Plan* Plan::plan(const Problem& problem, const FlawSelectionOrder& f,
        */
       num_visited_plans++;
       if (verbosity > 1) {
-	cout << endl << "!!!!CURRENT PLAN with rank "
-	     << current_plan->primary_rank() << ','
+	cout << endl << "!!!!CURRENT PLAN (id " << current_plan->id << ")"
+	     << " with rank " << current_plan->primary_rank() << ','
 	     << current_plan->secondary_rank() << endl;
-	if (verbosity > 2) {
-	  cout << *current_plan << endl;
-	}
+	cout << *current_plan << endl;
       }
       /* List of children to current plan. */
       PlanList refinements;
@@ -496,10 +507,12 @@ const Plan* Plan::plan(const Problem& problem, const FlawSelectionOrder& f,
       for (PlanList::const_iterator i = refinements.begin();
 	   i != refinements.end(); i++) {
 	if ((*i)->primary_rank() < INT_MAX) {
+	  (*i)->id = num_generated_plans;
 	  plans.push(*i);
 	  num_generated_plans++;
 	  if (verbosity > 2) {
-	    cout << endl << "####CHILD with rank " << (*i)->primary_rank()
+	    cout << endl << "####CHILD (id " << (*i)->id << ")"
+		 << " with rank " << (*i)->primary_rank()
 		 << ',' << (*i)->secondary_rank() << ':' << endl
 		 << **i << endl;
 	  }
@@ -622,47 +635,49 @@ const Flaw& Plan::get_flaw() const {
   if (unsafes_ != NULL) {
     return *unsafes_->head;
   } else {
-    if (flaw_order.most_cost_first()) {
-      if (most_cost_open_cond_ == NULL) {
-	h_rank();
-      }
-      if (most_cost_open_cond_ != NULL) {
-	return *most_cost_open_cond_;
-      }
-    } else if (flaw_order.least_cost_first()) {
-      if (least_cost_open_cond_ == NULL) {
-	h_rank();
-      }
-      if (least_cost_open_cond_ != NULL) {
-	return *least_cost_open_cond_;
-      }
-    } else if (flaw_order.most_work_first()) {
-      if (most_work_open_cond_ == NULL) {
-	h_rank();
-      }
-      if (most_work_open_cond_ != NULL) {
-	return *most_work_open_cond_;
-      }
-    } else if (flaw_order.least_work_first()) {
-      if (least_work_open_cond_ == NULL) {
-	h_rank();
-      }
-      if (least_work_open_cond_ != NULL) {
-	return *least_work_open_cond_;
-      }
-    } else if (flaw_order.most_linkable_first()) {
-      if (most_linkable_open_cond_ == NULL) {
-	h_rank();
-      }
-      if (most_linkable_open_cond_ != NULL) {
-	return *most_linkable_open_cond_;
-      }
-    } else if (flaw_order.least_linkable_first()) {
-      if (least_linkable_open_cond_ == NULL) {
-	h_rank();
-      }
-      if (least_linkable_open_cond_ != NULL) {
-	return *least_linkable_open_cond_;
+    if (!heuristic.ucpop()) {
+      if (flaw_order.most_cost_first()) {
+	if (most_cost_open_cond_ == NULL) {
+	  h_rank();
+	}
+	if (most_cost_open_cond_ != NULL) {
+	  return *most_cost_open_cond_;
+	}
+      } else if (flaw_order.least_cost_first()) {
+	if (least_cost_open_cond_ == NULL) {
+	  h_rank();
+	}
+	if (least_cost_open_cond_ != NULL) {
+	  return *least_cost_open_cond_;
+	}
+      } else if (flaw_order.most_work_first()) {
+	if (most_work_open_cond_ == NULL) {
+	  h_rank();
+	}
+	if (most_work_open_cond_ != NULL) {
+	  return *most_work_open_cond_;
+	}
+      } else if (flaw_order.least_work_first()) {
+	if (least_work_open_cond_ == NULL) {
+	  h_rank();
+	}
+	if (least_work_open_cond_ != NULL) {
+	  return *least_work_open_cond_;
+	}
+      } else if (flaw_order.most_linkable_first()) {
+	if (most_linkable_open_cond_ == NULL) {
+	  h_rank();
+	}
+	if (most_linkable_open_cond_ != NULL) {
+	  return *most_linkable_open_cond_;
+	}
+      } else if (flaw_order.least_linkable_first()) {
+	if (least_linkable_open_cond_ == NULL) {
+	  h_rank();
+	}
+	if (least_linkable_open_cond_ != NULL) {
+	  return *least_linkable_open_cond_;
+	}
       }
     }
     if (flaw_order.fifo()) {
