@@ -1,5 +1,5 @@
 /*
- * $Id: problems.cc,v 1.2 2001-07-29 18:08:05 lorens Exp $
+ * $Id: problems.cc,v 1.3 2001-08-11 06:15:30 lorens Exp $
  */
 #include "problems.h"
 #include "domains.h"
@@ -25,7 +25,7 @@ void Problem::compatible_objects(NameList& objects, const Type& t) const {
   for (NameMap::const_iterator i = this->objects.begin();
        i != this->objects.end(); i++) {
     const Name& name = *(*i).second;
-    if (name.type.compatible(t)) {
+    if (name.type.subtype(t)) {
       objects.push_back(&name);
     }
   }
@@ -49,7 +49,7 @@ void Problem::print(ostream& os) const {
   os << endl << "objects:";
   for (NameMap::const_iterator i = objects.begin(); i != objects.end(); i++) {
     os << ' ' << *(*i).second;
-    if (&(*i).second->type != &SimpleType::OBJECT_TYPE) {
+    if (!(*i).second->type.object()) {
       os << " - " << (*i).second->type;
     }
   }
