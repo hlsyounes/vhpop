@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 3.11 2002-03-24 23:56:13 lorens Exp $
+ * $Id: pddl.yy,v 3.12 2002-05-26 23:53:24 lorens Exp $
  */
 %{
 #include "requirements.h"
@@ -337,7 +337,7 @@ action_def : '(' ACTION name
 		 free_variables.pop_frame();
 		 $$ =
 		   new ActionSchema(*$3, *$7, *action_precond,
-				    action_effs->stengthen(*action_precond));
+				    action_effs->strengthen(*action_precond));
 		 delete $3;
 	       }
            | '(' DURATIVE_ACTION name
@@ -355,10 +355,11 @@ action_def : '(' ACTION name
              PARAMETERS '(' opt_variables ')' da_body ')'
                {
 		 free_variables.pop_frame();
-		 $$ = new ActionSchema(*$3, *$7, *action_precond,
-				       action_effs->stengthen(*action_precond),
-				       action_duration.first,
-				       action_duration.second);
+		 $$ =
+		   new ActionSchema(*$3, *$7, *action_precond,
+				    action_effs->strengthen(*action_precond),
+				    action_duration.first,
+				    action_duration.second);
 		 delete $3;
 	       }
            ;
