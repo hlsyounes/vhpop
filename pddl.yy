@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 3.22 2002-07-16 22:25:44 lorens Exp $
+ * $Id: pddl.yy,v 4.1 2002-07-22 22:37:30 lorens Exp $
  */
 %{
 #include <typeinfo>
@@ -1301,17 +1301,17 @@ static const pair<AtomList*, NegationList*>& make_add_del(AtomList* adds,
 static const Atom& make_atom(const string& predicate, const TermList& terms) {
   const Predicate* p = find_predicate(predicate);
   if (p == NULL) {
-    if (find_type(predicate) != NULL) {
-      if (terms.size() != 1) {
-	yyerror(tostring(terms.size())
-		+ "parameters passed to type predicate `" + predicate + "'");
-      }
-    } else if (domain != NULL) {
+    if (find_type(predicate) != NULL && terms.size() != 1) {
+      yyerror(tostring(terms.size())
+	      + "parameters passed to type predicate `" + predicate + "'");
+    }
+    if (domain != NULL) {
       Predicate* new_p = new Predicate(predicate);
       for (size_t i = 0; i < terms.size(); i++) {
 	new_p->add_parameter(SimpleType::OBJECT);
       }
       domain->add_predicate(*new_p);
+      p = new_p;
       yywarning("implicit declaration of predicate `" + predicate + "'");
     } else {
       yyerror("undeclared predicate `" + predicate + "' used");
@@ -1322,7 +1322,7 @@ static const Atom& make_atom(const string& predicate, const TermList& terms) {
 	    + " passed to predicate `" + predicate
 	    + "' expecting " + tostring(p->arity()));
   }
-  return *(new Atom(predicate, terms, formula_time));
+  return *(new Atom(*p, terms, formula_time));
 }
 
 
