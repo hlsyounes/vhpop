@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: reasons.cc,v 3.2 2002-03-21 22:50:00 lorens Exp $
+ * $Id: reasons.cc,v 3.3 2002-05-26 11:20:18 lorens Exp $
  */
 #include "reasons.h"
 #include "plans.h"
@@ -25,6 +25,15 @@
 /* Reason */
 
 struct DummyReason : public Reason {
+  static const DummyReason THE_DUMMY;
+
+  DummyReason() {
+    Collectible::register_use(this);
+#ifdef DEBUG_MEMORY
+    created_collectibles--;
+#endif
+  }
+
 protected:
   virtual void print(ostream& os) const {
     os << "DummyReason";
@@ -33,7 +42,8 @@ protected:
 
 
 /* A dummy reason. */
-const Reason& Reason::DUMMY = *(new DummyReason());
+const DummyReason DummyReason::THE_DUMMY = DummyReason();
+const Reason& Reason::DUMMY = DummyReason::THE_DUMMY;
 
 
 /* Checks if this reason is a dummy reason. */

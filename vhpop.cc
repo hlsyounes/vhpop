@@ -15,9 +15,10 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 3.13 2002-05-26 10:52:02 lorens Exp $
+ * $Id: vhpop.cc,v 3.14 2002-05-26 11:20:24 lorens Exp $
  */
 #include "plans.h"
+#include "reasons.h"
 #include "parameters.h"
 #include "orderings.h"
 #include "heuristics.h"
@@ -144,6 +145,15 @@ static bool read_file(const char* name) {
 static void cleanup() {
   Problem::clear();
   Domain::clear();
+
+#ifdef DEBUG_MEMORY
+  cerr << "Plans created: " << created_plans << endl;
+  cerr << "Plans deleted: " << deleted_plans << endl;
+  cerr << "Chains created: " << created_chains << endl;
+  cerr << "Chains deleted: " << deleted_chains << endl;
+  cerr << "Collectibles created: " << created_collectibles << endl;
+  cerr << "Collectibles deleted: " << deleted_collectibles << endl;
+#endif
 }
 
 
@@ -354,15 +364,6 @@ int main(int argc, char* argv[]) {
     cerr << PROGRAM_NAME << ": fatal error" << endl;
     return -1;
   }
-
-#ifdef DEBUG_MEMORY
-  cerr << "Plans created: " << created_plans << endl;
-  cerr << "Plans deleted: " << deleted_plans << endl;
-  cerr << "Chains created: " << created_chains << endl;
-  cerr << "Chains deleted: " << deleted_chains << endl;
-  cerr << "Collectibles created: " << created_collectibles << endl;
-  cerr << "Collectibles deleted: " << deleted_collectibles << endl;
-#endif
 
   return 0;
 }
