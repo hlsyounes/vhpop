@@ -1,7 +1,8 @@
 /*
- * $Id: parameters.cc,v 1.1 2001-12-30 16:16:04 lorens Exp $
+ * $Id: parameters.cc,v 1.2 2002-01-03 12:40:08 lorens Exp $
  */
 #include "parameters.h"
+#include "heuristics.h"
 
 
 /* ====================================================================== */
@@ -18,9 +19,10 @@ InvalidSearchAlgorithm::InvalidSearchAlgorithm(const string& name)
 /* Constructs default planning parameters. */
 Parameters::Parameters()
   : search_limit(2000), time_limit(1440), search_algorithm(A_STAR),
-    ground_actions(false), transformational(false),
-    heuristic("SUM"), weight(1.0), flaw_order("LIFO"),
-    domain_constraints(false) {}
+    heuristic(*(new Heuristic("SUM"))), weight(1.0),
+    flaw_order(*(new FlawSelectionOrder("LIFO"))),
+    ground_actions(false), domain_constraints(false),
+    transformational(false) {}
 
 
 /* Selects a search algorithm from a name. */
