@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 4.5 2002-09-22 01:40:35 lorens Exp $
+ * $Id: formulas.h,v 4.6 2002-09-22 22:55:35 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -100,7 +100,7 @@ typedef SubstitutionList::const_iterator SubstListIter;
 /*
  * Abstract term.
  */
-struct Term : public LessThanComparable, public Hashable, public Printable {
+struct Term {
   /* Deletes this term. */
   virtual ~Term();
 
@@ -121,24 +121,36 @@ protected:
   /* Constructs an abstract term with the given name. */
   Term(const string& name, const Type& type);
 
-  /* Checks if this object is less than the given object. */
-  virtual bool less(const LessThanComparable& o) const;
-
-  /* Checks if this object equals the given object. */
-  virtual bool equals(const EqualityComparable& o) const;
-
-  /* Returns the hash value of this object. */
-  virtual size_t hash_value() const;
-
-  /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const;
-
 private:
   /* Name of term. */
   string name_;
   /* Type of term. */
   const Type* type_;
 };
+
+/*
+ * Hash function object for terms.
+ */
+namespace std {
+struct hash<const Term*> {
+  size_t operator()(const Term* t) const {
+    return size_t(t);
+  }
+};
+}
+
+/* Equality operator for terms. */
+inline bool operator==(const Term& t1, const Term& t2) {
+  return &t1 == &t2;
+}
+
+/* Inequality operator for terms. */
+inline bool operator!=(const Term& t1, const Term& t2) {
+  return &t1 != &t2;
+}
+
+/* Output operator for terms. */
+ostream& operator<<(ostream& os, const Term& t);
 
 
 /* ====================================================================== */
@@ -240,7 +252,7 @@ struct Literal;
 /*
  * Abstract formula.
  */
-struct Formula : public Printable {
+struct Formula {
   /* Possible temporal annotations for formulas. */
   typedef enum { AT_START, AT_END, OVER_ALL } FormulaTime;
 
@@ -288,10 +300,14 @@ struct Formula : public Printable {
 		     const Bindings& bindings) const = 0;
 
 protected:
+  /* Prints this object on the given stream. */
+  virtual void print(ostream& os) const = 0;
+
   /* Returns the negation of this formula. */
   virtual const Formula& negation() const = 0;
 
   friend const Formula& operator!(const Formula& f);
+  friend ostream& operator<<(ostream& os, const Formula& f);
 };
 
 /* Negation operator for formulas. */
@@ -304,6 +320,9 @@ const Formula& operator&&(const Formula& f1, const Formula& f2);
 
 /* Disjunction operator for formulas. */
 const Formula& operator||(const Formula& f1, const Formula& f2);
+
+/* Output operator for formulas. */
+ostream& operator<<(ostream& os, const Formula& f);
 
 
 /* ====================================================================== */
