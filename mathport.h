@@ -31,6 +31,9 @@
 #endif
 
 #if !HAVE_ISINF
+#if HAVE_IEEEFP_H
+#include <ieeefp.h>
+#endif
 #define isinf(x) (!(isnan(x) || finite(x)))
 #endif
 
