@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: reasons.cc,v 3.1 2002-03-18 11:32:07 lorens Exp $
+ * $Id: reasons.cc,v 3.2 2002-03-21 22:50:00 lorens Exp $
  */
 #include "reasons.h"
 #include "plans.h"
@@ -93,7 +93,7 @@ AddStepReason::AddStepReason(size_t step_id)
 
 /* Checks if this reason involves the given step. */
 bool AddStepReason::involves(const Step& step) const {
-  return step_id == step.id;
+  return step_id == step.id();
 }
 
 
@@ -157,7 +157,7 @@ bool ProtectReason::involves(const Link& link) const {
 
 /* Checks if this reason involves the given step. */
 bool ProtectReason::involves(const Step& step) const {
-  return step_id == step.id;
+  return step_id == step.id();
 }
 
 

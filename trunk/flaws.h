@@ -16,12 +16,13 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: flaws.h,v 3.2 2002-03-18 10:14:30 lorens Exp $
+ * $Id: flaws.h,v 3.3 2002-03-21 22:49:13 lorens Exp $
  */
 #ifndef FLAWS_H
 #define FLAWS_H
 
 #include "support.h"
+#include "chain.h"
 
 struct Formula;
 struct Literal;
@@ -77,6 +78,15 @@ private:
   const Reason* reason_;
 #endif
 };
+
+
+/* ====================================================================== */
+/* OpenConditionChain */
+
+/*
+ * Chain of open conditions.
+ */
+typedef Chain<const OpenCondition*> OpenConditionChain;
 
 
 /* ====================================================================== */
@@ -194,6 +204,15 @@ private:
   /* Specific part of effect that threatens link. */
   const Literal* effect_add_;
 };
+
+
+/* ====================================================================== */
+/* UnsafeChain */
+
+/*
+ * Chain of threatened causal links.
+ */
+typedef Chain<const Unsafe*> UnsafeChain;
 
 
 #endif /* FLAWS_H */

@@ -16,18 +16,18 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.h,v 3.4 2002-03-19 17:19:18 lorens Exp $
+ * $Id: plans.h,v 3.5 2002-03-21 22:49:51 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
 
 #include "support.h"
 #include "chain.h"
+#include "flaws.h"
 #include "orderings.h"
 
 struct Parameters;
 struct SubstitutionList;
-struct Formula;
 struct Literal;
 struct Atom;
 struct Negation;
@@ -102,80 +102,62 @@ typedef Chain<Link> LinkChain;
 /*
  * Plan step.
  */
-struct Step : public gc {
-  /* Step id. */
-  const size_t id;
-  /* Action, or NULL if step is not instantiated from an action. */
-  const Action* const action;
-  /* Precondition of step, or TRUE if step has no precondition. */
-  const Formula& precondition;
-  /* List of effects. */
-  const EffectList& effects;
-
+struct Step {
   /* Constructs a step. */
-  Step(size_t id, const Formula& precondition, const EffectList& effects,
-       const Reason& reason);
+  Step(size_t id, const EffectList& effects, const Reason& reason);
 
   /* Constructs a step instantiated from an action. */
   Step(size_t id, const Action& action, const Reason& reason);
 
+  /* Returns the step id. */
+  size_t id() const { return id_; }
+
+  /* Returns the action that this step was instantiated from, or NULL
+     if step was not instantiated from an action. */
+  const Action* action() const { return action_; }
+
+  /* Returns the effects of this step. */
+  const EffectList& effects() const { return *effects_; }
+
   /* Returns the reasons. */
   const Reason& reason() const;
 
-  /* Returns a copy of this step with a new reason. */
-  const Step& new_reason(const Reason& reason) const;
+  /* Sets the reason for this step. */
+  void set_reason(const Reason& reason);
 
   /* Returns a formula representing this step. */
   const Atom* step_formula() const;
 
 private:
-  /* Atomic representation of this step. */
-  mutable const Atom* formula;
+  /* Step id. */
+  size_t id_;
+  /* Action, or NULL if step is not instantiated from an action. */
+  const Action* action_;
+  /* List of effects. */
+  const EffectList* effects_;
 #ifdef TRANSFORMATIONAL
   /* Reason for step. */
   const Reason* reason_;
 #endif
-
-  /* Constructs a step. */
-  Step(size_t id, const Action* action, const Formula& precondition,
-       const EffectList& effects, const Reason& reason);
 };
 
+
+/* ====================================================================== */
+/* StepChain */
 
 /*
  * Chain of plan steps.
  */
-typedef Chain<const Step*> StepChain;
+typedef Chain<Step> StepChain;
 
 
-/*
- * A list of steps.
- */
-struct StepList : public Vector<const Step*> {
-};
-
-/* Iterator for step lists. */
-typedef StepList::const_iterator StepListIter;
-
-
-/*
- * Chain of open conditions.
- */
-typedef Chain<const OpenCondition*> OpenConditionChain;
-
-
-/*
- * Chain of threatened causal links.
- */
-typedef Chain<const Unsafe*> UnsafeChain;
-
-
-struct PlanList;
+/* ====================================================================== */
+/* Plan */
 
 /*
  * Plan.
  */
-struct Plan : public LessThanComparable, public Printable {
+struct Plan {
   /* Id of goal step. */
   static const size_t GOAL_ID;
 
@@ -249,14 +231,14 @@ struct Plan : public LessThanComparable, public Printable {
   bool reusable_steps(int& refinements,
 		      const LiteralOpenCondition& open_cond, int limit) const;
 
-protected:
-  /* Checks if this object is less than the given object. */
-  virtual bool less(const LessThanComparable& o) const;
-
-  /* Prints this object on the given stream */
-  virtual void print(ostream& os) const;
-
 private:
+  /* List of plans. */
+  struct PlanList : public vector<const Plan*> {
+  };
+
+  /* Iterator for plan lists. */
+  typedef PlanList::const_iterator PlanListIter;
+
   /* Type of plan. */
   typedef enum { NORMAL_PLAN, INTERMEDIATE_PLAN, TRANSFORMED_PLAN } PlanType;
 
@@ -264,16 +246,16 @@ private:
   size_t high_step_id_;
   /* Binding constraints of this plan. */
   const Bindings& bindings_;
+  /* Rank of this plan. */
+  mutable vector<double> rank_;
+  /* Plan id (serial number). */
+  mutable size_t id_;
 #ifdef TRANSFORMATIONAL
   /* Parent plan. */
   const Plan* const parent_;
   /* Plan type. */
   const PlanType type_;
 #endif
-  /* Rank of this plan. */
-  mutable vector<double> rank_;
-  /* Plan id (serial number). */
-  mutable size_t id_;
 
   /* Returns the initial plan representing the given problem, or NULL
      if goals of problem are inconsistent. */
@@ -333,10 +315,10 @@ private:
   /* Counts the number of new links that can be established between
      the given effects and the open condition, and returns true iff
      the number of refinements does not exceed the given limit. */
-  bool count_new_links(int& count, const Formula& precondition,
-		       const EffectList& effects, size_t step_id,
-		       const Action* action,
-		       const LiteralOpenCondition& open_cond, int limit) const;
+  bool count_new_links(int& count, size_t step_id, const Action& action,
+		       const EffectList& effects,
+		       const LiteralOpenCondition& open_cond,
+		       int limit) const;
 
   /* Adds plans to the given plan list with a link from the given step
      to the given open condition added. */
@@ -356,8 +338,8 @@ private:
 
   /* Checks if a new link can be established between the given effect
      and the open condition. */
-  int link_possible(const Formula& precondition, const Effect& effect,
-		    size_t step_id, const Action* action,
+  int link_possible(size_t step_id, const Action& action,
+		    const Effect& effect,
 		    const LiteralOpenCondition& open_cond,
 		    const SubstitutionList& unifier) const;
 
@@ -381,17 +363,15 @@ private:
 
   /* Checks if this plan is equivalent to the given plan. */
   bool equivalent(const Plan& p) const;
+
+  friend bool operator<(const Plan& p1, const Plan& p2);
 };
 
+/* Less than operator for plans. */
+bool operator<(const Plan& p1, const Plan& p2);
 
-/*
- * List of plans.
- */
-struct PlanList : public Vector<const Plan*> {
-};
-
-/* Iterator for plan lists. */
-typedef PlanList::const_iterator PlanListIter;
+/* Output operator for plans. */
+ostream& operator<<(ostream& os, const Plan& p);
 
 
 #endif /* PLANS_H */

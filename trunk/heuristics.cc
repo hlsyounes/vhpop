@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 3.6 2002-03-19 17:19:30 lorens Exp $
+ * $Id: heuristics.cc,v 3.7 2002-03-21 22:49:24 lorens Exp $
  */
 #include <set>
 #include <typeinfo>
@@ -48,16 +48,16 @@ formula_value(const Formula& formula, size_t step_id, const Plan& plan,
       if (!domain.static_predicate(literal->predicate())) {
 	hash_set<size_t> seen_steps;
 	for (const StepChain* sc = plan.steps; sc != NULL; sc = sc->tail) {
-	  const Step& step = *sc->head;
-	  if (step.id != 0 && seen_steps.find(step.id) == seen_steps.end()
-	      && plan.orderings.possibly_before(step.id, STEP_START,
+	  const Step& step = sc->head;
+	  if (step.id() != 0 && seen_steps.find(step.id()) == seen_steps.end()
+	      && plan.orderings.possibly_before(step.id(), STEP_START,
 						step_id, gt)) {
-	    seen_steps.insert(step.id);
-	    const EffectList& effs = step.effects;
+	    seen_steps.insert(step.id());
+	    const EffectList& effs = step.effects();
 	    for (EffectListIter ei = effs.begin(); ei != effs.end(); ei++) {
 	      const Effect& e = **ei;
 	      StepTime et = end_time(e);
-	      if (plan.orderings.possibly_before(step.id, et, step_id, gt)) {
+	      if (plan.orderings.possibly_before(step.id(), et, step_id, gt)) {
 		if (typeid(*literal) == typeid(Atom)) {
 		  const AtomList& adds = e.add_list;
 		  for (AtomListIter fi = adds.begin();

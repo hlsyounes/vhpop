@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.cc,v 3.5 2002-03-19 17:19:36 lorens Exp $
+ * $Id: bindings.cc,v 3.6 2002-03-21 22:48:59 lorens Exp $
  */
 #include <typeinfo>
 #include "bindings.h"
@@ -559,17 +559,18 @@ const Bindings& Bindings::make_bindings(const StepChain* steps,
   const StepDomainChain* step_domains = NULL;
   hash_set<size_t> seen_steps;
   for (const StepChain* sc = steps; sc != NULL; sc = sc->tail) {
-    const Step& step = *sc->head;
-    if (step.action != NULL
-	&& seen_steps.find(step.id) == seen_steps.end()) {
-      seen_steps.insert(step.id);
+    const Step& step = sc->head;
+    if (step.action() != NULL
+	&& seen_steps.find(step.id()) == seen_steps.end()) {
+      seen_steps.insert(step.id());
       const ActionSchema* action =
-	dynamic_cast<const ActionSchema*>(step.action);
+	dynamic_cast<const ActionSchema*>(step.action());
       if (action != NULL && !action->parameters.empty()) {
 	const ActionDomain* domain = pg->action_domain(action->name);
 	if (domain != NULL) {
 	  const StepDomain* step_domain =
-	    new StepDomain(step.id, action->parameters.instantiation(step.id),
+	    new StepDomain(step.id(),
+			   action->parameters.instantiation(step.id()),
 			   *domain);
 	  step_domains = new StepDomainChain(step_domain, step_domains);
 	}

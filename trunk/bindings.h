@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.h,v 3.2 2002-03-19 17:19:40 lorens Exp $
+ * $Id: bindings.h,v 3.3 2002-03-21 22:49:03 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
@@ -227,12 +227,12 @@ typedef Chain<const StepDomain*> StepDomainChain;
 struct Bindings : public Printable, public gc {
   /* Creates a binding collection with parameter constrains if pg is
      not NULL, or an empty binding collection otherwise. */
-  static const Bindings& make_bindings(const Chain<const Step*>* steps,
+  static const Bindings& make_bindings(const Chain<Step>* steps,
 				       const PlanningGraph* pg);
 
   /* Creates a collection of variable bindings with the given equality
      and inequality bindings. */
-  static const Bindings* make_bindings(const Chain<const Step*>* steps,
+  static const Bindings* make_bindings(const Chain<Step>* steps,
 				       const PlanningGraph* pg,
 				       const BindingChain* equalities,
 				       const BindingChain* inequalities);

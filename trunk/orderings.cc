@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.cc,v 3.2 2002-03-18 11:12:38 lorens Exp $
+ * $Id: orderings.cc,v 3.3 2002-03-21 22:49:34 lorens Exp $
  */
 #include "orderings.h"
 #include "plans.h"
@@ -155,10 +155,10 @@ BinaryOrderings::BinaryOrderings() {}
 BinaryOrderings::BinaryOrderings(const StepChain* steps,
 				 const OrderingChain* orderings) {
   for (const StepChain* s = steps; s != NULL; s = s->tail) {
-    const Step& step = *s->head;
-    if (step.id != 0 && step.id != Plan::GOAL_ID
-	&& id_map1_.find(step.id) == id_map1_.end()) {
-      id_map1_.insert(make_pair(step.id, size_++));
+    const Step& step = s->head;
+    if (step.id() != 0 && step.id() != Plan::GOAL_ID
+	&& id_map1_.find(step.id()) == id_map1_.end()) {
+      id_map1_.insert(make_pair(step.id(), size_++));
     }
   }
   id_map2_.reserve(size_);
@@ -256,13 +256,13 @@ const Orderings* BinaryOrderings::refine(const Ordering& new_ordering,
       new OrderingChain(&new_ordering, orderings.orderings_);
 #endif
   }
-  if (new_step.id != 0 && new_step.id != Plan::GOAL_ID) {
-    if (orderings.id_map1_.find(new_step.id) == orderings.id_map1_.end()) {
+  if (new_step.id() != 0 && new_step.id() != Plan::GOAL_ID) {
+    if (orderings.id_map1_.find(new_step.id()) == orderings.id_map1_.end()) {
       for (size_t i = 0; i < size_; i++) {
 	orderings.order_[i].push_back(false);
       }
-      orderings.id_map1_.insert(make_pair(new_step.id, orderings.size_++));
-      orderings.id_map2_.push_back(new_step.id);
+      orderings.id_map1_.insert(make_pair(new_step.id(), orderings.size_++));
+      orderings.id_map2_.push_back(new_step.id());
       orderings.order_.push_back(vector<bool>(orderings.size_, false));
     }
   }
@@ -343,10 +343,10 @@ TemporalOrderings::TemporalOrderings() {}
 TemporalOrderings::TemporalOrderings(const StepChain* steps,
 				     const OrderingChain* orderings) {
   for (const StepChain* s = steps; s != NULL; s = s->tail) {
-    const Step& step = *s->head;
-    if (step.id != 0 && step.id != Plan::GOAL_ID
-	&& id_map1_.find(step.id) == id_map1_.end()) {
-      id_map1_.insert(make_pair(step.id, 2*size_));
+    const Step& step = s->head;
+    if (step.id() != 0 && step.id() != Plan::GOAL_ID
+	&& id_map1_.find(step.id()) == id_map1_.end()) {
+      id_map1_.insert(make_pair(step.id(), 2*size_));
       size_++;
     }
   }
@@ -435,24 +435,24 @@ const Orderings* TemporalOrderings::refine(const Ordering& new_ordering,
       new OrderingChain(&new_ordering, orderings.orderings_);
 #endif
   }
-  if (new_step.id != 0 && new_step.id != Plan::GOAL_ID) {
-    if (orderings.id_map1_.find(new_step.id) == orderings.id_map1_.end()) {
+  if (new_step.id() != 0 && new_step.id() != Plan::GOAL_ID) {
+    if (orderings.id_map1_.find(new_step.id()) == orderings.id_map1_.end()) {
       for (size_t i = 0; i < 2*size_; i++) {
 	orderings.order_[i].push_back(false);
 	orderings.order_[i].push_back(false);
 	orderings.distance_[i].push_back(INFINITY);
 	orderings.distance_[i].push_back(INFINITY);
       }
-      orderings.id_map1_.insert(make_pair(new_step.id, 2*size_));
+      orderings.id_map1_.insert(make_pair(new_step.id(), 2*size_));
       orderings.size_++;
-      orderings.id_map2_.push_back(new_step.id);
+      orderings.id_map2_.push_back(new_step.id());
       orderings.order_.push_back(vector<bool>(2*orderings.size_, false));
       orderings.order_.push_back(vector<bool>(2*orderings.size_, false));
       orderings.distance_.push_back(vector<float>(2*size_, INFINITY));
       orderings.distance_[2*size_].push_back(0.0f);
-      orderings.distance_[2*size_].push_back(new_step.action->max_duration);
+      orderings.distance_[2*size_].push_back(new_step.action()->max_duration);
       orderings.distance_.push_back(vector<float>(2*size_, INFINITY));
-      orderings.distance_[2*size_+1].push_back(-new_step.action->min_duration);
+      orderings.distance_[2*size_+1].push_back(-new_step.action()->min_duration);
       orderings.distance_[2*size_+1].push_back(0.0f);
     }
   }
