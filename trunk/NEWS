@@ -1,4 +1,10 @@
-Version 2.0:
+Version 2.1:
+
+* Improved memory and time efficiency, in particular when planning
+  with lifted action.
+
+
+Version 2.0 (Jul 18, 2002):
 
 * Support for durative actions.
 
