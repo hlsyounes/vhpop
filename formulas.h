@@ -2,7 +2,7 @@
 /*
  * Formulas.
  *
- * $Id: formulas.h,v 1.22 2001-10-06 22:54:20 lorens Exp $
+ * $Id: formulas.h,v 1.23 2001-10-07 00:04:31 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -199,8 +199,8 @@ struct Formula;
 /*
  * Equality function object for formula pointers.
  */
-struct equal_to<const Formula*> :
-  binary_function<const Formula*, const Formula*, bool> {
+struct equal_to<const Formula*>
+  : binary_function<const Formula*, const Formula*, bool> {
   bool operator()(const Formula* f1, const Formula* f2) const;
 };
 
@@ -217,7 +217,7 @@ struct Problem;
 /*
  * Abstract formula.
  */
-struct Formula : public Printable, public gc {
+struct Formula : public EqualityComparable, public Printable, public gc {
   /* The true formula. */
   static const Formula& TRUE;
   /* The false formula. */
@@ -245,9 +245,6 @@ struct Formula : public Printable, public gc {
   virtual bool equivalent(const Formula& f) const = 0;
 
 protected:
-  /* Checks if this formula equals the given formula. */
-  virtual bool equals(const Formula& f) const = 0;
-
   /* Returns the negation of this formula. */
   virtual const Formula& negation() const = 0;
 
@@ -256,20 +253,9 @@ protected:
     return 0;
   }
 
-  friend bool operator==(const Formula& f1, const Formula& f2);
   friend const Formula& operator!(const Formula& f);
   friend struct hash<Formula>;
 };
-
-/* Equality operator for formulas. */
-inline bool operator==(const Formula& f1, const Formula& f2) {
-  return f1.equals(f2);
-}
-
-/* Inequality operator for formulas. */
-inline bool operator!=(const Formula& f1, const Formula& f2) {
-  return !(f1 == f2);
-}
 
 /* Negation operator for formulas. */
 inline const Formula& operator!(const Formula& f) {
@@ -323,7 +309,7 @@ struct FormulaList : public Vector<const Formula*> {
 };
 
 /* A formula list const iterator. */
-typedef FormulaList::const_iterator FLCI;
+typedef FormulaList::const_iterator FormulaListIter;
 
 
 /*
@@ -360,11 +346,11 @@ struct Atom : public Formula {
   virtual bool equivalent(const Formula& f) const;
 
 protected:
-  /* Prints this formula on the given stream. */
-  virtual void print(ostream& os) const;
+  /* Checks if this object equals the given object. */
+  virtual bool equals(const EqualityComparable& o) const;
 
-  /* Checks if this formula equals the given formula. */
-  virtual bool equals(const Formula& f) const;
+  /* Prints this object on the given stream. */
+  virtual void print(ostream& os) const;
 
   /* Returns the negation of this formula. */
   virtual const Formula& negation() const;
@@ -425,11 +411,11 @@ struct Negation : public Formula {
   virtual bool equivalent(const Formula& f) const;
 
 protected:
-  /* Prints this formula on the given stream. */
-  virtual void print(ostream& os) const;
+  /* Checks if this object equals the given object. */
+  virtual bool equals(const EqualityComparable& o) const;
 
-  /* Checks if this formula equals the given formula. */
-  virtual bool equals(const Formula& f) const;
+  /* Prints this object on the given stream. */
+  virtual void print(ostream& os) const;
 
   /* Returns the negation of this formula. */
   virtual const Formula& negation() const;
@@ -493,11 +479,11 @@ struct Equality : public Formula {
   virtual bool equivalent(const Formula& f) const;
 
 protected:
-  /* Prints this formula on the given stream. */
-  virtual void print(ostream& os) const;
+  /* Checks if this object equals the given object. */
+  virtual bool equals(const EqualityComparable& o) const;
 
-  /* Checks if this formula equals the given formula. */
-  virtual bool equals(const Formula& f) const;
+  /* Prints this object on the given stream. */
+  virtual void print(ostream& os) const;
 
   /* Returns the negation of this formula. */
   virtual const Formula& negation() const;
@@ -535,11 +521,11 @@ struct Inequality : public Formula {
   virtual bool equivalent(const Formula& f) const;
 
 protected:
-  /* Prints this formula on the given stream. */
-  virtual void print(ostream& os) const;
+  /* Checks if this object equals the given object. */
+  virtual bool equals(const EqualityComparable& o) const;
 
-  /* Checks if this formula equals the given formula. */
-  virtual bool equals(const Formula& f) const;
+  /* Prints this object on the given stream. */
+  virtual void print(ostream& os) const;
 
   /* Returns the negation of this formula. */
   virtual const Formula& negation() const;
@@ -573,11 +559,11 @@ struct Conjunction : public Formula {
   virtual bool equivalent(const Formula& f) const;
 
 protected:
-  /* Prints this formula on the given stream. */
-  virtual void print(ostream& os) const;
+  /* Checks if this object equals the given object. */
+  virtual bool equals(const EqualityComparable& o) const;
 
-  /* Checks if this formula equals the given formula. */
-  virtual bool equals(const Formula& f) const;
+  /* Prints this object on the given stream. */
+  virtual void print(ostream& os) const;
 
   /* Returns the negation of this formula. */
   virtual const Formula& negation() const;
@@ -619,11 +605,11 @@ struct Disjunction : public Formula {
   virtual bool equivalent(const Formula& f) const;
 
 protected:
-  /* Prints this formula on the given stream. */
-  virtual void print(ostream& os) const;
+  /* Checks if this object equals the given object. */
+  virtual bool equals(const EqualityComparable& o) const;
 
-  /* Checks if this formula equals the given formula. */
-  virtual bool equals(const Formula& f) const;
+  /* Prints this object on the given stream. */
+  virtual void print(ostream& os) const;
 
   /* Returns the negation of this formula. */
   virtual const Formula& negation() const;
@@ -679,11 +665,11 @@ struct ExistsFormula : public QuantifiedFormula {
   virtual bool equivalent(const Formula& f) const;
 
 protected:
-  /* Prints this formula on the given stream. */
-  virtual void print(ostream& os) const;
+  /* Checks if this object equals the given object. */
+  virtual bool equals(const EqualityComparable& o) const;
 
-  /* Checks if this formula equals the given formula. */
-  virtual bool equals(const Formula& f) const;
+  /* Prints this object on the given stream. */
+  virtual void print(ostream& os) const;
 
   /* Returns the negation of this formula. */
   virtual const Formula& negation() const;
@@ -715,11 +701,11 @@ struct ForallFormula : public QuantifiedFormula {
   virtual bool equivalent(const Formula& f) const;
 
 protected:
-  /* Prints this formula on the given stream. */
-  virtual void print(ostream& os) const;
+  /* Checks if this object equals the given object. */
+  virtual bool equals(const EqualityComparable& o) const;
 
-  /* Checks if this formula equals the given formula. */
-  virtual bool equals(const Formula& f) const;
+  /* Prints this object on the given stream. */
+  virtual void print(ostream& os) const;
 
   /* Returns the negation of this formula. */
   virtual const Formula& negation() const;

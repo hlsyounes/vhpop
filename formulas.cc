@@ -1,5 +1,5 @@
 /*
- * $Id: formulas.cc,v 1.18 2001-10-06 23:28:49 lorens Exp $
+ * $Id: formulas.cc,v 1.19 2001-10-07 00:04:40 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -77,14 +77,14 @@ struct TrueFormula : public Formula {
   }
 
 protected:
-  /* Prints this formula on the given stream. */
-  virtual void print(ostream& os) const {
-    os << "TRUE";
+  /* Checks if this object equals the given object. */
+  virtual bool equals(const EqualityComparable& o) const {
+    return this == &o;
   }
 
-  /* Checks if this formula equals the given formula. */
-  virtual bool equals(const Formula& f) const {
-    return this == &f;
+  /* Prints this object on the given stream. */
+  virtual void print(ostream& os) const {
+    os << "TRUE";
   }
 
   /* Returns a negation of this formula. */
@@ -128,14 +128,14 @@ struct FalseFormula : public Formula {
   }
 
 protected:
-  /* Prints this formula on the given stream. */
-  virtual void print(ostream& os) const {
-    os << "FALSE";
+  /* Checks if this object equals the given object. */
+  virtual bool equals(const EqualityComparable& o) const {
+    return this == &o;
   }
 
-  /* Checks if this formula equals the given formula. */
-  virtual bool equals(const Formula& f) const {
-    return this == &f;
+  /* Prints this object on the given stream. */
+  virtual void print(ostream& os) const {
+    os << "FALSE";
   }
 
   /* Returns a negation of this formula. */
@@ -476,23 +476,23 @@ bool Atom::equivalent(const Formula& f) const {
 }
 
 
-/* Prints this formula on the given stream. */
+/* Checks if this object equals the given object. */
+bool Atom::equals(const EqualityComparable& o) const {
+  const Atom* atom = dynamic_cast<const Atom*>(&o);
+  return (atom != NULL && predicate == atom->predicate
+	  && terms.size() == atom->terms.size()
+	  && equal(terms.begin(), terms.end(), atom->terms.begin(),
+		   equal_to<const EqualityComparable*>()));
+}
+
+
+/* Prints this object on the given stream. */
 void Atom::print(ostream& os) const {
   os << '(' << predicate;
   for (TermListIter ti = terms.begin(); ti != terms.end(); ti++) {
     os << ' ' << **ti;
   }
   os << ')';
-}
-
-
-/* Checks if this formula equals the given formula. */
-bool Atom::equals(const Formula& f) const {
-  const Atom* atom = dynamic_cast<const Atom*>(&f);
-  return (atom != NULL && predicate == atom->predicate
-	  && terms.size() == atom->terms.size()
-	  && equal(terms.begin(), terms.end(), atom->terms.begin(),
-		   equal_to<const EqualityComparable*>()));
 }
 
 
@@ -561,16 +561,16 @@ bool Negation::equivalent(const Formula& f) const {
 }
 
 
-/* Prints this formula on the given stream. */
-void Negation::print(ostream& os) const {
-  os << "(not " << atom << ")";
+/* Checks if this object equals the given object. */
+bool Negation::equals(const EqualityComparable& o) const {
+  const Negation* negation = dynamic_cast<const Negation*>(&o);
+  return negation != NULL && atom == negation->atom;
 }
 
 
-/* Checks if this formula equals the given formula. */
-bool Negation::equals(const Formula& f) const {
-  const Negation* negation = dynamic_cast<const Negation*>(&f);
-  return negation != NULL && atom == negation->atom;
+/* Prints this object on the given stream. */
+void Negation::print(ostream& os) const {
+  os << "(not " << atom << ")";
 }
 
 
@@ -644,16 +644,16 @@ bool Equality::equivalent(const Formula& f) const {
 }
 
 
-/* Prints this formula on the given stream. */
-void Equality::print(ostream& os) const {
-  os << "(= " << term1 << ' ' << term2 << ")";
+/* Checks if this object equals the given object. */
+bool Equality::equals(const EqualityComparable& o) const {
+  const Equality* eq = dynamic_cast<const Equality*>(&o);
+  return eq != NULL && term1 == eq->term1 && term2 == eq->term2;
 }
 
 
-/* Checks if this formula equals the given formula. */
-bool Equality::equals(const Formula& f) const {
-  const Equality* eq = dynamic_cast<const Equality*>(&f);
-  return eq != NULL && term1 == eq->term1 && term2 == eq->term2;
+/* Prints this object on the given stream. */
+void Equality::print(ostream& os) const {
+  os << "(= " << term1 << ' ' << term2 << ")";
 }
 
 
@@ -701,16 +701,16 @@ bool Inequality::equivalent(const Formula& f) const {
 }
 
 
-/* Prints this formula on the given stream. */
-void Inequality::print(ostream& os) const {
-  os << "(not (= " << term1 << ' ' << term2 << "))";
+/* Checks if this object equals the given object. */
+bool Inequality::equals(const EqualityComparable& o) const {
+  const Inequality* neq = dynamic_cast<const Inequality*>(&o);
+  return neq != NULL && term1 == neq->term1 && term2 == neq->term2;
 }
 
 
-/* Checks if this formula equals the given formula. */
-bool Inequality::equals(const Formula& f) const {
-  const Inequality* neq = dynamic_cast<const Inequality*>(&f);
-  return neq != NULL && term1 == neq->term1 && term2 == neq->term2;
+/* Prints this object on the given stream. */
+void Inequality::print(ostream& os) const {
+  os << "(not (= " << term1 << ' ' << term2 << "))";
 }
 
 
@@ -730,7 +730,7 @@ const Conjunction& Conjunction::instantiation(size_t id) const {
 const Formula& Conjunction::instantiation(const SubstitutionList& subst,
 					  const Problem& problem) const {
   const Formula* c = &TRUE;
-  for (FLCI fi = conjuncts.begin(); fi != conjuncts.end(); fi++) {
+  for (FormulaListIter fi = conjuncts.begin(); fi != conjuncts.end(); fi++) {
     const Formula& ci = (*fi)->instantiation(subst, problem);
     const Conjunction* conj = dynamic_cast<const Conjunction*>(c);
     if (conj != NULL
@@ -748,7 +748,7 @@ const Formula& Conjunction::instantiation(const SubstitutionList& subst,
 /* Returns this formula subject to the given substitutions. */
 const Formula& Conjunction::substitution(const SubstitutionList& subst) const {
   const Formula* c = &TRUE;
-  for (FLCI fi = conjuncts.begin(); fi != conjuncts.end(); fi++) {
+  for (FormulaListIter fi = conjuncts.begin(); fi != conjuncts.end(); fi++) {
     c = &(*c && (*fi)->substitution(subst));
   }
   return *c;
@@ -759,7 +759,7 @@ const Formula& Conjunction::substitution(const SubstitutionList& subst) const {
 Cost Conjunction::cost(const hash_map<const Formula*, Cost>& atom_cost,
 		       Heuristic h) const {
   Cost total_cost;
-  for (FLCI fi = conjuncts.begin(); fi != conjuncts.end(); fi++) {
+  for (FormulaListIter fi = conjuncts.begin(); fi != conjuncts.end(); fi++) {
     Cost c = (*fi)->cost(atom_cost, h);
     if (c.infinite()) {
       return c;
@@ -785,29 +785,29 @@ bool Conjunction::equivalent(const Formula& f) const {
 }
 
 
-/* Prints this formula on the given stream. */
-void Conjunction::print(ostream& os) const {
-  os << "(and";
-  for (FLCI i = conjuncts.begin(); i != conjuncts.end(); i++) {
-    os << ' ' << **i;
-  }
-  os << ")";
-}
-
-
-/* Checks if this formula equals the given formula. */
-bool Conjunction::equals(const Formula& f) const {
-  const Conjunction* conj = dynamic_cast<const Conjunction*>(&f);
+/* Checks if this object equals the given object. */
+bool Conjunction::equals(const EqualityComparable& o) const {
+  const Conjunction* conj = dynamic_cast<const Conjunction*>(&o);
   return (conj != NULL && conjuncts.size() == conj->conjuncts.size()
 	  && equal(conjuncts.begin(), conjuncts.end(), conj->conjuncts.begin(),
 		   equal_to<const Formula*>()));
 }
 
 
+/* Prints this object on the given stream. */
+void Conjunction::print(ostream& os) const {
+  os << "(and";
+  for (FormulaListIter fi = conjuncts.begin(); fi != conjuncts.end(); fi++) {
+    os << ' ' << **fi;
+  }
+  os << ")";
+}
+
+
 /* Returns the negation of this formula. */
 const Formula& Conjunction::negation() const {
   const Formula* d = &FALSE;
-  for (FLCI fi = conjuncts.begin(); fi != conjuncts.end(); fi++) {
+  for (FormulaListIter fi = conjuncts.begin(); fi != conjuncts.end(); fi++) {
     d = &(*d || !**fi);
   }
   return *d;
@@ -824,7 +824,7 @@ const Disjunction& Disjunction::instantiation(size_t id) const {
 const Formula& Disjunction::instantiation(const SubstitutionList& subst,
 					  const Problem& problem) const {
   const Formula* d = &TRUE;
-  for (FLCI fi = disjuncts.begin(); fi != disjuncts.end(); fi++) {
+  for (FormulaListIter fi = disjuncts.begin(); fi != disjuncts.end(); fi++) {
     d = &(*d || (*fi)->instantiation(subst, problem));
   }
   return *d;
@@ -834,7 +834,7 @@ const Formula& Disjunction::instantiation(const SubstitutionList& subst,
 /* Returns this formula subject to the given substitutions. */
 const Formula& Disjunction::substitution(const SubstitutionList& subst) const {
   const Formula* d = &FALSE;
-  for (FLCI fi = disjuncts.begin(); fi != disjuncts.end(); fi++) {
+  for (FormulaListIter fi = disjuncts.begin(); fi != disjuncts.end(); fi++) {
     d = &(*d || (*fi)->substitution(subst));
   }
   return *d;
@@ -845,7 +845,7 @@ const Formula& Disjunction::substitution(const SubstitutionList& subst) const {
 Cost Disjunction::cost(const hash_map<const Formula*, Cost>& atom_cost,
 		       Heuristic h) const {
   Cost total_cost = Cost::INFINITE;
-  for (FLCI fi = disjuncts.begin(); fi != disjuncts.end(); fi++) {
+  for (FormulaListIter fi = disjuncts.begin(); fi != disjuncts.end(); fi++) {
     Cost c = (*fi)->cost(atom_cost, h);
     total_cost = min(total_cost, c);
   }
@@ -862,29 +862,29 @@ bool Disjunction::equivalent(const Formula& f) const {
 }
 
 
-/* Prints this formula on the given stream. */
-void Disjunction::print(ostream& os) const {
-  os << "(or";
-  for (FLCI i = disjuncts.begin(); i != disjuncts.end(); i++) {
-    os << ' ' << **i;
-  }
-  os << ")";
-}
-
-
-/* Checks if this formula equals the given formula. */
-bool Disjunction::equals(const Formula& f) const {
-  const Disjunction* disj = dynamic_cast<const Disjunction*>(&f);
+/* Checks if this object equals the given object. */
+bool Disjunction::equals(const EqualityComparable& o) const {
+  const Disjunction* disj = dynamic_cast<const Disjunction*>(&o);
   return (disj != NULL && disjuncts.size() == disj->disjuncts.size()
 	  && equal(disjuncts.begin(), disjuncts.end(), disj->disjuncts.begin(),
 		   equal_to<const Formula*>()));
 }
 
 
+/* Prints this object on the given stream. */
+void Disjunction::print(ostream& os) const {
+  os << "(or";
+  for (FormulaListIter fi = disjuncts.begin(); fi != disjuncts.end(); fi++) {
+    os << ' ' << **fi;
+  }
+  os << ")";
+}
+
+
 /* Returns the negation of this formula. */
 const Formula& Disjunction::negation() const {
   const Formula* c = &TRUE;
-  for (FLCI fi = disjuncts.begin(); fi != disjuncts.end(); fi++) {
+  for (FormulaListIter fi = disjuncts.begin(); fi != disjuncts.end(); fi++) {
     c = &(*c && !**fi);
   }
   return *c;
@@ -924,7 +924,18 @@ bool ExistsFormula::equivalent(const Formula& f) const {
 }
 
 
-/* Prints this formula on the given stream. */
+/* Checks if this object equals the given object. */
+bool ExistsFormula::equals(const EqualityComparable& o) const {
+  const ExistsFormula* exists = dynamic_cast<const ExistsFormula*>(&o);
+  return (exists != NULL && parameters.size() == exists->parameters.size()
+	  && equal(parameters.begin(), parameters.end(),
+		   exists->parameters.begin(),
+		   equal_to<const EqualityComparable*>())
+	  && body == exists->body);
+}
+
+
+/* Prints this object on the given stream. */
 void ExistsFormula::print(ostream& os) const {
   os << "(exists (";
   for (VarListIter vi = parameters.begin(); vi != parameters.end(); vi++) {
@@ -937,17 +948,6 @@ void ExistsFormula::print(ostream& os) const {
     }
   }
   os << ") " << body << ")";
-}
-
-
-/* Checks if this formula equals the given formula. */
-bool ExistsFormula::equals(const Formula& f) const {
-  const ExistsFormula* exists = dynamic_cast<const ExistsFormula*>(&f);
-  return (exists != NULL && parameters.size() == exists->parameters.size()
-	  && equal(parameters.begin(), parameters.end(),
-		   exists->parameters.begin(),
-		   equal_to<const EqualityComparable*>())
-	  && body == exists->body);
 }
 
 
@@ -990,7 +990,18 @@ bool ForallFormula::equivalent(const Formula& f) const {
 }
 
 
-/* Prints this formula on the given stream. */
+/* Checks if this object equals the given object. */
+bool ForallFormula::equals(const EqualityComparable& o) const {
+  const ForallFormula* forall = dynamic_cast<const ForallFormula*>(&o);
+  return (forall != NULL && parameters.size() == forall->parameters.size()
+	  && equal(parameters.begin(), parameters.end(),
+		   forall->parameters.begin(),
+		   equal_to<const EqualityComparable*>())
+	  && body == forall->body);
+}
+
+
+/* Prints this object on the given stream. */
 void ForallFormula::print(ostream& os) const {
   os << "(forall (";
   for (VarListIter vi = parameters.begin(); vi != parameters.end(); vi++) {
@@ -1003,17 +1014,6 @@ void ForallFormula::print(ostream& os) const {
     }
   }
   os << ") " << body << ")";
-}
-
-
-/* Checks if this formula equals the given formula. */
-bool ForallFormula::equals(const Formula& f) const {
-  const ForallFormula* forall = dynamic_cast<const ForallFormula*>(&f);
-  return (forall != NULL && parameters.size() == forall->parameters.size()
-	  && equal(parameters.begin(), parameters.end(),
-		   forall->parameters.begin(),
-		   equal_to<const EqualityComparable*>())
-	  && body == forall->body);
 }
 
 

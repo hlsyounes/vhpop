@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.24 2001-10-06 23:40:49 lorens Exp $
+ * $Id: plans.cc,v 1.25 2001-10-07 00:04:34 lorens Exp $
  */
 #include <queue>
 #include <hash_set>
@@ -262,8 +262,8 @@ static bool add_goal(const OpenConditionChain*& open_conds,
 	  dynamic_cast<const Conjunction*>(goal);
 	if (conjunction != NULL) {
 	  const FormulaList& gs = conjunction->conjuncts;
-	  for (FLCI i = gs.begin(); i != gs.end(); i++) {
-	    goals.push(*i);
+	  for (FormulaListIter fi = gs.begin(); fi != gs.end(); fi++) {
+	    goals.push(*fi);
 	  }
 	} else {
 	  const ForallFormula* forall =
@@ -1108,12 +1108,12 @@ void Plan::handle_disjunction(PlanList& new_plans,
   const Disjunction& disjunction =
     dynamic_cast<const Disjunction&>(open_cond.condition);
   const FormulaList& disjuncts = disjunction.disjuncts;
-  for (FLCI g = disjuncts.begin(); g != disjuncts.end(); g++) {
+  for (FormulaListIter fi = disjuncts.begin(); fi != disjuncts.end(); fi++) {
     BindingList new_bindings;
     const OpenConditionChain* open_conds = open_conds_->remove(&open_cond);
     const OpenConditionChain* old_open_conds = open_conds;
     size_t num_open_conds = num_open_conds_ - 1;
-    if (add_goal(open_conds, num_open_conds, new_bindings, **g,
+    if (add_goal(open_conds, num_open_conds, new_bindings, **fi,
 		 open_cond.step_id, open_cond.reason, links_)) {
       const Bindings* bindings;
       bindings = bindings_.add(new_bindings);
