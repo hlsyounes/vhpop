@@ -2,16 +2,12 @@
 /*
  * Domain descriptions.
  *
- * $Id: domains.h,v 1.19 2001-10-06 22:54:22 lorens Exp $
+ * $Id: domains.h,v 1.20 2001-10-06 23:29:00 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
 
-#include <iostream>
-#include <string>
-#include <hash_map>
 #include <hash_set>
-#include <vector>
 #include "support.h"
 #include "types.h"
 
@@ -31,7 +27,7 @@ struct Problem;
 /*
  * Predicate declaration.
  */
-struct Predicate : public Printable {
+struct Predicate : public Printable, public gc {
   /* Name of this predicate. */
   const string name;
   /* Predicate parameters. */
@@ -46,7 +42,7 @@ struct Predicate : public Printable {
   size_t arity() const;
 
 protected:
-  /* Prints this predicate on the given stream. */
+  /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
 };
 
@@ -54,10 +50,10 @@ protected:
 /*
  * Table of predicate declarations.
  */
-struct PredicateMap : public gc,
-		      hash_map<string, const Predicate*, hash<string>,
-		      equal_to<string>, container_alloc> {
+struct PredicateMap : public HashMap<string, const Predicate*> {
 };
+
+typedef PredicateMap::const_iterator PredicateMapIter;
 
 
 struct EffectList;
@@ -65,7 +61,7 @@ struct EffectList;
 /*
  * Effect definition.
  */
-struct Effect : public Printable {
+struct Effect : public Printable, public gc {
   /* List of universally quantified variables for this effect. */
   const VariableList& forall;
   /* Condition for this effect, or TRUE if unconditional effect. */
@@ -112,7 +108,7 @@ struct Effect : public Printable {
 			     hash_set<string>& neg_preds) const;
 
 protected:
-  /* Prints this effect on the given stream. */
+  /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
 };
 
@@ -120,14 +116,14 @@ protected:
 /*
  * List of effect definitions.
  */
-struct EffectList : public gc, vector<const Effect*, container_alloc> {
+struct EffectList : public Vector<const Effect*> {
   /* Constructs an empty effect list. */
   EffectList() {
   }
 
   /* Constructs an effect list with a single effect. */
-  EffectList(const Effect* effect)
-    : vector<const Effect*, container_alloc>(1, effect) {
+  EffectList(const Effect* effect) {
+    push_back(effect);
   }
 
   /* Returns an instantiation of this effect list. */
@@ -150,21 +146,19 @@ struct EffectList : public gc, vector<const Effect*, container_alloc> {
 			     hash_set<string>& neg_preds) const;
 };
 
+typedef EffectList::const_iterator EffectListIter;
+
 
 struct ActionList;
 
 /*
  * Abstract action definition.
  */
-struct Action : public Printable {
+struct Action : public Printable, public gc {
   /* Action precondition. */
   const Formula& precondition;
   /* List of action effects. */
   const EffectList& effects;
-
-  /* Deletes this action. */
-  virtual ~Action() {
-  }
 
   /* Returns a formula representing this action. */
   virtual const Atom& action_formula() const = 0;
@@ -237,17 +231,19 @@ struct hash<const Action*> {
 /*
  * List of action definitions.
  */
-struct ActionList : public gc, vector<const Action*, container_alloc> {
+struct ActionList : public Vector<const Action*> {
 };
+
+typedef ActionList::const_iterator ActionListIter;
 
 
 /*
  * Table of action definitions.
  */
-struct ActionMap : public gc,
-		   hash_map<string, const Action*, hash<string>,
-		   equal_to<string>, container_alloc> {
+struct ActionMap : public HashMap<string, const Action*> {
 };
+
+typedef ActionMap::const_iterator ActionMapIter;
 
 
 /*
@@ -273,7 +269,7 @@ struct ActionSchema : public Action {
 			      const Problem& problem) const;
 
 protected:
-  /* Prints this action on the given stream. */
+  /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
 
   /* Tests if this action equals the given action. */
@@ -301,7 +297,7 @@ struct GroundAction : public Action {
 			      const Problem& problem) const;
 
 protected:
-  /* Prints this action on the given stream. */
+  /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
 
   /* Tests if this action equals the given action. */
@@ -321,10 +317,10 @@ struct Requirements;
 /*
  * Domain definition.
  */
-struct Domain : public Printable {
+struct Domain : public Printable, public gc {
   /* Table of domain definitions. */
-  typedef hash_map<string, const Domain*, hash<string>, equal_to<string>,
-    container_alloc> DomainMap;
+  struct DomainMap : public HashMap<string, const Domain*> {
+  };
 
   /* Name of this domain. */
   const string name;
@@ -371,7 +367,7 @@ struct Domain : public Printable {
   }
 
   /* Deletes a domain. */
-  ~Domain() {
+  virtual ~Domain() {
     domains.erase(name);
   }
 
@@ -401,6 +397,10 @@ struct Domain : public Printable {
     return (static_predicates_.find(predicate) != static_predicates_.end());
   }
 
+protected:
+  /* Prints this object on the given stream. */
+  virtual void print(ostream& os) const;
+
 private:
   /* Table of all defined domains. */
   static DomainMap domains;
@@ -411,9 +411,6 @@ private:
   /* Returns a set of static predicates. */
   static hash_set<string> static_predicates(const PredicateMap& predicates,
 					    const ActionMap& actions);
-
-  /* Prints this domain on the given stream. */
-  virtual void print(ostream& os) const;
 };
 
 #endif /* DOMAINS_H */

@@ -1,5 +1,5 @@
 /*
- * $Id: formulas.cc,v 1.17 2001-10-06 22:54:16 lorens Exp $
+ * $Id: formulas.cc,v 1.18 2001-10-06 23:28:49 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -479,8 +479,8 @@ bool Atom::equivalent(const Formula& f) const {
 /* Prints this formula on the given stream. */
 void Atom::print(ostream& os) const {
   os << '(' << predicate;
-  for (TermList::const_iterator i = terms.begin(); i != terms.end(); i++) {
-    os << ' ' << **i;
+  for (TermListIter ti = terms.begin(); ti != terms.end(); ti++) {
+    os << ' ' << **ti;
   }
   os << ')';
 }
@@ -927,14 +927,13 @@ bool ExistsFormula::equivalent(const Formula& f) const {
 /* Prints this formula on the given stream. */
 void ExistsFormula::print(ostream& os) const {
   os << "(exists (";
-  for (VariableList::const_iterator i = parameters.begin();
-       i != parameters.end(); i++) {
-    if (i != parameters.begin()) {
+  for (VarListIter vi = parameters.begin(); vi != parameters.end(); vi++) {
+    if (vi != parameters.begin()) {
       os << ' ';
     }
-    os << **i;
-    if (!(*i)->type.object()) {
-      os << " - " << (*i)->type;
+    os << **vi;
+    if (!(*vi)->type.object()) {
+      os << " - " << (*vi)->type;
     }
   }
   os << ") " << body << ")";
@@ -994,14 +993,13 @@ bool ForallFormula::equivalent(const Formula& f) const {
 /* Prints this formula on the given stream. */
 void ForallFormula::print(ostream& os) const {
   os << "(forall (";
-  for (VariableList::const_iterator i = parameters.begin();
-       i != parameters.end(); i++) {
-    if (i != parameters.begin()) {
+  for (VarListIter vi = parameters.begin(); vi != parameters.end(); vi++) {
+    if (vi != parameters.begin()) {
       os << ' ';
     }
-    os << **i;
-    if (!(*i)->type.object()) {
-      os << " - " << (*i)->type;
+    os << **vi;
+    if (!(*vi)->type.object()) {
+      os << " - " << (*vi)->type;
     }
   }
   os << ") " << body << ")";

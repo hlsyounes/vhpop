@@ -1,5 +1,5 @@
 /*
- * $Id: domains.cc,v 1.18 2001-10-06 22:54:40 lorens Exp $
+ * $Id: domains.cc,v 1.19 2001-10-06 23:28:54 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -16,7 +16,7 @@ size_t Predicate::arity() const {
 }
 
 
-/* Prints this predicate on the given stream. */
+/* Prints this object on the given stream. */
 void Predicate::print(ostream& os) const {
   os << '(' << name;
   for (VarListIter vi = parameters.begin(); vi != parameters.end(); vi++) {
@@ -77,8 +77,8 @@ void Effect::instantiations(EffectList& effects, const SubstitutionList& subst,
 	args.push_back(&s);
       }
     }
-    vector<NameList*, container_alloc> arguments;
-    vector<NameList::const_iterator> next_arg;
+    Vector<NameList*> arguments;
+    Vector<NameListIter> next_arg;
     for (VarListIter vi = forall.begin(); vi != forall.end(); vi++) {
       arguments.push_back(new NameList());
       problem.compatible_objects(*arguments.back(), (*vi)->type);
@@ -162,7 +162,7 @@ void Effect::achievable_predicates(hash_set<string>& preds,
 }
 
 
-/* Prints this effect on the given stream. */
+/* Prints this object on the given stream. */
 void Effect::print(ostream& os) const {
   os << '[';
   if (condition != Formula::TRUE) {
@@ -287,8 +287,8 @@ const Atom& ActionSchema::action_formula() const {
    action. */
 void ActionSchema::instantiations(ActionList& actions,
 				  const Problem& problem) const {
-  vector<NameList*, container_alloc> arguments;
-  vector<NameList::const_iterator> next_arg;
+  Vector<NameList*> arguments;
+  Vector<NameListIter> next_arg;
   for (VarListIter vi = parameters.begin(); vi != parameters.end(); vi++) {
     arguments.push_back(new NameList());
     problem.compatible_objects(*arguments.back(), (*vi)->type);
@@ -337,7 +337,7 @@ void ActionSchema::instantiations(ActionList& actions,
 }
 
 
-/* Prints this action on the given stream. */
+/* Prints this object on the given stream. */
 void ActionSchema::print(ostream& os) const {
   os << '(' << name << " (";
   for (VarListIter vi = parameters.begin(); vi != parameters.end(); vi++) {
@@ -356,12 +356,11 @@ void ActionSchema::print(ostream& os) const {
     os << "nil";
   }
   os << " (";
-  for (EffectList::const_iterator i = effects.begin();
-       i != effects.end(); i++) {
-    if (i != effects.begin()) {
+  for (EffectListIter ei = effects.begin(); ei != effects.end(); ei++) {
+    if (ei != effects.begin()) {
       os << ' ';
     }
-    os << **i;
+    os << **ei;
   }
   os << ")" << ')';
 }
@@ -403,15 +402,15 @@ void GroundAction::instantiations(ActionList& actions,
 }
 
 
-/* Prints this action on the given stream. */
+/* Prints this object on the given stream. */
 void GroundAction::print(ostream& os) const {
   os << '(' << formula.predicate << " (";
-  for (TermList::const_iterator i = formula.terms.begin();
-       i != formula.terms.end(); i++) {
-    if (i != formula.terms.begin()) {
+  for (TermListIter ti = formula.terms.begin();
+       ti != formula.terms.end(); ti++) {
+    if (ti != formula.terms.begin()) {
       os << ' ';
     }
-    os << **i;
+    os << **ti;
   }
   os << ") ";
   if (precondition != Formula::TRUE) {
@@ -420,12 +419,11 @@ void GroundAction::print(ostream& os) const {
     os << "nil";
   }
   os << " (";
-  for (EffectList::const_iterator i = effects.begin();
-       i != effects.end(); i++) {
-    if (i != effects.begin()) {
+  for (EffectListIter ei = effects.begin(); ei != effects.end(); ei++) {
+    if (ei != effects.begin()) {
       os << ' ';
     }
-    os << **i;
+    os << **ei;
   }
   os << ")" << ')';
 }
@@ -455,33 +453,33 @@ const Type* Domain::find_type(const string& name) const {
 /* Returns the constant with the given name, or NULL if it is
    undefined. */
 const Name* Domain::find_constant(const string& name) const {
-  NameMap::const_iterator i = constants.find(name);
-  return (i != constants.end()) ? (*i).second : NULL;
+  NameMapIter ni = constants.find(name);
+  return (ni != constants.end()) ? (*ni).second : NULL;
 }
 
 
 /* Returns the predicate with the given name, or NULL if it is
    undefined. */
 const Predicate* Domain::find_predicate(const string& name) const {
-  PredicateMap::const_iterator i = predicates.find(name);
-  return (i != predicates.end()) ? (*i).second : NULL;
+  PredicateMapIter pi = predicates.find(name);
+  return (pi != predicates.end()) ? (*pi).second : NULL;
 }
 
 
 /* Returns the action with the given name, or NULL if it is
    undefined. */
 const Action* Domain::find_action(const string& name) const {
-  ActionMap::const_iterator i = actions.find(name);
-  return (i != actions.end()) ? (*i).second : NULL;
+  ActionMapIter ai = actions.find(name);
+  return (ai != actions.end()) ? (*ai).second : NULL;
 }
 
 
 /* Fills the provided name list with constants that are compatible
    with the given type. */
 void Domain::compatible_constants(NameList& constants, const Type& t) const {
-  for (NameMap::const_iterator i = this->constants.begin();
-       i != this->constants.end(); i++) {
-    const Name& name = *(*i).second;
+  for (NameMapIter ni = this->constants.begin();
+       ni != this->constants.end(); ni++) {
+    const Name& name = *(*ni).second;
     if (name.type.subtype(t)) {
       constants.push_back(&name);
     }
@@ -494,13 +492,12 @@ hash_set<string> Domain::static_predicates(const PredicateMap& predicates,
 					   const ActionMap& actions) {
   hash_set<string> static_preds;
   hash_set<string> achievable_preds;
-  for (ActionMap::const_iterator ai = actions.begin();
-       ai != actions.end(); ai++) {
+  for (ActionMapIter ai = actions.begin(); ai != actions.end(); ai++) {
     (*ai).second->achievable_predicates(achievable_preds, achievable_preds);
   }
-  for (PredicateMap::const_iterator i = predicates.begin();
-       i != predicates.end(); i++) {
-    const string& p = (*i).first;
+  for (PredicateMapIter pi = predicates.begin();
+       pi != predicates.end(); pi++) {
+    const string& p = (*pi).first;
     if (achievable_preds.find(p) == achievable_preds.end()) {
       static_preds.insert(p);
     }
@@ -509,7 +506,7 @@ hash_set<string> Domain::static_predicates(const PredicateMap& predicates,
 }
 
 
-/* Prints this domain on the given stream. */
+/* Prints this object on the given stream. */
 void Domain::print(ostream& os) const {
   os << "name: " << name;
   os << endl << "types:";
@@ -522,21 +519,19 @@ void Domain::print(ostream& os) const {
     }
   }
   os << endl << "constants:";
-  for (NameMap::const_iterator i = constants.begin();
-       i != constants.end(); i++) {
-    os << ' ' << *(*i).second;
-    if (!(*i).second->type.object()) {
-      os << " - " << (*i).second->type;
+  for (NameMapIter ni = constants.begin(); ni != constants.end(); ni++) {
+    os << ' ' << *(*ni).second;
+    if (!(*ni).second->type.object()) {
+      os << " - " << (*ni).second->type;
     }
   }
   os << endl << "predicates:";
-  for (PredicateMap::const_iterator i = predicates.begin();
-       i != predicates.end(); i++) {
-    os << endl << "  " << *(*i).second;
+  for (PredicateMapIter pi = predicates.begin();
+       pi != predicates.end(); pi++) {
+    os << endl << "  " << *(*pi).second;
   }
   os << endl << "actions:";
-  for (ActionMap::const_iterator i = actions.begin();
-       i != actions.end(); i++) {
-    os << endl << "  " << *(*i).second;
+  for (ActionMapIter ai = actions.begin(); ai != actions.end(); ai++) {
+    os << endl << "  " << *(*ai).second;
   }
 }

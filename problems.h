@@ -2,14 +2,11 @@
 /*
  * Problem descriptions.
  *
- * $Id: problems.h,v 1.5 2001-09-28 17:54:55 lorens Exp $
+ * $Id: problems.h,v 1.6 2001-10-06 23:28:15 lorens Exp $
  */
 #ifndef PROBLEMS_H
 #define PROBLEMS_H
 
-#include <iostream>
-#include <string>
-#include <hash_map>
 #include "support.h"
 #include "types.h"
 
@@ -26,9 +23,9 @@ struct NameList;
 /*
  * Problem definition.
  */
-struct Problem : public Printable {
-  typedef hash_map<string, const Problem*, hash<string>, equal_to<string>,
-    container_alloc> ProblemMap;
+struct Problem : public Printable, public gc {
+  struct ProblemMap : public HashMap<string, const Problem*> {
+  };
 
   /* Name of problem. */
   const string name;
@@ -71,7 +68,7 @@ struct Problem : public Printable {
   }
 
   /* Deletes a problem. */
-  ~Problem() {
+  virtual ~Problem() {
     problems.erase(name);
   }
 
@@ -90,7 +87,7 @@ struct Problem : public Printable {
   void instantiated_actions(ActionList& actions) const;
 
 protected:
-  /* Prints this problem on the given stream. */
+  /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
 
 private:
