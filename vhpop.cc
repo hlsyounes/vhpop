@@ -1,10 +1,10 @@
 /*
  * Main program.
  *
- * $Id: vhpop.cc,v 1.5 2001-08-12 06:57:23 lorens Exp $
+ * $Id: vhpop.cc,v 1.6 2001-08-18 17:36:00 lorens Exp $
  */
 #include <iostream>
-#include <stdio.h>
+#include <cstdio>
 #include <sys/time.h>
 #define _GNU_SOURCE
 #include <getopt.h>
