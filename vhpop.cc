@@ -1,7 +1,7 @@
 /*
  * Main program.
  *
- * $Id: vhpop.cc,v 1.4 2001-08-11 06:16:02 lorens Exp $
+ * $Id: vhpop.cc,v 1.5 2001-08-12 06:57:23 lorens Exp $
  */
 #include <iostream>
 #include <stdio.h>
@@ -26,7 +26,6 @@ static const string PROGRAM_NAME = "tpop";
 
 /* Program options. */
 static struct option long_options[] = {
-  { "early", optional_argument, NULL, 'e' },
   { "ground", no_argument, NULL, 'g' },
   { "heuristic", required_argument, NULL, 'h' },
   { "limit", required_argument, NULL, 'l' },
@@ -44,8 +43,6 @@ static void display_help() {
   cout << PROGRAM_NAME << endl
        << "usage: " << PROGRAM_NAME << " [options] [file ...]" << endl
        << "options:" << endl
-       << "  -e[n], --early[=n]\t"
-       << "enable early linking of open conditions" << endl
        << "  -g,    --ground\t"
        << "only use ground actions" << endl
        << "  -h h,  --heuristic=h\t"
@@ -98,8 +95,6 @@ static bool read_file(const char* name) {
 int main(int argc, char* argv[]) {
   /* Set default heuristic. */
   Heuristic heuristic = MAX_HEURISTIC;
-  /* Whether to allow early linking. */
-  int early_linking = 0;
   /* Whether to just use ground actions. */
   bool ground_actions = false;
   /* Whether to allow transformational plan operators. */
@@ -114,15 +109,12 @@ int main(int argc, char* argv[]) {
    */
   while (1) {
     int option_index = 0;
-    int c = getopt_long(argc, argv, "e::gh:l:tv::Vw::?",
+    int c = getopt_long(argc, argv, "gh:l:tv::Vw::?",
 			long_options, &option_index);
     if (c == -1) {
       break;
     }
     switch (c) {
-    case 'e':
-      early_linking = (optarg != NULL) ? atoi(optarg) : 1;
-      break;
     case 'g':
       ground_actions = true;
       break;
@@ -223,9 +215,8 @@ int main(int argc, char* argv[]) {
       struct itimerval timer = { { 1000000, 900000 }, { 1000000, 900000 } };
       const Problem& problem = *(*i).second;
       setitimer(ITIMER_PROF, &timer, NULL);
-      const Plan* plan = Plan::plan(problem, heuristic, early_linking,
-				    ground_actions, transformations, limit,
-				    verbosity);
+      const Plan* plan = Plan::plan(problem, heuristic, ground_actions,
+				    transformations, limit, verbosity);
       getitimer(ITIMER_PROF, &timer);
       /* Planning time. */
       double t = 1000000.9
