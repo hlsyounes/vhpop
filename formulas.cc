@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 3.12 2002-06-30 23:02:58 lorens Exp $
+ * $Id: formulas.cc,v 4.1 2002-07-22 22:41:37 lorens Exp $
  */
 #include <typeinfo>
 #include <stack>
@@ -104,13 +104,6 @@ bool Term::less(const LessThanComparable& o) const {
 }
 
 
-/* Checks if this object equals the given object. */
-bool Term::equals(const EqualityComparable& o) const {
-  const Term* t = dynamic_cast<const Term*>(&o);
-  return t != NULL && typeid(o) == typeid(*this) && name() == t->name();
-}
-
-
 /* Returns the hash value of this object. */
 size_t Term::hash_value() const {
   return hash<string>()(name());
@@ -151,6 +144,12 @@ bool Name::equivalent(const Term& t) const {
 }
 
 
+/* Checks if this object equals the given object. */
+bool Name::equals(const EqualityComparable& o) const {
+  return this == &o;
+}
+
+
 /* ====================================================================== */
 /* Variable */
 
@@ -183,6 +182,13 @@ const Term& Variable::substitution(const SubstitutionList& subst) const {
    variables. */
 bool Variable::equivalent(const Term& t) const {
   return dynamic_cast<const Variable*>(&t) != NULL;
+}
+
+
+/* Checks if this object equals the given object. */
+bool Variable::equals(const EqualityComparable& o) const {
+  const Variable* vt = dynamic_cast<const Variable*>(&o);
+  return vt != NULL && typeid(*this) == typeid(o) && name() == vt->name();
 }
 
 
@@ -493,7 +499,7 @@ const Formula& Literal::separate(const Literal& literal) const {
 /* Returns this formula with static literals assumed true. */
 const Formula& Literal::strip_static(const Domain& domain) const {
   if (domain.static_predicate(predicate())
-      || domain.find_type(predicate()) != NULL) {
+      || domain.find_type(predicate().name()) != NULL) {
     return TRUE;
   } else {
     return *this;
@@ -505,8 +511,8 @@ const Formula& Literal::strip_static(const Domain& domain) const {
 /* Atom */
 
 /* Constructs an atomic formula. */
-Atom::Atom(const string& predicate, const TermList& terms, FormulaTime when)
-  : Literal(when), predicate_(predicate), terms_(&terms) {}
+Atom::Atom(const Predicate& predicate, const TermList& terms, FormulaTime when)
+  : Literal(when), predicate_(&predicate), terms_(&terms) {}
 
 
 /* Returns an instantiation of this formula. */
@@ -536,7 +542,7 @@ const Formula& Atom::instantiation(const SubstitutionList& subst,
     }
     return FALSE;
   } else {
-    const Type* type = problem.domain().find_type(predicate());
+    const Type* type = problem.domain().find_type(predicate().name());
     if (type != NULL) {
       return f.terms()[0]->type().subtype(*type) ? TRUE : FALSE;
     } else {
@@ -577,7 +583,7 @@ bool Atom::equals(const Literal& o) const {
 /* Returns the hash value of this object. */
 size_t Atom::hash_value() const {
   hash<Hashable> h;
-  size_t val = hash<string>()(predicate());
+  size_t val = hash<string>()(predicate().name());
   for (TermListIter ti = terms().begin(); ti != terms().end(); ti++) {
     val = 5*val + h(**ti);
   }
@@ -587,7 +593,7 @@ size_t Atom::hash_value() const {
 
 /* Prints this object on the given stream. */
 void Atom::print(ostream& os) const {
-  os << '(' << predicate();
+  os << '(' << predicate().name();
   copy(terms().begin(), terms().end(), pre_ostream_iterator<Term>(os));
   os << ')';
 }
