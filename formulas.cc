@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 4.6 2002-09-23 18:24:44 lorens Exp $
+ * $Id: formulas.cc,v 4.7 2002-09-24 17:32:24 lorens Exp $
  */
 #include <typeinfo>
 #include <stack>
@@ -297,12 +297,6 @@ const Constant& Constant::substitution(const SubstitutionList& subst,
 }
 
 
-/* Returns this formula with static literals assumed true. */
-const Constant& Constant::strip_static(const Domain& domain) const {
-  return *this;
-}
-
-
 /* Prints this formula on the given stream with the given bindings. */
 void Constant::print(ostream& os, size_t step_id,
 		     const Bindings& bindings) const {
@@ -348,17 +342,6 @@ const Formula& Literal::separate(const Literal& literal) const {
     }
   }
   return TRUE;
-}
-
-
-/* Returns this formula with static literals assumed true. */
-const Formula& Literal::strip_static(const Domain& domain) const {
-  if (domain.static_predicate(predicate())
-      || domain.find_type(predicate().name()) != NULL) {
-    return TRUE;
-  } else {
-    return *this;
-  }
 }
 
 
@@ -555,12 +538,6 @@ const Formula& Equality::substitution(const SubstitutionList& subst,
 }
 
 
-/* Returns this formula with static literals assumed true. */
-const Formula& Equality::strip_static(const Domain& domain) const {
-  return *this;
-}
-
-
 /* Prints this formula on the given stream with the given bindings. */
 void Equality::print(ostream& os, size_t step_id,
 		     const Bindings& bindings) const {
@@ -616,12 +593,6 @@ const Formula& Inequality::substitution(const SubstitutionList& subst,
     return ((&t1 == &term1() && &t2 == &term2())
 	    ? *this : *(new Inequality(t1, step_id1(0), t2, step_id2(0))));
   }
-}
-
-
-/* Returns this formula with static literals assumed true. */
-const Formula& Inequality::strip_static(const Domain& domain) const {
-  return *this;
 }
 
 
@@ -687,17 +658,6 @@ const Formula& Conjunction::substitution(const SubstitutionList& subst,
   for (FormulaListIter fi = conjuncts().begin();
        fi != conjuncts().end() && !c->contradiction(); fi++) {
     c = &(*c && (*fi)->substitution(subst, step_id));
-  }
-  return *c;
-}
-
-
-/* Returns this formula with static literals assumed true. */
-const Formula& Conjunction::strip_static(const Domain& domain) const {
-  const Formula* c = &TRUE;
-  for (FormulaListIter fi = conjuncts().begin();
-       fi != conjuncts().end() && !c->contradiction(); fi++) {
-    c = &(*c && (*fi)->strip_static(domain));
   }
   return *c;
 }
@@ -772,17 +732,6 @@ const Formula& Disjunction::substitution(const SubstitutionList& subst,
   for (FormulaListIter fi = disjuncts().begin();
        fi != disjuncts().end() && d->tautology(); fi++) {
     d = &(*d || (*fi)->substitution(subst, step_id));
-  }
-  return *d;
-}
-
-
-/* Returns this formula with static literals assumed true. */
-const Formula& Disjunction::strip_static(const Domain& domain) const {
-  const Formula* d = &FALSE;
-  for (FormulaListIter fi = disjuncts().begin();
-       fi != disjuncts().end() && !d->tautology(); fi++) {
-    d = &(*d || (*fi)->strip_static(domain));
   }
   return *d;
 }
@@ -909,14 +858,6 @@ ExistsFormula::substitution(const SubstitutionList& subst,
 }
 
 
-/* Returns this formula with static literals assumed true. */
-const Formula& ExistsFormula::strip_static(const Domain& domain) const {
-  const Formula& b = body().strip_static(domain);
-  return (b.constant()
-	  ? b : (const Formula&) *(new ExistsFormula(parameters(), b)));
-}
-
-
 /* Prints this formula on the given stream with the given bindings. */
 void ExistsFormula::print(ostream& os, size_t step_id,
 			  const Bindings& bindings) const {
@@ -1018,14 +959,6 @@ const Formula&
 ForallFormula::substitution(const SubstitutionList& subst,
 			    size_t step_id) const {
   const Formula& b = body().substitution(subst, step_id);
-  return (b.constant()
-	  ? b : (const Formula&) *(new ForallFormula(parameters(), b)));
-}
-
-
-/* Returns this formula with static literals assumed true. */
-const Formula& ForallFormula::strip_static(const Domain& domain) const {
-  const Formula& b = body().strip_static(domain);
   return (b.constant()
 	  ? b : (const Formula&) *(new ForallFormula(parameters(), b)));
 }
