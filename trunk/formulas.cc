@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 6.3 2003-07-21 18:16:03 lorens Exp $
+ * $Id: formulas.cc,v 6.4 2003-07-21 19:58:01 lorens Exp $
  */
 #include "formulas.h"
 #include "bindings.h"
@@ -187,6 +187,13 @@ const Constant& Constant::instantiation(const SubstitutionMap& subst,
 }
 
 
+/* Returns the universal base of this formula. */
+const Formula& Constant::universal_base(const SubstitutionMap& subst,
+					const Problem& problem) const {
+  return *this;
+}
+
+
 /* Prints this formula on the given stream with the given bindings. */
 void Constant::print(std::ostream& os, const PredicateTable& predicates,
 		     const TermTable& terms, size_t step_id,
@@ -347,6 +354,13 @@ const Formula& Atom::instantiation(const SubstitutionMap& subst,
 }
 
 
+/* Returns the universal base of this formula. */
+const Formula& Atom::universal_base(const SubstitutionMap& subst,
+				    const Problem& problem) const {
+  return instantiation(subst, problem);
+}
+
+
 /* Prints this formula on the given stream with the given bindings. */
 void Atom::print(std::ostream& os, const PredicateTable& predicates,
 		 const TermTable& terms, size_t step_id,
@@ -447,6 +461,13 @@ const Formula& Negation::instantiation(const SubstitutionMap& subst,
 }
 
 
+/* Returns the universal base of this formula. */
+const Formula& Negation::universal_base(const SubstitutionMap& subst,
+					const Problem& problem) const {
+  return instantiation(subst, problem);
+}
+
+
 /* Prints this formula on the given stream with the given bindings. */
 void Negation::print(std::ostream& os, const PredicateTable& predicates,
 		     const TermTable& terms, size_t step_id,
@@ -542,6 +563,13 @@ const Formula& Equality::instantiation(const SubstitutionMap& subst,
 }
 
 
+/* Returns the universal base of this formula. */
+const Formula& Equality::universal_base(const SubstitutionMap& subst,
+					const Problem& problem) const {
+  return substitution(subst);
+}
+
+
 /* Prints this formula on the given stream with the given bindings. */
 void Equality::print(std::ostream& os, const PredicateTable& predicates,
 		     const TermTable& terms, size_t step_id,
@@ -620,6 +648,13 @@ const Formula& Inequality::substitution(const SubstitutionMap& subst) const {
 /* Returns an instantiation of this formula. */
 const Formula& Inequality::instantiation(const SubstitutionMap& subst,
 					 const Problem& problem) const {
+  return substitution(subst);
+}
+
+
+/* Returns the universal base of this formula. */
+const Formula& Inequality::universal_base(const SubstitutionMap& subst,
+					  const Problem& problem) const {
   return substitution(subst);
 }
 
@@ -760,6 +795,56 @@ const Formula& Conjunction::instantiation(const SubstitutionMap& subst,
   for (FormulaList::const_iterator fi = conjuncts().begin();
        fi != conjuncts().end(); fi++) {
     const Formula& c = (*fi)->instantiation(subst, problem);
+    if (&c != *fi) {
+      changed = true;
+    }
+    if (c.contradiction()) {
+      if (conj == NULL) {
+	register_use(first_c);
+	unregister_use(first_c);
+      } else {
+	register_use(conj);
+	unregister_use(conj);
+      }
+      return FALSE;
+    } else if (!c.tautology()) {
+      if (first_c->tautology()) {
+	first_c = &c;
+      } else if (conj == NULL) {
+	conj = new Conjunction();
+	conj->add_conjunct(*first_c);
+      }
+      if (conj != NULL) {
+	conj->add_conjunct(c);
+      }
+    }
+  }
+  if (!changed) {
+    if (conj == NULL) {
+      register_use(first_c);
+      unregister_use(first_c);
+    } else {
+      register_use(conj);
+      unregister_use(conj);
+    }
+    return *this;
+  } else if (conj != NULL) {
+    return *conj;
+  } else {
+    return *first_c;
+  }
+}
+
+
+/* Returns the universal base of this formula. */
+const Formula& Conjunction::universal_base(const SubstitutionMap& subst,
+					   const Problem& problem) const {
+  Conjunction* conj = NULL;
+  const Formula* first_c = &TRUE;
+  bool changed = false;
+  for (FormulaList::const_iterator fi = conjuncts().begin();
+       fi != conjuncts().end(); fi++) {
+    const Formula& c = (*fi)->universal_base(subst, problem);
     if (&c != *fi) {
       changed = true;
     }
@@ -1011,6 +1096,56 @@ const Formula& Disjunction::instantiation(const SubstitutionMap& subst,
 }
 
 
+/* Returns the universal base of this formula. */
+const Formula& Disjunction::universal_base(const SubstitutionMap& subst,
+					   const Problem& problem) const {
+  Disjunction* disj = NULL;
+  const Formula* first_d = &FALSE;
+  bool changed = false;
+  for (FormulaList::const_iterator fi = disjuncts().begin();
+       fi != disjuncts().end(); fi++) {
+    const Formula& d = (*fi)->universal_base(subst, problem);
+    if (&d != *fi) {
+      changed = true;
+    }
+    if (d.tautology()) {
+      if (disj == NULL) {
+	register_use(first_d);
+	unregister_use(first_d);
+      } else {
+	register_use(disj);
+	unregister_use(disj);
+      }
+      return TRUE;
+    } else if (!d.contradiction()) {
+      if (first_d->contradiction()) {
+	first_d = &d;
+      } else if (disj == NULL) {
+	disj = new Disjunction();
+	disj->add_disjunct(*first_d);
+      }
+      if (disj != NULL) {
+	disj->add_disjunct(d);
+      }
+    }
+  }
+  if (!changed) {
+    if (disj == NULL) {
+      register_use(first_d);
+      unregister_use(first_d);
+    } else {
+      register_use(disj);
+      unregister_use(disj);
+    }
+    return *this;
+  } else if (disj != NULL) {
+    return *disj;
+  } else {
+    return *first_d;
+  }
+}
+
+
 /* Prints this formula on the given stream with the given bindings. */
 void Disjunction::print(std::ostream& os, const PredicateTable& predicates,
 			const TermTable& terms, size_t step_id,
@@ -1193,6 +1328,26 @@ const Formula& Exists::instantiation(const SubstitutionMap& subst,
 }
 
 
+/* Returns the universal base of this formula. */
+const Formula& Exists::universal_base(const SubstitutionMap& subst,
+				      const Problem& problem) const {
+  const Formula& b = body().universal_base(subst, problem);
+  if (&b == &body()) {
+    return *this;
+  } else if (b.tautology() || b.contradiction()) {
+    return b;
+  } else {
+    Exists& exists = *new Exists();
+    for (VariableList::const_iterator vi = parameters().begin();
+	 vi != parameters().end(); vi++) {
+      exists.add_parameter(*vi);
+    }
+    exists.set_body(b);
+    return exists;
+  }
+}
+
+
 /* Prints this formula on the given stream with the given bindings. */
 void Exists::print(std::ostream& os, const PredicateTable& predicates,
 		   const TermTable& terms, size_t step_id,
@@ -1276,6 +1431,71 @@ const Formula& Forall::instantiation(const SubstitutionMap& subst,
       SubstitutionMap pargs;
       pargs.insert(std::make_pair(parameters()[i], *next_arg[i]));
       const Formula& conjunct = conjuncts.top()->instantiation(pargs, problem);
+      conjuncts.push(&conjunct);
+      if (i + 1 == n) {
+	result = &(*result && conjunct);
+	if (result->contradiction()) {
+	  break;
+	}
+	for (int j = i; j >= 0; j--) {
+	  if (j < i) {
+	    unregister_use(conjuncts.top());
+	  }
+	  conjuncts.pop();
+	  next_arg[j]++;
+	  if (next_arg[j] == arguments[j].end()) {
+	    if (j == 0) {
+	      i = n;
+	      break;
+	    } else {
+	      next_arg[j] = arguments[j].begin();
+	    }
+	  } else {
+	    i = j;
+	    break;
+	  }
+	}
+      } else {
+	register_use(conjuncts.top());
+	i++;
+      }
+    }
+    while (!conjuncts.empty()) {
+      unregister_use(conjuncts.top());
+      conjuncts.pop();
+    }
+    return *result;
+  }
+}
+
+
+/* Returns the universal base of this formula. */
+const Formula& Forall::universal_base(const SubstitutionMap& subst,
+				      const Problem& problem) const {
+  int n = parameters().size();
+  if (n == 0) {
+    return body().universal_base(subst, problem);
+  } else {
+    SubstitutionMap args(subst);
+    std::vector<ObjectList> arguments(n, ObjectList());
+    std::vector<ObjectList::const_iterator> next_arg;
+    for (int i = 0; i < n; i++) {
+      problem.compatible_objects(arguments[i],
+				 problem.terms().type(parameters()[i]));
+      if (arguments[i].empty()) {
+	return TRUE;
+      }
+      next_arg.push_back(arguments[i].begin());
+    }
+    const Formula* result = &TRUE;
+    std::stack<const Formula*> conjuncts;
+    conjuncts.push(&body().universal_base(args, problem));
+    register_use(conjuncts.top());
+    for (int i = 0; i < n; ) {
+      SubstitutionMap pargs;
+      pargs.insert(std::make_pair(parameters()[i], *next_arg[i]));
+      const Formula& conjunct =
+	conjuncts.top()->universal_base(pargs, problem);
       conjuncts.push(&conjunct);
       if (i + 1 == n) {
 	result = &(*result && conjunct);
@@ -1457,6 +1677,20 @@ const Condition& Condition::instantiation(const SubstitutionMap& subst,
   const Formula& f1 = at_start().instantiation(subst, problem);
   const Formula& f2 = over_all().instantiation(subst, problem);
   const Formula& f3 = at_end().instantiation(subst, problem);
+  if (&f1 == at_start_ && &f2 == over_all_ && &f3 == at_end_) {
+    return *this;
+  } else {
+    return make(f1, f2, f3);
+  }
+}
+
+
+/* Returns the universal base of this condition. */
+const Condition& Condition::universal_base(const SubstitutionMap& subst,
+					   const Problem& problem) const {
+  const Formula& f1 = at_start().universal_base(subst, problem);
+  const Formula& f2 = over_all().universal_base(subst, problem);
+  const Formula& f3 = at_end().universal_base(subst, problem);
   if (&f1 == at_start_ && &f2 == over_all_ && &f3 == at_end_) {
     return *this;
   } else {
