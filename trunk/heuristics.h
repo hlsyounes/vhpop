@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.h,v 6.2 2003-07-21 02:21:57 lorens Exp $
+ * $Id: heuristics.h,v 6.3 2003-07-28 01:37:35 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
@@ -134,6 +134,9 @@ struct PlanningGraph {
   /* Deletes this planning graph. */
   ~PlanningGraph();
 
+  /* Returns the problem associated with this planning graph. */
+  const Problem& problem() const { return *problem_; }
+  
   /* Returns the heurisitc value of an atom. */
   HeuristicValue heuristic_value(const Atom& atom, size_t step_id,
 				 const Bindings* bindings = NULL) const;
@@ -181,6 +184,8 @@ private:
   /* Iterator for ActionDomainMap. */
   typedef ActionDomainMap::const_iterator ActionDomainMapIter;
 
+  /* Problem associated with this planning graph. */
+  const Problem* problem_;
   /* Atom values. */
   AtomValueMap atom_values_;
   /* Negated atom values. */
