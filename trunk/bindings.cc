@@ -1,5 +1,5 @@
 /*
- * $Id: bindings.cc,v 1.1 2001-05-03 15:32:50 lorens Exp $
+ * $Id: bindings.cc,v 1.2 2001-07-29 17:37:36 lorens Exp $
  */
 #include "bindings.h"
 
@@ -279,7 +279,7 @@ const Formula& Bindings::instantiation(const Formula& f) const {
   if (neq != NULL) {
     return *(new Inequality(binding(neq->term1), binding(neq->term2)));
   }
-  throw Unimplemented();
+  throw Unimplemented("Bindings::instantiation");
 }
 
 
@@ -441,7 +441,7 @@ bool Bindings::unify(SubstitutionList& mgu,
 	      mgu_varsets = new VarsetChain(comb, mgu_varsets);
 	    }
 	    /* Add unification to most general unifier. */
-	    mgu.push_back(Substitution(&var2, name1));
+	    mgu.push_back(new Substitution(var2, *name1));
 	  }
 	}
       } else {
@@ -492,7 +492,7 @@ bool Bindings::unify(SubstitutionList& mgu,
 	      mgu_varsets = new VarsetChain(comb, mgu_varsets);
 	    }
 	    /* Add unification to most general unifier. */
-	    mgu.push_back(Substitution(&var1, name2));
+	    mgu.push_back(new Substitution(var1, *name2));
 	  }
 	} else {
 	  /*
@@ -544,7 +544,7 @@ bool Bindings::unify(SubstitutionList& mgu,
 	    }
 	    if (var1 != var2) {
 	      /* Add unification to most general unifier. */
-	      mgu.push_back(Substitution(&var1, &var2));
+	      mgu.push_back(new Substitution(var1, var2));
 	    }
 	  }
 	}
