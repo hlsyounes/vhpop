@@ -2,7 +2,7 @@
 /*
  * Auxiliary types and functions.
  *
- * $Id: support.h,v 1.2 2001-07-29 18:12:02 lorens Exp $
+ * $Id: support.h,v 1.3 2001-08-10 04:08:18 lorens Exp $
  */
 #ifndef SUPPORT_H
 #define SUPPORT_H
@@ -24,12 +24,15 @@ typedef single_client_traceable_alloc container_alloc;
  * Exception thrown for unimplemented features.
  */
 struct Unimplemented {
+  /* Message. */
   const string message;
 
+  /* Constructs an unimplemented exception. */
   Unimplemented(const string& message)
     : message(message) {
   }
 private:
+  /* Prints this exception on the given stream. */
   void print(ostream& os) const;
 
   friend ostream& operator<<(ostream& os, const Unimplemented& ex);
@@ -46,6 +49,7 @@ inline ostream& operator<<(ostream& os, const Unimplemented& ex) {
  * Hash function object for strings.
  */
 struct hash<string> {
+  /* Hash function for strings. */
   size_t operator()(const string& s) const {
     return hash<char*>()(s.c_str());
   }
@@ -67,18 +71,21 @@ struct Chain : public gc {
 
   /* Returns the size of this chain. */
   size_t size() const {
-    return (tail == NULL) ? 1 : 1 + tail->size();
+    size_t result = 0;
+    for (const Chain<T>* ci = this; ci != NULL; ci = ci->tail) {
+      result++;
+    }
+    return result;
   }
 
   /* Checks if this chain contains the given element. */
   bool contains(const T& h) const {
-    if (h == head) {
-      return true;
-    } else if (tail != NULL) {
-      return tail->contains(h);
-    } else {
-      return false;
+    for (const Chain<T>* ci = this; ci != NULL; ci = ci->tail) {
+      if (h == ci->head) {
+	return true;
+      }
     }
+    return false;
   }
 
   /* Returns a chain with the first occurance of the given element removed. */
