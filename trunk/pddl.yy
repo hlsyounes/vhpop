@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 3.6 2002-03-15 19:02:05 lorens Exp $
+ * $Id: pddl.yy,v 3.7 2002-03-17 23:46:58 lorens Exp $
  */
 %{
 #include "requirements.h"
@@ -47,7 +47,8 @@ static void add_names(const vector<string>& names,
 		      const Type& type = SimpleType::OBJECT);
 static void add_predicate(const Predicate& predicate);
 static void add_action(const ActionSchema& action);
-static void add_variable(const Variable& var);
+static void add_variable(const string& name,
+			 const Type& type = SimpleType::OBJECT);
 static const pair<AtomList*, NegationList*>& make_add_del(AtomList* adds,
 							  NegationList* dels);
 static const Atom& make_atom(const string& predicate, const TermList& terms);
@@ -119,7 +120,6 @@ static VariableList* variables;
 static Context free_variables;
 static const Effect* problem_init;
 static const Formula* problem_goal;
-static bool unique_variables = true;
 %}
 
 %token DEFINE DOMAIN PROBLEM
@@ -255,7 +255,7 @@ require_key : STRIPS
             | TYPING
                 {
 		  requirements->typing = true;
-		  domain->add(SimpleType::OBJECT);
+		  domain->add_type(SimpleType::OBJECT);
 		}
             | NEGATIVE_PRECONDITIONS
                 { requirements->negative_preconditions = true; }
@@ -286,7 +286,7 @@ require_key : STRIPS
 types_def : '(' TYPES
               {
 		if (!requirements->typing) {
-		  domain->add(SimpleType::OBJECT);
+		  domain->add_type(SimpleType::OBJECT);
 		  yywarning("assuming `:typing' requirement");
 		  requirements->typing = true;
 		}
@@ -313,11 +313,9 @@ atomic_formula_skeleton : '(' predicate
                             {
 			      predicate = new Predicate(*$2);
 			      delete $2;
-			      unique_variables = false;
 			    }
                           opt_variables ')'
                             {
-			      unique_variables = true;
 			      add_predicate(*predicate);
 			      predicate = NULL;
 			    }
@@ -932,7 +930,7 @@ vars : variable_seq
          {
 	   for (vector<string>::const_iterator si = $1->begin();
 		si != $1->end(); si++) {
-	     add_variable(*(new Variable(*si)));
+	     add_variable(*si);
 	   }
 	 }
      | variable_seq type_spec 
@@ -943,7 +941,7 @@ vars : variable_seq
 	     /* Duplicate type if it is a union type so that every
 		variable has its own copy. */
 	     const Type* t = (ut != NULL) ? new UnionType(*ut) : $2;
-	     add_variable(*(new Variable(*si, *t)));
+	     add_variable(*si, *t);
 	   }
 	   if (ut != NULL) {
 	     delete ut;
@@ -1132,20 +1130,21 @@ static void add_names(const vector<string>& names, const Type& type) {
     const string& s = *si;
     if (name_map_type == TYPE_MAP) {
       if (find_type(s) == NULL) {
-	domain->add(*(new SimpleType(s, *t)));
+	domain->add_type(*(new SimpleType(s, *t)));
       } else {
 	yywarning("ignoring repeated declaration of type `" + s + "'");
       }
     } else if (name_map_type == CONSTANT_MAP) {
       const Name* old_name = domain->find_constant(s);
       if (old_name != NULL) {
-	domain->add(*(new Name(s, UnionType::add(old_name->type(), *t))));
+	domain->add_constant(*(new Name(s, UnionType::add(old_name->type(),
+							  *t))));
 	delete old_name;
 	if (ut != NULL) {
 	  delete t;
 	}
       } else {
-	domain->add(*(new Name(s, *t)));
+	domain->add_constant(*(new Name(s, *t)));
       }
     } else {
       if (pdomain->find_constant(s) != NULL) {
@@ -1179,7 +1178,7 @@ static void add_names(const vector<string>& names, const Type& type) {
 static void add_predicate(const Predicate& predicate) {
   if (find_predicate(predicate.name) == NULL) {
     if (find_type(predicate.name) == NULL) {
-      domain->add(predicate);
+      domain->add_predicate(predicate);
     } else {
       yywarning("ignoring declaration of predicate `" + predicate.name
 		+ "' in domain `" + domain->name
@@ -1203,7 +1202,7 @@ static void add_action(const ActionSchema& action) {
 	      + "' in domain `" + domain->name + "'");
     delete &action;
   } else {
-    domain->add(action);
+    domain->add_action(action);
   }
 }
 
@@ -1211,19 +1210,18 @@ static void add_action(const ActionSchema& action) {
 /*
  * Adds a variable to the current context.
  */
-static void add_variable(const Variable& var) {
-  if (unique_variables) {
-    if (free_variables.shallow_find(var.name()) != NULL) {
-      yyerror("repetition of parameter `" + var.name() + "'");
-    } else if (free_variables.find(var.name()) != NULL) {
-      yyerror("shadowing parameter `" + var.name() + "'");
-    }
-    free_variables.insert(&var);
-  }
+static void add_variable(const string& name, const Type& type) {
   if (predicate != NULL) {
-    predicate->add(var);
+    predicate->add_parameter(type);
   } else {
-    variables->push_back(&var);
+    if (free_variables.shallow_find(name) != NULL) {
+      yyerror("repetition of parameter `" + name + "'");
+    } else if (free_variables.find(name) != NULL) {
+      yyerror("shadowing parameter `" + name + "'");
+    }
+    const Variable* var = new Variable(name, type);
+    free_variables.insert(var);
+    variables->push_back(var);
   }
 }
 
@@ -1251,9 +1249,9 @@ static const Atom& make_atom(const string& predicate, const TermList& terms) {
     } else if (domain != NULL) {
       Predicate* new_p = new Predicate(predicate);
       for (size_t i = 0; i < terms.size(); i++) {
-	new_p->add(*(new Variable("?x" + tostring(i + 1))));
+	new_p->add_parameter(SimpleType::OBJECT);
       }
-      domain->add(*new_p);
+      domain->add_predicate(*new_p);
       yywarning("implicit declaration of predicate `" + predicate + "'");
     } else {
       yyerror("undeclared predicate `" + predicate + "' used");
@@ -1278,10 +1276,10 @@ static TermList& add_name(TermList& terms, const string& name) {
     if (predicate == NULL || predicate->arity() <= terms.size()) {
       c = new Name(name, SimpleType::OBJECT);
     } else {
-      c = new Name(name, predicate->parameters()[terms.size()]->type());
+      c = new Name(name, predicate->type(terms.size()));
     }
     if (domain != NULL) {
-      domain->add(*c);
+      domain->add_constant(*c);
       yywarning("implicit declaration of constant `" + name + "'");
     } else {
       problem_objects->insert(make_pair(name, c));
@@ -1298,7 +1296,7 @@ static const SimpleType& make_type(const string& name) {
   if (t == NULL) {
     const SimpleType& st = *(new SimpleType(name));
     if (domain != NULL) {
-      domain->add(st);
+      domain->add_type(st);
       yywarning("implicit declaration of type `" + name + "'");
     } else {
       yyerror("undeclared type `" + name + "' used");
