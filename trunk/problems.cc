@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: problems.cc,v 3.2 2002-03-18 09:31:37 lorens Exp $
+ * $Id: problems.cc,v 3.3 2002-03-18 09:31:49 lorens Exp $
  */
 #include "problems.h"
 #include "domains.h"
@@ -96,7 +96,7 @@ void Problem::compatible_objects(NameList& objects, const Type& t) const {
   for (NameMapIter ni = this->objects.begin();
        ni != this->objects.end(); ni++) {
     const Name& name = *(*ni).second;
-    if (name.type.subtype(t)) {
+    if (name.type().subtype(t)) {
       objects.push_back(&name);
     }
   }
@@ -106,8 +106,8 @@ void Problem::compatible_objects(NameList& objects, const Type& t) const {
 /* Fills the provided action list with ground actions instantiated
    from the action schemas of the domain. */
 void Problem::instantiated_actions(GroundActionList& actions) const {
-  for (ActionSchemaMapIter ai = domain.actions.begin();
-       ai != domain.actions.end(); ai++) {
+  for (ActionSchemaMapIter ai = domain.actions().begin();
+       ai != domain.actions().end(); ai++) {
     (*ai).second->instantiations(actions, *this);
   }
 }
@@ -119,10 +119,7 @@ void Problem::print(ostream& os) const {
   os << endl << "domain: " << domain.name;
   os << endl << "objects:";
   for (NameMapIter ni = objects.begin(); ni != objects.end(); ni++) {
-    os << ' ' << *(*ni).second;
-    if (!(*ni).second->type.object()) {
-      os << " - " << (*ni).second->type;
-    }
+    os << ' ' << *(*ni).second << " - " << (*ni).second->type();
   }
   os << endl << "initial condition: " << init;
   os << endl << "goal: " << goal;

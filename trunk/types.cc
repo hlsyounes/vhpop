@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: types.cc,v 1.11 2002-01-26 04:25:54 lorens Exp $
+ * $Id: types.cc,v 3.1 2002-03-18 09:37:16 lorens Exp $
  */
 #include "types.h"
 
@@ -38,23 +38,11 @@ bool Type::object() const {
 }
 
 
-/* Type union. */
-const Type& operator+(const Type& t1, const Type& t2) {
-  return t1.add(t2);
-}
-
-
-/* Type subtraction. */
-const Type& operator-(const Type& t1, const Type& t2) {
-  return t1.subtract(t2);
-}
-
-
 /* ====================================================================== */
 /* SimpleType */
 
 /* The object type. */
-const SimpleType& SimpleType::OBJECT = *(new SimpleType("object"));
+const SimpleType SimpleType::OBJECT = SimpleType("object");
 
 
 /* Constructs a simple type with the given name. */
@@ -100,41 +88,66 @@ void SimpleType::print(ostream& os) const {
 }
 
 
-/* Returns the union of this type and the given type. */
-const Type& SimpleType::add(const Type& t) const {
-  const SimpleType* st = dynamic_cast<const SimpleType*>(&t);
-  if (st != NULL) {
-    if (subtype(t)) {
-      return *this;
-    } else if (t.subtype(*this)) {
-      return t;
-    } else {
-	TypeList& new_types = *(new TypeList(this));
-	new_types.push_back(st);
-	sort(new_types.begin(), new_types.end(),
-	     std::less<const LessThanComparable*>());
-	return *(new UnionType(new_types));
-    }
-  } else {
-    const UnionType& ut = dynamic_cast<const UnionType&>(t);
-    return ut.add(*this);
-  }
-}
-
-
-/* Removes the given type from this type. */
-const Type& SimpleType::subtract(const Type& t) const {
-  return subtype(t) ? OBJECT : *this;
-}
-
-
 /* ====================================================================== */
 /* UnionType */
 
-/* Constructs the type that is the union of the given types.
-   N.B. Assumes type list is sorted. */
-UnionType::UnionType(const TypeList& types)
-  : types(types) {}
+/* Returns the canonical form of the given union type. */
+const Type& UnionType::simplify(const UnionType& t) {
+  const Type* canonical_type;
+  if (t.types.empty()) {
+    canonical_type = &SimpleType::OBJECT;
+    delete &t;
+  } else if (t.types.size() == 1) {
+    canonical_type = *t.types.begin();
+    delete &t;
+  } else {
+    canonical_type = &t;
+  }
+  return *canonical_type;
+}
+
+
+/* Returns the union of two types. */
+const Type& UnionType::add(const Type& t1, const Type& t2) {
+  UnionType* t;
+  const SimpleType* st1 = dynamic_cast<const SimpleType*>(&t1);
+  if (st1 != NULL) {
+    t = new UnionType(*st1);
+  } else {
+    const UnionType& ut1 = dynamic_cast<const UnionType&>(t1);
+    t = new UnionType(ut1);
+  }
+  const SimpleType* st2 = dynamic_cast<const SimpleType*>(&t2);
+  if (st2 != NULL) {
+    t->add(*st2);
+  } else {
+    const UnionType& ut2 = dynamic_cast<const UnionType&>(t2);
+    for (TypeSetIter ti = ut2.types.begin(); ti != ut2.types.end(); ti++) {
+      t->add(**ti);
+    }
+  }
+  return simplify(*t);
+}
+
+
+/* Constructs a singleton union type. */
+UnionType::UnionType(const SimpleType& type) {
+  types.insert(&type);
+}
+
+
+/* Adds the given simple type to this union. */
+void UnionType::add(const SimpleType& t) {
+  if (!subtype(t)) {
+    TypeSetIter ti =
+      find_if(types.begin(), types.end(), bind1st(Subtype(), &t));
+    while (ti != types.end()) {
+      types.erase(ti);
+      ti = find_if(types.begin(), types.end(), bind1st(Subtype(), &t));
+    }
+    types.insert(&t);
+  }
+}
 
 
 /* Checks if this type is a subtype of the given type. */
@@ -155,83 +168,8 @@ bool UnionType::equals(const EqualityComparable& o) const {
 /* Prints this object on the given stream. */
 void UnionType::print(ostream& os) const {
   os << "(either";
-  for (TypeListIter ti = types.begin(); ti != types.end(); ti++) {
+  for (TypeSetIter ti = types.begin(); ti != types.end(); ti++) {
     os << ' ' << **ti;
   }
   os << ")";
 }
-
-
-/* Returns the union of this type and the given type. */
-const Type& UnionType::add(const Type& t) const {
-  cout << "UT::add " << *this << ' ' << t << endl;
-  const SimpleType* st = dynamic_cast<const SimpleType*>(&t);
-  if (st != NULL) {
-    if (subtype(t)) {
-      return *this;
-    } else {
-      TypeList& new_types = *(new TypeList());
-      remove_copy_if(types.begin(), types.end(), back_inserter(new_types),
-		     bind1st(Subtype(), &t));
-      new_types.push_back(st);
-      if (new_types.size() == 1) {
-	return *new_types.back();
-      } else {
-	sort(new_types.begin(), new_types.end(),
-	     less<const LessThanComparable*>());
-	return *(new UnionType(new_types));
-      }
-    }
-  } else {
-    const UnionType& ut = dynamic_cast<const UnionType&>(t);
-    TypeList& new_types = *(new TypeList());
-    remove_copy_if(types.begin(), types.end(), back_inserter(new_types),
-		   bind1st(Subtype(), &t));
-    remove_copy_if(ut.types.begin(), ut.types.end(), back_inserter(new_types),
-		   bind1st(Subtype(), this));
-    sort(new_types.begin(), new_types.end(),
-	 less<const LessThanComparable*>());
-    if (new_types.empty()) {
-      return SimpleType::OBJECT;
-    } else if (new_types.size() == 1) {
-      return *new_types.back();
-    } else {
-      sort(new_types.begin(), new_types.end(),
-	   less<const LessThanComparable*>());
-      return *(new UnionType(new_types));
-    }
-  }
-}
-
-
-/* Removes the given type from this type. */
-const Type& UnionType::subtract(const Type& t) const {
-  if (!subtype(t)) {
-    return *this;
-  } else {
-    TypeList& new_types = *(new TypeList());
-    remove_copy_if(types.begin(), types.end(), back_inserter(new_types),
-		   bind2nd(Subtype(), &t));
-    if (new_types.empty()) {
-      return SimpleType::OBJECT;
-    } else if (new_types.size() == 1) {
-      return *new_types.back();
-    } else {
-      sort(new_types.begin(), new_types.end(),
-	   less<const LessThanComparable*>());
-      return *(new UnionType(new_types));
-    }
-  }
-}
-
-
-/* ====================================================================== */
-/* TypeList */
-
-/* Constructs an empty type list. */
-TypeList::TypeList() {}
-
-
-/* Constructs a type list with a single type. */
-TypeList::TypeList(const SimpleType* type)
-  : Vector<const SimpleType*>(1, type) {}

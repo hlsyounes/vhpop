@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: problems.h,v 1.11 2002-01-25 18:23:46 lorens Exp $
+ * $Id: problems.h,v 3.1 2002-03-18 09:32:55 lorens Exp $
  */
 #ifndef PROBLEMS_H
 #define PROBLEMS_H
@@ -36,9 +36,9 @@ struct NameList;
 /*
  * Problem definition.
  */
-struct Problem : public Printable, public gc {
+struct Problem : public Printable {
   /* Table of problem definitions. */
-  struct ProblemMap : public HashMap<string, const Problem*> {
+  struct ProblemMap : public hash_map<string, const Problem*> {
   };
 
   /* Iterator for problem tables. */
