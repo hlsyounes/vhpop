@@ -1,5 +1,5 @@
 /*
- * $Id: formulas.cc,v 1.8 2001-08-20 04:07:08 lorens Exp $
+ * $Id: formulas.cc,v 1.9 2001-09-03 20:04:38 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -162,15 +162,6 @@ const Name& Name::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Checks if this term is equivalent to the given term; two terms are
-   equivalent if they both are the same name, or if they are variables
-   (variable names only matter for equality and not for
-   equivalence). */
-bool Name::equivalent(const Term& t) const {
-  return *this == t;
-}
-
-
 /* Checks if this term equals the given term. */
 bool Name::equals(const Term& t) const {
   const Name* nt = dynamic_cast<const Name*>(&t);
@@ -186,15 +177,8 @@ const Variable& Variable::instantiation(size_t id) const {
 
 /* Returns this term subject to the given substitutions. */
 const Term& Variable::substitution(const SubstitutionList& subst) const {
-  SubstitutionList::const_iterator si =
-    find_if(subst.begin(), subst.end(), bind2nd(Substitutes(), this));
+  SLCI si = find_if(subst.begin(), subst.end(), bind2nd(Substitutes(), this));
   return (si != subst.end()) ? (*si)->term : *this;
-}
-
-
-/* Checks if this term is equivalent to the given term. */
-bool Variable::equivalent(const Term& t) const {
-  return dynamic_cast<const Variable*>(&t) != NULL;
 }
 
 
@@ -238,22 +222,6 @@ const TermList& TermList::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Checks if this term list is equivalent to the given term list. */
-bool TermList::equivalent(const TermList& terms) const {
-  if (size() != terms.size()) {
-    return false;
-  } else {
-    for (const_iterator ti = begin(), tj = terms.begin();
-	 ti != end(); ti++, tj++) {
-      if (!(*ti)->equivalent(**tj)) {
-	return false;
-      }
-    }
-    return true;
-  }
-}
-
-
 /* Equality operator for term lists. */
 bool TermList::operator==(const TermList& terms) const {
   if (size() != terms.size()) {
@@ -273,6 +241,16 @@ bool TermList::operator==(const TermList& terms) const {
 /* Inequality operator for term lists. */
 bool TermList::operator!=(const TermList& terms) const {
   return !(*this == terms);
+}
+
+size_t hash<TermList>::operator()(const TermList& terms) const {
+  hash<Term> h;
+  size_t v = 0;
+  for (TermList::const_iterator ti = terms.begin();
+       ti != terms.end(); ti++) {
+    v = 5*v + h(**ti);
+  }
+  return v;
 }
 
 
@@ -435,11 +413,12 @@ FormulaList::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Fills the provided list with goals achievable by the formulas in
+/* Fills the provided lists with goals achievable by the formulas in
    this list. */
-void FormulaList::achievable_goals(FormulaList& goals) const {
+void FormulaList::achievable_goals(FormulaList& goals,
+				   FormulaList& neg_goals) const {
   for (const_iterator i = begin(); i != end(); i++) {
-    (*i)->achievable_goals(goals);
+    (*i)->achievable_goals(goals, neg_goals);
   }
 }
 
@@ -500,8 +479,10 @@ const Formula& AtomicFormula::instantiation(const SubstitutionList& subst,
     if (problem.init != NULL) {
       const FormulaList& adds = problem.init->add_list;
       for (FLCI fi = adds.begin(); fi != adds.end(); fi++) {
-	if (Bindings().unify(f, **fi)) {
+	if (f == **fi) {
 	  return TRUE;
+	} else if (Bindings().unify(f, **fi)) {
+	  return f;
 	}
       }
     }
@@ -534,8 +515,9 @@ Cost AtomicFormula::cost(const hash_map<const Formula*, Cost>& atom_cost,
 }
 
 
-/* Fills the provided list with goals achievable by this formula. */
-void AtomicFormula::achievable_goals(FormulaList& goals) const {
+/* Fills the provided lists with goals achievable by this formula. */
+void AtomicFormula::achievable_goals(FormulaList& goals,
+				     FormulaList& neg_goals) const {
   goals.push_back(this);
 }
 
@@ -578,7 +560,7 @@ const Formula& AtomicFormula::negation() const {
 
 /* Returns the hash value of this formula. */
 size_t AtomicFormula::hash_value() const {
-  return hash<string>()(predicate) + hash<TermList>()(terms);
+  return 5*hash<string>()(predicate) + hash<TermList>()(terms);
 }
 
 
@@ -607,9 +589,10 @@ bool Negation::negates(const Formula& f) const {
 }
 
 
-/* Fills the provided list with goals achievable by this formula. */
-void Negation::achievable_goals(FormulaList& goals) const {
-  goals.push_back(this);
+/* Fills the provided lists with goals achievable by this formula. */
+void Negation::achievable_goals(FormulaList& goals,
+				FormulaList& neg_goals) const {
+  neg_goals.push_back(this);
 }
 
 
@@ -787,9 +770,10 @@ Cost Conjunction::cost(const hash_map<const Formula*, Cost>& atom_cost,
 }
 
 
-/* Fills the provided list with goals achievable by this formula. */
-void Conjunction::achievable_goals(FormulaList& goals) const {
-  conjuncts.achievable_goals(goals);
+/* Fills the provided lists with goals achievable by this formula. */
+void Conjunction::achievable_goals(FormulaList& goals,
+				   FormulaList& neg_goals) const {
+  conjuncts.achievable_goals(goals, neg_goals);
 }
 
 
@@ -869,9 +853,10 @@ Cost Disjunction::cost(const hash_map<const Formula*, Cost>& atom_cost,
 }
 
 
-/* Fills the provided list with goals achievable by this formula. */
-void Disjunction::achievable_goals(FormulaList& goals) const {
-  disjuncts.achievable_goals(goals);
+/* Fills the provided lists with goals achievable by this formula. */
+void Disjunction::achievable_goals(FormulaList& goals,
+				   FormulaList& neg_goals) const {
+  disjuncts.achievable_goals(goals, neg_goals);
 }
 
 
@@ -907,15 +892,6 @@ const Formula& Disjunction::negation() const {
     c = &(*c && !**fi);
   }
   return *c;
-}
-
-
-/* Fills the provided sets with predicates achievable by this
-   formula. */
-void
-QuantifiedFormula::achievable_predicates(hash_set<string>& preds,
-					 hash_set<string>& neg_preds) const {
-  body.achievable_predicates(preds, neg_preds);
 }
 
 
