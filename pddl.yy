@@ -2,9 +2,10 @@
 /*
  * PDDL parser.
  *
- * $Id: pddl.yy,v 1.23 2001-12-27 19:58:10 lorens Exp $
+ * $Id: pddl.yy,v 1.24 2001-12-28 17:55:29 lorens Exp $
  */
 %{
+#include <typeinfo>
 #include <utility>
 #include <cstdlib>
 #include "requirements.h"
@@ -526,7 +527,7 @@ formula : atomic_term_formula
         | '(' NOT formula ')'
             {
 	      if (!requirements->disjunctive_preconditions
-		  && dynamic_cast<const Equality*>($3) == NULL) {
+		  && typeid(*$3) != typeid(Equality)) {
 		yywarning("assuming `:disjunctive-preconditions' "
 			  "requirement.");
 	      }
