@@ -1,5 +1,5 @@
 /*
- * $Id: heuristics.cc,v 1.2 2001-10-06 00:35:15 lorens Exp $
+ * $Id: heuristics.cc,v 1.3 2001-10-06 04:22:40 lorens Exp $
  */
 #include <hash_map>
 #include "heuristics.h"
@@ -44,12 +44,12 @@ Heuristic& Heuristic::operator=(const string& name) {
 void Heuristic::compute_cost(hash_map<const Formula*, Cost>& atom_cost,
 			     const Problem& problem,
 			     const ActionList& actions) const {
-  FormulaList goals;
+  AtomList goals;
   FormulaList neg_goals;
   if (problem.init != NULL) {
     problem.init->achievable_goals(goals, neg_goals);
-    for (FLCI fi = goals.begin(); fi != goals.end(); fi++) {
-      const Atom& atom = dynamic_cast<const Atom&>(**fi);
+    for (AtomListIter gi = goals.begin(); gi != goals.end(); gi++) {
+      const Atom& atom = **gi;
       if (!problem.domain.static_predicate(atom.predicate)) {
 	atom_cost[&atom] = Cost(0, 1);
       }
@@ -69,13 +69,13 @@ void Heuristic::compute_cost(hash_map<const Formula*, Cost>& atom_cost,
 	goals.clear();
 	neg_goals.clear();
 	a.achievable_goals(goals, neg_goals);
-	for (FLCI fi = goals.begin(); fi != goals.end(); fi++) {
+	for (AtomListIter gi = goals.begin(); gi != goals.end(); gi++) {
 	  hash_map<const Formula*, Cost>::const_iterator ci =
-	    new_costs.find(*fi);
+	    new_costs.find(*gi);
 	  if (ci == new_costs.end() || c < (*ci).second) {
-	    ci = atom_cost.find(*fi);
+	    ci = atom_cost.find(*gi);
 	    if (ci == atom_cost.end() || c < (*ci).second) {
-	      new_costs[*fi] = c;
+	      new_costs[*gi] = c;
 	      changed = true;
 	    }
 	  }

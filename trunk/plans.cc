@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.21 2001-10-06 00:55:24 lorens Exp $
+ * $Id: plans.cc,v 1.22 2001-10-06 04:23:09 lorens Exp $
  */
 #include <queue>
 #include <hash_set>
@@ -347,10 +347,14 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p, int v) {
   if (params.ground_actions) {
     for (ActionList::const_iterator i = all_actions.begin();
 	 i != all_actions.end(); i++) {
-      FormulaList goals;
-      (*i)->achievable_goals(goals, goals);
-      for (FLCI j = goals.begin(); j != goals.end(); j++) {
-	achieves[*j].push_back(*i);
+      AtomList add_list;
+      FormulaList del_list;
+      (*i)->achievable_goals(add_list, del_list);
+      for (AtomListIter gi = add_list.begin(); gi != add_list.end(); gi++) {
+	achieves[*gi].push_back(*i);
+      }
+      for (FLCI gi = del_list.begin(); gi != del_list.end(); gi++) {
+	achieves[*gi].push_back(*i);
       }
     }
     if (verbosity > 0) {

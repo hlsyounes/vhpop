@@ -2,7 +2,7 @@
 /*
  * Domain descriptions.
  *
- * $Id: domains.h,v 1.16 2001-10-06 00:35:04 lorens Exp $
+ * $Id: domains.h,v 1.17 2001-10-06 04:23:46 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -24,6 +24,7 @@ struct NameList;
 struct NameMap;
 struct Formula;
 struct FormulaList;
+struct AtomList;
 struct Atom;
 struct Problem;
 
@@ -101,8 +102,7 @@ struct Effect : public Printable {
   const Effect& substitution(const SubstitutionList& subst) const;
 
   /* Fills the provided lists with goals achievable by this effect. */
-  void achievable_goals(FormulaList& goals,
-			FormulaList& neg_goals) const;
+  void achievable_goals(AtomList& goals, FormulaList& neg_goals) const;
 
   /* Fills the provided sets with predicates achievable by the
      effect. */
@@ -140,8 +140,7 @@ struct EffectList : public gc, vector<const Effect*, container_alloc> {
 
   /* Fills the provided lists with goals achievable by the effect in
      this list. */
-  void achievable_goals(FormulaList& goals,
-			FormulaList& neg_goals) const;
+  void achievable_goals(AtomList& goals, FormulaList& neg_goals) const;
 
   /* Fills the provided sets with predicates achievable by the effects
      in this list. */
@@ -174,8 +173,7 @@ struct Action : public Printable {
 			      const Problem& problem) const = 0;
 
   /* Fills the provided lists with goals achievable by this action. */
-  void achievable_goals(FormulaList& goals,
-			FormulaList& neg_goals) const;
+  void achievable_goals(AtomList& goals, FormulaList& neg_goals) const;
 
   /* Fills the provided sets with predicates achievable by this
      action. */
@@ -311,7 +309,7 @@ protected:
   virtual size_t hash_value() const;
 
 private:
-  /* Atomic formula representing this ground action. */
+  /* Atomic representation of this ground action. */
   const Atom& formula;
 };
 

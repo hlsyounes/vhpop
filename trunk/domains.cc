@@ -1,5 +1,5 @@
 /*
- * $Id: domains.cc,v 1.15 2001-10-06 00:35:20 lorens Exp $
+ * $Id: domains.cc,v 1.16 2001-10-06 04:23:28 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -138,8 +138,7 @@ const Effect& Effect::substitution(const SubstitutionList& subst) const {
 
 
 /* Fills the provided lists with goals achievable by this effect. */
-void Effect::achievable_goals(FormulaList& goals,
-			      FormulaList& neg_goals) const {
+void Effect::achievable_goals(AtomList& goals, FormulaList& neg_goals) const {
   add_list.achievable_goals(goals, neg_goals);
 }
 
@@ -206,7 +205,7 @@ EffectList::substitution(const SubstitutionList& subst) const {
 
 /* Fills the provided lists with goals achievable by the effect in
    this list. */
-void EffectList::achievable_goals(FormulaList& goals,
+void EffectList::achievable_goals(AtomList& goals,
 				  FormulaList& neg_goals) const {
   for (const_iterator i = begin(); i != end(); i++) {
     (*i)->achievable_goals(goals, neg_goals);
@@ -231,8 +230,7 @@ Action::Action(const Formula& precondition, const EffectList& effects)
 
 
 /* Fills the provided lists with goals achievable by this action. */
-void Action::achievable_goals(FormulaList& goals,
-			      FormulaList& neg_goals) const {
+void Action::achievable_goals(AtomList& goals, FormulaList& neg_goals) const {
   effects.achievable_goals(goals, neg_goals);
 }
 
