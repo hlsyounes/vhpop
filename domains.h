@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.h,v 3.11 2002-06-28 20:13:33 lorens Exp $
+ * $Id: domains.h,v 3.12 2002-06-30 14:56:42 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -26,6 +26,8 @@
 #include "requirements.h"
 #include "types.h"
 #include "formulas.h"
+
+using namespace std;
 
 struct Problem;
 
@@ -91,22 +93,9 @@ struct EffectList;
 /*
  * Effect definition.
  */
-struct Effect : public Printable {
+struct Effect {
   /* Possible temporal annotations for effects. */
   typedef enum { AT_START, AT_END } EffectTime;
-
-  /* List of universally quantified variables for this effect. */
-  const VariableList& forall;
-  /* Condition for this effect, or TRUE if unconditional effect. */
-  const Formula& condition;
-  /* Condition that must hold for this effect to be considered for linking. */
-  const Formula& link_condition;
-  /* Add list for this effect. */
-  const AtomList& add_list;
-  /* Delete list for this effect. */
-  const NegationList& del_list;
-  /* Temporal annotation for this effect. */
-  const EffectTime when;
 
   /* Constructs an unconditional effect. */
   Effect(const AtomList& add_list, const NegationList& del_list,
@@ -127,6 +116,25 @@ struct Effect : public Printable {
 	 const AtomList& add_list, const NegationList& del_list,
 	 EffectTime when);
 
+  /* Returns the universally quantified variables for this effect. */
+  const VariableList& forall() const { return *forall_; }
+
+  /* Returns the condition for this effect. */
+  const Formula& condition() const { return *condition_; }
+
+  /* Returns the condition that must hold for this effect to be
+     considered for linking. */
+  const Formula& link_condition() const { return *link_condition_; }
+
+  /* Returns the add list for this effect. */
+  const AtomList& add_list() const { return *add_list_; }
+
+  /* Returns the delete list for this effect. */
+  const NegationList& del_list() const { return *del_list_; }
+
+  /* Returns the temporal annotation for this effect. */
+  EffectTime when() const { return when_; }
+
   /* Returns an instantiation of this effect. */
   const Effect& instantiation(size_t id) const;
 
@@ -145,25 +153,40 @@ struct Effect : public Printable {
   /* Returns a copy of this effect with a new link condition. */
   const Effect& new_link_condition(const Formula& cond) const;
 
-protected:
-  /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const;
-
 private:
   /* Constructs a universally quantified conditional effect with a
      link condition. */
   Effect(const VariableList& forall, const Formula& condition,
 	 const AtomList& add_list, const NegationList& del_list,
 	 EffectTime when, const Formula& link_cond);
+
+  /* List of universally quantified variables for this effect. */
+  const VariableList* forall_;
+  /* Condition for this effect, or TRUE if unconditional effect. */
+  const Formula* condition_;
+  /* Condition that must hold for this effect to be considered for linking. */
+  const Formula* link_condition_;
+  /* Add list for this effect. */
+  const AtomList* add_list_;
+  /* Delete list for this effect. */
+  const NegationList* del_list_;
+  /* Temporal annotation for this effect. */
+  EffectTime when_;
 };
 
+/* Output operator for effects. */
+ostream& operator<<(ostream& os, const Effect& e);
+
+
+/* ====================================================================== */
+/* EffectList */
 
 /*
  * List of effect definitions.
  */
 struct EffectList : public vector<const Effect*> {
   /* An empty effect list. */
-  static const EffectList& EMPTY;
+  static const EffectList EMPTY;
 
   /* Constructs an empty effect list. */
   EffectList();
@@ -194,22 +217,30 @@ struct EffectList : public vector<const Effect*> {
 typedef EffectList::const_iterator EffectListIter;
 
 
+/* ====================================================================== */
+/* Action */
+
 /*
  * Abstract action definition.
  */
 struct Action : public Printable {
-  /* Name of this action. */
-  const string name;
-  /* Action precondition. */
-  const Formula& precondition;
+  /* Returns the name of this action. */
+  const string& name() const { return name_; }
+
+  /* Return the precondition of this action. */
+  const Formula& precondition() const { return *precondition_; }
+
   /* List of action effects. */
-  const EffectList& effects;
+  const EffectList& effects() const { return *effects_; }
+
   /* Whether this is a durative action. */
-  bool durative;
+  bool durative() const { return durative_; }
+
   /* Minimum duration of this action. */
-  float min_duration;
+  float min_duration() const { return min_duration_; }
+
   /* Maximum duration of this action. */
-  float max_duration;
+  float max_duration() const { return max_duration_; }
 
   /* Returns a formula representing this action. */
   virtual const Atom& action_formula() const = 0;
@@ -227,8 +258,25 @@ protected:
   /* Constructs a durative action. */
   Action(const string& name, const Formula& precondition,
 	 const EffectList& effects, float min_duration, float max_duration);
+
+private:
+  /* Name of this action. */
+  string name_;
+  /* Action precondition. */
+  const Formula* precondition_;
+  /* List of action effects. */
+  const EffectList* effects_;
+  /* Whether this is a durative action. */
+  bool durative_;
+  /* Minimum duration of this action. */
+  float min_duration_;
+  /* Maximum duration of this action. */
+  float max_duration_;
 };
 
+
+/* ====================================================================== */
+/* ActionList */
 
 /*
  * List of action definitions.
@@ -240,6 +288,9 @@ struct ActionList : public vector<const Action*> {
 typedef ActionList::const_iterator ActionListIter;
 
 
+/* ====================================================================== */
+/* ActionSchema */
+
 struct GroundActionList;
 struct Domain;
 
@@ -247,9 +298,6 @@ struct Domain;
  * Action schema definition.
  */
 struct ActionSchema : public Action {
-  /* Action schema parameters. */
-  const VariableList& parameters;
-
   /* Constructs an action schema. */
   ActionSchema(const string& name, const VariableList& parameters,
 	       const Formula& precondition, const EffectList& effects);
@@ -258,6 +306,9 @@ struct ActionSchema : public Action {
   ActionSchema(const string& name, const VariableList& parameters,
 	       const Formula& precondition, const EffectList& effects,
 	       float min_duration, float max_duration);
+
+  /* Returns the parameters of this action schema. */
+  const VariableList& parameters() const { return *parameters_; }
 
   /* Returns a formula representing this action. */
   virtual const Atom& action_formula() const;
@@ -273,8 +324,15 @@ struct ActionSchema : public Action {
 protected:
   /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
+
+private:
+  /* Action schema parameters. */
+  const VariableList* parameters_;
 };
 
+
+/* ====================================================================== */
+/* ActionSchemaMap */
 
 /*
  * Table of action schema definitions.
@@ -286,13 +344,13 @@ struct ActionSchemaMap : public hash_map<string, const ActionSchema*> {
 typedef ActionSchemaMap::const_iterator ActionSchemaMapIter;
 
 
+/* ====================================================================== */
+/* GroundAction */
+
 /*
  * Ground action.
  */
 struct GroundAction : public Action {
-  /* Action arguments. */
-  const NameList& arguments;
-
   /* Constructs a ground action, assuming arguments are names. */
   GroundAction(const string& name, const NameList& arguments,
 	       const Formula& precondition, const EffectList& effects);
@@ -302,6 +360,9 @@ struct GroundAction : public Action {
 	       const Formula& precondition, const EffectList& effects,
 	       float min_duration, float max_duration);
 
+  /* Action arguments. */
+  const NameList& arguments() const { return *arguments_; }
+
   /* Returns a formula representing this action. */
   virtual const Atom& action_formula() const;
 
@@ -310,6 +371,8 @@ protected:
   virtual void print(ostream& os) const;
 
 private:
+  /* Action arguments. */
+  const NameList* arguments_;
   /* Atomic representation of this ground action. */
   mutable const Atom* formula_;
 };

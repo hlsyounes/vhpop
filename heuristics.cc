@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 3.14 2002-06-28 20:13:58 lorens Exp $
+ * $Id: heuristics.cc,v 3.15 2002-06-30 14:56:44 lorens Exp $
  */
 #include <set>
 #include <typeinfo>
@@ -62,7 +62,7 @@ formula_value(const Formula& formula, size_t step_id, const Plan& plan,
 	      if (plan.orderings().possibly_before(step.id(), et,
 						   step_id, gt)) {
 		if (typeid(*literal) == typeid(Atom)) {
-		  const AtomList& adds = e.add_list;
+		  const AtomList& adds = e.add_list();
 		  for (AtomListIter fi = adds.begin();
 		       fi != adds.end(); fi++) {
 		    if ((bindings != NULL && bindings->unify(*literal, **fi))
@@ -72,7 +72,7 @@ formula_value(const Formula& formula, size_t step_id, const Plan& plan,
 		    }
 		  }
 		} else {
-		  const NegationList& dels = e.del_list;
+		  const NegationList& dels = e.del_list();
 		  for (NegationListIter fi = dels.begin();
 		       fi != dels.end(); fi++) {
 		    if ((bindings != NULL && bindings->unify(*literal, **fi))
@@ -467,10 +467,10 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
   for (size_t i = 0; i < nactions; ) {
     const Action& action = *actions[i];
     bool useful_effect = false;
-    for (EffectListIter ei = action.effects.begin();
-	 ei != action.effects.end() && ! useful_effect; ei++) {
+    for (EffectListIter ei = action.effects().begin();
+	 ei != action.effects().end() && ! useful_effect; ei++) {
       const Effect& effect = **ei;
-      if (!effect.link_condition.contradiction()) {
+      if (!effect.link_condition().contradiction()) {
 	useful_effect = true;
       }
     }
@@ -486,8 +486,8 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
   /*
    * Add initial conditions at level 0.
    */
-  for (AtomListIter gi = problem.init().add_list.begin();
-       gi != problem.init().add_list.end(); gi++) {
+  for (AtomListIter gi = problem.init().add_list().begin();
+       gi != problem.init().add_list().end(); gi++) {
     const Atom& atom = **gi;
     if (problem.domain().static_predicate(atom.predicate())) {
       atom_values.insert(make_pair(&atom, HeuristicValue::ZERO));
@@ -532,35 +532,35 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
       const GroundAction& action = **ai;
       HeuristicValue pre_value;
       HeuristicValue start_value;
-      action.precondition.heuristic_value(pre_value, start_value, *this);
+      action.precondition().heuristic_value(pre_value, start_value, *this);
       if (!start_value.infinite()) {
 	/* Precondition is achievable at this level. */
 	if (!pre_value.infinite()
 	    && applicable_actions.find(&action) == applicable_actions.end()) {
 	  /* First time this action is applicable. */
 	  applicable_actions.insert(&action);
-	  if (domain_constraints && !action.arguments.empty()) {
-	    ActionDomainMapIter di = action_domains.find(action.name);
+	  if (domain_constraints && !action.arguments().empty()) {
+	    ActionDomainMapIter di = action_domains.find(action.name());
 	    if (di == action_domains.end()) {
-	      ActionDomain* domain = new ActionDomain(action.arguments);
-	      action_domains.insert(make_pair(action.name, domain));
+	      ActionDomain* domain = new ActionDomain(action.arguments());
+	      action_domains.insert(make_pair(action.name(), domain));
 	    } else {
-	      (*di).second->add(action.arguments);
+	      (*di).second->add(action.arguments());
 	    }
 	  }
 	}
-	for (EffectListIter ei = action.effects.begin();
-	     ei != action.effects.end(); ei++) {
+	for (EffectListIter ei = action.effects().begin();
+	     ei != action.effects().end(); ei++) {
 	  const Effect& effect = **ei;
-	  if (effect.when == Effect::AT_END && pre_value.infinite()) {
+	  if (effect.when() == Effect::AT_END && pre_value.infinite()) {
 	    continue;
 	  }
 	  HeuristicValue cond_value;
-	  effect.condition.heuristic_value(cond_value, *this);
+	  effect.condition().heuristic_value(cond_value, *this);
 	  if (!cond_value.infinite()
-	      && !effect.link_condition.contradiction()) {
+	      && !effect.link_condition().contradiction()) {
 	    /* Effect condition is achievable at this level. */
-	    if (effect.when == Effect::AT_START) {
+	    if (effect.when() == Effect::AT_START) {
 	      cond_value += start_value;
 	    } else {
 	      cond_value += pre_value;
@@ -570,8 +570,8 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
 	    /*
 	     * Update heuristic values of atoms in add list of effect.
 	     */
-	    for (AtomListIter gi = effect.add_list.begin();
-		 gi != effect.add_list.end(); gi++) {
+	    for (AtomListIter gi = effect.add_list().begin();
+		 gi != effect.add_list().end(); gi++) {
 	      const Atom& atom = **gi;
 	      if (achieves.find(make_pair(&atom, &action)) == achieves.end()) {
 		achieves.insert(make_pair(&atom, &action));
@@ -607,8 +607,8 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
 	     * Update heuristic values of negated atoms in delete list
 	     * of effect.
 	     */
-	    for (NegationListIter gi = effect.del_list.begin();
-		 gi != effect.del_list.end(); gi++) {
+	    for (NegationListIter gi = effect.del_list().begin();
+		 gi != effect.del_list().end(); gi++) {
 	      const Negation& negation = **gi;
 	      if (achieves.find(make_pair(&negation, &action))
 		  == achieves.end()) {

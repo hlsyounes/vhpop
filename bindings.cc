@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.cc,v 3.15 2002-06-12 23:10:12 lorens Exp $
+ * $Id: bindings.cc,v 3.16 2002-06-30 14:57:01 lorens Exp $
  */
 #include <typeinfo>
 #include "bindings.h"
@@ -621,12 +621,12 @@ const Bindings* Bindings::make_bindings(const StepChain* steps,
       seen_steps.insert(step.id());
       const ActionSchema* action =
 	dynamic_cast<const ActionSchema*>(step.action());
-      if (action != NULL && !action->parameters.empty()) {
-	const ActionDomain* domain = pg->action_domain(action->name);
+      if (action != NULL && !action->parameters().empty()) {
+	const ActionDomain* domain = pg->action_domain(action->name());
 	if (domain != NULL) {
 	  step_domains =
 	    new StepDomainChain(StepDomain(step.id(),
-					   action->parameters.instantiation(step.id()),
+					   action->parameters().instantiation(step.id()),
 					   *domain),
 				step_domains);
 	}
@@ -1282,16 +1282,16 @@ const Bindings* Bindings::add(size_t step_id, const Action* step_action,
     return this;
   }
   const ActionSchema* action = dynamic_cast<const ActionSchema*>(step_action);
-  if (action == NULL || action->parameters.empty()) {
+  if (action == NULL || action->parameters().empty()) {
     return this;
   }
-  const ActionDomain* domain = pg.action_domain(action->name);
+  const ActionDomain* domain = pg.action_domain(action->name());
   if (domain == NULL) {
     return NULL;
   }
   const StepDomainChain* step_domains =
     new StepDomainChain(StepDomain(step_id,
-				   action->parameters.instantiation(step_id),
+				   action->parameters().instantiation(step_id),
 				   *domain),
 			step_domains_);
   const VarsetChain* varsets = varsets_;
