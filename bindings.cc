@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.cc,v 6.9 2003-09-05 16:18:23 lorens Exp $
+ * $Id: bindings.cc,v 6.10 2003-12-05 21:07:55 lorens Exp $
  */
 #include "bindings.h"
 #include "plans.h"
@@ -52,15 +52,16 @@ struct VariableSet : public std::set<StepVariable> {
 struct Varset {
   /* Constructs a varset. */
   Varset(Object constant, const Chain<StepVariable>* cd_set,
-	 const Chain<StepVariable>* ncd_set)
-    : constant_(constant), cd_set_(cd_set), ncd_set_(ncd_set) {
+	 const Chain<StepVariable>* ncd_set, Type type)
+    : constant_(constant), cd_set_(cd_set), ncd_set_(ncd_set), type_(type) {
     Chain<StepVariable>::register_use(cd_set_);
     Chain<StepVariable>::register_use(ncd_set_);
   }
 
   /* Constructs a varset. */
   Varset(const Varset& vs)
-    : constant_(vs.constant_), cd_set_(vs.cd_set_), ncd_set_(vs.ncd_set_) {
+    : constant_(vs.constant_), cd_set_(vs.cd_set_), ncd_set_(vs.ncd_set_),
+      type_(vs.type_) {
     Chain<StepVariable>::register_use(cd_set_);
     Chain<StepVariable>::register_use(ncd_set_);
   }
@@ -107,26 +108,39 @@ struct Varset {
   /* Returns the varset obtained by adding the given name to this
      varset, or NULL if the name is inconsistent with the current
      constant. */
-  const Varset* add(const Chain<Varset>*& vsc, Object name) const {
+  const Varset* add(const Chain<Varset>*& vsc, Object name,
+		    const TypeTable& types, const TermTable& terms) const {
     if (constant() != Object(NULL_TERM)) {
       return (constant() == name) ? this : NULL;
     } else {
-      vsc = new Chain<Varset>(Varset(name, cd_set(), ncd_set()), vsc);
-      return &vsc->head;
+      Type ot = terms.type(name);
+      if (types.subtype(ot, type_)) {
+	vsc = new Chain<Varset>(Varset(name, cd_set(), ncd_set(), ot), vsc);
+	return &vsc->head;
+      } else {
+	return NULL;
+      }
     }
   }
 
   /* Returns the varset obtained by adding the given term to this
      varset, or NULL if the term is excluded from this varset. */
-  const Varset* add(const Chain<Varset>*& vsc, Term t, size_t step_id) const {
-    if (is_object(t)) {
-      return add(vsc, t);
-    } else if (excludes(t, step_id)) {
+  const Varset* add(const Chain<Varset>*& vsc, Term term, size_t step_id,
+		    const TypeTable& types, const TermTable& terms) const {
+    if (is_object(term)) {
+      return add(vsc, term, types, terms);
+    } else if (excludes(term, step_id)) {
       return NULL;
     } else {
+      Type tt = terms.type(term);
+      if (types.subtype(type_, tt)) {
+	tt = type_;
+      } else if (!types.subtype(tt, type_)) {
+	return NULL;
+      }
       const Chain<StepVariable>* new_cd =
-	new Chain<StepVariable>(std::make_pair(t, step_id), cd_set());
-      vsc = new Chain<Varset>(Varset(constant(), new_cd, ncd_set()), vsc);
+	new Chain<StepVariable>(std::make_pair(term, step_id), cd_set());
+      vsc = new Chain<Varset>(Varset(constant(), new_cd, ncd_set(), tt), vsc);
       return &vsc->head;
     }
   }
@@ -138,15 +152,24 @@ struct Varset {
 			 Variable var, size_t step_id) const {
     const Chain<StepVariable>* new_ncd =
       new Chain<StepVariable>(std::make_pair(var, step_id), ncd_set());
-    vsc = new Chain<Varset>(Varset(constant(), cd_set(), new_ncd), vsc);
+    vsc = new Chain<Varset>(Varset(constant(), cd_set(), new_ncd, type_), vsc);
     return &vsc->head;
   }
 
   /* Returns the combination of this and the given varset, or NULL if
      the combination is inconsistent. */
-  const Varset* combine(const Chain<Varset>*& vsc, const Varset& vs) const {
+  const Varset* combine(const Chain<Varset>*& vsc, const Varset& vs,
+			const TypeTable& types) const {
     if (constant() != Object(NULL_TERM) && vs.constant() != Object(NULL_TERM)
 	&& constant() != vs.constant()) {
+      return NULL;
+    }
+    Type type;
+    if (types.subtype(type_, vs.type_)) {
+      type = type_;
+    } else if (types.subtype(vs.type_, type_)) {
+      type = vs.type_;
+    } else {
       return NULL;
     }
     Object comb_const =
@@ -177,29 +200,37 @@ struct Varset {
 	comb_ncd = new Chain<StepVariable>(step_var, comb_ncd);
       }
     }
-    vsc = new Chain<Varset>(Varset(comb_const, comb_cd, comb_ncd), vsc);
+    vsc = new Chain<Varset>(Varset(comb_const, comb_cd, comb_ncd, type), vsc);
     return &vsc->head;
   }
 
   /* Returns the varset representing the given equality binding. */
   static const Varset* make(const Chain<Varset>*& vsc, const Binding& b,
+			    const TypeTable& types, const TermTable& terms,
 			    bool reverse = false) {
     if (b.equality()) {
       const Chain<StepVariable>* cd_set =
 	new Chain<StepVariable>(std::make_pair(b.var(), b.var_id()), NULL);
+      Type tt = terms.type(b.term());
       if (is_variable(b.term())) {
+	Type vt = terms.type(b.var());
+	if (types.subtype(vt, tt)) {
+	  tt = vt;
+	}
 	cd_set = new Chain<StepVariable>(std::make_pair(b.term(), b.term_id()),
 					 cd_set);
-	vsc = new Chain<Varset>(Varset(NULL_TERM, cd_set, NULL), vsc);
+	vsc = new Chain<Varset>(Varset(NULL_TERM, cd_set, NULL, tt), vsc);
       } else {
-	vsc = new Chain<Varset>(Varset(b.term(), cd_set, NULL), vsc);
+	vsc = new Chain<Varset>(Varset(b.term(), cd_set, NULL, tt), vsc);
       }
       return &vsc->head;
     } else {
       Object constant;
       const Chain<StepVariable>* cd_set;
       const Chain<StepVariable>* ncd_set;
+      Type type;
       if (reverse) {
+	type = terms.type(b.term());
 	if (is_variable(b.term())) {
 	  constant = NULL_TERM;
 	  cd_set = new Chain<StepVariable>(std::make_pair(b.term(),
@@ -212,6 +243,7 @@ struct Varset {
 	ncd_set = new Chain<StepVariable>(std::make_pair(b.var(), b.var_id()),
 					  NULL);
       } else { /* !reverse */
+	type = terms.type(b.var());
 	if (is_variable(b.term())) {
 	  constant = NULL_TERM;
 	  cd_set = new Chain<StepVariable>(std::make_pair(b.var(), b.var_id()),
@@ -223,7 +255,7 @@ struct Varset {
 	  return NULL;
 	}
       }
-      vsc = new Chain<Varset>(Varset(constant, cd_set, ncd_set), vsc);
+      vsc = new Chain<Varset>(Varset(constant, cd_set, ncd_set, type), vsc);
       return &vsc->head;
     }
   }
@@ -235,6 +267,8 @@ private:
   const Chain<StepVariable>* cd_set_;
   /* The non-codesignation list. */
   const Chain<StepVariable>* ncd_set_;
+  /* The most specific type of any variable in this set. */
+  Type type_;
 };
 
 
@@ -594,9 +628,10 @@ const Bindings Bindings::EMPTY = Bindings();
 
 /* Checks if the given formulas can be unified. */
 bool Bindings::unifiable(const Literal& l1, size_t id1,
-			 const Literal& l2, size_t id2) {
+			 const Literal& l2, size_t id2,
+			 const TypeTable& types, const TermTable& terms) {
   BindingList dummy;
-  return unifiable(dummy, l1, id1, l2, id2);
+  return unifiable(dummy, l1, id1, l2, id2, types, terms);
 }
 
 
@@ -604,8 +639,9 @@ bool Bindings::unifiable(const Literal& l1, size_t id1,
    unifier is added to the provided substitution list. */
 bool Bindings::unifiable(BindingList& mgu,
 			 const Literal& l1, size_t id1,
-			 const Literal& l2, size_t id2) {
-  return EMPTY.unify(mgu, l1, id1, l2, id2, NULL);
+			 const Literal& l2, size_t id2,
+			 const TypeTable& types, const TermTable& terms) {
+  return EMPTY.unify(mgu, l1, id1, l2, id2, types, terms);
 }
 
 
@@ -687,9 +723,9 @@ const NameSet& Bindings::domain(Variable v, size_t step_id,
    and the atomic formulas can be unified. */
 bool Bindings::affects(const Literal& l1, size_t id1,
 		       const Literal& l2, size_t id2,
-		       const Problem* problem) const {
+		       const TypeTable& types, const TermTable& terms) const {
   BindingList dummy;
-  return affects(dummy, l1, id1, l2, id2, problem);
+  return affects(dummy, l1, id1, l2, id2, types, terms);
 }
 
 
@@ -698,14 +734,14 @@ bool Bindings::affects(const Literal& l1, size_t id1,
    is added to the provided substitution list. */
 bool Bindings::affects(BindingList& mgu, const Literal& l1, size_t id1,
 		       const Literal& l2, size_t id2,
-		       const Problem* problem) const {
+		       const TypeTable& types, const TermTable& terms) const {
   const Negation* negation = dynamic_cast<const Negation*>(&l1);
   if (negation != NULL) {
-    return unify(mgu, l2, id2, negation->atom(), id1, problem);
+    return unify(mgu, l2, id2, negation->atom(), id1, types, terms);
   } else {
     negation = dynamic_cast<const Negation*>(&l2);
     if (negation != NULL) {
-      return unify(mgu, negation->atom(), id2, l1, id1, problem);
+      return unify(mgu, negation->atom(), id2, l1, id1, types, terms);
     } else {
       return false;
     }
@@ -716,9 +752,9 @@ bool Bindings::affects(BindingList& mgu, const Literal& l1, size_t id1,
 /* Checks if the given formulas can be unified. */
 bool Bindings::unify(const Literal& l1, size_t id1,
 		     const Literal& l2, size_t id2,
-		     const Problem* problem) const {
+		     const TypeTable& types, const TermTable& terms) const {
   BindingList dummy;
-  return unify(dummy, l1, id1, l2, id2, problem);
+  return unify(dummy, l1, id1, l2, id2, types, terms);
 }
 
 
@@ -726,7 +762,7 @@ bool Bindings::unify(const Literal& l1, size_t id1,
    unifier is added to the provided substitution list. */
 bool Bindings::unify(BindingList& mgu, const Literal& l1, size_t id1,
 		     const Literal& l2, size_t id2,
-		     const Problem* problem) const {
+		     const TypeTable& types, const TermTable& terms) const {
   if (l1.id() > 0 && l2.id() > 0) {
     /* Both literals are fully instantiated. */
     return &l1 == &l2;
@@ -772,6 +808,11 @@ bool Bindings::unify(BindingList& mgu, const Literal& l1, size_t id1,
 	      return false;
 	    }
 	  } else {
+	    Type type1 = terms.type(t1);
+	    Type type2 = terms.type(o2);
+	    if (!types.subtype(type2, type1)) {
+	      return false;
+	    }
 	    mgu.push_back(Binding(t1, idl, o2, 0, true));
 	  }
 	  bind.insert(std::make_pair(t1, o2));
@@ -804,13 +845,11 @@ bool Bindings::unify(BindingList& mgu, const Literal& l1, size_t id1,
 	  /*
 	   * The first term is a name and the second is a variable.
 	   */
-	  if (problem != NULL) {
-	    Type type1 = problem->terms().type(term1);
-	    Type type2 = problem->terms().type(term2);
-	    if (!problem->domain().types().subtype(type1, type2)) {
-	      /* Incompatible term types. */
-	      return false;
-	    }
+	  Type type1 = terms.type(term1);
+	  Type type2 = terms.type(term2);
+	  if (!types.subtype(type1, type2)) {
+	    /* Incompatible term types. */
+	    return false;
 	  }
 	  mgu.push_back(Binding(term2, id2, term1, 0, true));
 	}
@@ -818,26 +857,23 @@ bool Bindings::unify(BindingList& mgu, const Literal& l1, size_t id1,
 	/*
 	 * The first term is a variable.
 	 */
-	if (problem != NULL) {
-	  Type type1 = problem->terms().type(term1);
-	  Type type2 = problem->terms().type(term2);
-	  if (is_object(term2)) {
-	    if (!problem->domain().types().subtype(type2, type1)) {
-	      /* Incompatible term types. */
-	      return false;
-	    }
-	  } else {
-	    if (!(problem->domain().types().subtype(type1, type2)
-		  || problem->domain().types().subtype(type2, type1))) {
-	      /* Incompatible term types. */
-	      return false;
-	    }
+	Type type1 = terms.type(term1);
+	Type type2 = terms.type(term2);
+	if (is_object(term2)) {
+	  if (!types.subtype(type2, type1)) {
+	    /* Incompatible term types. */
+	    return false;
+	  }
+	} else {
+	  if (!(types.subtype(type1, type2) || types.subtype(type2, type1))) {
+	    /* Incompatible term types. */
+	    return false;
 	  }
 	}
 	mgu.push_back(Binding(term1, id1, term2, id2, true));
       }
     }
-    if (add(mgu, true) == NULL) {
+    if (add(mgu, types, terms, true) == NULL) {
       /* Unification is inconsistent with current bindings. */
       return false;
     }
@@ -931,6 +967,7 @@ static void add_domain_bindings(BindingList& bindings,
    bindings to this binding collection, or NULL if the new bindings
    are inconsistent with the current. */
 const Bindings* Bindings::add(const BindingList& new_bindings,
+			      const TypeTable& types, const TermTable& terms,
 			      bool test_only) const {
   if (new_bindings.empty()) {
     /* No new bindings. */
@@ -997,14 +1034,15 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 	  if (vs1 == NULL) {
 	    /* The first term is unbound, so add it to the varset of
                the second. */
-	    comb = vs2->add(varsets, bind.var(), bind.var_id());
+	    comb = vs2->add(varsets, bind.var(), bind.var_id(), types, terms);
 	  } else if (vs2 == NULL) {
 	    /* The second term is unbound, so add it to the varset of
                the first. */
-	    comb = vs1->add(varsets, bind.term(), bind.term_id());
+	    comb = vs1->add(varsets, bind.term(), bind.term_id(),
+			    types, terms);
 	  } else {
 	    /* Both terms are bound, so combine their varsets. */
-	    comb = vs1->combine(varsets, *vs2);
+	    comb = vs1->combine(varsets, *vs2, types);
 	  }
 	} else {
 	  /* The terms are already bound to eachother. */
@@ -1012,7 +1050,7 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 	}
       } else {
 	/* None of the terms are already bound. */
-	comb = Varset::make(varsets, bind);
+	comb = Varset::make(varsets, bind, types, terms);
       }
       if (comb == NULL) {
 	/* Binding is inconsistent with current bindings. */
@@ -1195,7 +1233,7 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 	bool separate2 = true;
 	if (vs1 == NULL) {
 	  /* The first term is unbound, so create a new varset for it. */
-	  vs1 = Varset::make(varsets, bind);
+	  vs1 = Varset::make(varsets, bind, types, terms);
 	} else {
 	  if (is_variable(bind.term())) {
 	    /* The second term is a variable. */
@@ -1214,7 +1252,7 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 	}
 	if (vs2 == NULL) {
 	  /* The second term is unbound, so create a new varset for it. */
-	  vs2 = Varset::make(varsets, bind, true);
+	  vs2 = Varset::make(varsets, bind, types, terms, true);
 	} else if (vs2->excludes(bind.var(), bind.var_id())) {
 	  /* The first term is already separated from the second. */
 	  separate2 = false;
@@ -1322,8 +1360,9 @@ const Bindings* Bindings::add(size_t step_id, const Action& step_action,
 	new Chain<StepVariable>(std::make_pair(step_domain.parameters()[c],
 					       step_domain.id()),
 				NULL);
+      Type type = pg.problem().terms().type(step_domain.parameters()[c]);
       varsets = new Chain<Varset>(Varset(*step_domain.projection(c).begin(),
-					 cd_set, NULL),
+					 cd_set, NULL, type),
 				  varsets);
       if (step_id > high_step) {
 	high_step = step_id;
