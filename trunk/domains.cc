@@ -1,5 +1,5 @@
 /*
- * $Id: domains.cc,v 1.5 2001-08-12 06:52:40 lorens Exp $
+ * $Id: domains.cc,v 1.6 2001-08-12 16:31:56 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -82,23 +82,16 @@ const Effect& Effect::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Checks if the add list of this effect involves the given
-   predicate. */
-bool Effect::involves(const string& predicate) const {
-  return add_list.involves(predicate);
-}
-
-
 /* Fills the provided list with goals achievable by this effect. */
 void Effect::achievable_goals(FormulaList& goals) const {
   add_list.achievable_goals(goals);
 }
 
 
-/* Fills the provided list with predicates achievable by the
+/* Fills the provided sets with predicates achievable by the
    effect. */
-void Effect::achievable_predicates(vector<string>& preds,
-				   vector<string>& neg_preds) const {
+void Effect::achievable_predicates(hash_set<string>& preds,
+				   hash_set<string>& neg_preds) const {
   add_list.achievable_predicates(preds, neg_preds);
 }
 
@@ -133,10 +126,10 @@ void EffectList::achievable_goals(FormulaList& goals) const {
 }
 
 
-/* Fills the provided list with predicates achievable by the effects
+/* Fills the provided sets with predicates achievable by the effects
    in this list. */
-void EffectList::achievable_predicates(vector<string>& preds,
-				       vector<string>& neg_preds) const {
+void EffectList::achievable_predicates(hash_set<string>& preds,
+				       hash_set<string>& neg_preds) const {
   for (const_iterator i = begin(); i != end(); i++) {
     (*i)->achievable_predicates(preds, neg_preds);
   }
@@ -155,10 +148,10 @@ void Action::achievable_goals(FormulaList& goals) const {
 }
 
 
-/* Fills the provided list with predicates achievable by this
+/* Fills the provided sets with predicates achievable by this
    action. */
-void Action::achievable_predicates(vector<string>& preds,
-				   vector<string>& neg_preds) const {
+void Action::achievable_predicates(hash_set<string>& preds,
+				   hash_set<string>& neg_preds) const {
   effects.achievable_predicates(preds, neg_preds);
 }
 
@@ -354,22 +347,20 @@ void Domain::compatible_constants(NameList& constants, const Type& t) const {
 /* Returns a set of static predicates. */
 hash_set<string> Domain::static_predicates(const PredicateMap& predicates,
 					   const ActionMap& actions) {
-  hash_set<string> preds;
+  hash_set<string> static_preds;
+  hash_set<string> achievable_preds;
+  for (ActionMap::const_iterator ai = actions.begin();
+       ai != actions.end(); ai++) {
+    (*ai).second->achievable_predicates(achievable_preds, achievable_preds);
+  }
   for (PredicateMap::const_iterator i = predicates.begin();
        i != predicates.end(); i++) {
     const string& p = (*i).first;
-    bool is_static = true;
-    for (ActionMap::const_iterator j = actions.begin();
-	 j != actions.end() && is_static; j++) {
-      if ((*j).second->effects.involves(p)) {
-	is_static = false;
-      }
-    }
-    if (is_static) {
-      preds.insert((*i).first);
+    if (achievable_preds.find(p) == achievable_preds.end()) {
+      static_preds.insert(p);
     }
   }
-  return preds;
+  return static_preds;
 }
 
 
