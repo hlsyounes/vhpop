@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.h,v 3.4 2002-03-23 15:18:32 lorens Exp $
+ * $Id: orderings.h,v 3.5 2002-03-28 18:41:49 lorens Exp $
  */
 #ifndef ORDERINGS_H
 #define ORDERINGS_H
@@ -103,28 +103,44 @@ typedef Chain<Ordering> OrderingChain;
 
 
 /* ====================================================================== */
+/* BoolVector */
+
+/*
+ * A collectible bool vector.
+ */
+struct BoolVector : public vector<bool> {
+  /* Register use of the given vector. */
+  static void register_use(const BoolVector* v);
+
+  /* Unregister use of the given vector. */
+  static void unregister_use(const BoolVector* v);
+
+  /* Constructs a vector with n copies of b. */
+  BoolVector(size_t n, bool b);
+
+  /* Constructs a copy of the given vector. */
+  BoolVector(const BoolVector& v);
+
+#ifdef DEBUG
+  /* Deletes this vector. */
+  ~BoolVector();
+#endif
+
+private:
+  /* Reference counter. */
+  mutable size_t ref_count_;
+};
+
+
+/* ====================================================================== */
 /* Orderings */
 
 /*
  * Collection of ordering constraints.
  */
 struct Orderings : public Printable, public Collectible {
-  /* Register use of the given ordering collection. */
-  static void register_use(const Orderings* o) {
-    if (o != NULL) {
-      o->ref_count_++;
-    }
-  }
-
-  /* Unregister use of this object. */
-  static void unregister_use(const Orderings* o) {
-    if (o != NULL) {
-      o->ref_count_--;
-      if (o->ref_count_ == 0) {
-	delete o;
-      }
-    }
-  }
+  /* Deletes this ordering collection. */
+  virtual ~Orderings();
 
   /* Returns the ordering constraints making up this collection. */
   const OrderingChain* orderings() const;
@@ -157,14 +173,13 @@ protected:
   /* Iterator for id maps. */
   typedef IdMap::const_iterator IdMapIter;
 
-  /* Number of steps. */
-  size_t size_;
   /* Maps step ids to positions in the matrix below. */
   IdMap id_map1_;
   /* Maps positions in the matrix below to step ids */
   vector<size_t> id_map2_;
-  /* Matrix representing the transitive closure of the ordering constraints. */
-  vector<vector<bool> > order_;
+  /* Difference from parent's matrix representing the transitive
+     closure of the ordering constraints. */
+  vector<const BoolVector*> order_;
 #ifdef TRANSFORMATIONAL
   /* The ordering constraints making up this collection. */
   const OrderingChain* orderings_;
@@ -174,7 +189,18 @@ protected:
   Orderings();
 
   /* Constructs a copy of this ordering collection. */
-  Orderings(const Orderings& orderings);
+  Orderings(const Orderings& o);
+
+  /* Returns the number of steps. */
+  size_t size() const;
+
+  /* Returns the entry at (r,c) in the matrix representing the
+     transitive closure of the ordering constraints. */
+  bool order(size_t r, size_t c) const;
+
+  /* Sets the entry at (r,c) to true in the matrix representing the
+     transitive closure of the ordering constraints. */
+  void set_order(hash_map<size_t, BoolVector*>& own_data, size_t r, size_t c);
 
   /* Returns the distance of the given step to the goal step, and also
      enters it into the given distance table. */
@@ -183,18 +209,8 @@ protected:
 			      size_t step_id,
 			      StepTime t = STEP_START) const = 0;
 
-  /* Updates the transitive closure given new ordering constraints. */
-  bool fill_transitive(const OrderingChain* orderings);
-
-  /* Updates the transitive closure given a new ordering constraint. */
-  virtual bool fill_transitive(const Ordering& ordering) = 0;
-
   /* Prints this ordering collection on the given stream. */
   virtual void print(ostream& os) const;
-
-private:
-  /* Reference counter. */
-  mutable size_t ref_count_;
 };
 
 
@@ -238,8 +254,16 @@ protected:
 			      hash_map<size_t, float>& end_dist,
 			      size_t step_id, StepTime t = STEP_START) const;
 
+private:
+  /* Constructs a copy of this ordering collection. */
+  BinaryOrderings(const BinaryOrderings& o);
+
   /* Updates the transitive closure given a new ordering constraint. */
-  virtual bool fill_transitive(const Ordering& ordering);
+  void fill_transitive(hash_map<size_t, BoolVector*>& own_data,
+		       const Ordering& ordering);
+
+  /* Checks if the first step is ordered before the second step. */
+  bool before(size_t id1, size_t id2) const;
 };
 
 
@@ -279,18 +303,19 @@ protected:
 			      hash_map<size_t, float>& end_dist,
 			      size_t step_id, StepTime t = STEP_START) const;
 
-  /* Updates the transitive closure given a new ordering constraint. */
-  virtual bool fill_transitive(const Ordering& ordering);
-
 private:
   /* Matrix representing the minimal network for the ordering constraints. */
   vector<vector<float> > distance_;
 
+  /* Constructs a copy of this ordering collection. */
+  TemporalOrderings(const TemporalOrderings& o);
+
   /* Returns the time node for the given step. */
   size_t time_node(size_t id, StepTime t) const;
 
-  /* Constructs a copy of this ordering collection. */
-  TemporalOrderings(const TemporalOrderings& orderings);
+  /* Updates the transitive closure given a new ordering constraint. */
+  bool fill_transitive(hash_map<size_t, BoolVector*>& own_data,
+		       const Ordering& ordering);
 };
 
 
