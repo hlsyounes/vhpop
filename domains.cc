@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.cc,v 6.2 2003-07-21 02:01:55 lorens Exp $
+ * $Id: domains.cc,v 6.3 2003-07-21 18:13:26 lorens Exp $
  */
 #include "domains.h"
 #include "bindings.h"
@@ -189,7 +189,7 @@ const Effect* Effect::instantiation(const SubstitutionMap& args,
 				    const Problem& problem,
 				    const Condition& condition) const {
   if (!(add_list().empty() && del_list().empty())) {
-    Effect& inst_eff = *(new Effect(when()));
+    Effect& inst_eff = *new Effect(when());
     inst_eff.set_condition(condition);
     inst_eff.set_link_condition(link_condition().instantiation(args, problem));
     for (AtomListIter ai = add_list().begin(); ai != add_list().end(); ai++) {
@@ -340,7 +340,7 @@ void Action::strengthen_effects() {
     } else {
       for (AtomListIter ai = ei.add_list().begin();
 	   ai != ei.add_list().end(); ai++) {
-	Effect& one_eff = *(new Effect(ei.when()));
+	Effect& one_eff = *new Effect(ei.when());
 	for (VariableList::const_iterator vi = ei.forall().begin();
 	     vi != ei.forall().end(); vi++) {
 	  one_eff.add_forall(*vi);
@@ -351,7 +351,7 @@ void Action::strengthen_effects() {
       }
       for (NegationListIter ni = ei.del_list().begin();
 	   ni != ei.del_list().end(); ni++) {
-	Effect& one_eff = *(new Effect(ei.when()));
+	Effect& one_eff = *new Effect(ei.when());
 	for (VariableList::const_iterator vi = ei.forall().begin();
 	     vi != ei.forall().end(); vi++) {
 	  one_eff.add_forall(*vi);
@@ -393,7 +393,7 @@ void Action::strengthen_effects() {
 			     subst.term()) == ej.forall().end())) {
 		  if (subst.var() != subst.term()) {
 		    sep =
-		      &(*sep || *(new Inequality(subst.var(), subst.term())));
+		      &(*sep || Inequality::make(subst.var(), subst.term()));
 		  }
 		}
 	      }
@@ -404,9 +404,9 @@ void Action::strengthen_effects() {
       }
       if (!cond->tautology()) {
 	if (ei.when() == Effect::AT_START) {
-	  ei.set_link_condition(Condition::make_condition(*cond, AT_START));
+	  ei.set_link_condition(Condition::make(*cond, AT_START));
 	} else {
-	  ei.set_link_condition(Condition::make_condition(*cond, AT_END));
+	  ei.set_link_condition(Condition::make(*cond, AT_END));
 	}
       }
     }
@@ -425,16 +425,16 @@ void Action::strengthen_effects() {
     }
     const Formula* cond = &condition().over_all().separator(*literal);
     ei.set_link_condition(ei.link_condition()
-			  && Condition::make_condition(*cond, OVER_ALL));
+			  && Condition::make(*cond, OVER_ALL));
     if (ei.when() != Effect::AT_END) {
       cond = &condition().at_start().separator(*literal);
       ei.set_link_condition(ei.link_condition()
-			    && Condition::make_condition(*cond, AT_START));
+			    && Condition::make(*cond, AT_START));
     }
     if (ei.when() != Effect::AT_START) {
       cond = &condition().at_end().separator(*literal);
       ei.set_link_condition(ei.link_condition()
-			    && Condition::make_condition(*cond, AT_END));
+			    && Condition::make(*cond, AT_END));
     }
   }
 }
@@ -539,7 +539,7 @@ ActionSchema::instantiation(const SubstitutionMap& args,
     (*ei)->instantiations(inst_effects, useful, args, problem);
   }
   if (useful > 0) {
-    GroundAction& ga = *(new GroundAction(name(), durative()));
+    GroundAction& ga = *new GroundAction(name(), durative());
     size_t n = parameters().size();
     for (size_t i = 0; i < n; i++) {
       SubstitutionMap::const_iterator si = args.find(parameters()[i]);
