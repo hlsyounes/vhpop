@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.18 2001-09-28 17:54:35 lorens Exp $
+ * $Id: plans.cc,v 1.19 2001-09-29 18:55:58 lorens Exp $
  */
 #include <queue>
 #include <hash_set>
@@ -7,20 +7,15 @@
 #include <climits>
 #include <cassert>
 #include "plans.h"
+#include "parameters.h"
 #include "costgraph.h"
 
 
 /* Id of goal step. */
 const size_t Plan::GOAL_ID = UINT_MAX;
 
-/* Flaw selection order. */
-static FlawSelectionOrder flaw_order;
-/* Heuristic to use for estimating cost of plan. */
-static Heuristic heuristic;
-/* Whether to allow transformational plan operators. */
-static bool transformations = false;
-/* Whether to use least-commitment. */
-static bool least_commitment = false;
+/* Planning parameters. */
+static Parameters params;
 /* Verbosity. */
 static int verbosity = 0;
 /* Number of visited plans. */
@@ -315,73 +310,10 @@ remove_obsolete_unsafes(const UnsafeChain* unsafes, size_t& num_unsafes,
 }
 
 
-static void compute_cost(const Problem& problem, Heuristic h,
-			 const ActionList& actions) {
-  FormulaList goals;
-  FormulaList neg_goals;
-  if (problem.init != NULL) {
-    problem.init->achievable_goals(goals, neg_goals);
-    for (FLCI fi = goals.begin(); fi != goals.end(); fi++) {
-      const AtomicFormula& atom = dynamic_cast<const AtomicFormula&>(**fi);
-      if (!domain->static_predicate(atom.predicate)) {
-	atom_cost[&atom] = Cost(0, 1);
-      }
-    }
-  }
-  bool changed;
-  do {
-    changed = false;
-    hash_map<const Formula*, Cost> new_costs;
-    for (ActionList::const_iterator ai = actions.begin();
-	 ai != actions.end(); ai++) {
-      const Action& a = **ai;
-      Cost c = a.precondition.cost(atom_cost, h);
-      if (c.cost >= 0) {
-	c.cost++;
-	c.work++;
-	goals.clear();
-	neg_goals.clear();
-	a.achievable_goals(goals, neg_goals);
-	for (FLCI fi = goals.begin(); fi != goals.end(); fi++) {
-	  hash_map<const Formula*, Cost>::const_iterator ci =
-	    new_costs.find(*fi);
-	  if (ci == new_costs.end() || c < (*ci).second) {
-	    ci = atom_cost.find(*fi);
-	    if (ci == atom_cost.end() || c < (*ci).second) {
-	      new_costs[*fi] = c;
-	      changed = true;
-	    }
-	  }
-	}
-      }
-    }
-    for (hash_map<const Formula*, Cost>::const_iterator ci = new_costs.begin();
-	 ci != new_costs.end(); ci++) {
-      atom_cost[(*ci).first] = (*ci).second;
-    }
-  } while (changed);
-  if (verbosity > 1) {
-    for (hash_map<const Formula*, Cost>::const_iterator ci = atom_cost.begin();
-	 ci != atom_cost.end(); ci++) {
-      cout << "cost of " << *(*ci).first << " is (" << (*ci).second.cost
-	   << ", " << (*ci).second.work << ")" << endl;
-    }
-  }
-}
-
-
 /* Returns plan for given problem. */
-const Plan* Plan::plan(const Problem& problem, const FlawSelectionOrder& f,
-		       const Heuristic& h, bool g, bool t, size_t limit,
-		       int v) {
-  /* Set flaw selection order. */
-  flaw_order = f;
-  /* Set plan cost heuristic. */
-  heuristic = h;
-  /* Set transformations. */
-  transformations = t;
-  /* Set least-commitment. */
-  least_commitment = !g;
+const Plan* Plan::plan(const Problem& problem, const Parameters& p, int v) {
+  /* Set planning parameters. */
+  params = p;
   /* Set verbosity. */
   verbosity = v;
   /* Set current domain. */
@@ -391,21 +323,28 @@ const Plan* Plan::plan(const Problem& problem, const FlawSelectionOrder& f,
   achieves.clear();
   achieves_pred.clear();
   achieves_neg_pred.clear();
-  if (!least_commitment || !heuristic.ucpop()) {
+  if (params.ground_actions || !params.heuristic.ucpop()) {
     ActionList inst_actions;
     problem.instantiated_actions(inst_actions);
     if (verbosity > 0) {
       cout << endl << inst_actions.size() << " instantiated actions." << endl;
     }
-    compute_cost(problem, h, inst_actions);
+    params.heuristic.compute_cost(atom_cost, problem, inst_actions);
+    if (verbosity > 1) {
+      for (hash_map<const Formula*, Cost>::const_iterator ci =
+	     atom_cost.begin(); ci != atom_cost.end(); ci++) {
+	cout << "cost of " << *(*ci).first << " is (" << (*ci).second.cost
+	     << ", " << (*ci).second.work << ")" << endl;
+      }
+    }
     for (ActionList::const_iterator i = inst_actions.begin();
 	 i != inst_actions.end(); i++) {
-      if ((*i)->precondition.cost(atom_cost, heuristic).cost >= 0) {
+      if ((*i)->precondition.cost(atom_cost, params.heuristic).cost >= 0) {
 	all_actions.push_back(*i);
       }
     }
   }
-  if (!least_commitment) {
+  if (params.ground_actions) {
     for (ActionList::const_iterator i = all_actions.begin();
 	 i != all_actions.end(); i++) {
       FormulaList goals;
@@ -416,18 +355,15 @@ const Plan* Plan::plan(const Problem& problem, const FlawSelectionOrder& f,
     }
     if (verbosity > 0) {
       cout << achieves.size() << " achievable atoms." << endl;
-      if (verbosity > 3) {
-	for (static hash_map<const Formula*, ActionList>::const_iterator i =
-	       achieves.begin(); i != achieves.end(); i++) {
-	  cout << "  " << *(*i).first << endl;
-	}
-      }
       cout << endl << all_actions.size() << " performable actions." << endl;
-      if (verbosity > 3) {
+      if (verbosity > 2) {
 	for (ActionList::const_iterator i = all_actions.begin();
 	     i != all_actions.end(); i++) {
-	  cout << "  " << (*i)->action_formula() << endl;
-	  cout << "  " << **i << endl;
+	  if (verbosity > 3) {
+	    cout << "  " << **i << endl;
+	  } else {
+	    cout << "  " << (*i)->action_formula() << endl;
+	  }
 	}
 	cout << endl;
       }
@@ -468,11 +404,11 @@ const Plan* Plan::plan(const Problem& problem, const FlawSelectionOrder& f,
    * Search for complete plan.
    */
   while (current_plan != NULL && !current_plan->complete()) {
-    if (num_generated_plans >= limit) {
+    if (num_generated_plans >= params.search_limit) {
       /* Search limit reached. */
       break;
     }
-    if (!(transformations && current_plan->duplicate())) {
+    if (!(params.transformational && current_plan->duplicate())) {
       /*
        * This is a new plan.
        */
@@ -533,9 +469,7 @@ bool Plan::complete() const {
 /* Returns the primary rank of this plan, where a lower rank
    signifies a better plan. */
 int Plan::primary_rank() const {
-  if (rank1_ < 0) {
-    h_rank();
-  }
+  h_rank();
   return rank1_;
 }
 
@@ -545,10 +479,10 @@ int Plan::primary_rank() const {
 int Plan::secondary_rank() const {
   if (complete()) {
     return -1;
-  } else if (rank2_ < 0) {
+  } else {
     h_rank();
+    return rank2_;
   }
-  return rank2_;
 }
 
 
@@ -619,52 +553,35 @@ const Flaw& Plan::get_flaw() const {
   if (unsafes_ != NULL) {
     return *unsafes_->head;
   } else {
-    if (!heuristic.ucpop()) {
-      if (flaw_order.most_cost_first()) {
-	if (most_cost_open_cond_ == NULL) {
-	  h_rank();
-	}
+    if (!params.heuristic.ucpop()) {
+      h_rank();
+      if (params.flaw_order.most_cost_first()) {
 	if (most_cost_open_cond_ != NULL) {
 	  return *most_cost_open_cond_;
 	}
-      } else if (flaw_order.least_cost_first()) {
-	if (least_cost_open_cond_ == NULL) {
-	  h_rank();
-	}
+      } else if (params.flaw_order.least_cost_first()) {
 	if (least_cost_open_cond_ != NULL) {
 	  return *least_cost_open_cond_;
 	}
-      } else if (flaw_order.most_work_first()) {
-	if (most_work_open_cond_ == NULL) {
-	  h_rank();
-	}
+      } else if (params.flaw_order.most_work_first()) {
 	if (most_work_open_cond_ != NULL) {
 	  return *most_work_open_cond_;
 	}
-      } else if (flaw_order.least_work_first()) {
-	if (least_work_open_cond_ == NULL) {
-	  h_rank();
-	}
+      } else if (params.flaw_order.least_work_first()) {
 	if (least_work_open_cond_ != NULL) {
 	  return *least_work_open_cond_;
 	}
-      } else if (flaw_order.most_linkable_first()) {
-	if (most_linkable_open_cond_ == NULL) {
-	  h_rank();
-	}
+      } else if (params.flaw_order.most_linkable_first()) {
 	if (most_linkable_open_cond_ != NULL) {
 	  return *most_linkable_open_cond_;
 	}
-      } else if (flaw_order.least_linkable_first()) {
-	if (least_linkable_open_cond_ == NULL) {
-	  h_rank();
-	}
+      } else if (params.flaw_order.least_linkable_first()) {
 	if (least_linkable_open_cond_ != NULL) {
 	  return *least_linkable_open_cond_;
 	}
       }
     }
-    if (flaw_order.fifo()) {
+    if (params.flaw_order.fifo()) {
       for (const OpenConditionChain* oc = open_conds_; ; oc = oc->tail) {
 	if (oc->tail == NULL) {
 	  return *oc->head;
@@ -674,6 +591,7 @@ const Flaw& Plan::get_flaw() const {
     return *open_conds_->head;
   }
 }
+
 
 void Plan::refinements(PlanList& new_plans) const {
   const Flaw& flaw = get_flaw();
@@ -700,7 +618,7 @@ void Plan::handle_unsafe(PlanList& new_plans, const Unsafe& unsafe) const {
     demote(new_plans, unsafe);
     promote(new_plans, unsafe);
     if (num_prev_plans == new_plans.size()) {
-      if (transformations) {
+      if (params.transformational) {
 	if (verbosity > 2) {
 	  cout << endl << "++++DEAD END:" << endl << *this << endl;
 	}
@@ -1610,7 +1528,10 @@ bool Plan::equivalent(const Plan& p) const {
 }
 
 void Plan::h_rank() const {
-  if (heuristic.ucpop()) {
+  if (rank1_ >= 0) {
+    return;
+  }
+  if (params.heuristic.ucpop()) {
     rank1_ = num_steps_ + num_open_conds_ + num_unsafes_;
     rank2_ = 0;
     return;
@@ -1620,7 +1541,7 @@ void Plan::h_rank() const {
   hash_map<size_t, size_t> step_nodes;
   hash_map<const Formula*, size_t> f_nodes;
   size_t goal_node = make_node(cg, step_nodes, f_nodes, GOAL_ID);
-  if (heuristic.max()) {
+  if (params.heuristic.max()) {
     for (const OrderingChain* ords = orderings_.orderings();
 	 ords != NULL; ords = ords->tail) {
       cg.set_distance(step_nodes[ords->head->after_id],
@@ -1642,20 +1563,24 @@ void Plan::h_rank() const {
   int high_link = -1;
   int low_link = INT_MAX;
   for (const OpenConditionChain* oc = open_conds_; oc != NULL; oc = oc->tail) {
-    Cost c = oc->head->condition.cost(atom_cost, heuristic);
-    if (c.cost > high_cost || (c.cost == high_cost && flaw_order.fifo())) {
+    Cost c = oc->head->condition.cost(atom_cost, params.heuristic);
+    if (c.cost > high_cost
+	|| (c.cost == high_cost && params.flaw_order.fifo())) {
       most_cost_open_cond_ = oc->head;
       high_cost = c.cost;
     }
-    if (c.cost < low_cost || (c.cost == low_cost && flaw_order.fifo())) {
+    if (c.cost < low_cost
+	|| (c.cost == low_cost && params.flaw_order.fifo())) {
       least_cost_open_cond_ = oc->head;
       low_cost = c.cost;
     }
-    if (c.work > high_work || (c.work == high_work && flaw_order.fifo())) {
+    if (c.work > high_work
+	|| (c.work == high_work && params.flaw_order.fifo())) {
       most_work_open_cond_ = oc->head;
       high_work = c.work;
     }
-    if (c.work < low_work || (c.work == low_work && flaw_order.fifo())) {
+    if (c.work < low_work
+	|| (c.work == low_work && params.flaw_order.fifo())) {
       least_work_open_cond_ = oc->head;
       low_work = c.work;
     }
@@ -1663,19 +1588,18 @@ void Plan::h_rank() const {
       achieves.find(&oc->head->condition);
     if (fali != achieves.end()) {
       int l = (*fali).second.size();
-      if (l > high_link || (l == high_link && flaw_order.fifo())) {
+      if (l > high_link
+	  || (l == high_link && params.flaw_order.fifo())) {
 	most_linkable_open_cond_ = oc->head;
 	high_link = l;
       }
-      if (l < low_link || (l == low_link && flaw_order.fifo())) {
+      if (l < low_link
+	  || (l == low_link && params.flaw_order.fifo())) {
 	least_linkable_open_cond_ = oc->head;
 	low_link = l;
       }
     }
   }
-#if 0
-  rank2_ = num_open_conds_;
-#endif
 }
 
 
@@ -1689,9 +1613,9 @@ size_t Plan::make_node(CostGraph& cg, hash_map<size_t, size_t>& step_nodes,
   } else {
     /* create new node */
     size_t step_node;
-    if (heuristic.max()) {
+    if (params.heuristic.max()) {
       step_node = cg.add_max_node();
-    } else if (heuristic.sum()) {
+    } else if (params.heuristic.sum()) {
       step_node = cg.add_sum_node();
     }
     const Step* step = find_step(steps_, step_id);
@@ -1705,7 +1629,7 @@ size_t Plan::make_node(CostGraph& cg, hash_map<size_t, size_t>& step_nodes,
 	if (links->head->from_id == 0) {
 	  cg.set_distance(step_node, 0, 0);
 	} else {
-	  if (!heuristic.sum()
+	  if (!params.heuristic.sum()
 	      || step_nodes.find(links->head->from_id) == step_nodes.end()) {
 	    size_t prec_node =
 	      make_node(cg, step_nodes, f_nodes, links->head->from_id);
@@ -1735,7 +1659,7 @@ size_t Plan::make_node(CostGraph& cg, hash_map<size_t, size_t>& step_nodes,
 size_t Plan::make_node(CostGraph& cg, hash_map<size_t, size_t>& step_nodes,
 		       hash_map<const Formula*, size_t>& f_nodes,
 		       const Formula& cond, size_t step_id) const {
-  if (heuristic.sum_reuse()) {
+  if (params.heuristic.sum_reuse()) {
     hash_map<const Formula*, size_t>::const_iterator f = f_nodes.find(&cond);
     if (f != f_nodes.end()) {
       return 1;
@@ -1760,46 +1684,42 @@ size_t Plan::make_node(CostGraph& cg, hash_map<size_t, size_t>& step_nodes,
       }
     }
   }
-  Cost c = cond.cost(atom_cost, heuristic);
-  if (c.cost < 0) {
-    c.cost = INT_MAX;
-    c.work = INT_MAX;
-    if (least_commitment) {
-      const AtomicFormula* atom = dynamic_cast<const AtomicFormula*>(&cond);
-      if (atom != NULL) {
-	if (domain->static_predicate(atom->predicate)) {
-	  c.cost = 0;
-	  c.work = 1;
-	} else {
-	  c.cost = 0;
-	  c.work = 0;
-	  int nc = 0;
-	  for (hash_map<const Formula*, Cost>::const_iterator ci =
-		 atom_cost.begin(); ci != atom_cost.end(); ci++) {
-	    if (bindings_.unify(*(*ci).first, cond)) {
+  Cost c = cond.cost(atom_cost, params.heuristic);
+  if (c.infinite() && !params.ground_actions) {
+    const AtomicFormula* atom = dynamic_cast<const AtomicFormula*>(&cond);
+    if (atom != NULL) {
+      if (domain->static_predicate(atom->predicate)) {
+	c.cost = 0;
+	c.work = 1;
+      } else {
+	c.cost = 0;
+	c.work = 0;
+	int nc = 0;
+	for (hash_map<const Formula*, Cost>::const_iterator ci =
+	       atom_cost.begin(); ci != atom_cost.end(); ci++) {
+	  if (bindings_.unify(*(*ci).first, cond)) {
 #ifdef MAX_COST_LEAST_COMMITMENT
-	      if ((*ci).second > c) {
-		c = (*ci).second;
-		nc = 1;
-	      }
-#else /* average cost */
-	      c += (*ci).second;
-	      nc++;
-#endif
+	    if ((*ci).second > c) {
+	      c = (*ci).second;
+	      nc = 1;
 	    }
+#else /* average cost */
+	    c += (*ci).second;
+	    nc++;
+#endif
 	  }
-	  if (nc > 0) {
-	    c.cost /= nc;
-	    c.work /= nc;
-	  } else {
-	    c.cost = INT_MAX;
-	    c.work = INT_MAX;
-	  }
+	}
+	if (nc > 0) {
+	  c.cost /= nc;
+	  c.work /= nc;
+	} else {
+	  c = Cost::INFINITE;
 	}
       }
     }
   }
-  size_t cond_node = cg.add_node(c.cost, c.work);
+  size_t cond_node =
+    cg.add_node(params.weight*c.cost, params.weight*c.work);
   f_nodes[&cond] = cond_node;
   return cond_node;
 }
