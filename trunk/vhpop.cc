@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 3.10 2002-03-29 14:35:32 lorens Exp $
+ * $Id: vhpop.cc,v 3.11 2002-04-03 16:33:51 lorens Exp $
  */
 #include "plans.h"
 #include "parameters.h"
@@ -132,7 +132,7 @@ static void display_version() {
 static bool read_file(const char* name) {
   yyin = fopen(name, "r");
   if (yyin == NULL) {
-    cerr << PROGRAM_NAME << ':' << name << ": " << sys_errlist[errno] << endl;
+    cerr << PROGRAM_NAME << ':' << name << ": " << strerror(errno) << endl;
     return false;
   } else {
     current_file = name;
