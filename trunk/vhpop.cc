@@ -1,13 +1,18 @@
 /*
  * Main program.
  *
- * $Id: vhpop.cc,v 1.14 2001-11-08 19:22:32 lorens Exp $
+ * $Id: vhpop.cc,v 1.15 2001-12-23 22:09:16 lorens Exp $
  */
 #include <iostream>
 #include <cstdio>
+#include <cstdlib>
 #include <sys/time.h>
+#ifdef HAVE_GETOPT_LONG
 #define _GNU_SOURCE
 #include <getopt.h>
+#else
+#include <unistd.h>
+#endif
 #include "domains.h"
 #include "problems.h"
 #include "plans.h"
@@ -27,9 +32,8 @@ extern int warning_level;
 /* Verbosity level. */
 int verbosity;
 
-/* Program name. */
-string PROGRAM_NAME("tpop");
 
+#ifdef HAVE_GETOPT_LONG
 /* Program options. */
 static struct option long_options[] = {
   { "domain-constraints", no_argument, NULL, 'd' },
@@ -38,6 +42,7 @@ static struct option long_options[] = {
   { "heuristic", required_argument, NULL, 'h' },
   { "limit", required_argument, NULL, 'l' },
   { "transformational", no_argument, NULL, 't' },
+  { "time-limit", required_argument, NULL, 'T' },
   { "verbose", optional_argument, NULL, 'v' },
   { "version", no_argument, NULL, 'V' },
   { "weight", required_argument, NULL, 'w' },
@@ -45,6 +50,8 @@ static struct option long_options[] = {
   { "help", no_argument, NULL, '?' },
   { 0, 0, 0, 0 }
 };
+#endif
+static const char OPTION_STRING[] = "df:gh:l:tT:v::Vw:W::?";
 
 
 /* Displays help. */
@@ -62,11 +69,14 @@ static void display_help() {
        << "\t\t\tonly use ground actions" << endl
        << "  -h h,  --heuristic=h\t"
        << "use heuristic h;" << endl
-       << "\t\t\t  h can be `MAX', `SUM', `SUMR' (default), or `UCPOP'" << endl
+       << "\t\t\t  h can be `MAX', `SUM' (default), `SUMR', `OC', or `UCPOP'"
+       << endl
        << "  -l l,  --limit=l\t"
        << "search no more than l plans" << endl
        << "  -t,    --transformational" << endl
        << "\t\t\tuse transformational planner" << endl
+       << "  -T t,  --time-limit=t\t"
+       << "limit search to t minutes" << endl
        << "  -v[n], --verbose[=n]\t"
        << "use verbosity level n;" << endl
        << "\t\t\t  n is a number from 0 (verbose mode off) and up;" << endl
@@ -90,7 +100,7 @@ static void display_help() {
 /* Displays version information. */
 static void display_version() {
   cout << PROGRAM_NAME << " (" << __DATE__ << ")" << endl
-       << "Written by H\345kan L. Younes (lorens@cs.cmu.edu)." << endl;
+       << "Written by H\345kan L. S. Younes (lorens@cs.cmu.edu)." << endl;
 }
 
 
@@ -99,7 +109,7 @@ static bool read_file(const char* name) {
   current_file = name;
   yyin = fopen(name, "r");
   if (yyin == NULL) {
-    perror(PROGRAM_NAME.c_str());
+    perror(PROGRAM_NAME);
     return false;
   } else {
     bool success = (yyparse() == 0);
@@ -117,14 +127,20 @@ int main(int argc, char* argv[]) {
   verbosity = 0;
   /* Set default warning level. */
   warning_level = 1;
+  /* Flag indicating whether or not a heuristic has been set. */
+  bool heuristic_set = false;
 
   /*
    * Get command line options.
    */
   while (1) {
+#ifdef HAVE_GETOPT_LONG
     int option_index = 0;
-    int c = getopt_long(argc, argv, "df:gh:l:tv::Vw:W::?",
+    int c = getopt_long(argc, argv, OPTION_STRING,
 			long_options, &option_index);
+#else
+    int c = getopt(argc, argv, OPTION_STRING);
+#endif
     if (c == -1) {
       break;
     }
@@ -147,7 +163,12 @@ int main(int argc, char* argv[]) {
       break;
     case 'h':
       try {
-	params.heuristic = optarg;
+	if (heuristic_set) {
+	  params.heuristic += optarg;
+	} else {
+	  params.heuristic = optarg;
+	  heuristic_set = true;
+	}
       } catch (const InvalidHeuristic& e) {
 	cerr << PROGRAM_NAME << ": " << e << endl
 	     << "Try `" << PROGRAM_NAME << " --help' for more information."
@@ -161,6 +182,9 @@ int main(int argc, char* argv[]) {
     case 't':
       params.transformational = true;
       break;
+    case 'T':
+      params.time_limit = atoi(optarg);
+      break;
     case 'v':
       verbosity = (optarg != NULL) ? atoi(optarg) : 1;
       break;
@@ -168,7 +192,7 @@ int main(int argc, char* argv[]) {
       display_version();
       return 0;
     case 'w':
-      params.weight = atoi(optarg);
+      params.weight = atof(optarg);
       break;
     case 'W':
       warning_level = (optarg != NULL) ? atoi(optarg) : 1;
@@ -185,9 +209,8 @@ int main(int argc, char* argv[]) {
       return -1;
     }
   }
-  params.flaw_order.set_heuristic(params.heuristic);
   /* set the random seed. */
-  srand48(time(NULL));
+  srand(time(NULL));
 
   try {
     /*
@@ -212,7 +235,7 @@ int main(int argc, char* argv[]) {
       }
     }
 
-    if (verbosity > 0) {
+    if (verbosity > 1) {
       /*
        * Display domains and problems.
        */
@@ -231,17 +254,15 @@ int main(int argc, char* argv[]) {
       cout << "----------------------------------------"<< endl;
     }
 
-    /* Set output format for floating point numbers. */
-    cout.setf(ios::fixed, ios::floatfield);
-    cout.precision(3);
+    cout.setf(ios::unitbuf);
 
     /*
      * Solve the problems.
      */
     for (Problem::ProblemMap::const_iterator i = Problem::begin();
 	 i != Problem::end(); i++) {
-      struct itimerval timer = { { 1000000, 900000 }, { 1000000, 900000 } };
       const Problem& problem = *(*i).second;
+      struct itimerval timer = { { 1000000, 900000 }, { 1000000, 900000 } };
       setitimer(ITIMER_PROF, &timer, NULL);
       const Plan* plan = Plan::plan(problem, params);
       getitimer(ITIMER_PROF, &timer);
@@ -253,11 +274,10 @@ int main(int argc, char* argv[]) {
       }
       if (plan != NULL) {
 	if (plan->complete()) {
-	  if (verbosity == 0) {
-	    cout << problem.name << ' ' << t << ' ' << *plan << endl;
-	  } else {
-	    cout << endl << *plan << endl;
-	  }
+	  /* Set output format for floating point numbers. */
+	  cout.setf(ios::fixed, ios::floatfield);
+	  cout.precision(3);
+	  cout << problem.name << ' ' << t << ' ' << *plan << endl;
 	} else {
 	  if (verbosity > 0) {
 	    cout << endl << *plan;

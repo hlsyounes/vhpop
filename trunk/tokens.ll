@@ -2,7 +2,7 @@
 /*
  * PDDL tokenizer.
  *
- * $Id: tokens.ll,v 1.6 2001-10-06 15:06:31 lorens Exp $
+ * $Id: tokens.ll,v 1.7 2001-12-23 22:09:13 lorens Exp $
  */
 %{
 struct Type;
@@ -30,10 +30,9 @@ struct ActionSchema;
 size_t line_number;
 
 static string* tolower(const char* s);
-
 %}
 
-%option never-interactive nounput
+%option case-insensitive never-interactive nounput
 
 %%
 

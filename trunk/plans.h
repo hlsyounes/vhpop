@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.23 2001-11-08 19:22:26 lorens Exp $
+ * $Id: plans.h,v 1.24 2001-12-23 22:09:05 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -11,6 +11,7 @@
 #include <stack>
 #include <utility>
 #include <typeinfo>
+#include <queue>
 #include "support.h"
 #include "domains.h"
 #include "problems.h"
@@ -310,7 +311,7 @@ struct CostGraph;
 /*
  * Plan.
  */
-struct Plan : public Printable, public gc {
+struct Plan : public LessThanComparable, public Printable, public gc {
   /* Id of goal step. */
   static const size_t GOAL_ID;
 
@@ -320,24 +321,28 @@ struct Plan : public Printable, public gc {
   /* Checks if this plan is complete. */
   bool complete() const;
 
-  /* Returns the primary rank of this plan, where a lower rank
-     signifies a better plan. */
-  int primary_rank() const;
+  /* Returns the serial number of this plan. */
+  size_t serial_no() const;
 
-  /* Returns the secondary rank of this plan, where a lower rank
-     signifies a better plan. */
-  int secondary_rank() const;
+  /* Returns the number of steps of this plan. */
+  size_t num_steps() const;
 
-  /* Returns the tertiary rank of this plan, where a lower rank
-     signifies a better plan. */
-  int tertiary_rank() const;
+  /* Returns the open conditions of this plan. */
+  const OpenConditionChain* open_conds() const;
 
   /* Returns the number of open conditions of this plan. */
-  size_t num_open_conds() const {
-    return num_open_conds_;
-  }
+  size_t num_open_conds() const;
+
+  /* Returns the number of unsafe links of this plan. */
+  size_t num_unsafes() const;
+
+  /* Returns the bindings of this plan. */
+  const Bindings* bindings() const;
 
 protected:
+  /* Checks if this object is less than the given object. */
+  virtual bool less(const LessThanComparable& o) const;
+
   /* Prints this object on the given stream */
   virtual void print(ostream& os) const;
 
@@ -366,6 +371,8 @@ private:
   const OpenConditionChain* const open_conds_;
   /* Number of open conditions. */
   const size_t num_open_conds_;
+  /* Number of static open conditions. */
+  const size_t num_static_;
   /* Binding constraints of this plan. */
   const Bindings& bindings_;
   /* Ordering constraints of this plan. */
@@ -375,11 +382,8 @@ private:
   /* Plan type. */
   const PlanType type_;
   /* Rank of this plan. */
-  mutable int rank1_;
-  mutable int rank2_;
-  /* The best open condition. */
-  mutable const OpenCondition* best_open_cond_;
-  /* Plan id (for debugging). */
+  mutable vector<double> rank_;
+  /* Plan id (serial number). */
   mutable size_t id;
 
   /* Returns the initial plan representing the given problem, or NULL
@@ -391,19 +395,25 @@ private:
        const LinkChain* links, size_t num_links,
        const UnsafeChain* unsafes, size_t num_unsafes,
        const OpenConditionChain* open_conds, size_t num_open_conds,
-       const Bindings& bindings, const Orderings& orderings,
+       size_t num_static, const Bindings& bindings, const Orderings& orderings,
        const Plan* parent, PlanType type = NORMAL_PLAN)
     : steps_(steps), num_steps_(num_steps), high_step_id_(high_id),
       links_(links), num_links_(num_links),
       unsafes_(unsafes), num_unsafes_(num_unsafes),
       open_conds_(open_conds), num_open_conds_(num_open_conds),
-      bindings_(bindings), orderings_(orderings),
+      num_static_(num_static), bindings_(bindings), orderings_(orderings),
+#if 0
       parent_((parent != NULL && parent->type_ == INTERMEDIATE_PLAN) ?
 	      parent->parent_ : parent),
+#else
+      parent_(NULL),
+#endif
       type_((parent != NULL && parent->type_ == INTERMEDIATE_PLAN) ?
-	    TRANSFORMED_PLAN : type),
-      rank1_(-1), rank2_(-1), best_open_cond_(NULL) {
-  }
+	    TRANSFORMED_PLAN : type) {}
+
+  /* Returns the primary rank of this plan, where a lower rank
+     signifies a better plan. */
+  double primary_rank() const;
 
   const Flaw& get_flaw() const;
 
