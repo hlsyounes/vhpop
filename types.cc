@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: types.cc,v 3.3 2002-03-18 09:37:36 lorens Exp $
+ * $Id: types.cc,v 3.4 2002-03-18 09:37:42 lorens Exp $
  */
 #include "types.h"
 
@@ -49,6 +49,15 @@ const SimpleType SimpleType::OBJECT = SimpleType("object");
 SimpleType::SimpleType(const string& name, const Type& supertype)
   : name_(name),
     supertype_(name == "object" ? (const Type*) this : &supertype) {}
+
+
+/* Deletes this simple type. */
+SimpleType::~SimpleType() {
+  const UnionType* ut = dynamic_cast<const UnionType*>(supertype_);
+  if (ut != NULL) {
+    delete ut;
+  }
+}
 
 
 /* Checks if this type is a subtype of the given type. */
