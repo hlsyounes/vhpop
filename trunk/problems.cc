@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: problems.cc,v 6.3 2003-07-28 21:39:05 lorens Exp $
+ * $Id: problems.cc,v 6.4 2003-08-27 17:04:19 lorens Exp $
  */
 #include "problems.h"
 #include "domains.h"
@@ -29,27 +29,27 @@ Problem::ProblemMap Problem::problems = Problem::ProblemMap();
 
 
 /* Returns a const_iterator pointing to the first problem. */
-Problem::ProblemMapIter Problem::begin() {
+Problem::ProblemMap::const_iterator Problem::begin() {
   return problems.begin();
 }
 
 
 /* Returns a const_iterator pointing beyond the last problem. */
-Problem::ProblemMapIter Problem::end() {
+Problem::ProblemMap::const_iterator Problem::end() {
   return problems.end();
 }
 
 
 /* Returns the problem with the given name, or NULL if it is undefined. */
 const Problem* Problem::find(const std::string& name) {
-  ProblemMapIter pi = problems.find(name);
+  ProblemMap::const_iterator pi = problems.find(name);
   return (pi != problems.end()) ? (*pi).second : NULL;
 }
 
 
 /* Removes all defined problems. */
 void Problem::clear() {
-  ProblemMapIter pi = begin();
+  ProblemMap::const_iterator pi = begin();
   while (pi != end()) {
     delete (*pi).second;
     pi = begin();
@@ -75,12 +75,17 @@ Problem::Problem(const std::string& name, const Domain& domain)
 Problem::~Problem() {
   problems.erase(name());
   Formula::unregister_use(goal_);
+  for (hashing::hash_map<Type, const ObjectList*>::const_iterator oi =
+	 compatible_.begin(); oi != compatible_.end(); oi++) {
+    delete (*oi).second;
+  }
+  compatible_.clear();
 }
 
 
 /* Adds an atomic formula to the initial conditions of this problem. */
-void Problem::add_init(const Atom& atom) {
-  init_.push_back(&atom);
+void Problem::add_init_atom(const Atom& atom) {
+  init_atoms_.insert(&atom);
   init_action_.add_effect(*new Effect(atom, Effect::AT_END));
 }
 
@@ -95,16 +100,24 @@ void Problem::set_goal(const Formula& goal) {
 }
 
 
-/* Fills the provided object list with objects (including constants
-   declared in the domain) that are compatible with the given
-   type. */
-void Problem::compatible_objects(ObjectList& objects, Type type) const {
-  domain().compatible_constants(objects, type);
-  Object last = terms().last_object();
-  for (Object i = terms().first_object(); i <= last; i++) {
-    if (domain().types().subtype(terms().type(i), type)) {
-      objects.push_back(i);
+/* Returns a list with objects (including constants declared in the
+   domain) that are compatible with the given type. */
+const ObjectList& Problem::compatible_objects(Type type) const {
+  hashing::hash_map<Type, const ObjectList*>::const_iterator oi =
+    compatible_.find(type);
+  if (oi != compatible_.end()) {
+    return *(*oi).second;
+  } else {
+    ObjectList& objects = *new ObjectList();
+    domain().compatible_constants(objects, type);
+    Object last = terms().last_object();
+    for (Object i = terms().first_object(); i <= last; i++) {
+      if (domain().types().subtype(terms().type(i), type)) {
+	objects.push_back(i);
+      }
     }
+    compatible_.insert(std::make_pair(type, &objects));
+    return objects;
   }
 }
 
@@ -118,10 +131,15 @@ Variable Problem::new_variable(Type type) const {
 /* Fills the provided action list with ground actions instantiated
    from the action schemas of the domain. */
 void Problem::instantiated_actions(GroundActionList& actions) const {
-  for (ActionSchemaMapIter ai = domain().actions().begin();
+  for (ActionSchemaMap::const_iterator ai = domain().actions().begin();
        ai != domain().actions().end(); ai++) {
     (*ai).second->instantiations(actions, *this);
   }
+  for (hashing::hash_map<Type, const ObjectList*>::const_iterator oi =
+	 compatible_.begin(); oi != compatible_.end(); oi++) {
+    delete (*oi).second;
+  }
+  compatible_.clear();
 }
 
 
@@ -145,8 +163,12 @@ std::ostream& operator<<(std::ostream& os, const Problem& p) {
     p.domain().types().print_type(os, p.terms().type(i));
   }
   os << std::endl << "initial condition: ";
-  p.init_action().condition().print(os, p.domain().predicates(), p.terms(),
-				    0, Bindings());
+  AtomSet::const_iterator ai = p.init_atoms().begin();
+  (*ai)->print(os, p.domain().predicates(), p.terms(), 0, Bindings());
+  for (ai++; ai != p.init_atoms().end(); ai++) {
+    os << ' ';
+    (*ai)->print(os, p.domain().predicates(), p.terms(), 0, Bindings());
+  }
   os << std::endl << "goal: ";
   p.goal().print(os, p.domain().predicates(), p.terms(), 0, Bindings());
   return os;
