@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 1.28 2002-01-25 21:58:34 lorens Exp $
+ * $Id: heuristics.cc,v 1.29 2002-01-26 03:51:44 lorens Exp $
  */
 #include <set>
 #include <typeinfo>
@@ -1191,7 +1191,7 @@ FlawSelectionOrder& FlawSelectionOrder::operator=(const string& name) {
     return *this = "{n}LIFO/{o}0LIFO/{o}1NEW/{o}LIFO/{s}LIFO";
   } else if (strcasecmp(n, "ZLIFO*") == 0) {
     return *this = "{o}0LIFO/{n,s}LIFO/{o}1NEW/{o}LIFO";
-  } else if (strcasecmp(n, "STATIC") == 0) {
+  } else if (strcasecmp(n, "Static") == 0) {
     return *this = "{t}LIFO/{n,s}LIFO/{o}LIFO";
   } else if (strcasecmp(n, "LCFR-Loc") == 0) {
     return *this = "{n,s,l}LR";
