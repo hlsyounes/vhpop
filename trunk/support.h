@@ -2,7 +2,7 @@
 /*
  * Auxiliary types and functions.
  *
- * $Id: support.h,v 1.10 2001-11-07 19:22:20 lorens Exp $
+ * $Id: support.h,v 1.11 2001-12-22 18:49:51 lorens Exp $
  */
 #ifndef SUPPORT_H
 #define SUPPORT_H
@@ -13,8 +13,8 @@
 #include <set>
 #include <hash_map>
 #include <hash_set>
-#include <gc/gc_cpp.h>
-#include <gc/new_gc_alloc.h>
+#include <gc_cpp.h>
+#include <new_gc_alloc.h>
 
 
 /*
@@ -207,10 +207,7 @@ protected:
 };
 
 /* Output operator for printable objects. */
-inline ostream& operator<<(ostream& os, const Printable& o) {
-  o.print(os);
-  return os;
-}
+ostream& operator<<(ostream& os, const Printable& o);
 
 
 /*
@@ -218,9 +215,7 @@ inline ostream& operator<<(ostream& os, const Printable& o) {
  */
 struct Exception : public Printable {
   /* Constructs an exception with the given message. */
-  Exception(const string& message)
-    : message(message) {
-  }
+  Exception(const string& message);
 
 protected:
   /* Prints this object on the given stream. */
@@ -237,9 +232,7 @@ private:
  */
 struct Unimplemented : public Exception {
   /* Constructs an unimplemented exception. */
-  Unimplemented(const string& message)
-    : Exception(message) {
-  }
+  Unimplemented(const string& message);
 };
 
 
