@@ -14,7 +14,7 @@
 # SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
 # ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
 #
-# $Id: configure.ac,v 1.1 2002-06-28 20:13:15 lorens Exp $
+# $Id: configure.ac,v 1.2 2002-07-16 22:25:57 lorens Exp $
 
 AC_INIT(VHPOP, 2.0, lorens@cs.cmu.edu)
 AM_INIT_AUTOMAKE(VHPOP, 2.0)
@@ -43,7 +43,7 @@ AC_TYPE_SIZE_T
 
 # Checks for library functions.
 AC_FUNC_MALLOC
-AC_CHECK_FUNCS([atexit memset select strcasecmp strerror strncasecmp])
+AC_CHECK_FUNCS([atexit memset select strcasecmp strerror strncasecmp isinf])
 AC_CHECK_FUNCS(getopt_long, , [AC_LIBOBJ(getopt) AC_LIBOBJ(getopt1)])
 
 AC_CONFIG_FILES([Makefile])

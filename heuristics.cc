@@ -13,14 +13,12 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 3.18 2002-07-04 09:11:18 lorens Exp $
+ * $Id: heuristics.cc,v 3.19 2002-07-16 22:25:52 lorens Exp $
  */
 #include <set>
 #include <typeinfo>
 #include <climits>
-#define __USE_ISOC99 1
-#define __USE_ISOC9X 1
-#include <cmath>
+#include "mathport.h"
 #include "heuristics.h"
 #include "plans.h"
 #include "bindings.h"
