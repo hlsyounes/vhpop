@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 6.7 2003-08-22 01:41:57 lorens Exp $
+ * $Id: formulas.h,v 6.8 2003-08-24 18:42:22 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -603,14 +603,14 @@ private:
 
 
 /* ====================================================================== */
-/* QuantifiedFormula */
+/* Quantification */
 
 /*
  * Abstract quantified formula.
  */
-struct QuantifiedFormula : public Formula {
+struct Quantification : public Formula {
   /* Deletes this quantified formula. */
-  virtual ~QuantifiedFormula();
+  virtual ~Quantification();
 
   /* Adds a quantified variable to this quantified formula. */
   void add_parameter(Variable parameter);
@@ -630,7 +630,7 @@ struct QuantifiedFormula : public Formula {
 
 protected:
   /* Constructs a quantified formula. */
-  explicit QuantifiedFormula(const Formula& body);
+  explicit Quantification(const Formula& body);
 
 private:
   /* Quanitfied variables. */
@@ -646,7 +646,7 @@ private:
 /*
  * Existentially quantified formula.
  */
-struct Exists : public QuantifiedFormula {
+struct Exists : public Quantification {
   /* Constructs an existentially quantified formula. */
   Exists();
 
@@ -673,7 +673,7 @@ struct Exists : public QuantifiedFormula {
 
 protected:
   /* Returns the negation of this formula. */
-  virtual const QuantifiedFormula& negation() const;
+  virtual const Quantification& negation() const;
 };
 
 
@@ -683,7 +683,7 @@ protected:
 /*
  * Universally quantified formula.
  */
-struct Forall : public QuantifiedFormula {
+struct Forall : public Quantification {
   /* Constructs a universally quantified formula. */
   Forall();
 
@@ -710,7 +710,7 @@ struct Forall : public QuantifiedFormula {
 
 protected:
   /* Returns the negation of this formula. */
-  virtual const QuantifiedFormula& negation() const;
+  virtual const Quantification& negation() const;
 
 private:
   /* The cached universal base for this formula. */

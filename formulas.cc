@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 6.6 2003-07-28 21:34:33 lorens Exp $
+ * $Id: formulas.cc,v 6.7 2003-08-24 18:42:26 lorens Exp $
  */
 #include "formulas.h"
 #include "bindings.h"
@@ -1197,29 +1197,29 @@ const Formula& Disjunction::negation() const {
 
 
 /* ====================================================================== */
-/* QuantifiedFormula */
+/* Quantification */
 
 /* Constructs a quantified formula. */
-QuantifiedFormula::QuantifiedFormula(const Formula& body)
+Quantification::Quantification(const Formula& body)
   : body_(&body) {
   register_use(body_);
 }
 
 
 /* Deletes this quantified formula. */
-QuantifiedFormula::~QuantifiedFormula() {
+Quantification::~Quantification() {
   unregister_use(body_);
 }
 
 
 /* Adds a quantified variable to this quantified formula. */
-void QuantifiedFormula::add_parameter(Variable parameter) {
+void Quantification::add_parameter(Variable parameter) {
   parameters_.push_back(parameter);
 }
 
 
 /* Sets the body of this quantified formula. */
-void QuantifiedFormula::set_body(const Formula& body) {
+void Quantification::set_body(const Formula& body) {
   if (body_ != &body) {
     unregister_use(body_);
     body_ = &body;
@@ -1230,7 +1230,7 @@ void QuantifiedFormula::set_body(const Formula& body) {
 
 /* Returns a formula that separates the given literal from anything
    definitely asserted by this formula. */
-const Formula& QuantifiedFormula::separator(const Literal& literal) const {
+const Formula& Quantification::separator(const Literal& literal) const {
   /* We are being conservative here.  It can be hard to find a
      separator in this case. */
   return TRUE;
@@ -1242,7 +1242,7 @@ const Formula& QuantifiedFormula::separator(const Literal& literal) const {
 
 /* Constructs an existentially quantified formula. */
 Exists::Exists()
-  : QuantifiedFormula(FALSE) {}
+  : Quantification(FALSE) {}
 
 
 /* Returns this formula subject to the given substitutions. */
@@ -1367,7 +1367,7 @@ void Exists::print(std::ostream& os, const PredicateTable& predicates,
 
 
 /* Returns the negation of this formula. */
-const QuantifiedFormula& Exists::negation() const {
+const Quantification& Exists::negation() const {
   Forall& forall = *new Forall();
   for (VariableList::const_iterator vi = parameters().begin();
        vi != parameters().end(); vi++) {
@@ -1383,7 +1383,7 @@ const QuantifiedFormula& Exists::negation() const {
 
 /* Constructs a universally quantified formula. */
 Forall::Forall()
-  : QuantifiedFormula(TRUE), universal_base_(NULL) {}
+  : Quantification(TRUE), universal_base_(NULL) {}
 
 
 /* Returns this formula subject to the given substitutions. */
@@ -1557,7 +1557,7 @@ void Forall::print(std::ostream& os, const PredicateTable& predicates,
 
 
 /* Returns the negation of this formula. */
-const QuantifiedFormula& Forall::negation() const {
+const Quantification& Forall::negation() const {
   Exists& exists = *new Exists();
   for (VariableList::const_iterator vi = parameters().begin();
        vi != parameters().end(); vi++) {
