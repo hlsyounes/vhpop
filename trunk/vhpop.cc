@@ -1,7 +1,7 @@
 /*
  * Main program.
  *
- * $Id: vhpop.cc,v 1.20 2002-01-02 19:28:40 lorens Exp $
+ * $Id: vhpop.cc,v 1.21 2002-01-03 12:53:47 lorens Exp $
  */
 #include <iostream>
 #include <cstdio>
@@ -16,6 +16,7 @@
 #include "domains.h"
 #include "problems.h"
 #include "plans.h"
+#include "heuristics.h"
 #include "parameters.h"
 #include "debug.h"
 
