@@ -2,7 +2,7 @@
 /*
  * Binding constraints.
  *
- * $Id: bindings.h,v 1.1 2001-05-03 15:32:31 lorens Exp $
+ * $Id: bindings.h,v 1.2 2001-07-29 17:38:25 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
@@ -55,7 +55,7 @@ inline ostream& operator<<(ostream& os, const Binding& b) {
 struct EqualityBinding : public Binding {
   /* Constructs an equality binding from the given substitution. */
   EqualityBinding(const Substitution& s, const Reason& reason)
-    : Binding(*s.first, *s.second, reason) {
+    : Binding(s.var, s.term, reason) {
   }
 
   /* Construct an equality binding, binding the given variable to the
@@ -77,7 +77,7 @@ protected:
 struct InequalityBinding : public Binding {
   /* Constructs an inequality binding from the given substitution. */
   InequalityBinding(const Substitution& s, const Reason& reason)
-    : Binding(*s.first, *s.second, reason) {
+    : Binding(s.var, s.term, reason) {
   }
 
   /* Constructs an inequality binding, separating the given variable
