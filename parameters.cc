@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: parameters.cc,v 3.7 2003-03-01 18:47:44 lorens Exp $
+ * $Id: parameters.cc,v 6.1 2003-03-23 11:31:41 lorens Exp $
  */
 #include "parameters.h"
 
@@ -34,8 +34,7 @@ Parameters::Parameters()
   : time_limit(UINT_MAX), search_algorithm(A_STAR),
     heuristic("UCPOP"), weight(1.0),
     random_open_conditions(false), ground_actions(false),
-    domain_constraints(false), keep_static_preconditions(true),
-    transformational(false) {
+    domain_constraints(false), keep_static_preconditions(true) {
   flaw_orders.push_back(FlawSelectionOrder("UCPOP")),
   search_limits.push_back(UINT_MAX);
 }

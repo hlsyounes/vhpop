@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: parameters.h,v 6.1 2003-03-23 10:20:07 lorens Exp $
+ * $Id: parameters.h,v 6.2 2003-03-23 11:32:12 lorens Exp $
  */
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
@@ -70,8 +70,6 @@ struct Parameters {
   bool domain_constraints;
   /* Whether to keep static preconditions when using domain constraints. */
   bool keep_static_preconditions;
-  /* Whether to use transformational planner. */
-  bool transformational;
 
   /* Constructs default planning parameters. */
   Parameters();
