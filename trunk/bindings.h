@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.h,v 6.4 2003-07-21 18:17:22 lorens Exp $
+ * $Id: bindings.h,v 6.5 2003-08-28 15:31:48 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
@@ -24,7 +24,6 @@
 #include <config.h>
 #include "terms.h"
 #include "chain.h"
-#include "hashing.h"
 #include <set>
 
 struct Literal;
@@ -79,12 +78,7 @@ private:
   size_t term_id_;
   /* Whether or not this is an equality binding. */
   bool equality_;
-
-  friend std::ostream& operator<<(std::ostream& os, const Binding& b);
 };
-
-/* Output operator for variable bindings. */
-std::ostream& operator<<(std::ostream& os, const Binding& b);
 
 
 /* ====================================================================== */
@@ -96,9 +90,6 @@ std::ostream& operator<<(std::ostream& os, const Binding& b);
 struct BindingList : std::vector<Binding> {
 };
 
-/* Iterator for binding lists. */
-typedef BindingList::const_iterator BindingListIter;
-
 
 /* ====================================================================== */
 /* NameSet */
@@ -107,36 +98,17 @@ typedef BindingList::const_iterator BindingListIter;
  * A set of names.
  */
 struct NameSet : public std::set<Object> {
-  /* Register use of the given object. */
-  static void register_use(const NameSet* s) {
-    if (s != NULL) {
-      s->ref_count_++;
-    }
-  }
-
-  /* Unregister use of the given object. */
-  static void unregister_use(const NameSet* s) {
-    if (s != NULL) {
-      s->ref_count_--;
-      if (s->ref_count_ == 0) {
-	delete s;
-      }
-    }
-  }
-
-  /* Constructs a name set. */
-  NameSet();
-
-  /* Deletes this name set. */
-  ~NameSet();
-
-private:
-  /* Reference counter. */
-  mutable size_t ref_count_;
 };
 
-/* Iterator for name sets. */
-typedef NameSet::const_iterator NameSetIter;
+
+/* ====================================================================== */
+/* TupleList */
+
+/*
+ * A list of parameter tuples.
+ */
+struct TupleList : public std::vector<const ObjectList*> {
+};
 
 
 /* ====================================================================== */
@@ -170,7 +142,10 @@ struct ActionDomain {
   ~ActionDomain();
 
   /* Number of tuples. */
-  size_t size() const;
+  size_t size() const { return tuples().size(); }
+
+  /* Returns the tuples of this action domain. */
+  const TupleList& tuples() const { return tuples_; }
 
   /* Adds a tuple to this domain. */
   void add(const ObjectList& tuple);
@@ -194,20 +169,13 @@ struct ActionDomain {
      or NULL if this would leave an empty domain. */
   const ActionDomain* exclude(Object name, size_t column) const;
 
+  /* Prints this object on the given stream. */
+  void print(std::ostream& os, const TermTable& terms) const;
+
 private:
-  /* A list of parameter tuples. */
-  struct TupleList : public std::vector<const ObjectList*> {
-  };
-
-  /* A tuple list iterator. */
-  typedef TupleList::const_iterator TupleListIter;
-
   /* A projection map. */
-  struct ProjectionMap : public hashing::hash_map<size_t, const NameSet*> {
+  struct ProjectionMap : public std::map<size_t, const NameSet*> {
   };
-
-  /* A projection map iterator. */
-  typedef ProjectionMap::const_iterator ProjectionMapIter;
 
   /* Possible parameter tuples. */
   TupleList tuples_;
@@ -215,12 +183,7 @@ private:
   mutable ProjectionMap projections_;
   /* Reference counter. */
   mutable size_t ref_count_;
-
-  friend std::ostream& operator<<(std::ostream& os, const ActionDomain& ad);
 };
-
-/* Output operator for action domains. */
-std::ostream& operator<<(std::ostream& os, const ActionDomain& ad);
 
 
 /* ====================================================================== */
@@ -233,6 +196,9 @@ struct StepDomain;
  * A collection of variable bindings.
  */
 struct Bindings {
+  /* Empty bindings. */
+  static const Bindings EMPTY;
+
   /* Register use of this object. */
   static void register_use(const Bindings* b) {
     if (b != NULL) {
@@ -250,23 +216,13 @@ struct Bindings {
     }
   }
 
-  /* Creates a collection of variable bindings with the given equality
-     and inequality bindings. Parameter constrains are used if pg is
-     not NULL. */
-  static const Bindings* make(const Chain<Step>* steps,
-			      const PlanningGraph* pg);
-
   /* Checks if the given formulas can be unified. */
-  static bool unifiable(const Literal& l1, size_t id1,
-			const Literal& l2, size_t id2);
+  static bool unifiable(const Literal& l1, const Literal& l2);
 
   /* Checks if the given formulas can be unified; the most general
      unifier is added to the provided substitution list. */
-  static bool unifiable(BindingList& mgu, const Literal& l1, size_t id1,
-			const Literal& l2, size_t id2);
-
-  /* Constructs an empty binding collection. */
-  Bindings();
+  static bool unifiable(BindingList& mgu,
+			const Literal& l1, const Literal& l2);
 
   /* Deletes this binding collection. */
   ~Bindings();
@@ -318,6 +274,9 @@ struct Bindings {
   const Bindings* add(size_t step_id, const Action& step_action,
 		      const PlanningGraph& pg, bool test_only = false) const;
 
+  /* Prints this object on the given stream. */
+  void print(std::ostream& os, const TermTable& terms) const;
+
 private:
   /* Varsets representing the transitive closure of the bindings. */
   const Chain<Varset>* varsets_;
@@ -328,15 +287,13 @@ private:
   /* Reference counter. */
   mutable size_t ref_count_;
 
+  /* Constructs an empty binding collection. */
+  Bindings();
+
   /* Constructs a binding collection. */
   Bindings(const Chain<Varset>* varsets, size_t high_step,
 	   const Chain<StepDomain>* step_domains);
-
-  friend std::ostream& operator<<(std::ostream& os, const Bindings& b);
 };
-
-/* Output operator for bindings. */
-std::ostream& operator<<(std::ostream& os, const Bindings& b);
 
 
 #endif /* BINDINGS_H */
