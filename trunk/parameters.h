@@ -2,7 +2,7 @@
 /*
  * Planning parameters.
  *
- * $Id: parameters.h,v 1.3 2001-12-23 22:08:40 lorens Exp $
+ * $Id: parameters.h,v 1.4 2001-12-30 16:16:12 lorens Exp $
  */
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
@@ -12,13 +12,27 @@
 
 
 /*
+ * An invalid search algorithm exception.
+ */
+struct InvalidSearchAlgorithm : public Exception {
+  /* Constructs an invalid search algorithm exception. */
+  InvalidSearchAlgorithm(const string& name);
+};
+
+
+/*
  * Planning parameters.
  */
 struct Parameters : public gc {
+  /* Valid search algorithms. */
+  typedef enum { A_STAR, IDA_STAR, HILL_CLIMBING } SearchAlgorithm;
+
   /* Search limit. */
   size_t search_limit;
   /* Time limit, in minutes. */
   size_t time_limit;
+  /* Search algorithm to use. */
+  SearchAlgorithm search_algorithm;
   /* Whether to use ground actions. */
   bool ground_actions;
   /* Whether to use transformational planner. */
@@ -32,11 +46,11 @@ struct Parameters : public gc {
   /* Whether to use parameter domain constraints. */
   bool domain_constraints;
 
-  Parameters()
-    : search_limit(2000), time_limit(1440), ground_actions(false),
-      transformational(false), heuristic("SUM"), weight(1.0),
-      flaw_order("LIFO"), domain_constraints(false) {
-  }
+  /* Constructs default planning parameters. */
+  Parameters();
+
+  /* Selects a search algorithm from a name. */
+  void set_search_algorithm(const string& name);
 };
 
 #endif /* PARAMETERS_H */
