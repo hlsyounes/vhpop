@@ -1,17 +1,38 @@
 /*
- * $Id: types.cc,v 1.1 2001-07-29 18:12:15 lorens Exp $
+ * $Id: types.cc,v 1.2 2001-08-10 04:40:32 lorens Exp $
  */
 #include <algorithm>
 #include "types.h"
 
 
 /* The object type. */
-const SimpleType& SimpleType::OBJECT_TYPE = *(new SimpleType("object"));
+const SimpleType& SimpleType::OBJECT = *(new SimpleType("object"));
 
 
-/* Checks if this type is object type. */
+/*
+ * A subtype binary predicate.
+ */
+struct Subtype : public binary_function<const Type*, const Type*, bool> {
+  /* Checks if the first type is a subtype of the second type. */
+  bool operator()(const Type* t1, const Type* t2) const {
+    return t1->subtype(*t2);
+  }
+};
+
+
+/*
+ * Comparison predicate for simple types.
+ */
+struct less<const SimpleType*> {
+  bool operator()(const SimpleType* t1, const SimpleType* t2) const {
+    return t1->name < t2->name;
+  }
+};
+
+
+/* Checks if this type is the object type. */
 bool Type::object() const {
-  return this == &SimpleType::OBJECT_TYPE;
+  return this == &SimpleType::OBJECT;
 }
 
 
@@ -25,56 +46,9 @@ bool SimpleType::subtype(const Type& t) const {
       return name == st->name || (!object() && supertype.subtype(t));
     } else {
       const UnionType& ut = dynamic_cast<const UnionType&>(t);
-      for (TypeList::const_iterator i = ut.types.begin();
-	   i != ut.types.end(); i++) {
-	if (subtype(**i)) {
-	  return true;
-	}
-      }
-      return false;
-    }
-  }
-}
-
-
-/* Returns the union of this type and the given type. */
-const Type& SimpleType::add(const Type& t) const {
-  if (t.object()) {
-    return *this;
-  } else if (object()) {
-    return t;
-  } else {
-    const SimpleType* st = dynamic_cast<const SimpleType*>(&t);
-    if (st != NULL) {
-      if (*this == t) {
-	return *this;
-      } else {
-	TypeList& types = *(new TypeList(1, this));
-	types.push_back(st);
-	return *(new UnionType(types));
-      }
-    } else {
-      return t + *this;
-    }
-  }
-}
-
-
-/* Removes the given type from this type. */
-const Type& SimpleType::subtract(const Type& t) const {
-  if (t.object()) {
-    return *this;
-  } else {
-    const SimpleType* st = dynamic_cast<const SimpleType*>(&t);
-    if (st != NULL) {
-      return (*this != t) ? *this : OBJECT_TYPE;
-    } else {
-      const UnionType& ut = dynamic_cast<const UnionType&>(t);
-      if (find(ut.types.begin(), ut.types.end(), *this) != ut.types.end()) {
-	return OBJECT_TYPE;
-      } else {
-	return *this;
-      }
+      return (find_if(ut.types.begin(), ut.types.end(),
+		      bind1st(Subtype(), this))
+	      != ut.types.end());
     }
   }
 }
@@ -86,41 +60,98 @@ void SimpleType::print(ostream& os) const {
 }
 
 
+/* Checks if this type equals the given type. */
+bool SimpleType::equals(const Type& t) const {
+  const SimpleType* st = dynamic_cast<const SimpleType*>(&t);
+  return st != NULL && name == st->name;
+}
+
+
+/* Returns the union of this type and the given type. */
+const Type& SimpleType::add(const Type& t) const {
+  const SimpleType* st = dynamic_cast<const SimpleType*>(&t);
+  if (st != NULL) {
+    if (subtype(t)) {
+      return *this;
+    } else if (t.subtype(*this)) {
+      return t;
+    } else {
+	TypeList& new_types = *(new TypeList(1, this));
+	new_types.push_back(st);
+	sort(new_types.begin(), new_types.end(), less<const SimpleType*>());
+	return *(new UnionType(new_types));
+    }
+  } else {
+    const UnionType& ut = dynamic_cast<const UnionType&>(t);
+    return ut.add(*this);
+  }
+}
+
+
+/* Removes the given type from this type. */
+const Type& SimpleType::subtract(const Type& t) const {
+  return subtype(t) ? OBJECT : *this;
+}
+
+
 /* Checks if this type is a subtype of the given type. */
 bool UnionType::subtype(const Type& t) const {
-  for (TypeList::const_iterator i = types.begin(); i != types.end(); i++) {
-    if ((*i)->subtype(t)) {
-      return true;
-    }
+  return (find_if(types.begin(), types.end(), bind2nd(Subtype(), &t))
+	  != types.end());
+}
+
+
+/* Prints this type on the given stream. */
+void UnionType::print(ostream& os) const {
+  os << "(either";
+  for (TypeList::const_iterator ti = types.begin(); ti != types.end(); ti++) {
+    os << ' ' << **ti;
   }
-  return false;
+  os << ")";
+}
+
+
+/* Checks if this type equals the given type. */
+bool UnionType::equals(const Type& t) const {
+  const UnionType* ut = dynamic_cast<const UnionType*>(&t);
+  return (ut != NULL && types.size() == ut->types.size()
+	  && equal(types.begin(), types.end(), ut->types.begin()));
 }
 
 
 /* Returns the union of this type and the given type. */
 const Type& UnionType::add(const Type& t) const {
-  if (t.object()) {
-    return *this;
-  } else {
-    const SimpleType* st = dynamic_cast<const SimpleType*>(&t);
-    if (st != NULL) {
-      if (find(types.begin(), types.end(), *st) != types.end()) {
-	return *this;
+  cout << "UT::add " << *this << ' ' << t << endl;
+  const SimpleType* st = dynamic_cast<const SimpleType*>(&t);
+  if (st != NULL) {
+    if (subtype(t)) {
+      return *this;
+    } else {
+      TypeList& new_types = *(new TypeList());
+      remove_copy_if(types.begin(), types.end(), back_inserter(new_types),
+		     bind1st(Subtype(), &t));
+      new_types.push_back(st);
+      if (new_types.size() == 1) {
+	return *new_types.back();
       } else {
-	TypeList& new_types = *(new TypeList(types));
-	new_types.push_back(st);
+	sort(new_types.begin(), new_types.end(), less<const SimpleType*>());
 	return *(new UnionType(new_types));
       }
+    }
+  } else {
+    const UnionType& ut = dynamic_cast<const UnionType&>(t);
+    TypeList& new_types = *(new TypeList());
+    remove_copy_if(types.begin(), types.end(), back_inserter(new_types),
+		   bind1st(Subtype(), &t));
+    remove_copy_if(ut.types.begin(), ut.types.end(), back_inserter(new_types),
+		   bind1st(Subtype(), this));
+    sort(new_types.begin(), new_types.end(), less<const SimpleType*>());
+    if (new_types.empty()) {
+      return SimpleType::OBJECT;
+    } else if (new_types.size() == 1) {
+      return *new_types.back();
     } else {
-      const UnionType& ut = dynamic_cast<const UnionType&>(t);
-      TypeList& new_types = *(new TypeList(types));
-      for (TypeList::const_iterator i = ut.types.begin();
-	   i != ut.types.end(); i++) {
-	const SimpleType& st = **i;
-	if (find(types.begin(), types.end(), st) == types.end()) {
-	  new_types.push_back(&st);
-	}
-      }
+      sort(new_types.begin(), new_types.end(), less<const SimpleType*>());
       return *(new UnionType(new_types));
     }
   }
@@ -129,48 +160,19 @@ const Type& UnionType::add(const Type& t) const {
 
 /* Removes the given type from this type. */
 const Type& UnionType::subtract(const Type& t) const {
-  if (t.object()) {
+  if (!subtype(t)) {
     return *this;
   } else {
-    const SimpleType* st = dynamic_cast<const SimpleType*>(&t);
-    if (st != NULL) {
-      if (find(types.begin(), types.end(), *st) == types.end()) {
-	return *this;
-      } else {
-	TypeList& new_types = *(new TypeList(types));
-	TypeList::iterator ti = find(new_types.begin(), new_types.end(), *st);
-	new_types.erase(ti);
-	if (new_types.size() == 1) {
-	  return *new_types.back();
-	} else {
-	  return *(new UnionType(new_types));
-	}
-      }
+    TypeList& new_types = *(new TypeList());
+    remove_copy_if(types.begin(), types.end(), back_inserter(new_types),
+		   bind2nd(Subtype(), &t));
+    if (new_types.empty()) {
+      return SimpleType::OBJECT;
+    } else if (new_types.size() == 1) {
+      return *new_types.back();
     } else {
-      const UnionType& ut = dynamic_cast<const UnionType&>(t);
-      TypeList& new_types = *(new TypeList(types));
-      for (TypeList::const_iterator i = ut.types.begin();
-	   i != ut.types.end(); i++) {
-	TypeList::iterator ti = find(new_types.begin(), new_types.end(), **i);
-	new_types.erase(ti);
-      }
-      if (new_types.empty()) {
-	return SimpleType::OBJECT_TYPE;
-      } else if (new_types.size() == 1) {
-	return *new_types.back();
-      } else {
-	return *(new UnionType(new_types));
-      }
+      sort(new_types.begin(), new_types.end(), less<const SimpleType*>());
+      return *(new UnionType(new_types));
     }
   }
-}
-
-
-/* Prints this type on the given stream. */
-void UnionType::print(ostream& os) const {
-  os << "(either";
-  for (TypeList::const_iterator i = types.begin(); i != types.end(); i++) {
-    os << ' ' << **i;
-  }
-  os << ")";
 }
