@@ -2,7 +2,7 @@
 /*
  * PDDL parser.
  *
- * $Id: pddl.yy,v 1.4 2001-08-10 04:42:19 lorens Exp $
+ * $Id: pddl.yy,v 1.5 2001-08-11 06:18:46 lorens Exp $
  */
 %{
 #include <utility>
@@ -293,12 +293,15 @@ action_def : '(' ACTION NAME PARAMETERS
              action_body ')'
                {
 		 free_variables.pop_frame();
-		 $$ = new ActionSchema(*$3, *$7, action_precond, *action_adds);
+		 $$ = new ActionSchema(*$3, *$7, *action_precond,
+				       *action_adds);
 	       }
            ;
 
-action_body : precondition effect { action_precond = $1; action_adds = $2; }
-            | effect              { action_precond = NULL; action_adds = $1; }
+action_body : precondition effect
+                { action_precond = $1; action_adds = $2; }
+            | effect
+                { action_precond = &Formula::TRUE; action_adds = $1; }
             ;
 
 precondition : PRECONDITION formula { $$ = $2; }
@@ -367,7 +370,7 @@ term_literals : term_literal
 term_literal : atomic_term_formula
                  { $$ = $1; }
              | '(' NOT atomic_term_formula ')'
-                 { $$ = &$3->negation(); }
+                 { $$ = &!*$3; }
              ;
 
 
@@ -440,10 +443,10 @@ names : /* empty */
 
 goals : goal_list
           {
-	    if ($1->size() > 2) {
-	      $$ = new Conjunction(*$1);
-	    } else {
-	      $$ = $1->front();
+	    $$ = &Formula::TRUE;
+	    for (FormulaList::const_iterator fi = $1->begin();
+		 fi != $1->end(); fi++) {
+	      $$ = &(*$$ && **fi);
 	    }
 	  }
       ;
@@ -475,18 +478,29 @@ formula : atomic_term_formula
 		yywarning("assuming ':disjunctive-preconditions' "
 			  "requirement.");
 	      }
-	      $$ = &$3->negation();
+	      $$ = &!*$3;
 	    }
         | '(' AND formulas formula ')'
-            { $3->push_back($4); $$ = new Conjunction(*$3); }
+            {
+	      $$ = &Formula::TRUE;
+	      for (FormulaList::const_iterator fi = $3->begin();
+		   fi != $3->end(); fi++) {
+		$$ = &(*$$ && **fi);
+	      }
+	      $$ = &(*$$ && *$4);
+	    }
         | '(' OR formulas formula ')'
             {
 	      if (!requirements->disjunctive_preconditions) {
 		yywarning("assuming ':disjunctive-preconditions' "
 			  "requirement.");
 	      }
-	      $3->push_back($4);
-	      $$ = new Disjunction(*$3);
+	      $$ = &Formula::FALSE;
+	      for (FormulaList::const_iterator fi = $3->begin();
+		   fi != $3->end(); fi++) {
+		$$ = &(*$$ || **fi);
+	      }
+	      $$ = &(*$$ || *$4);
 	    }
         | '(' IMPLY formula formula ')'
             {
@@ -494,10 +508,7 @@ formula : atomic_term_formula
 		yywarning("assuming ':disjunctive-preconditions' "
 			  "requirement.");
 	      }
-	      FormulaList& disjuncts = *(new FormulaList());
-	      disjuncts.push_back(&$3->negation());
-	      disjuncts.push_back($4);
-	      $$ = new Disjunction(disjuncts);
+	      $$ = &(!*$3 || *$4);
 	    }
         | '(' EXISTS
             {
