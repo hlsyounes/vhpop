@@ -1,0 +1,17 @@
+Follow these simple steps to build VHPOP:
+
+  ./configure [options]
+  make
+
+For brief information on how to run VHPOP, use the following command:
+
+  ./vhpop --help
+
+VHPOP has been successfully built on the following systems:
+
+  RedHat Linux 6.2, 7.0
+  IRIX 6.5
+  SunOS 5.7
+
+If you are unable to build VHPOP, please report your problems to
+<lorens@cs.cmu.edu>.

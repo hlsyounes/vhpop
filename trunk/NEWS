@@ -1,0 +1,15 @@
+Version 2.0:
+
+* Support for durative actions.
+
+* Support for multiple simultaneous flaw selection strategies.
+
+
+Version 1.1 (Feb 8, 2002):
+
+* PDDL2.1 compatibility.
+
+
+Version 1.0 (Jan 25, 2002):
+
+* Initial release.
