@@ -1,7 +1,7 @@
 /*
  * Main program.
  *
- * $Id: vhpop.cc,v 1.7 2001-08-20 04:08:45 lorens Exp $
+ * $Id: vhpop.cc,v 1.8 2001-09-03 20:05:52 lorens Exp $
  */
 #include <iostream>
 #include <cstdio>
@@ -46,7 +46,8 @@ static void display_help() {
        << "options:" << endl
        << "  -f f,  --flaw-order=f\t"
        << "use flaw selection order f;" << endl
-       << "\t\t\t  f can be `lifo' (default), `fifo', `hardest', or `easiest'"
+       << "\t\t\t  f can be `LIFO' (default), `FIFO',"
+       << " `MC', `LC', `MW', or `LW'"
        << endl
        << "  -g,    --ground\t"
        << "only use ground actions" << endl
@@ -123,14 +124,18 @@ int main(int argc, char* argv[]) {
     }
     switch (c) {
     case 'f':
-      if (strcasecmp(optarg, "lifo") == 0) {
+      if (strcasecmp(optarg, "LIFO") == 0) {
 	flaw_order.set_lifo();
-      } else if (strcasecmp(optarg, "fifo") == 0) {
+      } else if (strcasecmp(optarg, "FIFO") == 0) {
 	flaw_order.set_fifo();
-      } else if (strcasecmp(optarg, "hardest") == 0) {
-	flaw_order.set_hardest_first();
-      } else if (strcasecmp(optarg, "easiest") == 0) {
-	flaw_order.set_easiest_first();
+      } else if (strcasecmp(optarg, "MC") == 0) {
+	flaw_order.set_most_cost_first();
+      } else if (strcasecmp(optarg, "LC") == 0) {
+	flaw_order.set_least_cost_first();
+      } else if (strcasecmp(optarg, "MW") == 0) {
+	flaw_order.set_most_work_first();
+      } else if (strcasecmp(optarg, "LW") == 0) {
+	flaw_order.set_least_work_first();
       } else {
 	cerr << PROGRAM_NAME << ": invalid flaw selection order `" << optarg
 	     << "'" << endl
