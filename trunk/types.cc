@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: types.cc,v 6.1 2003-03-23 10:42:18 lorens Exp $
+ * $Id: types.cc,v 6.2 2003-07-13 16:11:27 lorens Exp $
  */
 #include "types.h"
 
@@ -24,11 +24,12 @@
 /* Adds a simple type with the given name to this table and returns
    the type. */
 Type TypeTable::add_type(const std::string& name) {
-  Type type = size();
+  Type type = last_type() + 1;
   names_.push_back(name);
   types_.insert(std::make_pair(name, type));
-  subtype_.push_back(std::vector<bool>(2*type, false));
-  subtype_[type - 1][2*type - 1] = true;
+  if (type > 1) {
+    subtype_.push_back(std::vector<bool>(2*(type - 1), false));
+  }
   return type;
 }
 
@@ -52,15 +53,11 @@ Type TypeTable::add_type(const TypeSet& types) {
    name exists, false is returned in the second part of the
    result. */
 std::pair<Type, bool> TypeTable::find_type(const std::string& name) const {
-  if (name == OBJECT_NAME) {
-    return std::make_pair(OBJECT_TYPE, true);
+  std::map<std::string, Type>::const_iterator ti = types_.find(name);
+  if (ti != types_.end()) {
+    return std::make_pair((*ti).second, true);
   } else {
-    std::map<std::string, Type>::const_iterator ti = types_.find(name);
-    if (ti != types_.end()) {
-      return std::make_pair((*ti).second, true);
-    } else {
-      return std::make_pair(0, false);
-    }
+    return std::make_pair(0, false);
   }
 }
 
@@ -80,36 +77,32 @@ bool TypeTable::add_supertype(Type type1, Type type2) {
       }
     }
     return true;
-  }
-
-  if (subtype(type1, type2)) {
+  } else if (subtype(type1, type2)) {
     /* The first type is already a subtype of the second type. */
     return true;
-  }
-
-  if (subtype(type2, type1)) {
+  } else if (subtype(type2, type1)) {
     /* The second type is already a subtype of the first type. */
     return false;
-  }
-
-  /*
-   * Make all subtypes of type1 subtypes of all supertypes of type2.
-   */
-  Type n = size();
-  for (Type k = 1; k < n; k++) {
-    if (subtype(k, type1) && !subtype(k, type2)) {
-      for (Type l = 1; l < n; l++) {
-	if (subtype(type2, l)) {
-	  if (k > l) {
-	    subtype_[k - 1][2*k - l - 1] = true;
-	  } else {
-	    subtype_[l - 1][k] = true;
+  } else {
+    /*
+     * Make all subtypes of type1 subtypes of all supertypes of type2.
+     */
+    Type n = last_type();
+    for (Type k = 1; k <= n; k++) {
+      if (subtype(k, type1) && !subtype(k, type2)) {
+	for (Type l = 1; l <= n; l++) {
+	  if (subtype(type2, l)) {
+	    if (k > l) {
+	      subtype_[k - 2][2*k - l - 2] = true;
+	    } else {
+	      subtype_[l - 2][k - 1] = true;
+	    }
 	  }
 	}
       }
     }
+    return true;
   }
-  return true;
 }
 
 
@@ -136,10 +129,14 @@ bool TypeTable::subtype(Type type1, Type type2) const {
       }
     }
     return false;
+  } else if (type1 == OBJECT_TYPE) {
+    return false;
+  } else if (type2 == OBJECT_TYPE) {
+    return true;
   } else if (type1 > type2) {
-    return subtype_[type1 - 1][2*type1 - type2 - 1];
+    return subtype_[type1 - 2][2*type1 - type2 - 2];
   } else {
-    return subtype_[type2 - 1][type1];
+    return subtype_[type2 - 2][type1 - 1];
   }
 }
 
@@ -154,8 +151,8 @@ void TypeTable::components(TypeSet& components, Type type) const {
 }
 
 
-/* Prints the name of the given type of the given stream. */
-void TypeTable::print_name(std::ostream& os, Type type) const {
+/* Prints the given type of the given stream. */
+void TypeTable::print_type(std::ostream& os, Type type) const {
   if (type < 0) {
     const TypeSet& types = utypes_[-type - 1];
     os << "(either";
@@ -166,6 +163,6 @@ void TypeTable::print_name(std::ostream& os, Type type) const {
   } else if (type == OBJECT_TYPE) {
     os << OBJECT_NAME;
   } else {
-    os << names_[type];
+    os << names_[type - 1];
   }
 }
