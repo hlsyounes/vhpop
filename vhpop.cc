@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 6.4 2003-09-08 21:29:17 lorens Exp $
+ * $Id: vhpop.cc,v 6.5 2003-09-09 23:51:10 lorens Exp $
  */
 #include "plans.h"
 #include "parameters.h"
@@ -63,7 +63,7 @@ static struct option long_options[] = {
   { "ground-actions", no_argument, NULL, 'g' },
   { "heuristic", required_argument, NULL, 'h' },
   { "limit", required_argument, NULL, 'l' },
-  { "reverse-open-conditions", no_argument, NULL, 'r' },
+  { "random-open-conditions", no_argument, NULL, 'r' },
   { "search-algorithm", required_argument, NULL, 's' },
   { "seed", required_argument, NULL, 'S' },
   { "tolerance", required_argument, NULL, 't' },
