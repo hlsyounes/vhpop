@@ -13,10 +13,11 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.cc,v 3.1 2002-03-10 14:34:37 lorens Exp $
+ * $Id: orderings.cc,v 3.2 2002-03-18 11:12:38 lorens Exp $
  */
 #include "orderings.h"
 #include "plans.h"
+#include "reasons.h"
 #include "domains.h"
 #include "formulas.h"
 #define __USE_ISOC99 1
@@ -63,14 +64,23 @@ StepTime start_time(const Literal& f) {
 /* Ordering */
 
 /* Constructs an ordering constraint. */
-Ordering::Ordering(size_t before_id, StepTime t1, size_t after_id, StepTime t2,
-		   const Reason& reason)
-  : before_id(before_id), t1(t1), after_id(after_id), t2(t2), reason(reason) {}
+Ordering::Ordering(size_t before_id, StepTime before_time,
+		   size_t after_id, StepTime after_time, const Reason& reason)
+  : before_id_(before_id), before_time_(before_time),
+    after_id_(after_id), after_time_(after_time) {
+#ifdef TRANSFORMATIONAL
+  reason_ = & reason;
+#endif
+}
 
 
-/* Prints this ordering on the given stream. */
-void Ordering::print(ostream& os) const {
-  os << before_id << '<' << after_id;
+/* Returns the reason. */
+const Reason& Ordering::reason() const {
+#ifdef TRANSFORMATIONAL
+  return *reason_;
+#else
+  return Reason::DUMMY;
+#endif
 }
 
 
@@ -79,12 +89,20 @@ void Ordering::print(ostream& os) const {
 
 /* Constructs an empty ordering collection. */
 Orderings::Orderings()
-  : orderings_(NULL), size_(0) {}
+  : size_(0) {
+#ifdef TRANSFORMATIONAL
+  orderings_ = NULL;
+#endif
+}
 
 
 /* Returns the ordering constraints making up this collection. */
 const OrderingChain* Orderings::orderings() const {
+#ifdef TRANSFORMATIONAL
   return orderings_;
+#else
+  return NULL;
+#endif
 }
 
 
@@ -103,7 +121,7 @@ float Orderings::goal_distances(hash_map<size_t, float>& start_dist,
 /* Updates the transitive closure given new ordering constraints. */
 bool Orderings::fill_transitive(const OrderingChain* orderings) {
   for (const OrderingChain* o = orderings; o != NULL; o = o->tail) {
-    if (!fill_transitive(*o->head)) {
+    if (!fill_transitive(o->head)) {
       return false;
     }
   }
@@ -114,8 +132,12 @@ bool Orderings::fill_transitive(const OrderingChain* orderings) {
 /* Prints this ordering collection on the given stream. */
 void Orderings::print(ostream& os) const {
   os << "{";
-  for (const OrderingChain* o = orderings_; o != NULL; o = o->tail) {
-    os << ' ' << *o->head;
+  for (size_t i = 0; i < size_; i++) {
+    for (size_t j = 0; j < size_; j++) {
+      if (order_[i][j]) {
+	os << ' ' << id_map2_[i] << '<' << id_map2_[j];
+      }
+    }
   }
   os << " }";
 }
@@ -205,10 +227,13 @@ float BinaryOrderings::flexibility() const {
 
 /* Returns the the ordering collection with the given additions. */
 const Orderings* BinaryOrderings::refine(const Ordering& new_ordering) const {
-  if (new_ordering.before_id != 0 && new_ordering.after_id != Plan::GOAL_ID) {
+  if (new_ordering.before_id() != 0
+      && new_ordering.after_id() != Plan::GOAL_ID) {
     BinaryOrderings& orderings = *(new BinaryOrderings(*this));
+#ifdef TRANSFORMATIONAL
     orderings.orderings_ =
       new OrderingChain(&new_ordering, orderings.orderings_);
+#endif
     if (orderings.fill_transitive(new_ordering)) {
       return &orderings;
     } else {
@@ -224,9 +249,12 @@ const Orderings* BinaryOrderings::refine(const Ordering& new_ordering) const {
 const Orderings* BinaryOrderings::refine(const Ordering& new_ordering,
 					 const Step& new_step) const {
   BinaryOrderings& orderings = *(new BinaryOrderings(*this));
-  if (new_ordering.before_id != 0 && new_ordering.after_id != Plan::GOAL_ID) {
+  if (new_ordering.before_id() != 0
+      && new_ordering.after_id() != Plan::GOAL_ID) {
+#ifdef TRANSFORMATIONAL
     orderings.orderings_ =
       new OrderingChain(&new_ordering, orderings.orderings_);
+#endif
   }
   if (new_step.id != 0 && new_step.id != Plan::GOAL_ID) {
     if (orderings.id_map1_.find(new_step.id) == orderings.id_map1_.end()) {
@@ -271,9 +299,9 @@ float BinaryOrderings::goal_distance(hash_map<size_t, float>& start_dist,
 
 /* Updates the transitive closure given a new ordering constraint. */
 bool BinaryOrderings::fill_transitive(const Ordering& ordering) {
-  if (ordering.before_id != 0 && ordering.after_id != Plan::GOAL_ID) {
-    size_t i = id_map1_[ordering.before_id];
-    size_t j = id_map1_[ordering.after_id];
+  if (ordering.before_id() != 0 && ordering.after_id() != Plan::GOAL_ID) {
+    size_t i = id_map1_[ordering.before_id()];
+    size_t j = id_map1_[ordering.after_id()];
     if (!order_[i][j]) {
       for (size_t k = 0; k < size_; k++) {
 	if (k != i && (k == j || order_[j][k]) && !order_[i][k]) {
@@ -378,10 +406,13 @@ bool TemporalOrderings::possibly_after(size_t id1, StepTime t1,
 /* Returns the the ordering collection with the given additions. */
 const Orderings*
 TemporalOrderings::refine(const Ordering& new_ordering) const {
-  if (new_ordering.before_id != 0 && new_ordering.after_id != Plan::GOAL_ID) {
+  if (new_ordering.before_id() != 0
+      && new_ordering.after_id() != Plan::GOAL_ID) {
     TemporalOrderings& orderings = *(new TemporalOrderings(*this));
+#ifdef TRANSFORMATIONAL
     orderings.orderings_ =
       new OrderingChain(&new_ordering, orderings.orderings_);
+#endif
     if (orderings.fill_transitive(new_ordering)) {
       return &orderings;
     } else {
@@ -397,9 +428,12 @@ TemporalOrderings::refine(const Ordering& new_ordering) const {
 const Orderings* TemporalOrderings::refine(const Ordering& new_ordering,
 					   const Step& new_step) const {
   TemporalOrderings& orderings = *(new TemporalOrderings(*this));
-  if (new_ordering.before_id != 0 && new_ordering.after_id != Plan::GOAL_ID) {
+  if (new_ordering.before_id() != 0
+      && new_ordering.after_id() != Plan::GOAL_ID) {
+#ifdef TRANSFORMATIONAL
     orderings.orderings_ =
       new OrderingChain(&new_ordering, orderings.orderings_);
+#endif
   }
   if (new_step.id != 0 && new_step.id != Plan::GOAL_ID) {
     if (orderings.id_map1_.find(new_step.id) == orderings.id_map1_.end()) {
@@ -473,9 +507,9 @@ float TemporalOrderings::goal_distance(hash_map<size_t, float>& start_dist,
 
 /* Updates the transitive closure given a new ordering constraint. */
 bool TemporalOrderings::fill_transitive(const Ordering& ordering) {
-  if (ordering.before_id != 0 && ordering.after_id != Plan::GOAL_ID) {
-    size_t i = time_node(ordering.before_id, ordering.t1);
-    size_t j = time_node(ordering.after_id, ordering.t2);
+  if (ordering.before_id() != 0 && ordering.after_id() != Plan::GOAL_ID) {
+    size_t i = time_node(ordering.before_id(), ordering.before_time());
+    size_t j = time_node(ordering.after_id(), ordering.after_time());
     bool change = false;
     if (!order_[i][j]) {
       for (size_t k = 0; k < 2*size_; k++) {
