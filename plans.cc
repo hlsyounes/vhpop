@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.10 2001-08-12 06:53:51 lorens Exp $
+ * $Id: plans.cc,v 1.11 2001-08-12 16:31:13 lorens Exp $
  */
 #include <queue>
 #include <hash_set>
@@ -400,14 +400,14 @@ const Plan* Plan::plan(const Problem& problem, Heuristic h, bool g,
   }
   for (ActionList::const_iterator i = all_actions.begin();
        i != all_actions.end(); i++) {
-    vector<string> preds;
-    vector<string> neg_preds;
+    hash_set<string> preds;
+    hash_set<string> neg_preds;
     (*i)->achievable_predicates(preds, neg_preds);
-    for (vector<string>::const_iterator j = preds.begin();
+    for (hash_set<string>::const_iterator j = preds.begin();
 	 j != preds.end(); j++) {
       achieves_pred[*j].push_back(*i);
     }
-    for (vector<string>::const_iterator j = neg_preds.begin();
+    for (hash_set<string>::const_iterator j = neg_preds.begin();
 	 j != neg_preds.end(); j++) {
       achieves_neg_pred[*j].push_back(*i);
     }
