@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.h,v 1.20 2002-01-25 18:23:33 lorens Exp $
+ * $Id: heuristics.h,v 1.21 2002-01-25 21:50:25 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
@@ -51,19 +51,19 @@ struct HeuristicValue : public Printable, public gc {
   HeuristicValue();
 
   /* Constructs a heuristic value. */
-  HeuristicValue(int max_cost, int max_work, int sum_cost, int sum_work);
+  HeuristicValue(int max_cost, int max_work, int add_cost, int add_work);
 
-  /* Returns the cost according to the MAX heuristic. */
+  /* Returns the cost according to the max heuristic. */
   int max_cost() const;
 
-  /* Returns the work according to the MAX heuristic. */
+  /* Returns the work according to the max heuristic. */
   int max_work() const;
 
-  /* Returns the cost according to the SUM heurisitc. */
-  int sum_cost() const;
+  /* Returns the cost according to the additive heurisitc. */
+  int add_cost() const;
 
-  /* Returns the work according to the SUM heuristic. */
-  int sum_work() const;
+  /* Returns the work according to the additive heuristic. */
+  int add_work() const;
 
   /* Checks if this heuristic value is zero. */
   bool zero() const;
@@ -85,14 +85,14 @@ protected:
   virtual void print(ostream& os) const;
 
 private:
-  /* Cost according to MAX heuristic. */
+  /* Cost according to max heuristic. */
   int max_cost_;
-  /* Work according to MAX heuristic. */
+  /* Work according to max heuristic. */
   int max_work_;
-  /* Cost according to SUM heuristic. */
-  int sum_cost_;
-  /* Work according to SUM heuristic. */
-  int sum_work_;
+  /* Cost according to additive heuristic. */
+  int add_cost_;
+  /* Work according to additive heuristic. */
+  int add_work_;
 };
 
 /* Equality operator for heuristic values. */
@@ -209,16 +209,16 @@ struct InvalidHeuristic : public Exception {
  * BUC gives priority to plans with no threatened links.
  * S+OC uses h(p) = |S(p)| + w*|OC(p)|.
  * UCPOP uses h(p) = |S(p)| + w*(|OC(p)| + |UC(p)|.
- * SUM_COST uses the additive cost heuristic.
- * SUM_WORK uses the additive work heuristic.
- * SUM uses h(p) = |S(p)| + w*SUM_COST.
- * SUMR is like SUM, but tries to take reuse into account.
+ * ADD_COST uses the additive cost heuristic.
+ * ADD_WORK uses the additive work heuristic.
+ * ADD uses h(p) = |S(p)| + w*ADD_COST.
+ * ADDR is like ADD, but tries to take reuse into account.
  * MAX is an admissible heuristic counting parallel cost.
  * MAXR is like MAX, but thries to take reuse into account.
  */
 struct Heuristic : public gc {
   /* Constructs a heuristic from a name. */
-  Heuristic(const string& name = "SUM");
+  Heuristic(const string& name = "UCPOP");
 
   /* Selects a heuristic from a name. */
   Heuristic& operator=(const string& name);
@@ -234,8 +234,8 @@ struct Heuristic : public gc {
 private:
   /* Heuristics. */
   typedef enum { LIFO, FIFO, OC, UC, BUC, S_PLUS_OC, UCPOP,
-		 SUM, SUM_COST, SUM_WORK,
-		 SUMR, SUMR_COST, SUMR_WORK,
+		 ADD, ADD_COST, ADD_WORK,
+		 ADDR, ADDR_COST, ADDR_WORK,
 		 MAX, MAX_COST, MAX_WORK,
 		 MAXR, MAXR_COST, MAXR_WORK } HVal;
 
@@ -278,7 +278,7 @@ struct SelectionCriterion {
   typedef enum { LIFO, FIFO, RANDOM, LR, MR,
 		 NEW, REUSE, LC, MC, LW, MW } OrderType;
   /* A heuristic. */
-  typedef enum { SUM, MAX } RankHeuristic;
+  typedef enum { ADD, MAX } RankHeuristic;
 
   /* Whether this criterion applies to non-separable threats. */
   bool non_separable;
