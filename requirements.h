@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: requirements.h,v 3.5 2003-03-01 18:50:25 lorens Exp $
+ * $Id: requirements.h,v 6.1 2003-09-05 16:33:07 lorens Exp $
  */
 #ifndef REQUIREMENTS_H
 #define REQUIREMENTS_H
@@ -53,6 +53,8 @@ struct Requirements {
   bool durative_actions;
   /* Whether support for duration inequalities is required. */
   bool duration_inequalities;
+  /* Whether support for fluents is required. */
+  bool fluents;
 
   /* Constructs a default requirements object. */
   Requirements();
