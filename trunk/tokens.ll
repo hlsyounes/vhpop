@@ -2,7 +2,7 @@
 /*
  * PDDL tokenizer.
  *
- * $Id: tokens.ll,v 1.4 2001-10-06 00:35:07 lorens Exp $
+ * $Id: tokens.ll,v 1.5 2001-10-06 04:06:35 lorens Exp $
  */
 %{
 struct Type;
@@ -13,6 +13,7 @@ struct VariableList;
 struct Formula;
 struct FormulaList;
 struct Atom;
+struct AtomList;
 struct Effect;
 struct EffectList;
 struct ActionSchema;
@@ -69,7 +70,7 @@ exists                       return EXISTS;
 forall                       return FORALL;
 either                       return EITHER;
 [A-Za-z]([A-Za-z0-9\-_])*    { yylval.str = tolower(yytext); return NAME; }
-=                            { yylval.str = tolower(yytext); return NAME; }
+=                            { return EQUALS; }
 \?[A-Za-z]([A-Z0-9a-z\-_])*  { yylval.str = tolower(yytext); return VARIABLE; }
 ;.*$                         /* comment */
 [ \t\r]+                     /* whitespace */
