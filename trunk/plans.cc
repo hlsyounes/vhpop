@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.32 2001-12-23 22:09:00 lorens Exp $
+ * $Id: plans.cc,v 1.33 2001-12-25 20:11:09 lorens Exp $
  */
 #include <queue>
 #include <hash_set>
@@ -16,10 +16,6 @@
 
 //#define INEQUALITY_AS_BRANCHING
 
-/* Id of goal step. */
-const size_t Plan::GOAL_ID = UINT_MAX;
-
-
 /* Planning parameters. */
 static Parameters params;
 /* Domain of problem currently being solved. */
@@ -34,6 +30,9 @@ static const PlanningGraph* planning_graph;
 static bool static_pred_flaw = false;
 
 
+/*
+ * A plan queue.
+ */
 struct PlanQueue : public priority_queue<const Plan*, Vector<const Plan*>,
 		   less<const LessThanComparable*> > {
 };
@@ -60,8 +59,7 @@ struct AddStepReason : public Reason {
 
   /* Constructs an AddStep reason. */
   AddStepReason(size_t step_id)
-    : step_id(step_id) {
-  }
+    : step_id(step_id) {}
 
   /* Checks if this reason involves the given step. */
   virtual bool involves(const Step& step) const {
@@ -85,8 +83,7 @@ struct EstablishReason : public Reason {
 
   /* Constructs an Establish reason. */
   EstablishReason(const Link& link)
-    : link(link) {
-  }
+    : link(link) {}
 
   /* Checks if this reason involves the given link. */
   virtual bool involves(const Link& link) const {
@@ -112,8 +109,7 @@ struct ProtectReason : public Reason {
 
   /* Constructs a Protect reason. */
   ProtectReason(const Link& link, size_t step_id)
-    : link(link), step_id(step_id) {
-  }
+    : link(link), step_id(step_id) {}
 
   /* Checks if this reason involves the given link. */
   virtual bool involves(const Link& link) const {
@@ -170,6 +166,10 @@ const Atom* Step::step_formula() const {
   }
   return formula;
 }
+
+
+/* Id of goal step. */
+const size_t Plan::GOAL_ID = UINT_MAX;
 
 
 /* Adds atomic goal to chain of open conditions, and returns true if
@@ -306,6 +306,56 @@ static bool add_goal(const OpenConditionChain*& open_conds,
     }
   }
   return true;
+}
+
+
+/* Returns the initial plan representing the given problem, or NULL
+   if goals of problem are inconsistent. */
+const Plan* Plan::make_initial_plan(const Problem& problem) {
+  /* Reason for initial steps in plan. */
+  const Reason& init_reason = *(new InitReason());
+
+  /*
+   * Create step representing initial conditions of problem.
+   */
+  EffectList& init = *(new EffectList(&problem.init));
+  /* Initial step. */
+  const Step& init_step = *(new Step(0, Formula::TRUE, init, init_reason));
+
+  /*
+   * Create step representing goal of problem.
+   */
+  /* Goal step. */
+  const Step& goal_step =
+    *(new Step(Plan::GOAL_ID, problem.goal, *(new EffectList()), init_reason));
+  /* Reason for open conditions of goal. */
+  const Reason& goal_reason = *(new AddStepReason(goal_step.id));
+  /* Chain of open conditions. */
+  const OpenConditionChain* open_conds = NULL;
+  /* Number of open conditions. */
+  size_t num_open_conds = 0;
+  /* Number of static open conditions. */
+  size_t num_static = 0;
+  /* Bindings introduced by goal. */
+  BindingList new_bindings;
+  /* Add goals as open conditions. */
+  if (!add_goal(open_conds, num_open_conds, num_static, new_bindings,
+		goal_step.precondition, goal_step.id, goal_reason)) {
+    /* Goals are inconsistent. */
+    return NULL;
+  }
+  /* Make chain of steps. */
+  const StepChain* steps = new StepChain(&goal_step,
+					 new StepChain(&init_step, NULL));
+  /* Variable bindings. */
+  const Bindings* bindings = &Bindings::make_bindings(steps, planning_graph);
+  if (bindings == NULL) {
+    /* Bindings are inconsistent. */
+    return NULL;
+  }
+  /* Return initial plan. */
+  return new Plan(steps, 2, 0, NULL, 0, NULL, 0, open_conds, num_open_conds,
+		  num_static, *bindings, *(new Orderings()), NULL);
 }
 
 
@@ -481,56 +531,6 @@ double Plan::primary_rank() const {
 }
 
 
-/* Returns the initial plan representing the given problem, or NULL
-   if goals of problem are inconsistent. */
-const Plan* Plan::make_initial_plan(const Problem& problem) {
-  /* Reason for initial steps in plan. */
-  const Reason& init_reason = *(new InitReason());
-
-  /*
-   * Create step representing initial conditions of problem.
-   */
-  EffectList& init = *(new EffectList(&problem.init));
-  /* Initial step. */
-  const Step& init_step = *(new Step(0, Formula::TRUE, init, init_reason));
-
-  /*
-   * Create step representing goal of problem.
-   */
-  /* Goal step. */
-  const Step& goal_step =
-    *(new Step(Plan::GOAL_ID, problem.goal, *(new EffectList()), init_reason));
-  /* Reason for open conditions of goal. */
-  const Reason& goal_reason = *(new AddStepReason(goal_step.id));
-  /* Chain of open conditions. */
-  const OpenConditionChain* open_conds = NULL;
-  /* Number of open conditions. */
-  size_t num_open_conds = 0;
-  /* Number of static open conditions. */
-  size_t num_static = 0;
-  /* Bindings introduced by goal. */
-  BindingList new_bindings;
-  /* Add goals as open conditions. */
-  if (!add_goal(open_conds, num_open_conds, num_static, new_bindings,
-		goal_step.precondition, goal_step.id, goal_reason)) {
-    /* Goals are inconsistent. */
-    return NULL;
-  }
-  /* Make chain of steps. */
-  const StepChain* steps = new StepChain(&goal_step,
-					 new StepChain(&init_step, NULL));
-  /* Variable bindings. */
-  const Bindings* bindings = &Bindings::make_bindings(steps, planning_graph);
-  if (bindings == NULL) {
-    /* Bindings are inconsistent. */
-    return NULL;
-  }
-  /* Return initial plan. */
-  return new Plan(steps, 2, 0, NULL, 0, NULL, 0, open_conds, num_open_conds,
-		  num_static, *bindings, *(new Orderings()), NULL);
-}
-
-
 const Flaw& Plan::get_flaw() const {
   const Flaw& flaw =
     params.flaw_order.select(unsafes_, open_conds_, planning_graph, *domain,
@@ -601,10 +601,9 @@ void Plan::separate(PlanList& new_plans, const Unsafe& unsafe) const {
   bindings_.affects(unifier, unsafe.effect_add, unsafe.link.condition);
   const VariableList& effect_forall = unsafe.effect.forall;
   const Formula* goal = &Formula::FALSE;
-  for (SubstitutionList::const_iterator i = unifier.begin();
-       i != unifier.end(); i++) {
-    const Substitution& s = **i;
-    if (!effect_forall.contains(s.var)) {
+  for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
+    const Substitution& s = **si;
+    if (!member(effect_forall.begin(), effect_forall.end(), &s.var)) {
       const Inequality& neq = *new Inequality(s.var, s.term);
       if (bindings_.consistent_with(neq)) {
 	goal = &(*goal || neq);
@@ -616,10 +615,9 @@ void Plan::separate(PlanList& new_plans, const Unsafe& unsafe) const {
     const Formula* cond_goal;
     if (!effect_forall.empty()) {
       SubstitutionList forall_subst;
-      for (SubstitutionList::const_iterator i = unifier.begin();
-	   i != unifier.end(); i++) {
-	const Substitution& s = **i;
-	if (effect_forall.contains(s.var)) {
+      for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
+	const Substitution& s = **si;
+	if (member(effect_forall.begin(), effect_forall.end(), &s.var)) {
 	  forall_subst.push_back(&s);
 	}
       }
@@ -1238,9 +1236,8 @@ void Plan::new_cw_link(PlanList& new_plans, const Step& step,
 	  return;
 	}
 	const Formula* binds = &Formula::FALSE;
-	for (SubstitutionList::const_iterator i = mgu.begin();
-	     i != mgu.end(); i++) {
-	  const Substitution& s = **i;
+	for (SubstListIter si = mgu.begin(); si != mgu.end(); si++) {
+	  const Substitution& s = **si;
 	  binds = &(*binds || *(new Inequality(s.var, s.term)));
 	}
 	goals = &(*goals && *binds);
@@ -1282,10 +1279,9 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
   const LinkChain* links = new LinkChain(&link, links_);
   const VariableList& effect_forall = effect.forall;
   BindingList new_bindings;
-  for (SubstitutionList::const_iterator i = unifier.begin();
-       i != unifier.end(); i++) {
-    const Substitution& s = **i;
-    if (!effect_forall.contains(s.var)) {
+  for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
+    const Substitution& s = **si;
+    if (!member(effect_forall.begin(), effect_forall.end(), &s.var)) {
       new_bindings.push_back(new EqualityBinding(s, establish_reason));
     }
   }
@@ -1301,10 +1297,9 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
   if (effect.condition != Formula::TRUE) {
     if (!effect_forall.empty()) {
       SubstitutionList forall_subst;
-      for (SubstitutionList::const_iterator i = unifier.begin();
-	   i != unifier.end(); i++) {
-	const Substitution& s = **i;
-	if (effect_forall.contains(s.var)) {
+      for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
+	const Substitution& s = **si;
+	if (member(effect_forall.begin(), effect_forall.end(), &s.var)) {
 	  forall_subst.push_back(&s);
 	}
       }

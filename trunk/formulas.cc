@@ -1,8 +1,9 @@
 /*
- * $Id: formulas.cc,v 1.27 2001-12-23 15:38:05 lorens Exp $
+ * $Id: formulas.cc,v 1.28 2001-12-25 20:10:51 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
+#include "types.h"
 #include "domains.h"
 #include "problems.h"
 #include "bindings.h"
@@ -20,20 +21,150 @@ struct Substitutes
 };
 
 
+/* ====================================================================== */
+/* Substitution */
+
+/* Constructs a substitution. */
+Substitution::Substitution(const Variable& var, const Term& term)
+  : var(var), term(term) {}
+
+
+/* Prints this object on the given stream. */
+void Substitution::print(ostream& os) const {
+  os << '[' << var << '/' << term << ']';
+}
+
+
+/* ====================================================================== */
+/* Term */
+
+/* Constructs an abstract term with the given name. */
+Term::Term(const string& name, const Type& type)
+  : name(name), type(type) {}
+
+
+/* Returns an instantiation of this term. */
+const Term& Term::instantiation(const Bindings& bindings) const {
+  return bindings.binding(*this);
+}
+
+
+/* Checks if this object is less than the given object. */
+bool Term::less(const LessThanComparable& o) const {
+  if (typeid(o) == typeid(StepVar)) {
+    return true;
+  } else {
+    const Term& t = dynamic_cast<const Term&>(o);
+    return name < t.name;
+  }
+}
+
+
+/* Checks if this object equals the given object. */
+bool Term::equals(const EqualityComparable& o) const {
+  const Term* t = dynamic_cast<const Term*>(&o);
+  return t != NULL && typeid(o) == typeid(*this) && name == t->name;
+}
+
+
+/* Returns the hash value of this object. */
+size_t Term::hash_value() const {
+  return hash<string>()(name);
+}
+
+
+/* Prints this object on the given stream. */
+void Term::print(ostream& os) const {
+  os << name;
+}
+
+
+/* ====================================================================== */
+/* Name */
+
+/* Constructs a name. */
+Name::Name(const string& name, const Type& type)
+  : Term(name, type) {}
+
+
+/* Returns an instantiation of this term. */
+const Name& Name::instantiation(size_t id) const {
+  return *this;
+}
+
+
+/* Returns this term subject to the given substitutions. */
+const Name& Name::substitution(const SubstitutionList& subst) const {
+  return *this;
+}
+
+
+/* Checks if this term is equivalent to the given term.  Two terms
+   are equivalent if they are the same name, or if they are both
+   variables. */
+bool Name::equivalent(const Term& t) const {
+  return equals(t);
+}
+
+
+/* ====================================================================== */
+/* Variable */
+
+/* Constructs a variable with the given name. */
+Variable::Variable(const string& name)
+  : Term(name, SimpleType::OBJECT) {}
+
+
+/* Constructs a variable with the given name and type. */
+Variable::Variable(const string& name, const Type& type)
+  : Term(name, type) {}
+
+
+/* Returns an instantiation of this term. */
+const Variable& Variable::instantiation(size_t id) const {
+  return *(new StepVar(*this, id));
+}
+
+
+/* Returns this term subject to the given substitutions. */
+const Term& Variable::substitution(const SubstitutionList& subst) const {
+  SubstListIter si = find_if(subst.begin(), subst.end(),
+			     bind2nd(Substitutes(), this));
+  return (si != subst.end()) ? (*si)->term : *this;
+}
+
+
+/* Checks if this term is equivalent to the given term.  Two terms
+   are equivalent if they are the same name, or if they are both
+   variables. */
+bool Variable::equivalent(const Term& t) const {
+  return dynamic_cast<const Variable*>(&t) != NULL;
+}
+
+
+/* ====================================================================== */
+/* StepVar */
+
+/* Constructs an instantiated variable. */
+StepVar::StepVar(const Variable& var, size_t id)
+  : Variable(var), id(id) {}
+
+
 /* Checks if this object is less than the given object. */
 bool StepVar::less(const LessThanComparable& o) const {
   if (typeid(o) != typeid(StepVar)) {
     return false;
+  } else {
+    const StepVar& vt = dynamic_cast<const StepVar&>(o);
+    return id < vt.id || (id == vt.id && name < vt.name);
   }
-  const StepVar* vt = dynamic_cast<const StepVar*>(&o);
-  return id < vt->id || (id == vt->id && name < vt->name);
 }
 
 
 /* Checks if this object equals the given object. */
 bool StepVar::equals(const EqualityComparable& o) const {
   const StepVar* vt = dynamic_cast<const StepVar*>(&o);
-  return vt != NULL && name == vt->name && id == vt->id;
+  return vt != NULL && id == vt->id && name == vt->name;
 }
 
 
@@ -42,6 +173,75 @@ void StepVar::print(ostream& os) const {
   os << name << '(' << id << ')';
 }
 
+
+/* ====================================================================== */
+/* TermList */
+
+/* Returns an instantiation of this term list. */
+const TermList& TermList::instantiation(size_t id) const {
+  TermList& terms = *(new TermList());
+  for (const_iterator ti = begin(); ti != end(); ti++) {
+    terms.push_back(&(*ti)->instantiation(id));
+  }
+  return terms;
+}
+
+
+/* Returns an instantiation of this term list. */
+const TermList& TermList::instantiation(const Bindings& bindings) const {
+  TermList& terms = *(new TermList());
+  for (const_iterator ti = begin(); ti != end(); ti++) {
+    terms.push_back(&(*ti)->instantiation(bindings));
+  }
+  return terms;
+}
+
+
+/* Returns this term list subject to the given substitutions. */
+const TermList& TermList::substitution(const SubstitutionList& subst) const {
+  TermList& terms = *(new TermList());
+  for (const_iterator ti = begin(); ti != end(); ti++) {
+    terms.push_back(&(*ti)->substitution(subst));
+  }
+  return terms;
+}
+
+
+/* Checks if this term list is equivalent to the given term list. */
+bool TermList::equivalent(const TermList& terms) const {
+  if (size() != terms.size()) {
+    return false;
+  } else {
+    for (const_iterator ti = begin(), tj = terms.begin();
+	 ti != end(); ti++, tj++) {
+      if (!(*ti)->equivalent(**tj)) {
+	return false;
+      }
+    }
+    return true;
+  }
+}
+
+
+/* ====================================================================== */
+/* VariableList */
+
+/* An empty variable list. */
+const VariableList& VariableList::EMPTY = *(new VariableList());
+
+
+/* Returns an instantiation of this variable list. */
+const VariableList& VariableList::instantiation(size_t id) const {
+  VariableList& variables = *(new VariableList());
+  for (const_iterator vi = begin(); vi != end(); vi++) {
+    variables.push_back(&(*vi)->instantiation(id));
+  }
+  return variables;
+}
+
+
+/* ====================================================================== */
+/* Constant */
 
 /*
  * A formula with a constant truth value.
@@ -119,166 +319,8 @@ private:
 };
 
 
-/* Prints this object on the given stream. */
-void Substitution::print(ostream& os) const {
-  os << '[' << var << '/' << term << ']';
-}
-
-
-/* Returns an instantiation of this term. */
-const Term& Term::instantiation(const Bindings& bindings) const {
-  return bindings.binding(*this);
-}
-
-
-/* Checks if this object is less than the given object. */
-bool Term::less(const LessThanComparable& o) const {
-  if (typeid(o) == typeid(StepVar)) {
-    return true;
-  }
-  const Term* t = dynamic_cast<const Term*>(&o);
-  return t != NULL && name < t->name;
-}
-
-
-/* Returns the hash value of this object. */
-size_t Term::hash_value() const {
-  return hash<string>()(name);
-}
-
-
-/* Prints this object on the given stream. */
-void Term::print(ostream& os) const {
-  os << name;
-}
-
-
-/* Returns an instantiation of this term. */
-const Name& Name::instantiation(size_t id) const {
-  return *this;
-}
-
-
-/* Returns this term subject to the given substitutions. */
-const Name& Name::substitution(const SubstitutionList& subst) const {
-  return *this;
-}
-
-
-/* Checks if this term is equivalent to the given term.  Two terms
-   are equivalent if they are the same name, or if they are both
-   variables. */
-bool Name::equivalent(const Term& t) const {
-  return equals(t);
-}
-
-
-/* Checks if this object equals the given object. */
-bool Name::equals(const EqualityComparable& o) const {
-  const Name* nt = dynamic_cast<const Name*>(&o);
-  return nt != NULL && name == nt->name;
-}
-
-
-/* Returns an instantiation of this term. */
-const Variable& Variable::instantiation(size_t id) const {
-  return *(new StepVar(*this, id));
-}
-
-
-/* Returns this term subject to the given substitutions. */
-const Term& Variable::substitution(const SubstitutionList& subst) const {
-  SubstListIter si = find_if(subst.begin(), subst.end(),
-			     bind2nd(Substitutes(), this));
-  return (si != subst.end()) ? (*si)->term : *this;
-}
-
-
-/* Checks if this term is equivalent to the given term.  Two terms
-   are equivalent if they are the same name, or if they are both
-   variables. */
-bool Variable::equivalent(const Term& t) const {
-  return dynamic_cast<const Variable*>(&t) != NULL;
-}
-
-
-/* Checks if this object equals the given object. */
-bool Variable::equals(const EqualityComparable& o) const {
-  const Variable* vt = dynamic_cast<const Variable*>(&o);
-  return vt != NULL && name == vt->name && typeid(o) == typeid(Variable);
-}
-
-
-/* Returns an instantiation of this term list. */
-const TermList& TermList::instantiation(size_t id) const {
-  TermList& terms = *(new TermList());
-  for (const_iterator ti = begin(); ti != end(); ti++) {
-    terms.push_back(&(*ti)->instantiation(id));
-  }
-  return terms;
-}
-
-
-/* Returns an instantiation of this term list. */
-const TermList& TermList::instantiation(const Bindings& bindings) const {
-  TermList& terms = *(new TermList());
-  for (const_iterator ti = begin(); ti != end(); ti++) {
-    terms.push_back(&(*ti)->instantiation(bindings));
-  }
-  return terms;
-}
-
-
-/* Returns this term list subject to the given substitutions. */
-const TermList& TermList::substitution(const SubstitutionList& subst) const {
-  TermList& terms = *(new TermList());
-  for (const_iterator ti = begin(); ti != end(); ti++) {
-    terms.push_back(&(*ti)->substitution(subst));
-  }
-  return terms;
-}
-
-
-/* Checks if this term list is equivalent to the given term list. */
-bool TermList::equivalent(const TermList& terms) const {
-  if (size() != terms.size()) {
-    return false;
-  } else {
-    for (const_iterator ti = begin(), tj = terms.begin();
-	 ti != end(); ti++, tj++) {
-      if (!(*ti)->equivalent(**tj)) {
-	return false;
-      }
-    }
-    return true;
-  }
-}
-
-
-/* An empty variable list. */
-const VariableList& VariableList::EMPTY = *(new VariableList());
-
-
-/* Checks if this variable list contains the given variable. */
-bool VariableList::contains(const Variable& v) const {
-  for (const_iterator vi = begin(); vi != end(); vi++) {
-    if (**vi == v) {
-      return true;
-    }
-  }
-  return false;
-}
-
-
-/* Returns an instantiation of this variable list. */
-const VariableList& VariableList::instantiation(size_t id) const {
-  VariableList& variables = *(new VariableList());
-  for (const_iterator vi = begin(); vi != end(); vi++) {
-    variables.push_back(&(*vi)->instantiation(id));
-  }
-  return variables;
-}
-
+/* ====================================================================== */
+/* Formula */
 
 /* The true formula. */
 const Formula& Formula::TRUE = *(new Constant(true));
@@ -341,16 +383,6 @@ const Formula& operator||(const Formula& f1, const Formula& f2) {
     }
     return *(new Disjunction(disjuncts));
   }
-}
-
-
-bool equal_to<const Formula*>::operator()(const Formula* f1,
-					  const Formula* f2) const {
-  return *f1 == *f2;
-}
-
-size_t hash<const Formula*>::operator()(const Formula* f) const {
-  return hash<Hashable>()(*f);
 }
 
 
@@ -800,9 +832,8 @@ const Formula& Conjunction::instantiation(const SubstitutionList& subst,
     const Formula& ci = (*fi)->instantiation(subst, problem);
     const Conjunction* conj = dynamic_cast<const Conjunction*>(c);
     if (conj != NULL
-	&& find_if(conj->conjuncts.begin(), conj->conjuncts.end(),
-		   bind1st(equal_to<const EqualityComparable*>(), &!ci))
-	!= conj->conjuncts.end()) {
+	&& member_if(conj->conjuncts.begin(), conj->conjuncts.end(),
+		     bind1st(equal_to<const EqualityComparable*>(), &!ci))) {
       return FALSE;
     }
     c = &(*c && ci);
