@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.h,v 3.8 2002-03-29 19:42:30 lorens Exp $
+ * $Id: orderings.h,v 3.9 2002-04-08 09:57:02 lorens Exp $
  */
 #ifndef ORDERINGS_H
 #define ORDERINGS_H
@@ -142,6 +142,10 @@ struct Orderings {
   virtual bool possibly_after(size_t id1, StepTime t1,
 			      size_t id2, StepTime t2) const = 0;
 
+  /* Checks if the two steps are possibly concurrent. */
+  virtual bool possibly_concurrent(size_t id1, StepTime t1,
+				   size_t id2, StepTime t2) const = 0;
+
   /* Returns the ordering collection with the given addition. */
   virtual const Orderings* refine(const Ordering& new_ordering) const = 0;
 
@@ -238,6 +242,10 @@ struct BinaryOrderings : public Orderings {
   virtual bool possibly_after(size_t id1, StepTime t1,
 			      size_t id2, StepTime t2) const;
 
+  /* Checks if the two steps are possibly concurrent. */
+  virtual bool possibly_concurrent(size_t id1, StepTime t1,
+				   size_t id2, StepTime t2) const;
+
   /* Returns the ordering collection with the given addition. */
   virtual const Orderings* refine(const Ordering& new_ordering) const;
 
@@ -298,6 +306,10 @@ struct TemporalOrderings : public Orderings {
   /* Checks if the first step could be ordered after the second step. */
   virtual bool possibly_after(size_t id1, StepTime t1,
 			      size_t id2, StepTime t2) const;
+
+  /* Checks if the two steps are possibly concurrent. */
+  virtual bool possibly_concurrent(size_t id1, StepTime t1,
+				   size_t id2, StepTime t2) const;
 
   /* Returns the ordering collection with the given addition. */
   virtual const Orderings* refine(const Ordering& new_ordering) const;

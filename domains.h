@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.h,v 3.8 2002-03-25 00:44:44 lorens Exp $
+ * $Id: domains.h,v 3.9 2002-04-08 09:56:46 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -84,6 +84,8 @@ struct Effect : public Printable {
   const VariableList& forall;
   /* Condition for this effect, or TRUE if unconditional effect. */
   const Formula& condition;
+  /* Condition that must hold for this effect to be considered for linking. */
+  const Formula& link_condition;
   /* Add list for this effect. */
   const AtomList& add_list;
   /* Delete list for this effect. */
@@ -125,9 +127,19 @@ struct Effect : public Printable {
   void achievable_predicates(hash_set<string>& preds,
 			     hash_set<string>& neg_preds) const;
 
+  /* Returns a copy of this effect with a new link condition. */
+  const Effect& new_link_condition(const Formula& cond) const;
+
 protected:
   /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
+
+private:
+  /* Constructs a universally quantified conditional effect with a
+     link condition. */
+  Effect(const VariableList& forall, const Formula& condition,
+	 const AtomList& add_list, const NegationList& del_list,
+	 EffectTime when, const Formula& link_cond);
 };
 
 

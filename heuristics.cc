@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 3.11 2002-04-04 10:26:28 lorens Exp $
+ * $Id: heuristics.cc,v 3.12 2002-04-08 09:56:51 lorens Exp $
  */
 #include "heuristics.h"
 #include "plans.h"
@@ -533,7 +533,8 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
 	  }
 	  HeuristicValue cond_value;
 	  effect.condition.heuristic_value(cond_value, *this);
-	  if (!cond_value.infinite()) {
+	  if (!cond_value.infinite()
+	      && !effect.link_condition.contradiction()) {
 	    /* Effect condition is achievable at this level. */
 	    if (effect.when == Effect::AT_START) {
 	      cond_value += start_value;
