@@ -2,7 +2,7 @@
 /*
  * Binding constraints.
  *
- * $Id: bindings.h,v 1.9 2001-10-30 21:33:47 lorens Exp $
+ * $Id: bindings.h,v 1.10 2001-11-07 19:22:03 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
@@ -101,6 +101,8 @@ typedef Chain<const Binding*> BindingChain;
  */
 struct NameSet : public Set<const Name*, less<const LessThanComparable*> > {
 };
+
+typedef NameSet::const_iterator NameSetIter;
 
 
 /*
@@ -207,6 +209,9 @@ struct Bindings : public Printable, public gc {
   /* Returns the binding for the given term, or the term itself if it
      is not bound to a single name. */
   const Term& binding(const Term& t) const;
+
+  /* Returns the domain for the given step variable. */
+  const NameSet* domain(const Variable& v) const;
 
   /* Checks if one of the given formulas is the negation of the other,
      and the atomic formulas can be unified. */

@@ -1,5 +1,5 @@
 /*
- * $Id: bindings.cc,v 1.8 2001-10-30 21:35:07 lorens Exp $
+ * $Id: bindings.cc,v 1.9 2001-11-07 19:21:50 lorens Exp $
  */
 #include "bindings.h"
 #include "formulas.h"
@@ -536,6 +536,13 @@ const Term& Bindings::binding(const Term& t) const {
 }
 
 
+/* Returns the domain for the given step variable. */
+const NameSet* Bindings::domain(const Variable& v) const {
+  pair<const StepDomain*, size_t> sd = find_step_domain(step_domains_, v);
+  return (sd.first != NULL) ? &sd.first->projection(sd.second) : NULL;
+}
+
+
 /* Checks if one of the given formulas is the negation of the other,
    and the atomic formulas can be unified. */
 bool Bindings::affects(const Formula& f1, const Formula& f2) const {
@@ -590,9 +597,12 @@ bool Bindings::unify(SubstitutionList& mgu,
       fp2 = negation2;
     }
   }
-  const Atom& atom1 = dynamic_cast<const Atom&>(*fp1);
-  const Atom& atom2 = dynamic_cast<const Atom&>(*fp2);
-  if (atom1.predicate != atom2.predicate) {
+  const Atom* atom1 = dynamic_cast<const Atom*>(fp1);
+  const Atom* atom2 = dynamic_cast<const Atom*>(fp2);
+  if (atom1 == NULL || atom2 == NULL) {
+    return false;
+  }
+  if (atom1->predicate != atom2->predicate) {
     /* The predicates do not match. */
     return false;
   }
@@ -601,9 +611,9 @@ bool Bindings::unify(SubstitutionList& mgu,
    * Try to unify the terms of the atomic formulas.
    */
   /* Terms of the first atom. */
-  const TermList& terms1 = atom1.terms;
+  const TermList& terms1 = atom1->terms;
   /* Terms of the second atom. */
-  const TermList& terms2 = atom2.terms;
+  const TermList& terms2 = atom2->terms;
   if (terms1.size() != terms2.size()) {
     /* Term lists of different size. */
     return false;
@@ -946,6 +956,8 @@ const Bindings* Bindings::add(const BindingList& new_bindings) const {
 	return NULL;
       } else {
 	/* The terms are not bound to eachother. */
+	bool separate1 = true;
+	bool separate2 = true;
 	if (vs1 == NULL) {
 	  /* The first term is unbound, so create a new varset for it. */
 	  vs1 = Varset::make_varset(neq);
@@ -955,7 +967,7 @@ const Bindings* Bindings::add(const BindingList& new_bindings) const {
 	    /* The second term is a variable. */
 	    if (vs1->excludes(*v2)) {
 	      /* The second term is already separated from the first. */
-	      vs1 = NULL;
+	      separate1 = false;
 	    } else {
 	      /* Separate the second term from the first. */
 	      vs1 = vs1->restrict(*v2);
@@ -963,7 +975,7 @@ const Bindings* Bindings::add(const BindingList& new_bindings) const {
 	  } else {
 	    /* The second term is a name, so the terms are separated
                in the varset for the second term. */
-	    vs1 = NULL;
+	    separate1 = false;
 	  }
 	}
 	if (vs2 == NULL) {
@@ -971,12 +983,12 @@ const Bindings* Bindings::add(const BindingList& new_bindings) const {
 	  vs2 = Varset::make_varset(neq, true);
 	} else if (vs2->excludes(neq.variable)) {
 	  /* The first term is already separated from the second. */
-	  vs2 = NULL;
+	  separate2 = false;
 	} else {
 	  /* Separate the first term from the second. */
 	  vs2 = vs2->restrict(neq.variable);
 	}
-	if (vs1 != NULL) {
+	if (separate1 && vs1 != NULL) {
 	  /* The second term was not separated from the first already. */
 	  varsets = new VarsetChain(vs1, varsets);
 	  if (vs1->constant != NULL && vs2 != NULL) {
@@ -999,14 +1011,15 @@ const Bindings* Bindings::add(const BindingList& new_bindings) const {
 	    }
 	  }
 	}
-	if (vs2 != NULL) {
+	if (separate2 && vs2 != NULL) {
 	  /* The first term was not separated from the second already. */
 	  varsets = new VarsetChain(vs2, varsets);
-	  if (vs2->constant != NULL && vs1 != NULL) {
-	    for (const VariableChain* vc = vs1->cd_set;
-		 vc != NULL; vc = vc->tail) {
+	  if (vs2->constant != NULL) {
+	    const VariableChain* vc = (vs1 != NULL) ? vs1->cd_set : NULL;
+	    const Variable* var = (vc != NULL) ? vc->head : &neq.variable;
+	    while (var != NULL) {
 	      pair<const StepDomain*, size_t> sd =
-		find_step_domain(step_domains, *vc->head);
+		find_step_domain(step_domains, *var);
 	      if (sd.first != NULL) {
 		const StepDomain* new_sd =
 		  sd.first->exclude(*vs2->constant, sd.second);
@@ -1019,6 +1032,8 @@ const Bindings* Bindings::add(const BindingList& new_bindings) const {
 		  step_domains = new StepDomainChain(new_sd, step_domains);
 		}
 	      }
+	      vc = (vs1 != NULL) ? vc->tail : NULL;
+	      var = (vc != NULL) ? vc->head : NULL;
 	    }
 	  }
 	}
