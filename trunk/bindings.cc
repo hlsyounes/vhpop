@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.cc,v 3.3 2002-03-15 19:01:17 lorens Exp $
+ * $Id: bindings.cc,v 3.4 2002-03-18 00:08:54 lorens Exp $
  */
 #include <typeinfo>
 #include "bindings.h"
@@ -137,13 +137,13 @@ struct Varset : public gc {
 
   /* Returns the varset representing the given equality binding. */
   static const Varset* make_varset(const EqualityBinding& eq) {
-    const VariableChain* cd_set = new VariableChain(&eq.variable, NULL);
-    const Variable* v2 = dynamic_cast<const Variable*>(&eq.term);
+    const VariableChain* cd_set = new VariableChain(&eq.var(), NULL);
+    const Variable* v2 = dynamic_cast<const Variable*>(&eq.term());
     if (v2 != NULL) {
       cd_set = new VariableChain(v2, cd_set);
       return new Varset(NULL, cd_set, NULL);
     } else {
-      const Name& n = dynamic_cast<const Name&>(eq.term);
+      const Name& n = dynamic_cast<const Name&>(eq.term());
       return new Varset(&n, cd_set, NULL);
     }
   }
@@ -155,21 +155,21 @@ struct Varset : public gc {
     const VariableChain* cd_set;
     const VariableChain* ncd_set;
     if (reverse) {
-      const Variable* v2 = dynamic_cast<const Variable*>(&neq.term);
+      const Variable* v2 = dynamic_cast<const Variable*>(&neq.term());
       if (v2 != NULL) {
 	constant = NULL;
 	cd_set = new VariableChain(v2, NULL);
       } else {
-	const Name& n = dynamic_cast<const Name&>(neq.term);
+	const Name& n = dynamic_cast<const Name&>(neq.term());
 	constant = &n;
 	cd_set = NULL;
       }
-      ncd_set = new VariableChain(&neq.variable, NULL);
+      ncd_set = new VariableChain(&neq.var(), NULL);
     } else {
-      const Variable* v2 = dynamic_cast<const Variable*>(&neq.term);
+      const Variable* v2 = dynamic_cast<const Variable*>(&neq.term());
       if (v2 != NULL) {
 	constant = NULL;
-	cd_set = new VariableChain(&neq.variable, NULL);
+	cd_set = new VariableChain(&neq.var(), NULL);
 	ncd_set = new VariableChain(v2, NULL);
       } else {
 	return NULL;
@@ -368,9 +368,22 @@ find_step_domain(const StepDomainChain* step_domains, const Variable& var) {
 /* Binding */
 
 /* Constructs an abstract variable binding. */
-Binding::Binding(const Variable& variable, const Term& term,
-		 const Reason& reason)
-  : variable(variable), term(term), reason(reason) {}
+Binding::Binding(const Variable& var, const Term& term, const Reason& reason)
+  : var_(&var), term_(&term) {
+#ifdef TRANSFORMATIONAL
+  reason_ = & reason;
+#endif
+}
+
+
+/* Returns the reason for this binding. */
+const Reason& Binding::reason() const {
+#ifdef TRANSFORMATIONAL
+  return *reason_;
+#else
+  return Reason::DUMMY;
+#endif
+}
 
 
 /* ====================================================================== */
@@ -384,14 +397,14 @@ EqualityBinding::EqualityBinding(const Substitution& s, const Reason& reason)
 
 /* Construct an equality binding, binding the given variable to the
    given term. */
-EqualityBinding::EqualityBinding(const Variable& variable, const Term& term,
+EqualityBinding::EqualityBinding(const Variable& var, const Term& term,
 				 const Reason& reason)
-  : Binding(variable, term, reason) {}
+  : Binding(var, term, reason) {}
 
 
 /* Prints this equality binding on the given stream. */
 void EqualityBinding::print(ostream& os) const {
-  os << variable << '=' << term;
+  os << var() << '=' << term();
 }
 
 
@@ -407,14 +420,14 @@ InequalityBinding::InequalityBinding(const Substitution& s,
 
 /* Constructs an inequality binding, separating the given variable
    from the given term. */
-InequalityBinding::InequalityBinding(const Variable& variable,
-				     const Term& term, const Reason& reason)
-  : Binding(variable, term, reason) {}
+InequalityBinding::InequalityBinding(const Variable& var, const Term& term,
+				     const Reason& reason)
+  : Binding(var, term, reason) {}
 
 
 /* Prints this inequality binding on the given stream. */
 void InequalityBinding::print(ostream& os) const {
-  os << variable << "!=" << term;
+  os << var() << "!=" << term();
 }
 
 
@@ -563,7 +576,7 @@ const Bindings& Bindings::make_bindings(const StepChain* steps,
       }
     }
   }
-  return *(new Bindings(NULL, NULL, NULL, 0, step_domains));
+  return *(new Bindings(NULL, 0, step_domains, NULL, NULL));
 }
 
 
@@ -587,17 +600,41 @@ const Bindings* Bindings::make_bindings(const StepChain* steps,
 
 /* Checks if the given formulas can be unified. */
 bool Bindings::unifiable(const Literal& l1, const Literal& l2) {
-  return Bindings(NULL, NULL, NULL, 0, NULL).unify(l1, l2);
+  return Bindings(NULL, 0, NULL, NULL, NULL).unify(l1, l2);
 }
 
 
 /* Constructs a binding collection. */
-Bindings::Bindings(const BindingChain* equalities,
-		   const BindingChain* inequalities,
-		   const VarsetChain* varsets, size_t high_step,
-		   const StepDomainChain* step_domains)
-  : equalities(equalities), inequalities(inequalities),
-    varsets_(varsets), high_step_(high_step), step_domains_(step_domains) {}
+Bindings::Bindings(const VarsetChain* varsets, size_t high_step,
+		   const StepDomainChain* step_domains,
+		   const BindingChain* equalities,
+		   const BindingChain* inequalities)
+  : varsets_(varsets), high_step_(high_step), step_domains_(step_domains) {
+#ifdef TRANSFORMATIONAL
+  equalities_ = equalities;
+  inequalities_ = inequalities;
+#endif
+}
+
+
+/* Returns the equality bindings. */
+const BindingChain* Bindings::equalities() const {
+#ifdef TRANSFORMATIONAL
+  return equalities_;
+#else
+  return NULL;
+#endif
+}
+
+
+/* Return the inequality bindings. */
+const BindingChain* Bindings::inequalities() const {
+#ifdef TRANSFORMATIONAL
+  return inequalities_;
+#else
+  return NULL;
+#endif
+}
 
 
 /* Returns the binding for the given term, or the term itself if it is
@@ -730,7 +767,7 @@ bool Bindings::unify(SubstitutionList& mgu,
   for (BindingListIter bi = bl.begin(); bi != bl.end(); bi++) {
     /* Add unification to most general unifier. */
     const Binding& b = **bi;
-    mgu.push_back(Substitution(b.variable, b.term));
+    mgu.push_back(Substitution(b.var(), b.term()));
   }
   /* Successful unification. */
   return true;
@@ -815,9 +852,9 @@ const Bindings* Bindings::add(const BindingList& new_bindings) const {
   }
 
   /* Equality bindings for new binding collection. */
-  const BindingChain* equalities = this->equalities;
+  const BindingChain* equalities = this->equalities();
   /* Inequality bindings for new binding collection. */
-  const BindingChain* inequalities = this->inequalities;
+  const BindingChain* inequalities = this->inequalities();
   /* Varsets for new binding collection */
   const VarsetChain* varsets = varsets_;
   /* Highest step id of variable in varsets. */
@@ -840,10 +877,10 @@ const Bindings* Bindings::add(const BindingList& new_bindings) const {
        */
       /* Varset for variable. */
       const Varset* vs1;
-      const StepVar* sv = dynamic_cast<const StepVar*>(&eq->variable);
+      const StepVar* sv = dynamic_cast<const StepVar*>(&eq->var());
       if (sv == NULL || sv->id <= high_step_
 	  || high_step_vars.find(sv) != high_step_vars.end()) {
-	vs1 = find_varset(varsets, eq->variable);
+	vs1 = find_varset(varsets, eq->var());
       } else {
 	high_step = sv->id;
 	high_step_vars.insert(sv);
@@ -851,10 +888,10 @@ const Bindings* Bindings::add(const BindingList& new_bindings) const {
       }
       /* Varset for term. */
       const Varset* vs2;
-      sv = dynamic_cast<const StepVar*>(&eq->term);
+      sv = dynamic_cast<const StepVar*>(&eq->term());
       if (sv == NULL || sv->id <= high_step_
 	  || high_step_vars.find(sv) != high_step_vars.end()) {
-	vs2 = find_varset(varsets, eq->term);
+	vs2 = find_varset(varsets, eq->term());
       } else {
 	high_step = sv->id;
 	high_step_vars.insert(sv);
@@ -870,11 +907,11 @@ const Bindings* Bindings::add(const BindingList& new_bindings) const {
 	  if (vs1 == NULL) {
 	    /* The first term is unbound, so add it to the varset of
                the second. */
-	    comb = vs2->add(eq->variable);
+	    comb = vs2->add(eq->var());
 	  } else if (vs2 == NULL) {
 	    /* The second term is unbound, so add it to the varset of
                the first. */
-	    comb = vs1->add(eq->term);
+	    comb = vs1->add(eq->term());
 	  } else {
 	    /* Both terms are bound, so combine their varsets. */
 	    comb = vs1->combine(*vs2);
@@ -906,7 +943,7 @@ const Bindings* Bindings::add(const BindingList& new_bindings) const {
 	    case 0:
 	    case 4:
 	      if (vs1 == NULL) {
-		var = &eq->variable;
+		var = &eq->var();
 		phase += 2;
 	      } else if (vs1->constant == NULL) {
 		vc = vs1->cd_set;
@@ -930,7 +967,7 @@ const Bindings* Bindings::add(const BindingList& new_bindings) const {
 	    case 2:
 	    case 6:
 	      if (vs2 == NULL) {
-		var = dynamic_cast<const Variable*>(&eq->term);
+		var = dynamic_cast<const Variable*>(&eq->term());
 		phase += 2;
 	      } else if (vs2->constant == NULL) {
 		vc = vs2->cd_set;
@@ -990,10 +1027,12 @@ const Bindings* Bindings::add(const BindingList& new_bindings) const {
 	    }
 	  }
 	}
+#if TRANSFORMATIONAL
 	/* Add binding to chain of equality bindings. */
-	if (!eq->reason.dummy()) {
+	if (!eq->reason().dummy()) {
 	  equalities = new BindingChain(eq, equalities);
 	}
+#endif
       }
     } else {
       /*
@@ -1003,10 +1042,10 @@ const Bindings* Bindings::add(const BindingList& new_bindings) const {
 	dynamic_cast<const InequalityBinding&>(*bind);
       /* Varset for variable. */
       const Varset* vs1;
-      const StepVar* sv = dynamic_cast<const StepVar*>(&neq.variable);
+      const StepVar* sv = dynamic_cast<const StepVar*>(&neq.var());
       if (sv == NULL || sv->id <= high_step_
 	  || high_step_vars.find(sv) != high_step_vars.end()) {
-	vs1 = find_varset(varsets, neq.variable);
+	vs1 = find_varset(varsets, neq.var());
       } else {
 	high_step = sv->id;
 	high_step_vars.insert(sv);
@@ -1014,10 +1053,10 @@ const Bindings* Bindings::add(const BindingList& new_bindings) const {
       }
       /* Varset for term. */
       const Varset* vs2;
-      sv = dynamic_cast<const StepVar*>(&neq.term);
+      sv = dynamic_cast<const StepVar*>(&neq.term());
       if (sv == NULL || sv->id <= high_step_
 	  || high_step_vars.find(sv) != high_step_vars.end()) {
-	vs2 = find_varset(varsets, neq.term);
+	vs2 = find_varset(varsets, neq.term());
       } else {
 	high_step = sv->id;
 	high_step_vars.insert(sv);
@@ -1034,7 +1073,7 @@ const Bindings* Bindings::add(const BindingList& new_bindings) const {
 	  /* The first term is unbound, so create a new varset for it. */
 	  vs1 = Varset::make_varset(neq);
 	} else {
-	  const Variable* v2 = dynamic_cast<const Variable*>(&neq.term);
+	  const Variable* v2 = dynamic_cast<const Variable*>(&neq.term());
 	  if (v2 != NULL) {
 	    /* The second term is a variable. */
 	    if (vs1->excludes(*v2)) {
@@ -1053,12 +1092,12 @@ const Bindings* Bindings::add(const BindingList& new_bindings) const {
 	if (vs2 == NULL) {
 	  /* The second term is unbound, so create a new varset for it. */
 	  vs2 = Varset::make_varset(neq, true);
-	} else if (vs2->excludes(neq.variable)) {
+	} else if (vs2->excludes(neq.var())) {
 	  /* The first term is already separated from the second. */
 	  separate2 = false;
 	} else {
 	  /* Separate the first term from the second. */
-	  vs2 = vs2->restrict(neq.variable);
+	  vs2 = vs2->restrict(neq.var());
 	}
 	if (separate1 && vs1 != NULL) {
 	  /* The second term was not separated from the first already. */
@@ -1088,7 +1127,7 @@ const Bindings* Bindings::add(const BindingList& new_bindings) const {
 	  varsets = new VarsetChain(vs2, varsets);
 	  if (vs2->constant != NULL) {
 	    const VariableChain* vc = (vs1 != NULL) ? vs1->cd_set : NULL;
-	    const Variable* var = (vc != NULL) ? vc->head : &neq.variable;
+	    const Variable* var = (vc != NULL) ? vc->head : &neq.var();
 	    while (var != NULL) {
 	      pair<const StepDomain*, size_t> sd =
 		find_step_domain(step_domains, *var);
@@ -1110,15 +1149,17 @@ const Bindings* Bindings::add(const BindingList& new_bindings) const {
 	  }
 	}
       }
+#ifdef TRANSFORMATIONAL
       /* Add binding to chain of inequality bindings. */
-      if (!neq.reason.dummy()) {
+      if (!neq.reason().dummy()) {
 	inequalities = new BindingChain(&neq, inequalities);
       }
+#endif
     }
   }
   /* New bindings are consistent with the current bindings. */
-  return new Bindings(equalities, inequalities, varsets, high_step,
-		      step_domains);
+  return new Bindings(varsets, high_step, step_domains,
+		      equalities, inequalities);
 }
 
 
@@ -1154,8 +1195,8 @@ const Bindings* Bindings::add(size_t step_id, const Action* step_action,
       high_step = max(high_step, step_id);
     }
   }
-  return new Bindings(equalities, inequalities, varsets, high_step,
-		      step_domains);
+  return new Bindings(varsets, high_step, step_domains,
+		      equalities(), inequalities());
 }
 
 
