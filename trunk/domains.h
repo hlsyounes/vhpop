@@ -2,7 +2,7 @@
 /*
  * Domain descriptions.
  *
- * $Id: domains.h,v 1.14 2001-09-18 15:39:04 lorens Exp $
+ * $Id: domains.h,v 1.15 2001-09-28 17:55:55 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -30,7 +30,7 @@ struct Problem;
 /*
  * Predicate declaration.
  */
-struct Predicate : public gc {
+struct Predicate : public Printable {
   /* Name of this predicate. */
   const string name;
   /* Predicate parameters. */
@@ -44,18 +44,10 @@ struct Predicate : public gc {
   /* Returns the arity of this predicate. */
   size_t arity() const;
 
-private:
+protected:
   /* Prints this predicate on the given stream. */
-  void print(ostream& os) const;
-
-  friend ostream& operator<<(ostream& os, const Predicate& p);
+  virtual void print(ostream& os) const;
 };
-
-/* Output operator for predicates. */
-inline ostream& operator<<(ostream& os, const Predicate& p) {
-  p.print(os);
-  return os;
-}
 
 
 /*
@@ -72,7 +64,7 @@ struct EffectList;
 /*
  * Effect definition.
  */
-struct Effect : public gc {
+struct Effect : public Printable {
   /* List of universally quantified variables for this effect. */
   const VariableList& forall;
   /* Condition for this effect, or TRUE if unconditional effect. */
@@ -117,18 +109,10 @@ struct Effect : public gc {
   void achievable_predicates(hash_set<string>& preds,
 			     hash_set<string>& neg_preds) const;
 
-private:
+protected:
   /* Prints this effect on the given stream. */
-  void print(ostream& os) const;
-
-  friend ostream& operator<<(ostream& os, const Effect& e);
+  virtual void print(ostream& os) const;
 };
-
-/* Output operator for effects. */
-inline ostream& operator<<(ostream& os, const Effect& e) {
-  e.print(os);
-  return os;
-}
 
 
 /*
@@ -171,7 +155,7 @@ struct ActionList;
 /*
  * Abstract action definition.
  */
-struct Action : public gc {
+struct Action : public Printable {
   /* Action precondition. */
   const Formula& precondition;
   /* List of action effects. */
@@ -202,25 +186,15 @@ protected:
   /* Constructs an action. */
   Action(const Formula& precondition, const EffectList& effects);
 
-  /* Prints this action on the given stream. */
-  virtual void print(ostream& os) const = 0;
-
   /* Tests if this action equals the given action. */
   virtual bool equals(const Action& a) const = 0;
 
   /* Returns the hash value of this action. */
   virtual size_t hash_value() const = 0;
 
-  friend ostream& operator<<(ostream& os, const Action& a);
   friend bool operator==(const Action& a1, const Action& a2);
   friend struct hash<Action>;
 };
-
-/* Output operator for actions. */
-inline ostream& operator<<(ostream& os, const Action& a) {
-  a.print(os);
-  return os;
-}
 
 /* Equality operator for actions. */
 inline bool operator==(const Action& a1, const Action& a2) {
@@ -347,7 +321,7 @@ struct Requirements;
 /*
  * Domain definition.
  */
-struct Domain : public gc {
+struct Domain : public Printable {
   /* Table of domain definitions. */
   typedef hash_map<string, const Domain*, hash<string>, equal_to<string>,
     container_alloc> DomainMap;
@@ -439,15 +413,7 @@ private:
 					    const ActionMap& actions);
 
   /* Prints this domain on the given stream. */
-  void print(ostream& os) const;
-
-  friend ostream& operator<<(ostream& os, const Domain& d);
+  virtual void print(ostream& os) const;
 };
-
-/* Output operator for domains. */
-inline ostream& operator<<(ostream& os, const Domain& d) {
-  d.print(os);
-  return os;
-}
 
 #endif /* DOMAINS_H */

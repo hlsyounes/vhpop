@@ -2,7 +2,7 @@
 /*
  * Types.
  *
- * $Id: types.h,v 1.3 2001-08-11 02:31:52 lorens Exp $
+ * $Id: types.h,v 1.4 2001-09-28 17:56:06 lorens Exp $
  */
 #ifndef TYPES_H
 #define TYPES_H
@@ -14,11 +14,7 @@
 /*
  * Abstract type.
  */
-struct Type : public gc {
-  /* Deletes this type. */
-  virtual ~Type() {
-  }
-
+struct Type : public Printable {
   /* Checks if this type is the object type. */
   bool object() const;
 
@@ -26,9 +22,6 @@ struct Type : public gc {
   virtual bool subtype(const Type& t) const = 0;
 
 protected:
-  /* Prints this type on the given stream. */
-  virtual void print(ostream& os) const = 0;
-
   /* Checks if this type equals the given type. */
   virtual bool equals(const Type& t) const = 0;
 
@@ -38,17 +31,10 @@ protected:
   /* Removes the given type from this type. */
   virtual const Type& subtract(const Type& t) const = 0;
 
-  friend ostream& operator<<(ostream& os, const Type& t);
   friend bool operator==(const Type& t1, const Type& t2);
   friend const Type& operator+(const Type& t1, const Type& t2);
   friend const Type& operator-(const Type& t1, const Type& t2);
 };
-
-/* Output operator for types. */
-inline ostream& operator<<(ostream& os, const Type& t) {
-  t.print(os);
-  return os;
-}
 
 /* Equality operator for types. */
 inline bool operator==(const Type& t1, const Type& t2) {

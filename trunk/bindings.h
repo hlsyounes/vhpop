@@ -2,7 +2,7 @@
 /*
  * Binding constraints.
  *
- * $Id: bindings.h,v 1.3 2001-09-18 16:06:10 lorens Exp $
+ * $Id: bindings.h,v 1.4 2001-09-28 17:56:17 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
@@ -19,7 +19,7 @@ struct Reason;
 /*
  * Abstract variable binding.
  */
-struct Binding : public gc {
+struct Binding : public Printable {
   /* A variable. */
   const Variable& variable;
   /* A term either bound to, or separated from the variable. */
@@ -27,27 +27,12 @@ struct Binding : public gc {
   /* Reason for binding. */
   const Reason& reason;
 
-  /* Deletes a binding. */
-  virtual ~Binding() {
-  }
-
 protected:
   /* Constructs an abstract variable binding. */
   Binding(const Variable& variable, const Term& term, const Reason& reason)
     : variable(variable), term(term), reason(reason) {
   }
-
-  /* Prints this binding on the given stream. */
-  virtual void print(ostream& os) const = 0;
-
-  friend ostream& operator<<(ostream& os, const Binding& b);
 };
-
-/* Output operator for bindings. */
-inline ostream& operator<<(ostream& os, const Binding& b) {
-  b.print(os);
-  return os;
-}
 
 
 /*
@@ -118,7 +103,7 @@ typedef Chain<const Varset*> VarsetChain;
 /*
  * A collection of variable bindings.
  */
-struct Bindings : public gc {
+struct Bindings : public Printable {
   /* Equality bindings. */
   const BindingChain* const equalities;
   /* Inequality bindings. */
@@ -185,15 +170,7 @@ private:
   }
 
   /* Prints this binding collection on the given stream. */
-  void print(ostream& os) const;
-
-  friend ostream& operator<<(ostream& os, const Bindings& b);
+  virtual void print(ostream& os) const;
 };
-
-/* Output operator for binding collections. */
-inline ostream& operator<<(ostream& os, const Bindings& b) {
-  b.print(os);
-  return os;
-}
 
 #endif /* BINDINGS_H */

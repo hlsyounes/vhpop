@@ -2,7 +2,7 @@
 /*
  * Problem descriptions.
  *
- * $Id: problems.h,v 1.4 2001-08-11 06:18:02 lorens Exp $
+ * $Id: problems.h,v 1.5 2001-09-28 17:54:55 lorens Exp $
  */
 #ifndef PROBLEMS_H
 #define PROBLEMS_H
@@ -26,7 +26,7 @@ struct NameList;
 /*
  * Problem definition.
  */
-struct Problem : public gc {
+struct Problem : public Printable {
   typedef hash_map<string, const Problem*, hash<string>, equal_to<string>,
     container_alloc> ProblemMap;
 
@@ -89,20 +89,13 @@ struct Problem : public gc {
      from the action schemas of the domain. */
   void instantiated_actions(ActionList& actions) const;
 
+protected:
+  /* Prints this problem on the given stream. */
+  virtual void print(ostream& os) const;
+
 private:
   /* Table of defined problems. */
   static ProblemMap problems;
-
-  /* Prints this problem on the given stream. */
-  void print(ostream& os) const;
-
-  friend ostream& operator<<(ostream& os, const Problem& p);
 };
-
-/* Output operator for problems. */
-inline ostream& operator<<(ostream& os, const Problem& p) {
-  p.print(os);
-  return os;
-}
 
 #endif /* PROBLEMS_H */
