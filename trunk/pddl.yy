@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 3.4 2002-03-12 19:44:42 lorens Exp $
+ * $Id: pddl.yy,v 3.5 2002-03-12 22:42:42 lorens Exp $
  */
 %{
 #include "requirements.h"
@@ -1143,7 +1143,9 @@ static void add_names(const vector<string>& names, const Type& type) {
 	  name_map->insert(make_pair(s, new Name(s, *t)));
 	}
       } else {
-	(*name_map)[s] = new Name(s, UnionType::add((*ni).second->type, *t));
+	const Name* old_name = (*ni).second;
+	(*name_map)[s] = new Name(s, UnionType::add(old_name->type, *t));
+	delete old_name;
 	if (ut != NULL) {
 	  delete t;
 	}

@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 3.4 2002-03-12 22:19:08 lorens Exp $
+ * $Id: formulas.h,v 3.5 2002-03-12 22:42:47 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -66,7 +66,7 @@ typedef SubstitutionList::const_iterator SubstListIter;
  * Abstract term.
  */
 struct Term
-  : public LessThanComparable, public Hashable, public Printable, public gc {
+  : public LessThanComparable, public Hashable, public Printable {
   /* Name of term. */
   const string name;
   /* Type of term. */
@@ -111,6 +111,9 @@ struct Name : public Term {
   /* Constructs a name. */
   Name(const string& name, const Type& type);
 
+  /* Deletes this name. */
+  virtual ~Name();
+
   /* Returns an instantiation of this term. */
   virtual const Name& instantiation(size_t id) const;
 
@@ -127,7 +130,7 @@ struct Name : public Term {
 /*
  * Variable.
  */
-struct Variable : public Term {
+struct Variable : public Term, public gc {
   /* Constructs a variable with the given name. */
   Variable(const string& name);
 
@@ -203,7 +206,7 @@ typedef NameList::const_iterator NameListIter;
 /*
  * Table of names.
  */
-struct NameMap : public HashMap<string, const Name*> {
+struct NameMap : public hash_map<string, const Name*> {
 };
 
 /* Name table iterator. */
