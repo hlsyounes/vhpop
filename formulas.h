@@ -16,12 +16,19 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 3.11 2002-06-30 23:03:07 lorens Exp $
+ * $Id: formulas.h,v 3.12 2002-07-04 10:55:53 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
 
 #include "support.h"
+
+#ifdef TRUE
+#undef TRUE
+#endif
+#ifdef FALSE
+#undef FALSE
+#endif
 
 struct Type;
 struct Domain;
