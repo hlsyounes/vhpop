@@ -2,7 +2,7 @@
 /*
  * Formulas.
  *
- * $Id: formulas.h,v 1.21 2001-10-06 15:06:28 lorens Exp $
+ * $Id: formulas.h,v 1.22 2001-10-06 22:54:20 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -11,7 +11,6 @@
 #include <string>
 #include <hash_map>
 #include <hash_set>
-#include <vector>
 #include "support.h"
 #include "types.h"
 #include "heuristics.h"
@@ -23,7 +22,7 @@ struct Variable;
 /*
  * Variable substitution.
  */
-struct Substitution : public Printable {
+struct Substitution : public Printable, public gc {
   /* Variable to get substituted. */
   const Variable& var;
   /* Term to substitute with. */
@@ -35,7 +34,7 @@ struct Substitution : public Printable {
   }
 
 protected:
-  /* Prints this substitution on the given stream. */
+  /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
 };
 
@@ -43,17 +42,16 @@ protected:
 /*
  * List of substitutions.
  */
-struct SubstitutionList : public gc,
-			  vector<const Substitution*, container_alloc> {
+struct SubstitutionList : public Vector<const Substitution*> {
 };
 
-typedef SubstitutionList::const_iterator SLCI;
+typedef SubstitutionList::const_iterator SubstListIter;
 
 
 /*
  * Abstract term.
  */
-struct Term : public Printable {
+struct Term : public Hashable, public Printable, public gc {
   /* Name of term. */
   const string name;
   /* Type of term. */
@@ -76,36 +74,11 @@ struct Term : public Printable {
   virtual bool equivalent(const Term& t) const = 0;
 
 protected:
-  /* Prints this term on the given stream. */
-  virtual void print(ostream& os) const;
-
-  /* Checks if this term equals the given term. */
-  virtual bool equals(const Term& t) const = 0;
-
-  /* Returns the hash value of this term. */
+  /* Returns the hash value of this object. */
   virtual size_t hash_value() const;
 
-  friend bool operator==(const Term& t1, const Term& t2);
-  friend struct hash<Term>;
-};
-
-/* Equality operator for terms. */
-inline bool operator==(const Term& t1, const Term& t2) {
-  return t1.equals(t2);
-}
-
-/* Inequality operator for terms. */
-inline bool operator!=(const Term& t1, const Term& t2) {
-  return !(t1 == t2);
-}
-
-/*
- * Hash function object for terms.
- */
-struct hash<Term> {
-  size_t operator()(const Term& t) const {
-    return t.hash_value();
-  }
+  /* Prints this object on the given stream. */
+  virtual void print(ostream& os) const;
 };
 
 
@@ -130,8 +103,8 @@ struct Name : public Term {
   virtual bool equivalent(const Term& t) const;
 
 protected:
-  /* Checks if this term equals the given term. */
-  virtual bool equals(const Term& t) const;
+  /* Checks if this object equals the given object. */
+  virtual bool equals(const EqualityComparable& o) const;
 };
 
 
@@ -156,15 +129,15 @@ struct Variable : public Term {
   virtual bool equivalent(const Term& t) const;
 
 protected:
-  /* Checks if this term equals the given term. */
-  virtual bool equals(const Term& t) const;
+  /* Checks if this object equals the given object. */
+  virtual bool equals(const EqualityComparable& o) const;
 };
 
 
 /*
  * List of terms.
  */
-struct TermList : public gc, vector<const Term*, container_alloc> {
+struct TermList : public Vector<const Term*> {
   /* Constructs an empty term list. */
   TermList() {
   }
@@ -177,42 +150,33 @@ struct TermList : public gc, vector<const Term*, container_alloc> {
 
   /* Checks if this term list is equivalent to the given term list. */
   bool equivalent(const TermList& terms) const;
-
-  /* Equality operator for term lists. */
-  bool operator==(const TermList& terms) const;
-
-  /* Inequality operator for term lists. */
-  bool operator!=(const TermList& terms) const;
 };
 
-/*
- * Hash function object for term lists.
- */
-struct hash<TermList> {
-  size_t operator()(const TermList& terms) const;
-};
+typedef TermList::const_iterator TermListIter;
 
 
 /*
  * List of names.
  */
-struct NameList : public gc, vector<const Name*, container_alloc> {
+struct NameList : public Vector<const Name*> {
 };
+
+typedef NameList::const_iterator NameListIter;
 
 
 /*
  * Table of names.
  */
-struct NameMap : public gc,
-		 hash_map<string, const Name*, hash<string>, equal_to<string>,
-		 container_alloc> {
+struct NameMap : public HashMap<string, const Name*> {
 };
+
+typedef NameMap::const_iterator NameMapIter;
 
 
 /*
  * List of variables.
  */
-struct VariableList : public gc, vector<const Variable*, container_alloc> {
+struct VariableList : public Vector<const Variable*> {
   /* An empty variable list. */
   static const VariableList& EMPTY;
 
@@ -225,15 +189,9 @@ struct VariableList : public gc, vector<const Variable*, container_alloc> {
 
   /* Returns an instantiation of this variable list. */
   const VariableList& instantiation(size_t id) const;
-
-  /* Equality operator for variable lists. */
-  bool operator==(const VariableList& variables) const;
-
-  /* Inequality operator for variable lists. */
-  bool operator!=(const VariableList& variables) const;
 };
 
-typedef VariableList::const_iterator VLCI;
+typedef VariableList::const_iterator VarListIter;
 
 
 struct Formula;
@@ -255,14 +213,11 @@ struct hash<const Formula*> {
 
 
 struct Problem;
-struct FormulaList;
-struct AtomList;
-
 
 /*
  * Abstract formula.
  */
-struct Formula : public Printable {
+struct Formula : public Printable, public gc {
   /* The true formula. */
   static const Formula& TRUE;
   /* The false formula. */
@@ -284,20 +239,8 @@ struct Formula : public Printable {
     return Cost(0, 0);
   }
 
-  /* Fills the provided lists with goals achievable by this formula. */
-  virtual void achievable_goals(AtomList& goals,
-				FormulaList& neg_goals) const {
-  }
-
-  /* Fills the provided sets with predicates achievable by this
-     formula.  N.B. Will only add predicates for atomic formulas that
-     are not fully instantiated. */
-  virtual void achievable_predicates(hash_set<string>& preds,
-				     hash_set<string>& neg_preds) const {
-  }
-
   /* Checks if this formula is equivalent to the given formula.  Two
-     formulas is equivalent if they only differ in the choice of
+     formulas are equivalent if they only differ in the choice of
      variable names. */
   virtual bool equivalent(const Formula& f) const = 0;
 
@@ -352,14 +295,14 @@ struct hash<Formula> {
 /*
  * List of formulas.
  */
-struct FormulaList : public gc, vector<const Formula*, container_alloc> {
+struct FormulaList : public Vector<const Formula*> {
   /* Constructs an empty formula list. */
   FormulaList() {
   }
 
   /* Constructs a formula list with a single formula. */
-  FormulaList(const Formula* formula)
-    : vector<const Formula*, container_alloc>(1, formula) {
+  FormulaList(const Formula* formula) {
+    push_back(formula);
   }
 
   /* Returns an instantiation of this formula list. */
@@ -372,23 +315,8 @@ struct FormulaList : public gc, vector<const Formula*, container_alloc> {
   /* Returns this formula list subject to the given substitutions. */
   const FormulaList& substitution(const SubstitutionList& subst) const;
 
-  /* Fills the provided lists with goals achievable by the formulas in
-     this list. */
-  void achievable_goals(AtomList& goals, FormulaList& neg_goals) const;
-
-  /* Fills the provided sets with predicates achievable by the
-     formulas in this list. */
-  void achievable_predicates(hash_set<string>& preds,
-			     hash_set<string>& neg_preds) const;
-
   /* Checks if this formula list is equivalent to the given formula list. */
   bool equivalent(const FormulaList& formulas) const;
-
-  /* Equality operator for formula lists. */
-  bool operator==(const FormulaList& formulas) const;
-
-  /* Inequality operator for formula lists. */
-  bool operator!=(const FormulaList& formulas) const;
 
   /* Returns the negation of this formula list. */
   const FormulaList& operator!() const;
@@ -426,15 +354,6 @@ struct Atom : public Formula {
   virtual Cost cost(const hash_map<const Formula*, Cost>& atom_cost,
 		    Heuristic h) const;
 
-  /* Fills the provided lists with goals achievable by this formula. */
-  virtual void achievable_goals(AtomList& goals,
-				FormulaList& neg_goals) const;
-
-  /* Fills the provided sets with predicates achievable by this
-     formula. */
-  virtual void achievable_predicates(hash_set<string>& preds,
-				     hash_set<string>& neg_preds) const;
-
   /* Checks if this formula is equivalent to the given formula.  Two
      formulas is equivalent if they only differ in the choice of
      variable names. */
@@ -458,14 +377,14 @@ protected:
 /*
  * List of atoms.
  */
-struct AtomList : public gc, vector<const Atom*, container_alloc> {
+struct AtomList : public Vector<const Atom*> {
   /* Constructs an empty atom list. */
   AtomList() {
   }
 
   /* Constructs an atom list with a single atom. */
-  AtomList(const Atom* atom)
-    : vector<const Atom*, container_alloc>(1, atom) {
+  AtomList(const Atom* atom) {
+    push_back(atom);
   }
 
   /* Returns an instantiation of this atom list. */
@@ -478,35 +397,17 @@ struct AtomList : public gc, vector<const Atom*, container_alloc> {
 typedef AtomList::const_iterator AtomListIter;
 
 
-struct Negation;
-
 /*
- * List of negated atoms.
- */
-struct NegationList : public gc, vector<const Negation*, container_alloc> {
-  /* Constructs an empty negation list. */
-  NegationList() {
-  }
-
-  /* Constructs a negation list with a single negated atom. */
-  NegationList(const Atom* atom);
-
-  /* Returns an instantiation of this negation list. */
-  const NegationList& instantiation(size_t id) const;
-
-  /* Returns this negation list subject to the given substitutions. */
-  const NegationList& substitution(const SubstitutionList& subst) const;
-};
-
-typedef NegationList::const_iterator NegationListIter;
-
-
-/*
- * Negated atom.
+ * A negated atom.
  */
 struct Negation : public Formula {
   /* The negated atom. */
   const Atom& atom;
+
+  /* Constructs a negated atom. */
+  Negation(const Atom& atom)
+    : atom(atom) {
+  }
 
   /* Returns an instantiation of this formula. */
   virtual const Negation& instantiation(size_t id) const;
@@ -517,15 +418,6 @@ struct Negation : public Formula {
 
   /* Returns this formula subject to the given substitutions. */
   virtual const Negation& substitution(const SubstitutionList& subst) const;
-
-  /* Fills the provided lists with goals achievable by this formula. */
-  virtual void achievable_goals(AtomList& goals,
-				FormulaList& neg_goals) const;
-
-  /* Fills the provided sets with predicates achievable by this
-     formula. */
-  virtual void achievable_predicates(hash_set<string>& preds,
-				     hash_set<string>& neg_preds) const;
 
   /* Checks if this formula is equivalent to the given formula.  Two
      formulas is equivalent if they only differ in the choice of
@@ -544,16 +436,30 @@ protected:
 
   /* Returns the hash value of this formula. */
   virtual size_t hash_value() const;
+};
 
-private:
-  /* Constructs a negated atomic formula. */
-  Negation(const Atom& atom)
-    : atom(atom) {
+
+/*
+ * List of negated atoms.
+ */
+struct NegationList : public Vector<const Negation*> {
+  /* Constructs an empty negation list. */
+  NegationList() {
   }
 
-  friend const Formula& Atom::negation() const;
-  friend NegationList::NegationList(const Atom* atom);
+  /* Constructs a negation list with a single negated atom. */
+  NegationList(const Atom* atom) {
+    push_back(new Negation(*atom));
+  }
+
+  /* Returns an instantiation of this negation list. */
+  const NegationList& instantiation(size_t id) const;
+
+  /* Returns this negation list subject to the given substitutions. */
+  const NegationList& substitution(const SubstitutionList& subst) const;
 };
+
+typedef NegationList::const_iterator NegationListIter;
 
 
 /*
@@ -661,15 +567,6 @@ struct Conjunction : public Formula {
   virtual Cost cost(const hash_map<const Formula*, Cost>& atom_cost,
 		    Heuristic h) const;
 
-  /* Fills the provided lists with goals achievable by this formula. */
-  virtual void achievable_goals(AtomList& goals,
-				FormulaList& neg_goals) const;
-
-  /* Fills the provided sets with predicates achievable by this
-     formula. */
-  virtual void achievable_predicates(hash_set<string>& preds,
-				     hash_set<string>& neg_preds) const;
-
   /* Checks if this formula is equivalent to the given formula.  Two
      formulas is equivalent if they only differ in the choice of
      variable names. */
@@ -715,15 +612,6 @@ struct Disjunction : public Formula {
   /* Returns the heuristic cost of this formula. */
   virtual Cost cost(const hash_map<const Formula*, Cost>& atom_cost,
 		    Heuristic h) const;
-
-  /* Fills the provided lists with goals achievable by this formula. */
-  virtual void achievable_goals(AtomList& goals,
-				FormulaList& neg_goals) const;
-
-  /* Fills the provided sets with predicates achievable by this
-     formula. */
-  virtual void achievable_predicates(hash_set<string>& preds,
-				     hash_set<string>& neg_preds) const;
 
   /* Checks if this formula is equivalent to the given formula.  Two
      formulas is equivalent if they only differ in the choice of

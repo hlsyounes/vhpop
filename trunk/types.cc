@@ -1,5 +1,5 @@
 /*
- * $Id: types.cc,v 1.4 2001-08-11 02:31:46 lorens Exp $
+ * $Id: types.cc,v 1.5 2001-10-06 22:55:42 lorens Exp $
  */
 #include <algorithm>
 #include "types.h"
@@ -19,7 +19,8 @@ struct Subtype : public binary_function<const Type*, const Type*, bool> {
 /*
  * Comparison predicate for simple types.
  */
-struct less<const SimpleType*> {
+struct less<const SimpleType*>
+  : public binary_function<const SimpleType*, const SimpleType*, bool> {
   bool operator()(const SimpleType* t1, const SimpleType* t2) const {
     return t1->name < t2->name;
   }
@@ -54,16 +55,16 @@ bool SimpleType::subtype(const Type& t) const {
 }
 
 
-/* Prints this type on the given stream. */
-void SimpleType::print(ostream& os) const {
-  os << name;
+/* Checks if this object equals the given object. */
+bool SimpleType::equals(const EqualityComparable& o) const {
+  const SimpleType* st = dynamic_cast<const SimpleType*>(&o);
+  return st != NULL && name == st->name;
 }
 
 
-/* Checks if this type equals the given type. */
-bool SimpleType::equals(const Type& t) const {
-  const SimpleType* st = dynamic_cast<const SimpleType*>(&t);
-  return st != NULL && name == st->name;
+/* Prints this object on the given stream. */
+void SimpleType::print(ostream& os) const {
+  os << name;
 }
 
 
@@ -101,21 +102,22 @@ bool UnionType::subtype(const Type& t) const {
 }
 
 
-/* Prints this type on the given stream. */
-void UnionType::print(ostream& os) const {
-  os << "(either";
-  for (TypeList::const_iterator ti = types.begin(); ti != types.end(); ti++) {
-    os << ' ' << **ti;
-  }
-  os << ")";
+/* Checks if this object equals the given object. */
+bool UnionType::equals(const EqualityComparable& o) const {
+  const UnionType* ut = dynamic_cast<const UnionType*>(&o);
+  return (ut != NULL && types.size() == ut->types.size()
+	  && equal(types.begin(), types.end(), ut->types.begin(),
+		   equal_to<const EqualityComparable*>()));
 }
 
 
-/* Checks if this type equals the given type. */
-bool UnionType::equals(const Type& t) const {
-  const UnionType* ut = dynamic_cast<const UnionType*>(&t);
-  return (ut != NULL && types.size() == ut->types.size()
-	  && equal(types.begin(), types.end(), ut->types.begin()));
+/* Prints this object on the given stream. */
+void UnionType::print(ostream& os) const {
+  os << "(either";
+  for (TypeListIter ti = types.begin(); ti != types.end(); ti++) {
+    os << ' ' << **ti;
+  }
+  os << ")";
 }
 
 

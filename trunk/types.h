@@ -2,19 +2,18 @@
 /*
  * Types.
  *
- * $Id: types.h,v 1.4 2001-09-28 17:56:06 lorens Exp $
+ * $Id: types.h,v 1.5 2001-10-06 22:55:48 lorens Exp $
  */
 #ifndef TYPES_H
 #define TYPES_H
 
-#include <vector>
 #include "support.h"
 
 
 /*
  * Abstract type.
  */
-struct Type : public Printable {
+struct Type : public EqualityComparable, public Printable, public gc {
   /* Checks if this type is the object type. */
   bool object() const;
 
@@ -22,29 +21,15 @@ struct Type : public Printable {
   virtual bool subtype(const Type& t) const = 0;
 
 protected:
-  /* Checks if this type equals the given type. */
-  virtual bool equals(const Type& t) const = 0;
-
   /* Returns the union of this type and the given type. */
   virtual const Type& add(const Type& t) const = 0;
 
   /* Removes the given type from this type. */
   virtual const Type& subtract(const Type& t) const = 0;
 
-  friend bool operator==(const Type& t1, const Type& t2);
   friend const Type& operator+(const Type& t1, const Type& t2);
   friend const Type& operator-(const Type& t1, const Type& t2);
 };
-
-/* Equality operator for types. */
-inline bool operator==(const Type& t1, const Type& t2) {
-  return t1.equals(t2);
-}
-
-/* Inequality operator for types. */
-inline bool operator!=(const Type& t1, const Type& t2) {
-  return !(t1 == t2);
-}
 
 /* Type union. */
 inline const Type& operator+(const Type& t1, const Type& t2) {
@@ -78,11 +63,11 @@ struct SimpleType : public Type {
   virtual bool subtype(const Type& t) const;
 
 protected:
-  /* Prints this type on the given stream. */
-  virtual void print(ostream& os) const;
+  /* Checks if this object equals the given object. */
+  virtual bool equals(const EqualityComparable& o) const;
 
-  /* Checks if this type equals the given type. */
-  virtual bool equals(const Type& t) const;
+  /* Prints this object on the given stream. */
+  virtual void print(ostream& os) const;
 
   /* Returns the union of this type and the given type. */
   virtual const Type& add(const Type& t) const;
@@ -95,29 +80,31 @@ protected:
 /*
  * List of simple types.
  */
-struct TypeList : public gc, vector<const SimpleType*, container_alloc> {
+struct TypeList : public Vector<const SimpleType*> {
   /* Constructs an empty type list. */
   TypeList() {
   }
 
   /* Constructs a type list with a single type. */
-  TypeList(const SimpleType* type)
-    : vector<const SimpleType*, container_alloc>(1, type) {
+  explicit TypeList(const SimpleType* type) {
+    push_back(type);
   }
 };
+
+typedef TypeList::const_iterator TypeListIter;
 
 
 /*
  * Table of simple types.
  */
-struct TypeMap : public gc,
-		 hash_map<string, const SimpleType*, hash<string>,
-		 equal_to<string>, container_alloc> {
+struct TypeMap : HashMap<string, const SimpleType*> {
   /* Constructs an empty type table. */
   TypeMap() {
     (*this)[SimpleType::OBJECT.name] = &SimpleType::OBJECT;
   }
 };
+
+typedef TypeMap::const_iterator TypeMapIter;
 
 
 /*
@@ -131,11 +118,11 @@ struct UnionType : public Type {
   virtual bool subtype(const Type& t) const;
 
 protected:
-  /* Prints this type on the given stream. */
-  virtual void print(ostream& os) const;
+  /* Checks if this object equals the given object. */
+  virtual bool equals(const EqualityComparable& o) const;
 
-  /* Checks if this type equals the given type. */
-  virtual bool equals(const Type& t) const;
+  /* Prints this object on the given stream. */
+  virtual void print(ostream& os) const;
 
   /* Returns the union of this type and the given type. */
   virtual const Type& add(const Type& t) const;
