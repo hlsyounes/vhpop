@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 6.10 2003-09-08 21:29:08 lorens Exp $
+ * $Id: plans.cc,v 6.11 2003-09-10 18:14:06 lorens Exp $
  */
 #include "mathport.h"
 #include "plans.h"
@@ -745,15 +745,6 @@ Plan::Plan(const Chain<Step>* steps, size_t num_steps,
 #ifdef DEBUG
   depth_ = (parent != NULL) ? parent->depth() + 1 : 0;
 #endif
-  if (parent != NULL) {
-    if (steps != NULL && steps->head.id() < GOAL_ID) {
-      high_step_id_ = std::max(parent->high_step_id_, steps->head.id());
-    } else {
-      high_step_id_ = parent->high_step_id_;
-    }
-  } else {
-    high_step_id_ = 0;
-  }
 }
 
 
@@ -1321,7 +1312,7 @@ bool Plan::addable_steps(int& refinements, const Literal& literal,
       const Action& action = *(*ai).first;
       if (&action != &problem->init_action()) {
 	const Effect& effect = *(*ai).second;
-	count += new_link(dummy, Step(high_step_id_ + 1, action), effect,
+	count += new_link(dummy, Step(num_steps() + 1, action), effect,
 			  literal, open_cond, true);
 	if (count > limit) {
 	  return false;
@@ -1343,7 +1334,7 @@ void Plan::add_step(PlanList& plans, const Literal& literal,
     const Action& action = *(*ai).first;
     if (&action != &problem->init_action()) {
       const Effect& effect = *(*ai).second;
-      new_link(plans, Step(high_step_id_ + 1, action), effect,
+      new_link(plans, Step(num_steps() + 1, action), effect,
 	       literal, open_cond);
     }
   }
@@ -1572,7 +1563,7 @@ int Plan::make_link(PlanList& plans, const Step& step, const Effect& effect,
   const Bindings* bindings = bindings_;
   const Chain<Step>* new_steps = test_only ? NULL : steps();
   size_t new_num_steps = test_only ? 0 : num_steps();
-  if (step.id() > high_step_id_) {
+  if (step.id() > num_steps()) {
     if (!add_goal(new_open_conds, new_num_open_conds, new_bindings,
 		  step.action().condition(), step.id(), test_only)) {
       if (!test_only) {
@@ -1660,7 +1651,7 @@ int Plan::make_link(PlanList& plans, const Step& step, const Effect& effect,
     /*
      * If this is a new step, find links it threatens.
      */
-    if (step.id() > high_step_id_) {
+    if (step.id() > num_steps()) {
       step_threats(new_unsafes, new_num_unsafes, step, links(), *new_orderings,
 		   *bindings);
     }

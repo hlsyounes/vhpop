@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.h,v 6.6 2003-09-05 16:28:46 lorens Exp $
+ * $Id: plans.h,v 6.7 2003-09-10 18:14:20 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -224,8 +224,6 @@ private:
   const Chain<Step>* steps_;
   /* Number of unique steps in plan. */
   size_t num_steps_;
-  /* Highest step id that has been used so far. */
-  size_t high_step_id_;
   /* Chain of causal links. */
   const Chain<Link>* links_;
   /* Number of causal links. */
