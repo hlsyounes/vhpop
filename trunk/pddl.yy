@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 3.2 2002-03-10 23:12:43 lorens Exp $
+ * $Id: pddl.yy,v 3.3 2002-03-12 15:51:45 lorens Exp $
  */
 %{
 #include "requirements.h"
@@ -656,6 +656,7 @@ problem : '(' DEFINE '(' PROBLEM name ')'
             {
 	      new Problem(problem_name, *pdomain, *problem_objects,
 			  *problem_init, *problem_goal);
+	      delete requirements;
 	    }
         ;
 

@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 3.2 2002-03-10 19:45:51 lorens Exp $
+ * $Id: vhpop.cc,v 3.3 2002-03-12 15:51:58 lorens Exp $
  */
 #include <iostream>
 #include <cstdio>
@@ -144,8 +144,17 @@ static bool read_file(const char* name) {
 }
 
 
+/* Cleanup function. */
+static void cleanup() {
+  Problem::clear();
+  Domain::clear();
+}
+
+
 /* The main program. */
 int main(int argc, char* argv[]) {
+  atexit(cleanup);
+
   /* Default planning parameters. */
   Parameters params;
   /* Set default verbosity. */
@@ -325,8 +334,6 @@ int main(int argc, char* argv[]) {
 	cout << ";Problem has no solution." << endl;
       }
     }
-    Problem::clear();
-    Domain::clear();
   } catch (const Exception& e) {
     cerr << PROGRAM_NAME << ": " << e << endl;
     return -1;

@@ -13,12 +13,13 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.cc,v 3.2 2002-03-10 19:45:44 lorens Exp $
+ * $Id: domains.cc,v 3.3 2002-03-12 15:51:41 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
 #include "formulas.h"
 #include "types.h"
+#include "requirements.h"
 
 
 /* ====================================================================== */
@@ -591,6 +592,7 @@ Domain::Domain(const string& name, const Requirements& requirements,
 /* Deletes a domain. */
 Domain::~Domain() {
   domains.erase(name);
+  delete &requirements;
 }
 
 

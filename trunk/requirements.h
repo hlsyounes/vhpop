@@ -16,18 +16,16 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: requirements.h,v 3.1 2002-03-10 15:03:05 lorens Exp $
+ * $Id: requirements.h,v 3.2 2002-03-12 15:51:32 lorens Exp $
  */
 #ifndef REQUIREMENTS_H
 #define REQUIREMENTS_H
-
-#include "support.h"
 
 
 /*
  * PDDL requirements.
  */
-struct Requirements : public gc {
+struct Requirements {
   /* Required action style. */
   bool strips;
   /* Whether support for types is required. */
