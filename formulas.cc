@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 4.8 2002-11-05 04:42:13 lorens Exp $
+ * $Id: formulas.cc,v 4.9 2002-12-06 04:44:58 lorens Exp $
  */
 #include <typeinfo>
 #include <stack>
@@ -379,12 +379,7 @@ const Formula& Atom::instantiation(const SubstitutionList& subst,
     }
     return FALSE;
   } else {
-    const Type* type = problem.domain().find_type(predicate().name());
-    if (type != NULL) {
-      return f.terms()[0]->type().subtype(*type) ? TRUE : FALSE;
-    } else {
-      return f;
-    }
+    return f;
   }
 }
 
