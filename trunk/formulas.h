@@ -2,7 +2,7 @@
 /*
  * Types, terms, and formulas.
  *
- * $Id: formulas.h,v 1.3 2001-05-04 03:46:28 lorens Exp $
+ * $Id: formulas.h,v 1.4 2001-05-04 17:55:07 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -365,6 +365,12 @@ struct TermList : public gc, public vector<const Term*, container_alloc> {
     return !(*this == terms);
   }
 };
+
+
+/*
+ * List of names.
+ */
+typedef vector<const Name*, container_alloc> NameList;
 
 
 /*
