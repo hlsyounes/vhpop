@@ -1,5 +1,5 @@
 /*
- * $Id: bindings.cc,v 1.2 2001-07-29 17:37:36 lorens Exp $
+ * $Id: bindings.cc,v 1.3 2001-08-11 06:12:11 lorens Exp $
  */
 #include "bindings.h"
 
@@ -249,27 +249,27 @@ const Formula& Bindings::instantiation(const Formula& f) const {
   }
   const Negation* negation = dynamic_cast<const Negation*>(&f);
   if (negation != NULL) {
-    return instantiation(negation->atom).negation();
+    return !instantiation(negation->atom);
   }
   const Conjunction* conjunction = dynamic_cast<const Conjunction*>(&f);
   if (conjunction != NULL) {
-    FormulaList& inst_conjuncts = *(new FormulaList());
+    const Formula* inst_conjunction = &Formula::TRUE;
     const FormulaList& conjuncts = conjunction->conjuncts;
     for (FormulaList::const_iterator i = conjuncts.begin();
 	 i != conjuncts.end(); i++) {
-      inst_conjuncts.push_back(&instantiation(**i));
+      inst_conjunction = &(*inst_conjunction && instantiation(**i));
     }
-    return *(new Conjunction(inst_conjuncts));
+    return *inst_conjunction;
   }
   const Disjunction* disjunction = dynamic_cast<const Disjunction*>(&f);
   if (disjunction != NULL) {
-    FormulaList& inst_disjuncts = *(new FormulaList());
+    const Formula* inst_disjunction = &Formula::FALSE;
     const FormulaList& disjuncts = disjunction->disjuncts;
     for (FormulaList::const_iterator i = disjuncts.begin();
 	 i != disjuncts.end(); i++) {
-      inst_disjuncts.push_back(&instantiation(**i));
+      inst_disjunction = &(*inst_disjunction || instantiation(**i));
     }
-    return *(new Disjunction(inst_disjuncts));
+    return *inst_disjunction;
   }
   const Equality* eq = dynamic_cast<const Equality*>(&f);
   if (eq != NULL) {
