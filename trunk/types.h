@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: types.h,v 1.9 2002-01-25 18:23:53 lorens Exp $
+ * $Id: types.h,v 3.1 2002-03-18 09:41:01 lorens Exp $
  */
 #ifndef TYPES_H
 #define TYPES_H
@@ -27,29 +27,13 @@
 /*
  * Abstract type.
  */
-struct Type : public EqualityComparable, public Printable, public gc {
+struct Type : public EqualityComparable, public Printable {
   /* Checks if this type is the object type. */
   bool object() const;
 
   /* Checks if this type is a subtype of the given type. */
   virtual bool subtype(const Type& t) const = 0;
-
-protected:
-  /* Returns the union of this type and the given type. */
-  virtual const Type& add(const Type& t) const = 0;
-
-  /* Removes the given type from this type. */
-  virtual const Type& subtract(const Type& t) const = 0;
-
-  friend const Type& operator+(const Type& t1, const Type& t2);
-  friend const Type& operator-(const Type& t1, const Type& t2);
 };
-
-/* Type union. */
-const Type& operator+(const Type& t1, const Type& t2);
-
-/* Type subtraction. */
-const Type& operator-(const Type& t1, const Type& t2);
 
 
 /*
@@ -57,7 +41,7 @@ const Type& operator-(const Type& t1, const Type& t2);
  */
 struct SimpleType : public LessThanComparable, public Type {
   /* The object type. */
-  static const SimpleType& OBJECT;
+  static const SimpleType OBJECT;
 
   /* Name of type. */
   const string name;
@@ -79,23 +63,24 @@ protected:
 
   /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
-
-  /* Returns the union of this type and the given type. */
-  virtual const Type& add(const Type& t) const;
-
-  /* Removes the given type from this type. */
-  virtual const Type& subtract(const Type& t) const;
 };
 
-
-struct TypeList;
 
 /*
  * Union type.
  */
 struct UnionType : public Type {
-  /* Constituent types. */
-  const TypeList& types;
+  /* Returns the canonical form of the given union type. */
+  static const Type& simplify(const UnionType& t);
+
+  /* Returns the union of two types. */
+  static const Type& add(const Type& t1, const Type& t2);
+
+  /* Constructs a singleton union type. */
+  explicit UnionType(const SimpleType& type);
+
+  /* Adds the given simple type to this union. */
+  void add(const SimpleType& t);
 
   /* Checks if this type is a subtype of the given type. */
   virtual bool subtype(const Type& t) const;
@@ -107,40 +92,26 @@ protected:
   /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
 
-  /* Returns the union of this type and the given type. */
-  virtual const Type& add(const Type& t) const;
-
-  /* Removes the given type from this type. */
-  virtual const Type& subtract(const Type& t) const;
-
 private:
-  /* Constructs the type that is the union of the given types.
-     N.B. Assumes type list is sorted. */
-  explicit UnionType(const TypeList& types);
+  /* Set of simple types. */
+  struct TypeSet : public set<const SimpleType*,
+		   less<const LessThanComparable*> > {
+  };
 
-  friend const Type& SimpleType::add(const Type& t) const;
+  /* Iterator for type lists. */
+  typedef TypeSet::const_iterator TypeSetIter;
+
+  /* Constituent types. */
+  TypeSet types;
+
+  friend const Type& SimpleType::subtype(const Type& t) const;
 };
-
-
-/*
- * List of simple types.
- */
-struct TypeList : public Vector<const SimpleType*> {
-  /* Constructs an empty type list. */
-  TypeList();
-
-  /* Constructs a type list with a single type. */
-  explicit TypeList(const SimpleType* type);
-};
-
-/* Iterator for type lists. */
-typedef TypeList::const_iterator TypeListIter;
 
 
 /*
  * Table of simple types.
  */
-struct TypeMap : HashMap<string, const SimpleType*> {
+struct TypeMap : hash_map<string, const SimpleType*> {
 };
 
 /* Iterator for type tables. */
