@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 1.26 2002-01-25 18:24:00 lorens Exp $
+ * $Id: vhpop.cc,v 1.27 2002-01-25 22:03:09 lorens Exp $
  */
 #include <iostream>
 #include <cstdio>
@@ -59,7 +59,9 @@ static struct option long_options[] = {
   { "limit", required_argument, NULL, 'l' },
   { "reverse-open-conditions", no_argument, NULL, 'r' },
   { "search-algorithm", required_argument, NULL, 's' },
+#ifdef TRANSFORMATIONAL
   { "transformational", no_argument, NULL, 't' },
+#endif
   { "time-limit", required_argument, NULL, 'T' },
   { "verbose", optional_argument, NULL, 'v' },
   { "version", no_argument, NULL, 'V' },
@@ -93,8 +95,10 @@ static void display_help() {
        << "\t\t\treverse the order that open conditions are added" << endl
        << "  -s s,  --search-algorithm=s" << endl
        << "\t\t\tuse search algorithm s" << endl
+#ifdef TRANSFORMATIONAL
        << "  -t,    --transformational" << endl
        << "\t\t\tuse transformational planner" << endl
+#endif
        << "  -T t,  --time-limit=t\t"
        << "limit search to t minutes" << endl
        << "  -v[n], --verbose[=n]\t"
@@ -206,9 +210,11 @@ int main(int argc, char* argv[]) {
 	return -1;
       }
       break;
+#ifdef TRANSFORMATIONAL
     case 't':
       params.transformational = true;
       break;
+#endif
     case 'T':
       params.time_limit = atoi(optarg);
       break;
