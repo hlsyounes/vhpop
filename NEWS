@@ -1,4 +1,4 @@
-Version 2.2 (Dec 16, 2002):
+Version 2.2 (Dec 17, 2002):
 
 * Further improvements to memory and time efficiency.  All known
   memory leaks have been eliminated.
