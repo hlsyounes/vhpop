@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: actions.cc,v 6.5 2003-09-05 16:13:59 lorens Exp $
+ * $Id: actions.cc,v 6.6 2003-12-05 21:01:56 lorens Exp $
  */
 #include "actions.h"
 #include "bindings.h"
@@ -99,7 +99,7 @@ void Action::set_duration(const Expression& duration) {
 
 
 /* "Strengthens" the effects of this action. */
-void Action::strengthen_effects() {
+void Action::strengthen_effects(const Domain& domain) {
   /*
    * Separate negative effects from positive effects occuring at the
    * same time.
@@ -123,7 +123,8 @@ void Action::strengthen_effects() {
 	    /* Only separate two effects with same universally
 	       quantified variables. */
 	    BindingList mgu;
-	    if (Bindings::unifiable(mgu, neg.atom(), 1, ej.literal(), 1)) {
+	    if (Bindings::unifiable(mgu, neg.atom(), 1, ej.literal(), 1,
+				    domain.types(), domain.terms())) {
 	      const Formula* sep = &Formula::FALSE;
 	      for (BindingList::const_iterator si = mgu.begin();
 		   si != mgu.end(); si++) {
@@ -148,16 +149,16 @@ void Action::strengthen_effects() {
   for (size_t i = 0; i < effects_.size(); i++) {
     const Effect& ei = *effects_[i];
     const Literal& literal = ei.literal();
-    const Formula* cond = &condition().over_all().separator(literal);
+    const Formula* cond = &condition().over_all().separator(literal, domain);
     ei.set_link_condition(ei.link_condition()
 			  && Condition::make(*cond, OVER_ALL));
     if (ei.when() != Effect::AT_END) {
-      cond = &condition().at_start().separator(literal);
+      cond = &condition().at_start().separator(literal, domain);
       ei.set_link_condition(ei.link_condition()
 			    && Condition::make(*cond, AT_START));
     }
     if (ei.when() != Effect::AT_START) {
-      cond = &condition().at_end().separator(literal);
+      cond = &condition().at_end().separator(literal, domain);
       ei.set_link_condition(ei.link_condition()
 			    && Condition::make(*cond, AT_END));
     }
