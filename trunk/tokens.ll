@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: tokens.ll,v 3.3 2002-03-13 08:48:32 lorens Exp $
+ * $Id: tokens.ll,v 3.4 2002-04-04 11:37:17 lorens Exp $
  */
 %{
 struct Type;
@@ -48,7 +48,7 @@ static int make_string(const char* s, int token);
 static int make_number(const char* s);
 %}
 
-%option case-insensitive never-interactive nounput
+%option case-insensitive never-interactive nounput noyywrap
 
 %%
 
