@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: types.h,v 3.15 2002-12-16 17:43:03 lorens Exp $
+ * $Id: types.h,v 3.16 2002-12-18 22:59:26 lorens Exp $
  */
 #ifndef TYPES_H
 #define TYPES_H
@@ -103,7 +103,6 @@ struct TypeList : std::vector<const Type*> {
 
 /* Iterator for type list. */
 typedef TypeList::const_iterator TypeListIter;
-
 
 
 /* ====================================================================== */
