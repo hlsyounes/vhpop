@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.h,v 3.8 2002-04-08 09:57:24 lorens Exp $
+ * $Id: plans.h,v 3.9 2002-07-02 16:42:29 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -40,6 +40,7 @@ struct Flaw;
 struct OpenCondition;
 struct Unsafe;
 struct Bindings;
+struct FlawSelectionOrder;
 
 
 /* ====================================================================== */
@@ -306,10 +307,11 @@ private:
        const Plan* parent, PlanType type = NORMAL_PLAN);
 
   /* Returns the next flaw to work on. */
-  const Flaw& get_flaw() const;
+  const Flaw& get_flaw(const FlawSelectionOrder& flaw_order) const;
 
   /* Returns the refinements for the next flaw to work on. */
-  void refinements(PlanList& plans) const;
+  void refinements(PlanList& plans,
+		   const FlawSelectionOrder& flaw_order) const;
 
   /* Handles an unsafe link. */
   void handle_unsafe(PlanList& plans, const Unsafe& unsafe) const;
