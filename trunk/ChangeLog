@@ -1,0 +1,5 @@
+2002-07-22  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Changed string comparisons to pointer comparisons for simple
+	types, names, and literal predicates.  This both improves speed
+	and reduces memory usage.
