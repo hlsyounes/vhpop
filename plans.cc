@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 3.18 2002-04-08 09:57:07 lorens Exp $
+ * $Id: plans.cc,v 3.19 2002-04-09 15:54:23 lorens Exp $
  */
 #include "plans.h"
 #include "heuristics.h"
@@ -2162,8 +2162,10 @@ disable_interference(const vector<const Step*>& ordered_steps,
 						sj.id(), STEP_START)
 	  || new_orderings->possibly_concurrent(si.id(), STEP_END,
 						sj.id(), STEP_END)) {
+#if 0
 	cout << si.id() << " and " << sj.id() << " possibly concurrent"
 	     << endl;
+#endif
 	bool interference = false;
 	for (const LinkChain* lc = links;
 	     lc != NULL && !interference; lc = lc->tail) {
@@ -2238,7 +2240,9 @@ disable_interference(const vector<const Step*>& ordered_steps,
 	  }
 	}
 	if (interference) {
+#if 0
 	  cout << si.id() << " and " << sj.id() << " interfering" << endl;
+#endif
 	  // if durative, then order both start and end relative eachother
 	  // ...
 	  // otherwise just add ordering constraint between si and sj
@@ -2304,7 +2308,9 @@ ostream& operator<<(ostream& os, const Plan& p) {
       if (s.action()->durative) {
 	os << '[' << (start_dist[s.id()] - end_dist[s.id()]) << ']';
       }
+#if 1
       os << s.id();
+#endif
     }
   } else {
     os << "Initial  :";

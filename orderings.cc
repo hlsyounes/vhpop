@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.cc,v 3.12 2002-04-08 09:56:57 lorens Exp $
+ * $Id: orderings.cc,v 3.13 2002-04-09 15:54:16 lorens Exp $
  */
 #include "orderings.h"
 #include "plans.h"
@@ -560,11 +560,13 @@ static void print_distance_matrix(const vector<const FloatVector*>& d) {
   for (size_t r = 0; r < n + 1; r++) {
     for (size_t c = 0; c < n + 1; c++) {
       if (r == c) {
-	cout << '\t' << 0;
+	cout.width(6);
+	cout << 0;
       } else {
 	size_t i = max(r, c) - 1;
 	size_t j = (r <= c) ? r : 2*i - c + 1;
-	cout << '\t' << (*d[i])[j];
+	cout.width(6);
+	cout << (*d[i])[j];
       }
     }
     cout << endl;
@@ -810,23 +812,40 @@ float TemporalOrderings::goal_distance(hash_map<size_t, float>& start_dist,
 
   size_t i = time_node(step_id, t);
   float sd = -distance(0, i + 1);
+  if (t == STEP_START) {
+    sd = -distance(i+2, i+1) + goal_distance(start_dist, end_dist,
+					     step_id, STEP_END);
+  }
   size_t n = size();
   for (size_t j = 0; j < 2*n; j++) {
     if (i != j) {
-      if (t == STEP_START && i + 1 == j && !order(i, j)) {
-	sd = max(sd, (-distance(j+1, i+1) + goal_distance(start_dist, end_dist,
-							  step_id, STEP_END)));
-      } else if (order(i, j)) {
+      if (order(i, j)) {
+	size_t sj = id_map2_[j / 2];
+	StepTime tj = (j % 2 == 0) ? STEP_START : STEP_END;
+	if (j != i + 1 && tj == STEP_END) {
+	  goal_distance(start_dist, end_dist, sj, STEP_START);
+	}
 	sd = max(sd, (min(max(1.0f, -distance(j+1, i+1)), distance(i+1, j+1))
-		      + goal_distance(start_dist, end_dist, id_map2_[j / 2],
-				      ((j % 2 == 0)
-				       ? STEP_START : STEP_END))));
+		      + goal_distance(start_dist, end_dist, sj, tj)));
       }
     }
   }
   if (t == STEP_START) {
+#if 0
+    cout << "goal distance for " << step_id << "s is " << sd << endl;
+#endif
     start_dist.insert(make_pair(step_id, sd));
+    if (sd - end_dist[step_id] > distance(i + 1, i + 2)) {
+      end_dist[step_id] = sd - distance(i + 1, i + 2);
+#if 0
+      cout << "goal distance for " << step_id << "e is "
+	   << end_dist[step_id] << endl;
+#endif
+    }
   } else {
+#if 0
+    cout << "goal distance for " << step_id << "e is " << sd << endl;
+#endif
     end_dist.insert(make_pair(step_id, sd));
   }
   return sd;
