@@ -2,7 +2,7 @@
 /*
  * Types.
  *
- * $Id: types.h,v 1.5 2001-10-06 22:55:48 lorens Exp $
+ * $Id: types.h,v 1.6 2001-12-22 19:48:59 lorens Exp $
  */
 #ifndef TYPES_H
 #define TYPES_H
@@ -55,9 +55,7 @@ struct SimpleType : public Type {
   const Type& supertype;
 
   /* Constructs a simple type with the given name. */
-  SimpleType(const string& name, const Type& supertype = OBJECT)
-    : name(name), supertype(name == "object" ? *this : supertype) {
-  }
+  SimpleType(const string& name, const Type& supertype = OBJECT);
 
   /* Checks if this type is a subtype of the given type. */
   virtual bool subtype(const Type& t) const;
@@ -82,8 +80,7 @@ protected:
  */
 struct TypeList : public Vector<const SimpleType*> {
   /* Constructs an empty type list. */
-  TypeList() {
-  }
+  TypeList() {}
 
   /* Constructs a type list with a single type. */
   explicit TypeList(const SimpleType* type) {
@@ -133,9 +130,7 @@ protected:
 private:
   /* Constructs the type that is the union of the given types.
      N.B. Assumes type list is sorted. */
-  UnionType(const TypeList& types)
-    : types(types) {
-  }
+  UnionType(const TypeList& types);
 
   friend const Type& SimpleType::add(const Type& t) const;
 };
