@@ -16,13 +16,13 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: flaws.h,v 3.5 2002-09-23 02:34:08 lorens Exp $
+ * $Id: flaws.h,v 3.6 2002-11-05 05:02:57 lorens Exp $
  */
 #ifndef FLAWS_H
 #define FLAWS_H
 
-#include "support.h"
 #include "chain.h"
+#include <iostream>
 
 struct Formula;
 struct Literal;
@@ -43,13 +43,13 @@ struct Link;
 struct Flaw {
 protected:
   /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const = 0;
+  virtual void print(std::ostream& os) const = 0;
 
-  friend ostream& operator<<(ostream& os, const Flaw& f);
+  friend std::ostream& operator<<(std::ostream& os, const Flaw& f);
 };
 
 /* Output operator for flaws. */
-ostream& operator<<(ostream& os, const Flaw& f);
+std::ostream& operator<<(std::ostream& os, const Flaw& f);
 
 
 /* ====================================================================== */
@@ -92,7 +92,7 @@ struct OpenCondition : public Flaw {
 
 protected:
   /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const;
+  virtual void print(std::ostream& os) const;
 
 private:
   /* Id of step to which this open condition belongs. */
@@ -145,7 +145,7 @@ struct Unsafe : public Flaw {
 
 protected:
   /* Prints this open condition on the given stream. */
-  virtual void print(ostream& os) const;
+  virtual void print(std::ostream& os) const;
 
 private:
   /* Threatened link. */
