@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  * 
- * $Id: support.h,v 3.1 2002-03-18 09:34:44 lorens Exp $
+ * $Id: support.h,v 3.2 2002-03-23 15:18:28 lorens Exp $
  */
 #ifndef SUPPORT_H
 #define SUPPORT_H
@@ -37,6 +37,62 @@
  * Allocator to use with all STL container classes.
  */
 typedef single_client_gc_alloc container_alloc;
+
+
+#ifdef DEBUG
+extern size_t created_collectibles;
+extern size_t deleted_collectibles;
+#endif
+
+/*
+ * A collectible object.
+ */
+struct Collectible {
+  /* Register use of this object. */
+  static void register_use(const Collectible* c) {
+    if (c != NULL) {
+      c->ref_count_++;
+    }
+  }
+
+  /* Unregister use of this object. */
+  static void unregister_use(const Collectible* c) {
+    if (c != NULL) {
+      c->ref_count_--;
+      if (c->ref_count_ == 0) {
+	delete c;
+      }
+    }
+  }
+
+  /* Deletes this collectible object. */
+  virtual ~Collectible() {
+#ifdef DEBUG
+    deleted_collectibles++;
+#endif
+  }
+
+protected:
+  /* Constructs a collectible object. */
+  Collectible()
+    : ref_count_(0) {
+#ifdef DEBUG
+    created_collectibles++;
+#endif
+  }
+
+  /* Constructs a copy of a collectible object. */
+  Collectible(const Collectible& collectible)
+    : ref_count_(0) {
+#ifdef DEBUG
+    created_collectibles++;
+#endif
+  }
+
+private:
+  /* Reference counter. */
+  mutable size_t ref_count_;
+};
 
 
 /* Checks if the given sequence contains the given value. */
@@ -91,14 +147,6 @@ struct Stack : public stack<T, Deque<T> >, public gc {
  */
 template<typename T, typename L = less<T> >
 struct Set : public set<T, L, container_alloc>, public gc {
-};
-
-
-/*
- * A hash set using a traceable allocator.
- */
-template<typename T, typename H = hash<T>, typename E = equal_to<T> >
-struct HashSet : public hash_set<T, H, E, container_alloc>, public gc {
 };
 
 

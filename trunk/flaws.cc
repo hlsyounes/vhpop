@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: flaws.cc,v 3.2 2002-03-18 12:07:56 lorens Exp $
+ * $Id: flaws.cc,v 3.3 2002-03-23 15:18:20 lorens Exp $
  */
 #include "flaws.h"
 #include "plans.h"
@@ -26,8 +26,9 @@
 /* OpenCondition */
 
 /* Constructs an open condition. */
-OpenCondition::OpenCondition(size_t step_id, const Reason& reason)
-  : step_id_(step_id) {
+OpenCondition::OpenCondition(size_t step_id, const Formula& condition,
+			     const Reason& reason)
+  : step_id_(step_id), condition_(&condition) {
 #ifdef TRANSFORMATIONAL
   reason_ = &reason;
 #endif
@@ -44,76 +45,44 @@ const Reason& OpenCondition::reason() const {
 }
 
 
+/* Checks if this is a static open condition. */
+bool OpenCondition::is_static(const Domain& domain) const {
+  const Literal* lit = literal();
+  return (lit != NULL && step_id() != Plan::GOAL_ID
+	  && domain.static_predicate(lit->predicate()));
+}
+
+
+/* Returns a literal, or NULL if this is not a literal open
+   condition. */
+const Literal* OpenCondition::literal() const {
+  return dynamic_cast<const Literal*>(condition_);
+}
+
+
+/* Returns a inequality, or NULL if this is not an inequality open
+   condition. */
+const Inequality* OpenCondition::inequality() const {
+  return dynamic_cast<const Inequality*>(condition_);
+}
+
+
+/* Returns a disjunction, or NULL if this is not a disjunctive open
+   condition. */
+const Disjunction* OpenCondition::disjunction() const {
+  return dynamic_cast<const Disjunction*>(condition_);
+}
+
+
 /* Prints this open condition on the given stream. */
 void OpenCondition::print(ostream& os) const {
   os << "#<OPEN " << condition() << " step " << step_id() << ">";
 }
 
 
-/* ====================================================================== */
-/* LiteralOpenCondition */
-
-/* Constructs a literal open condition. */
-LiteralOpenCondition::LiteralOpenCondition(const Literal& cond,
-					   size_t step_id,
-					   const Reason& reason)
-  : OpenCondition(step_id, reason), literal_(&cond) {}
-
-
-/* Returns the open condition. */
-const Formula& LiteralOpenCondition::condition() const {
-  return literal();
-}
-
-
-/* Checks if this is a static open condition. */
-bool LiteralOpenCondition::is_static(const Domain& domain) const {
-  return (step_id() != Plan::GOAL_ID
-	  && domain.static_predicate(literal().predicate()));
-}
-
-
-/* ====================================================================== */
-/* InequalityOpenCondition */
-
-/* Constructs an inequality open condition. */
-InequalityOpenCondition::InequalityOpenCondition(const Inequality& cond,
-						 size_t step_id,
-						 const Reason& reason)
-  : OpenCondition(step_id, reason), neq_(&cond) {}
-
-
-/* Returns the open condition. */
-const Formula& InequalityOpenCondition::condition() const {
-  return neq();
-}
-
-
-/* Checks if this is a static open condition. */
-bool InequalityOpenCondition::is_static(const Domain& domain) const {
-  return false;
-}
-
-
-/* ====================================================================== */
-/* DisjunctiveOpenCondition */
-
-/* Constructs a disjunctive open condition. */
-DisjunctiveOpenCondition::DisjunctiveOpenCondition(const Disjunction& cond,
-						   size_t step_id,
-						   const Reason& reason)
-  : OpenCondition(step_id, reason), disjunction_(&cond) {}
-
-
-/* Returns the open condition. */
-const Formula& DisjunctiveOpenCondition::condition() const {
-  return disjunction();
-}
-
-
-/* Checks if this is a static open condition. */
-bool DisjunctiveOpenCondition::is_static(const Domain& domain) const {
-  return false;
+/* Equality operator for open conditions. */
+bool operator==(const OpenCondition& oc1, const OpenCondition& oc2) {
+  return &oc1 == &oc2;
 }
 
 
@@ -131,4 +100,10 @@ Unsafe::Unsafe(const Link& link, size_t step_id, const Effect& effect,
 void Unsafe::print(ostream& os) const {
   os << "#<UNSAFE " << link().from_id() << ' ' << link().condition()
      << ' ' << link().to_id() << " step " << step_id() << ">";
+}
+
+
+/* Equality operator for unsafe links. */
+bool operator==(const Unsafe& u1, const Unsafe& u2) {
+  return &u1 == &u2;
 }

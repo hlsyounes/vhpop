@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.h,v 3.3 2002-03-21 22:49:42 lorens Exp $
+ * $Id: orderings.h,v 3.4 2002-03-23 15:18:32 lorens Exp $
  */
 #ifndef ORDERINGS_H
 #define ORDERINGS_H
@@ -108,7 +108,24 @@ typedef Chain<Ordering> OrderingChain;
 /*
  * Collection of ordering constraints.
  */
-struct Orderings : public Printable, public gc {
+struct Orderings : public Printable, public Collectible {
+  /* Register use of the given ordering collection. */
+  static void register_use(const Orderings* o) {
+    if (o != NULL) {
+      o->ref_count_++;
+    }
+  }
+
+  /* Unregister use of this object. */
+  static void unregister_use(const Orderings* o) {
+    if (o != NULL) {
+      o->ref_count_--;
+      if (o->ref_count_ == 0) {
+	delete o;
+      }
+    }
+  }
+
   /* Returns the ordering constraints making up this collection. */
   const OrderingChain* orderings() const;
 
@@ -156,6 +173,9 @@ protected:
   /* Constructs an empty ordering collection. */
   Orderings();
 
+  /* Constructs a copy of this ordering collection. */
+  Orderings(const Orderings& orderings);
+
   /* Returns the distance of the given step to the goal step, and also
      enters it into the given distance table. */
   virtual float goal_distance(hash_map<size_t, float>& start_dist,
@@ -171,6 +191,10 @@ protected:
 
   /* Prints this ordering collection on the given stream. */
   virtual void print(ostream& os) const;
+
+private:
+  /* Reference counter. */
+  mutable size_t ref_count_;
 };
 
 
@@ -185,7 +209,7 @@ struct BinaryOrderings : public Orderings {
   BinaryOrderings();
 
   /* Constructs an ordering collection. */
-  BinaryOrderings(const Chain<Step>* steps,
+  BinaryOrderings(const CollectibleChain<Step>* steps,
 		  const OrderingChain* orderings);
 
   /* Computes the flexibility of this ordering collection as defined in
@@ -230,7 +254,7 @@ struct TemporalOrderings : public Orderings {
   TemporalOrderings();
 
   /* Constructs an ordering collection. */
-  TemporalOrderings(const Chain<Step>* steps,
+  TemporalOrderings(const CollectibleChain<Step>* steps,
 		    const OrderingChain* orderings);
 
   /* Checks if the first step could be ordered before the second step. */
@@ -264,6 +288,9 @@ private:
 
   /* Returns the time node for the given step. */
   size_t time_node(size_t id, StepTime t) const;
+
+  /* Constructs a copy of this ordering collection. */
+  TemporalOrderings(const TemporalOrderings& orderings);
 };
 
 

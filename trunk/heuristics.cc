@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 3.7 2002-03-21 22:49:24 lorens Exp $
+ * $Id: heuristics.cc,v 3.8 2002-03-23 15:18:14 lorens Exp $
  */
 #include <set>
 #include <typeinfo>
@@ -47,17 +47,18 @@ formula_value(const Formula& formula, size_t step_id, const Plan& plan,
       StepTime gt = start_time(*literal);
       if (!domain.static_predicate(literal->predicate())) {
 	hash_set<size_t> seen_steps;
-	for (const StepChain* sc = plan.steps; sc != NULL; sc = sc->tail) {
+	for (const StepChain* sc = plan.steps(); sc != NULL; sc = sc->tail) {
 	  const Step& step = sc->head;
 	  if (step.id() != 0 && seen_steps.find(step.id()) == seen_steps.end()
-	      && plan.orderings.possibly_before(step.id(), STEP_START,
-						step_id, gt)) {
+	      && plan.orderings().possibly_before(step.id(), STEP_START,
+						  step_id, gt)) {
 	    seen_steps.insert(step.id());
 	    const EffectList& effs = step.effects();
 	    for (EffectListIter ei = effs.begin(); ei != effs.end(); ei++) {
 	      const Effect& e = **ei;
 	      StepTime et = end_time(e);
-	      if (plan.orderings.possibly_before(step.id(), et, step_id, gt)) {
+	      if (plan.orderings().possibly_before(step.id(), et,
+						   step_id, gt)) {
 		if (typeid(*literal) == typeid(Atom)) {
 		  const AtomList& adds = e.add_list;
 		  for (AtomListIter fi = adds.begin();
@@ -902,29 +903,29 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
       rank.push_back(plan.serial_no());
       break;
     case OC:
-      rank.push_back(plan.num_open_conds);
+      rank.push_back(plan.num_open_conds());
       break;
     case UC:
-      rank.push_back(plan.num_unsafes);
+      rank.push_back(plan.num_unsafes());
       break;
     case BUC:
-      rank.push_back((plan.num_unsafes > 0) ? 1 : 0);
+      rank.push_back((plan.num_unsafes() > 0) ? 1 : 0);
       break;
     case S_PLUS_OC:
-      rank.push_back(plan.num_steps + weight*plan.num_open_conds);
+      rank.push_back(plan.num_steps() + weight*plan.num_open_conds());
       break;
     case UCPOP:
-      rank.push_back(plan.num_steps
-		     + weight*(plan.num_open_conds + plan.num_unsafes));
+      rank.push_back(plan.num_steps()
+		     + weight*(plan.num_open_conds() + plan.num_unsafes()));
       break;
     case ADD:
     case ADD_COST:
     case ADD_WORK:
       if (!add_done) {
 	add_done = true;
-	for (const OpenConditionChain* occ = plan.open_conds;
+	for (const OpenConditionChain* occ = plan.open_conds();
 	     occ != NULL; occ = occ->tail) {
-	  const OpenCondition& open_cond = *occ->head;
+	  const OpenCondition& open_cond = occ->head;
 	  HeuristicValue v =
 	    formula_value(open_cond.condition(), open_cond.step_id(), plan,
 			  domain, *planning_graph);
@@ -934,7 +935,7 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
       }
       if (h == ADD) {
 	if (add_cost < INT_MAX) {
-	  rank.push_back(plan.num_steps + weight*add_cost);
+	  rank.push_back(plan.num_steps() + weight*add_cost);
 	} else {
 	  rank.push_back(HUGE_VAL);
 	}
@@ -957,9 +958,9 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
     case ADDR_WORK:
       if (!addr_done) {
 	addr_done = true;
-	for (const OpenConditionChain* occ = plan.open_conds;
+	for (const OpenConditionChain* occ = plan.open_conds();
 	     occ != NULL; occ = occ->tail) {
-	  const OpenCondition& open_cond = *occ->head;
+	  const OpenCondition& open_cond = occ->head;
 	  HeuristicValue v =
 	    formula_value(open_cond.condition(), open_cond.step_id(), plan,
 			  domain, *planning_graph, true);
@@ -969,7 +970,7 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
       }
       if (h == ADDR) {
 	if (addr_cost < INT_MAX) {
-	  rank.push_back(plan.num_steps + weight*addr_cost);
+	  rank.push_back(plan.num_steps() + weight*addr_cost);
 	} else {
 	  rank.push_back(HUGE_VAL);
 	}
@@ -995,10 +996,10 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
 	hash_map<size_t, float> start_dist;
 	hash_map<size_t, float> end_dist;
 	max_cost = max_steps =
-	  int(plan.orderings.goal_distances(start_dist, end_dist) + 0.5);
-	for (const OpenConditionChain* occ = plan.open_conds;
+	  int(plan.orderings().goal_distances(start_dist, end_dist) + 0.5);
+	for (const OpenConditionChain* occ = plan.open_conds();
 	     occ != NULL; occ = occ->tail) {
-	  const OpenCondition& open_cond = *occ->head;
+	  const OpenCondition& open_cond = occ->head;
 	  HeuristicValue v =
 	    formula_value(open_cond.condition(), open_cond.step_id(), plan,
 			  domain, *planning_graph);
@@ -1036,10 +1037,10 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
 	hash_map<size_t, float> start_dist;
 	hash_map<size_t, float> end_dist;
 	maxr_cost = max_steps =
-	  int(plan.orderings.goal_distances(start_dist, end_dist) + 0.5);
-	for (const OpenConditionChain* occ = plan.open_conds;
+	  int(plan.orderings().goal_distances(start_dist, end_dist) + 0.5);
+	for (const OpenConditionChain* occ = plan.open_conds();
 	     occ != NULL; occ = occ->tail) {
-	  const OpenCondition& open_cond = *occ->head;
+	  const OpenCondition& open_cond = occ->head;
 	  HeuristicValue v =
 	    formula_value(open_cond.condition(), open_cond.step_id(), plan,
 			  domain, *planning_graph, true);
@@ -1608,13 +1609,13 @@ static bool unsafe_refinements(int& refinements, int& separable,
 int FlawSelectionOrder::select_unsafe(FlawSelection& selection,
 				      const Plan& plan, int first_criterion,
 				      int last_criterion) const {
-  if (first_criterion > last_criterion || plan.unsafes == NULL) {
+  if (first_criterion > last_criterion || plan.unsafes() == NULL) {
     return INT_MAX;
   }
   /* Loop through usafes. */
-  for (const UnsafeChain* uc = plan.unsafes;
+  for (const UnsafeChain* uc = plan.unsafes();
        uc != NULL && first_criterion <= last_criterion; uc = uc->tail) {
-    const Unsafe& unsafe = *uc->head;
+    const Unsafe& unsafe = uc->head;
     if (verbosity > 1) {
       cout << "(considering " << unsafe << ")" << endl;
     }
@@ -1733,19 +1734,20 @@ static bool open_cond_refinements(int& refinements,
   if (refinements >= 0) {
     return refinements <= limit;
   } else {
-    const LiteralOpenCondition* loc =
-      dynamic_cast<const LiteralOpenCondition*>(&open_cond);
-    if (loc != NULL) {
+    const Literal* literal = open_cond.literal();
+    if (literal != NULL) {
       int ref = 0;
       if (addable < 0) {
-	if (!plan.addable_steps(addable, *loc, limit)) {
+	if (!plan.addable_steps(addable, *literal,
+				open_cond.step_id(), limit)) {
 	  return false;
 	}
       }
       ref += addable;
       if (ref <= limit) {
 	if (reusable < 0) {
-	  if (!plan.reusable_steps(reusable, *loc, limit)) {
+	  if (!plan.reusable_steps(reusable, *literal,
+				   open_cond.step_id(), limit)) {
 	    return false;
 	  }
 	}
@@ -1753,16 +1755,14 @@ static bool open_cond_refinements(int& refinements,
 	return refinements <= limit;
       }
     } else {
-      const DisjunctiveOpenCondition* disjoc =
-	dynamic_cast<const DisjunctiveOpenCondition*>(&open_cond);
-      if (disjoc != NULL) {
-	refinements = plan.disjunction_refinements(*disjoc);
+      const Disjunction* disj = open_cond.disjunction();
+      if (disj != NULL) {
+	refinements = plan.disjunction_refinements(*disj, open_cond.step_id());
 	return refinements <= limit;
       } else {
-	const InequalityOpenCondition* neqoc =
-	  dynamic_cast<const InequalityOpenCondition*>(&open_cond);
-	if (neqoc != NULL) {
-	  refinements = plan.inequality_refinements(*neqoc);
+	const Inequality* neq = open_cond.inequality();
+	if (neq != NULL) {
+	  refinements = plan.inequality_refinements(*neq);
 	} else {
 	  throw Unimplemented("unknown kind of open condition");
 	}
@@ -1780,14 +1780,14 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 					 const PlanningGraph* pg,
 					 int first_criterion,
 					 int last_criterion) const {
-  if (first_criterion > last_criterion || plan.open_conds == NULL) {
+  if (first_criterion > last_criterion || plan.open_conds() == NULL) {
     return INT_MAX;
   }
   size_t local_id = 0;
   /* Loop through open conditions. */
-  for (const OpenConditionChain* occ = plan.open_conds;
+  for (const OpenConditionChain* occ = plan.open_conds();
        occ != NULL && first_criterion <= last_criterion; occ = occ->tail) {
-    const OpenCondition& open_cond = *occ->head;
+    const OpenCondition& open_cond = occ->head;
     if (verbosity > 1) {
       cout << "(considering " << open_cond << ")" << endl;
     }
@@ -1900,10 +1900,10 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 	    {
 	      bool has_new = false;
 	      if (addable < 0) {
-		const LiteralOpenCondition* loc =
-		  dynamic_cast<const LiteralOpenCondition*>(&open_cond);
-		if (loc != NULL) {
-		  has_new = !plan.addable_steps(addable, *loc, 0);
+		const Literal* literal = open_cond.literal();
+		if (literal != NULL) {
+		  has_new = !plan.addable_steps(addable, *literal,
+						open_cond.step_id(), 0);
 		}
 	      } else {
 		has_new = (addable > 0);
@@ -1927,10 +1927,10 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 	    {
 	      bool has_reuse = false;
 	      if (reusable < 0) {
-		const LiteralOpenCondition* loc =
-		  dynamic_cast<const LiteralOpenCondition*>(&open_cond);
-		if (loc != NULL) {
-		  has_reuse = !plan.reusable_steps(reusable, *loc, 0);
+		const Literal* literal = open_cond.literal();
+		if (literal != NULL) {
+		  has_reuse = !plan.reusable_steps(reusable, *literal,
+						   open_cond.step_id(), 0);
 		}
 	      } else {
 		has_reuse = (reusable > 0);
