@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.18 2001-10-06 00:34:59 lorens Exp $
+ * $Id: plans.h,v 1.19 2001-10-06 00:55:30 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -429,7 +429,7 @@ private:
   void new_ordering(PlanList& new_plans, const Ordering& ordering,
 		    const Unsafe& unsafe) const;
 
-  void relink(PlanList& new_plans, const Unsafe& unsafe) const;
+  void relink(PlanList& new_plans, const Link& link) const;
 
   pair<const Plan*, const OpenCondition*> unlink(const Link& link) const;
 
@@ -448,16 +448,16 @@ private:
 		  const PredicateOpenCondition& open_cond) const;
 
   bool new_link(PlanList& new_plans, const Step& step,
-		const OpenCondition& open_cond, const Link& link,
+		const PredicateOpenCondition& open_cond, const Link& link,
 		const Reason& establish_reason) const;
 
   void new_cw_link(PlanList& new_plans, const Step& step,
-		   const OpenCondition& open_cond, const Link& link,
+		   const PredicateOpenCondition& open_cond, const Link& link,
 		   const Reason& establish_reason) const;
 
   const Plan* make_link(const Step& step, const Effect& effect,
-			const OpenCondition& open_cond, const Link& link,
-			const Reason& establish_reason,
+			const PredicateOpenCondition& open_cond,
+			const Link& link, const Reason& establish_reason,
 			const SubstitutionList& unifier) const;
 
   bool duplicate() const;
