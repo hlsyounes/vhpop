@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.52 2002-01-07 19:48:27 lorens Exp $
+ * $Id: plans.cc,v 1.53 2002-01-09 18:05:35 lorens Exp $
  */
 #include <queue>
 #include <algorithm>
@@ -232,6 +232,48 @@ static void applicable_actions(ActionList& actions, const Literal& literal) {
     for (PredicateActionsMapIter pai = bounds.first;
 	 pai != bounds.second; pai++) {
       actions.push_back((*pai).second);
+    }
+  }
+}
+
+
+/* Finds threats to the given link. */
+static void link_threats(const UnsafeChain*& unsafes, size_t& num_unsafes,
+			 const Link& link, const StepChain* steps,
+			 const Orderings& orderings,
+			 const Bindings& bindings) {
+  hash_set<size_t> seen_steps;
+  for (const StepChain* sc = steps; sc != NULL; sc = sc->tail) {
+    const Step& s = *sc->head;
+    if (seen_steps.find(s.id) == seen_steps.end()
+	&& orderings.possibly_before(link.from_id, s.id)
+	&& orderings.possibly_after(link.to_id, s.id)) {
+      seen_steps.insert(s.id);
+      const EffectList& effects = s.effects;
+      for (EffectListIter ei = effects.begin(); ei != effects.end(); ei++) {
+	const Effect& e = **ei;
+	if (typeid(link.condition) == typeid(Negation)) {
+	  const AtomList& adds = e.add_list;
+	  for (AtomListIter fi = adds.begin(); fi != adds.end(); fi++) {
+	    const Atom& atom = **fi;
+	    if (bindings.affects(atom, link.condition)) {
+	      unsafes = new UnsafeChain(new Unsafe(link, s.id, e, atom),
+					unsafes);
+	      num_unsafes++;
+	    }
+	  }
+	} else {
+	  const NegationList& dels = e.del_list;
+	  for (NegationListIter fi = dels.begin(); fi != dels.end(); fi++) {
+	    const Negation& neg = **fi;
+	    if (bindings.affects(neg, link.condition)) {
+	      unsafes = new UnsafeChain(new Unsafe(link, s.id, e, neg),
+					unsafes);
+	      num_unsafes++;
+	    }
+	  }
+	}
+      }
     }
   }
 }
@@ -1295,9 +1337,13 @@ void Plan::new_cw_link(PlanList& plans, const Step& step,
 	       step.id, reason)) {
     const Bindings* bindings = bindings_.add(new_bindings);
     if (bindings != NULL) {
+      const UnsafeChain* new_unsafes = unsafes;
+      size_t new_num_unsafes = num_unsafes;
+      link_threats(new_unsafes, new_num_unsafes, link, steps, orderings,
+		   *bindings);
       plans.push_back(new Plan(steps, num_steps,
 			       new LinkChain(&link, links), num_links + 1,
-			       unsafes, num_unsafes,
+			       new_unsafes, new_num_unsafes,
 			       new_open_conds, new_num_open_conds,
 			       orderings, *bindings, this));
     }
@@ -1448,40 +1494,8 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
    */
   const UnsafeChain* new_unsafes = unsafes;
   size_t new_num_unsafes = num_unsafes;
-  hash_set<size_t> seen_steps;
-  for (const StepChain* sc = steps; sc != NULL; sc = sc->tail) {
-    const Step& s = *sc->head;
-    if (seen_steps.find(s.id) == seen_steps.end()
-	&& new_orderings.possibly_before(link.from_id, s.id)
-	&& new_orderings.possibly_after(link.to_id, s.id)) {
-      seen_steps.insert(s.id);
-      const EffectList& effects = s.effects;
-      for (EffectListIter ei = effects.begin(); ei != effects.end(); ei++) {
-	const Effect& e = **ei;
-	if (typeid(link.condition) == typeid(Negation)) {
-	  const AtomList& adds = e.add_list;
-	  for (AtomListIter fi = adds.begin(); fi != adds.end(); fi++) {
-	    const Atom& atom = **fi;
-	    if (bindings->affects(atom, link.condition)) {
-	      new_unsafes = new UnsafeChain(new Unsafe(link, s.id, e, atom),
-					    new_unsafes);
-	      new_num_unsafes++;
-	    }
-	  }
-	} else {
-	  const NegationList& dels = e.del_list;
-	  for (NegationListIter fi = dels.begin(); fi != dels.end(); fi++) {
-	    const Negation& neg = **fi;
-	    if (bindings->affects(neg, link.condition)) {
-	      new_unsafes = new UnsafeChain(new Unsafe(link, s.id, e, neg),
-					    new_unsafes);
-	      new_num_unsafes++;
-	    }
-	  }
-	}
-      }
-    }
-  }
+  link_threats(new_unsafes, new_num_unsafes, link, steps, new_orderings,
+	       *bindings);
 
   /*
    * If this is a new step, find links it threatens.
