@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 3.5 2002-03-18 10:11:33 lorens Exp $
+ * $Id: plans.cc,v 3.6 2002-03-18 12:08:01 lorens Exp $
  */
 #include <queue>
 #include <algorithm>
@@ -65,13 +65,26 @@ static bool static_pred_flaw;
 /* Constructs a causal link. */
 Link::Link(size_t from_id, StepTime effect_time,
 	   const LiteralOpenCondition& open_cond)
-  : from_id(from_id), effect_time(effect_time), to_id(open_cond.step_id()),
-    condition(open_cond.literal()), reason(open_cond.reason()) {}
+  : from_id_(from_id), effect_time_(effect_time), to_id_(open_cond.step_id()),
+    condition_(&open_cond.literal()) {
+#ifdef TRANSFORMATIONAL
+  reason_ = &open_cond.reason();
+#endif
+}
 
 
-/* Prints this causal link. */
-void Link::print(ostream& os) const {
-  os << "#<LINK " << from_id << ' ' << condition << ' ' << to_id << '>';
+/* Returns the reason for the link. */
+const Reason& Link::reason() const {
+#ifdef TRANSFORMATIONAL
+  return *reason_;
+#else
+  return Reason::DUMMY;
+#endif
+}
+
+
+bool operator==(const Link& l1, const Link& l2) {
+  return &l1 == &l2;
 }
 
 
@@ -82,7 +95,11 @@ void Link::print(ostream& os) const {
 Step::Step(size_t id, const Formula& precondition, const EffectList& effects,
 	   const Reason& reason)
   : id(id), action(NULL), precondition(precondition.instantiation(id)),
-    effects(effects.instantiation(id)), reason(reason), formula(NULL) {}
+    effects(effects.instantiation(id)), formula(NULL) {
+#ifdef TRANSFORMATIONAL
+  reason_ = &reason;
+#endif
+}
 
 
 /* Constructs a step instantiated from an action. */
@@ -93,14 +110,32 @@ Step::Step(size_t id, const Action& action, const Reason& reason)
 		 : action.precondition),
     effects((typeid(action) == typeid(ActionSchema))
 	    ? action.effects.instantiation(id) : action.effects),
-    reason(reason), formula(NULL) {}
+    formula(NULL) {
+#ifdef TRANSFORMATIONAL
+  reason_ = &reason;
+#endif
+}
 
 
 /* Constructs a step. */
 Step::Step(size_t id, const Action* action, const Formula& precondition,
 	   const EffectList& effects, const Reason& reason)
   : id(id), action(action), precondition(precondition), effects(effects),
-    reason(reason) {}
+    formula(NULL) {
+#ifdef TRANSFORMATIONAL
+  reason_ = &reason;
+#endif
+}
+
+
+/* Returns the reasons. */
+const Reason& Step::reason() const {
+#ifdef TRANSFORMATIONAL
+  return *reason_;
+#else
+  return Reason::DUMMY;
+#endif
+}
 
 
 /* Returns a copy of this step with a new reason. */
@@ -269,38 +304,38 @@ static void link_threats(const UnsafeChain*& unsafes, size_t& num_unsafes,
 			 const Orderings& orderings,
 			 const Bindings& bindings) {
   hash_set<size_t> seen_steps;
-  StepTime lt1 = link.effect_time;
-  StepTime lt2 = end_time(link.condition);
+  StepTime lt1 = link.effect_time();
+  StepTime lt2 = end_time(link.condition());
   for (const StepChain* sc = steps; sc != NULL; sc = sc->tail) {
     const Step& s = *sc->head;
     if (seen_steps.find(s.id) == seen_steps.end()
-	&& (link.from_id == s.id
-	    || (orderings.possibly_before(link.from_id, lt1, s.id, STEP_END)
-		&& orderings.possibly_after(link.to_id, lt2,
+	&& (link.from_id() == s.id
+	    || (orderings.possibly_before(link.from_id(), lt1, s.id, STEP_END)
+		&& orderings.possibly_after(link.to_id(), lt2,
 					    s.id, STEP_START)))) {
       seen_steps.insert(s.id);
       const EffectList& effects = s.effects;
       for (EffectListIter ei = effects.begin(); ei != effects.end(); ei++) {
 	const Effect& e = **ei;
 	StepTime et = end_time(e);
-	if ((link.from_id == s.id && lt1 == et)
-	    || orderings.possibly_before(link.from_id, lt1, s.id, et)
-	    || orderings.possibly_after(link.to_id, lt2, s.id, et)) {
-	  if (typeid(link.condition) == typeid(Negation)) {
+	if ((link.from_id() == s.id && lt1 == et)
+	    || orderings.possibly_before(link.from_id(), lt1, s.id, et)
+	    || orderings.possibly_after(link.to_id(), lt2, s.id, et)) {
+	  if (typeid(link.condition()) == typeid(Negation)) {
 	    const AtomList& adds = e.add_list;
 	    for (AtomListIter fi = adds.begin(); fi != adds.end(); fi++) {
 	      const Atom& atom = **fi;
-	      if (bindings.affects(atom, link.condition)) {
+	      if (bindings.affects(atom, link.condition())) {
 		unsafes = new UnsafeChain(new Unsafe(link, s.id, e, atom),
 					  unsafes);
 		num_unsafes++;
 	      }
 	    }
-	  } else if (!(link.from_id == s.id && lt1 == et)) {
+	  } else if (!(link.from_id() == s.id && lt1 == et)) {
 	    const NegationList& dels = e.del_list;
 	    for (NegationListIter fi = dels.begin(); fi != dels.end(); fi++) {
 	      const Negation& neg = **fi;
-	      if (bindings.affects(neg, link.condition)) {
+	      if (bindings.affects(neg, link.condition())) {
 		unsafes = new UnsafeChain(new Unsafe(link, s.id, e, neg),
 					  unsafes);
 		num_unsafes++;
@@ -320,22 +355,22 @@ static void step_threats(const UnsafeChain*& unsafes, size_t& num_unsafes,
 			 const Orderings& orderings,
 			 const Bindings& bindings) {
   for (const LinkChain* lc = links; lc != NULL; lc = lc->tail) {
-    const Link& l = *lc->head;
-    StepTime lt1 = l.effect_time;
-    StepTime lt2 = end_time(l.condition);
-    if (orderings.possibly_before(l.from_id, lt1, step.id, STEP_END)
-	&& orderings.possibly_after(l.to_id, lt2, step.id, STEP_START)) {
+    const Link& l = lc->head;
+    StepTime lt1 = l.effect_time();
+    StepTime lt2 = end_time(l.condition());
+    if (orderings.possibly_before(l.from_id(), lt1, step.id, STEP_END)
+	&& orderings.possibly_after(l.to_id(), lt2, step.id, STEP_START)) {
       const EffectList& effects = step.effects;
       for (EffectListIter ei = effects.begin(); ei != effects.end(); ei++) {
 	const Effect& e = **ei;
 	StepTime et = end_time(e);
-	if (orderings.possibly_before(l.from_id, lt1, step.id, et)
-	    && orderings.possibly_after(l.to_id, lt2, step.id, et)) {
-	  if (typeid(l.condition) == typeid(Negation)) {
+	if (orderings.possibly_before(l.from_id(), lt1, step.id, et)
+	    && orderings.possibly_after(l.to_id(), lt2, step.id, et)) {
+	  if (typeid(l.condition()) == typeid(Negation)) {
 	    const AtomList& adds = e.add_list;
 	    for (AtomListIter fi = adds.begin(); fi != adds.end(); fi++) {
 	      const Atom& atom = **fi;
-	      if (bindings.affects(atom, l.condition)) {
+	      if (bindings.affects(atom, l.condition())) {
 		unsafes = new UnsafeChain(new Unsafe(l, step.id, e, atom),
 					  unsafes);
 		num_unsafes++;
@@ -345,7 +380,7 @@ static void step_threats(const UnsafeChain*& unsafes, size_t& num_unsafes,
 	    const NegationList& dels = e.del_list;
 	    for (NegationListIter fi = dels.begin(); fi != dels.end(); fi++) {
 	      const Negation& neg = **fi;
-	      if (bindings.affects(neg, l.condition)) {
+	      if (bindings.affects(neg, l.condition())) {
 		unsafes = new UnsafeChain(new Unsafe(l, step.id, e, neg),
 					  unsafes);
 		num_unsafes++;
@@ -771,16 +806,16 @@ void Plan::print(ostream& os) const {
 	os << " : " << step.step_formula()->instantiation(bindings_);
       }
       for (const LinkChain* lc = links; lc != NULL; lc = lc->tail) {
-	const Link& link = *lc->head;
-	if (link.to_id == step.id) {
-	  os << endl << "          " << link.from_id;
-	  if (link.from_id < 100) {
-	    if (link.from_id < 10) {
+	const Link& link = lc->head;
+	if (link.to_id() == step.id) {
+	  os << endl << "          " << link.from_id();
+	  if (link.from_id() < 100) {
+	    if (link.from_id() < 10) {
 	      os << ' ';
 	    }
 	    os << ' ';
 	  }
-	  os << " -> " << link.condition.instantiation(bindings_);
+	  os << " -> " << link.condition().instantiation(bindings_);
 	  for (const UnsafeChain* uc = unsafes; uc != NULL; uc = uc->tail) {
 	    const Unsafe& unsafe = *uc->head;
 	    if (&unsafe.link() == &link) {
@@ -839,13 +874,14 @@ void Plan::refinements(PlanList& plans) const {
 void Plan::handle_unsafe(PlanList& plans, const Unsafe& unsafe) const {
   size_t num_prev_plans = plans.size();
   const Link& link = unsafe.link();
-  StepTime lt1 = link.effect_time;
-  StepTime lt2 = end_time(link.condition);
+  StepTime lt1 = link.effect_time();
+  StepTime lt2 = end_time(link.condition());
   StepTime et = end_time(unsafe.effect());
-  if (((link.from_id == unsafe.step_id() && lt1 == et)
-       || (orderings.possibly_before(link.from_id, lt1, unsafe.step_id(), et)
-	   && orderings.possibly_after(link.to_id, lt2, unsafe.step_id(), et)))
-      && bindings_.affects(unsafe.effect_add(), link.condition)) {
+  if (((link.from_id() == unsafe.step_id() && lt1 == et)
+       || (orderings.possibly_before(link.from_id(), lt1, unsafe.step_id(), et)
+	   && orderings.possibly_after(link.to_id(), lt2,
+				       unsafe.step_id(), et)))
+      && bindings_.affects(unsafe.effect_add(), link.condition())) {
     separate(plans, unsafe);
     promote(plans, unsafe);
     demote(plans, unsafe);
@@ -877,14 +913,15 @@ void Plan::handle_unsafe(PlanList& plans, const Unsafe& unsafe) const {
 int Plan::separable(const Unsafe& unsafe) const {
   SubstitutionList unifier;
   const Link& link = unsafe.link();
-  StepTime lt1 = link.effect_time;
-  StepTime lt2 = end_time(link.condition);
+  StepTime lt1 = link.effect_time();
+  StepTime lt2 = end_time(link.condition());
   StepTime et = end_time(unsafe.effect());
-  if (((link.from_id == unsafe.step_id() && lt1 == et)
-       || (orderings.possibly_before(link.from_id, lt1, unsafe.step_id(), et)
-	   && orderings.possibly_after(link.to_id, lt2, unsafe.step_id(), et)))
+  if (((link.from_id() == unsafe.step_id() && lt1 == et)
+       || (orderings.possibly_before(link.from_id(), lt1, unsafe.step_id(), et)
+	   && orderings.possibly_after(link.to_id(), lt2,
+				       unsafe.step_id(), et)))
       && bindings_.affects(unifier,
-			   unsafe.effect_add(), link.condition)) {
+			   unsafe.effect_add(), link.condition())) {
     const VariableList& effect_forall = unsafe.effect().forall;
     const Formula* goal = &Formula::FALSE;
     for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
@@ -933,7 +970,7 @@ int Plan::separable(const Unsafe& unsafe) const {
 /* Handles an unsafe link through separation. */
 void Plan::separate(PlanList& plans, const Unsafe& unsafe) const {
   SubstitutionList unifier;
-  bindings_.affects(unifier, unsafe.effect_add(), unsafe.link().condition);
+  bindings_.affects(unifier, unsafe.effect_add(), unsafe.link().condition());
   const VariableList& effect_forall = unsafe.effect().forall;
   const Formula* goal = &Formula::FALSE;
   for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
@@ -981,20 +1018,20 @@ void Plan::separate(PlanList& plans, const Unsafe& unsafe) const {
 /* Checsk if the given threat is demotable. */
 int Plan::demotable(const Unsafe& unsafe) const {
   const Link& link = unsafe.link();
-  StepTime lt1 = link.effect_time;
+  StepTime lt1 = link.effect_time();
   StepTime et = end_time(unsafe.effect());
   return orderings.possibly_before(unsafe.step_id(), et,
-				   link.from_id, lt1) ? 1 : 0;
+				   link.from_id(), lt1) ? 1 : 0;
 }
 
 
 /* Handles an unsafe link through demotion. */
 void Plan::demote(PlanList& plans, const Unsafe& unsafe) const {
   const Link& link = unsafe.link();
-  StepTime lt1 = link.effect_time;
+  StepTime lt1 = link.effect_time();
   StepTime et = end_time(unsafe.effect());
-  if (orderings.possibly_before(unsafe.step_id(), et, link.from_id, lt1)) {
-    new_ordering(plans, unsafe.step_id(), et, link.from_id, lt1, unsafe);
+  if (orderings.possibly_before(unsafe.step_id(), et, link.from_id(), lt1)) {
+    new_ordering(plans, unsafe.step_id(), et, link.from_id(), lt1, unsafe);
   }
 }
 
@@ -1002,9 +1039,9 @@ void Plan::demote(PlanList& plans, const Unsafe& unsafe) const {
 /* Checks if the given threat is promotable. */
 int Plan::promotable(const Unsafe& unsafe) const {
   const Link& link = unsafe.link();
-  StepTime lt2 = end_time(link.condition);
+  StepTime lt2 = end_time(link.condition());
   StepTime et = end_time(unsafe.effect());
-  return orderings.possibly_before(link.to_id, lt2,
+  return orderings.possibly_before(link.to_id(), lt2,
 				   unsafe.step_id(), et) ? 1 : 0;
 }
 
@@ -1012,10 +1049,10 @@ int Plan::promotable(const Unsafe& unsafe) const {
 /* Handles an unsafe link through promotion. */
 void Plan::promote(PlanList& plans, const Unsafe& unsafe) const {
   const Link& link = unsafe.link();
-  StepTime lt2 = end_time(link.condition);
+  StepTime lt2 = end_time(link.condition());
   StepTime et = end_time(unsafe.effect());
-  if (orderings.possibly_before(link.to_id, lt2, unsafe.step_id(), et)) {
-    new_ordering(plans, link.to_id, lt2, unsafe.step_id(), et, unsafe);
+  if (orderings.possibly_before(link.to_id(), lt2, unsafe.step_id(), et)) {
+    new_ordering(plans, link.to_id(), lt2, unsafe.step_id(), et, unsafe);
   }
 }
 
@@ -1026,9 +1063,8 @@ void Plan::new_ordering(PlanList& plans, size_t before_id, StepTime t1,
 			const Unsafe& unsafe) const {
   const Reason& protect_reason =
     ProtectReason::make(*params, unsafe.link(), unsafe.step_id());
-  const Ordering& ordering =
-    *(new Ordering(before_id, t1, after_id, t2, protect_reason));
-  const Orderings* new_orderings = orderings.refine(ordering);
+  const Orderings* new_orderings =
+    orderings.refine(Ordering(before_id, t1, after_id, t2, protect_reason));
   if (new_orderings != NULL) {
     plans.push_back(new Plan(steps, num_steps, links, num_links,
 			     unsafes->remove(&unsafe), num_unsafes - 1,
@@ -1398,7 +1434,9 @@ void Plan::new_link(PlanList& plans, const Step& step,
     StepTime et = end_time(effect);
     if (step.id > high_step_id_
 	|| orderings.possibly_before(step.id, et, open_cond.step_id(), gt)) {
-      const Link& link = *(new Link(step.id, et, open_cond));
+      const LinkChain* new_links =
+	new LinkChain(Link(step.id, et, open_cond), links);
+      const Link& link = new_links->head;
       const Reason& reason = EstablishReason::make(*params, link);
       if (typeid(goal) == typeid(Atom)) {
 	const AtomList& adds = effect.add_list;
@@ -1406,7 +1444,7 @@ void Plan::new_link(PlanList& plans, const Step& step,
 	  SubstitutionList mgu;
 	  if (bindings_.unify(mgu, goal, **gi)) {
 	    const Plan* new_plan =
-	      make_link(step, effect, open_cond, link, reason, mgu);
+	      make_link(step, effect, open_cond, new_links, reason, mgu);
 	    if (new_plan != NULL) {
 	      plans.push_back(new_plan);
 	    }
@@ -1418,7 +1456,7 @@ void Plan::new_link(PlanList& plans, const Step& step,
 	  SubstitutionList mgu;
 	  if (bindings_.unify(mgu, goal, **gi)) {
 	    const Plan* new_plan =
-	      make_link(step, effect, open_cond, link, reason, mgu);
+	      make_link(step, effect, open_cond, new_links, reason, mgu);
 	    if (new_plan != NULL) {
 	      plans.push_back(new_plan);
 	    }
@@ -1498,7 +1536,9 @@ void Plan::new_cw_link(PlanList& plans, const Step& step,
       }
     }
   }
-  const Link& link = *(new Link(step.id, STEP_END, open_cond));
+  const LinkChain* new_links =
+    new LinkChain(Link(step.id, STEP_END, open_cond), links);
+  const Link& link = new_links->head;
   const Reason& reason = EstablishReason::make(*params, link);
   BindingList new_bindings;
   const OpenConditionChain* new_open_conds = open_conds->remove(&open_cond);
@@ -1512,7 +1552,7 @@ void Plan::new_cw_link(PlanList& plans, const Step& step,
       link_threats(new_unsafes, new_num_unsafes, link, steps, orderings,
 		   *bindings);
       plans.push_back(new Plan(steps, num_steps,
-			       new LinkChain(&link, links), num_links + 1,
+			       new_links, num_links + 1,
 			       new_unsafes, new_num_unsafes,
 			       new_open_conds, new_num_open_conds,
 			       orderings, *bindings, this));
@@ -1589,7 +1629,7 @@ int Plan::link_possible(const Formula& precondition, const Effect& effect,
    given open condition. */
 const Plan* Plan::make_link(const Step& step, const Effect& effect,
 			    const LiteralOpenCondition& open_cond,
-			    const Link& link, const Reason& reason,
+			    const LinkChain* new_links, const Reason& reason,
 			    const SubstitutionList& unifier) const {
   /*
    * Add bindings needed to unify effect and goal.
@@ -1661,9 +1701,9 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
   }
   StepTime et = end_time(effect);
   StepTime gt = start_time(open_cond.literal());
-  const Ordering& ordering =
-    *(new Ordering(step.id, et, open_cond.step_id(), gt, reason));
-  const Orderings* new_orderings = orderings.refine(ordering, step);
+  const Orderings* new_orderings =
+    orderings.refine(Ordering(step.id, et, open_cond.step_id(), gt, reason),
+		     step);
   if (new_orderings == NULL) {
     return NULL;
   }
@@ -1673,8 +1713,8 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
    */
   const UnsafeChain* new_unsafes = unsafes;
   size_t new_num_unsafes = num_unsafes;
-  link_threats(new_unsafes, new_num_unsafes, link, new_steps, *new_orderings,
-	       *bindings);
+  link_threats(new_unsafes, new_num_unsafes, new_links->head, new_steps,
+	       *new_orderings, *bindings);
 
   /*
    * If this is a new step, find links it threatens.
@@ -1686,7 +1726,7 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
 
   /* Return the new plan. */
   return new Plan(new_steps, new_num_steps,
-		  new LinkChain(&link, links), num_links + 1,
+		  new_links, num_links + 1,
 		  new_unsafes, new_num_unsafes,
 		  new_open_conds, new_num_open_conds,
 		  *new_orderings, *bindings, this);
@@ -1738,7 +1778,7 @@ valid_open_condition(const OpenCondition& open_cond,
   } else {
     const EstablishReason* er =
       dynamic_cast<const EstablishReason*>(&open_cond.reason());
-    return (er != NULL) ? links->contains(&er->link) : false;
+    return (er != NULL) ? links->contains(er->link) : false;
   }
 }
 
@@ -1834,7 +1874,7 @@ remove_steps(StepStack& exposed_steps, const StepChain* steps,
   } else {
     const StepChain* tail =
       remove_steps(exposed_steps, steps->tail, link);
-    if (steps->head->reason.involves(link)) {
+    if (steps->head->reason().involves(link)) {
       if (find_step(steps->tail, steps->head->id) == NULL) {
 	exposed_steps.push(steps->head);
       }
@@ -1857,8 +1897,8 @@ remove_links(LinkStack& exposed_links, const LinkChain* links,
   } else {
     const LinkChain* tail =
       remove_links(exposed_links, links->tail, step);
-    if (links->head->from_id == step.id || links->head->to_id == step.id) {
-      exposed_links.push(links->head);
+    if (links->head.from_id() == step.id || links->head.to_id() == step.id) {
+      exposed_links.push(&links->head);
       return tail;
     } else {
       return new LinkChain(links->head, tail);
@@ -1875,7 +1915,7 @@ remove_orderings(const OrderingChain* orderings, const Link& link) {
     return NULL;
   } else {
     const OrderingChain* tail = remove_orderings(orderings->tail, link);
-    if (orderings->head->reason.involves(link)) {
+    if (orderings->head.reason().involves(link)) {
       return tail;
     } else {
       return new OrderingChain(orderings->head, tail);
@@ -1892,7 +1932,7 @@ remove_orderings(const OrderingChain* orderings, const Step& step) {
     return NULL;
   } else {
     const OrderingChain* tail = remove_orderings(orderings->tail, step);
-    if (orderings->head->reason.involves(step)) {
+    if (orderings->head.reason().involves(step)) {
       return tail;
     } else {
       return new OrderingChain(orderings->head, tail);
@@ -1958,7 +1998,7 @@ pair<const Plan*, const OpenCondition*> Plan::unlink(const Link& link) const {
       const Link& l = *exposed_links.top();
       exposed_links.pop();
       /* remove exposed link */
-      new_links = new_links->remove(&l);
+      new_links = new_links->remove(l);
       new_num_links--;
       /* remove flaws involving link */
       new_unsafes = remove_unsafes(new_unsafes, new_num_unsafes, l);
@@ -1966,7 +2006,7 @@ pair<const Plan*, const OpenCondition*> Plan::unlink(const Link& link) const {
 	remove_open_conditions(new_open_conds, new_num_open_conds, l);
       /* add open condition, if still valid */
       const OpenCondition* open_cond =
-	new LiteralOpenCondition(l.condition, l.to_id, l.reason);
+	new LiteralOpenCondition(l.condition(), l.to_id(), l.reason());
       if (&l == &link) {
 	link_cond = open_cond;
       }
@@ -1983,8 +2023,8 @@ pair<const Plan*, const OpenCondition*> Plan::unlink(const Link& link) const {
       inequalities = remove_bindings(inequalities, l);
       /* remove links to conditions that were threatened by this link */
       for (const LinkChain* lc = new_links; lc != NULL; lc = lc->tail) {
-	if (lc->head->reason.involves(link)) {
-	  exposed_links.push(lc->head);
+	if (lc->head.reason().involves(link)) {
+	  exposed_links.push(&lc->head);
 	}
       }
     } else if (!exposed_steps.empty() && new_steps != NULL) {

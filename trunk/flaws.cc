@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: flaws.cc,v 3.1 2002-03-18 10:11:24 lorens Exp $
+ * $Id: flaws.cc,v 3.2 2002-03-18 12:07:56 lorens Exp $
  */
 #include "flaws.h"
 #include "plans.h"
@@ -129,5 +129,6 @@ Unsafe::Unsafe(const Link& link, size_t step_id, const Effect& effect,
 
 /* Prints this threatened causal link on the given stream. */
 void Unsafe::print(ostream& os) const {
-  os << "#<UNSAFE " << link() << " step " << step_id() << ">";
+  os << "#<UNSAFE " << link().from_id() << ' ' << link().condition()
+     << ' ' << link().to_id() << " step " << step_id() << ">";
 }

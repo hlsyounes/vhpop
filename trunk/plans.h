@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.h,v 3.2 2002-03-15 19:02:22 lorens Exp $
+ * $Id: plans.h,v 3.3 2002-03-18 12:08:06 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -45,48 +45,59 @@ struct Unsafe;
 struct Bindings;
 
 
-/*
- * Chain of open conditions.
- */
-typedef Chain<const OpenCondition*> OpenConditionChain;
-
-
-/*
- * Chain of threatened causal links.
- */
-typedef Chain<const Unsafe*> UnsafeChain;
-
+/* ====================================================================== */
+/* Link */
 
 /*
  * Causal link.
  */
-struct Link : public Printable, public gc {
-  /* Id of step that link goes from. */
-  const size_t from_id;
-  /* Time of effect satisfying link. */
-  const StepTime effect_time;
-  /* Id of step that link goes to. */
-  const size_t to_id;
-  /* Condition satisfied by link. */
-  const Literal& condition;
-  /* Reason for link. */
-  const Reason& reason;
-
+struct Link {
   /* Constructs a causal link. */
   Link(size_t from_id, StepTime effect_time,
        const LiteralOpenCondition& open_cond);
 
-protected:
-  /* Prints this causal link. */
-  virtual void print(ostream& os) const;
+  /* Returns the id of step that link goes from. */
+  size_t from_id() const { return from_id_; }
+
+  /* Returns the time of effect satisfying link. */
+  StepTime effect_time() const { return effect_time_; }
+
+  /* Returns the id of step that link goes to. */
+  size_t to_id() const { return  to_id_; }
+
+  /* Returns the condition satisfied by link. */
+  const Literal& condition() const { return *condition_; }
+
+  /* Returns the reason for the link. */
+  const Reason& reason() const;
+
+private:
+  /* Id of step that link goes from. */
+  size_t from_id_;
+  /* Time of effect satisfying link. */
+  StepTime effect_time_;
+  /* Id of step that link goes to. */
+  size_t to_id_;
+  /* Condition satisfied by link. */
+  const Literal* condition_;
+#ifdef TRANSFORMATIONAL
+  /* Reason for link. */
+  const Reason* reason_;
+#endif
 };
 
+
+/* ====================================================================== */
+/* LinkChain */
 
 /*
  * Chain of causal links.
  */
-typedef Chain<const Link*> LinkChain;
+typedef Chain<Link> LinkChain;
 
+
+/* ====================================================================== */
+/* Step */
 
 /*
  * Plan step.
@@ -100,8 +111,6 @@ struct Step : public gc {
   const Formula& precondition;
   /* List of effects. */
   const EffectList& effects;
-  /* Reason for step. */
-  const Reason& reason;
 
   /* Constructs a step. */
   Step(size_t id, const Formula& precondition, const EffectList& effects,
@@ -109,6 +118,9 @@ struct Step : public gc {
 
   /* Constructs a step instantiated from an action. */
   Step(size_t id, const Action& action, const Reason& reason);
+
+  /* Returns the reasons. */
+  const Reason& reason() const;
 
   /* Returns a copy of this step with a new reason. */
   const Step& new_reason(const Reason& reason) const;
@@ -119,6 +131,10 @@ struct Step : public gc {
 private:
   /* Atomic representation of this step. */
   mutable const Atom* formula;
+#ifdef TRANSFORMATIONAL
+  /* Reason for step. */
+  const Reason* reason_;
+#endif
 
   /* Constructs a step. */
   Step(size_t id, const Action* action, const Formula& precondition,
@@ -140,6 +156,18 @@ struct StepList : public Vector<const Step*> {
 
 /* Iterator for step lists. */
 typedef StepList::const_iterator StepListIter;
+
+
+/*
+ * Chain of open conditions.
+ */
+typedef Chain<const OpenCondition*> OpenConditionChain;
+
+
+/*
+ * Chain of threatened causal links.
+ */
+typedef Chain<const Unsafe*> UnsafeChain;
 
 
 struct PlanList;
@@ -335,7 +363,7 @@ private:
      given open condition. */
   const Plan* make_link(const Step& step, const Effect& effect,
 			const LiteralOpenCondition& open_cond,
-			const Link& link, const Reason& reason,
+			const LinkChain* new_links, const Reason& reason,
 			const SubstitutionList& unifier) const;
 
   /* Adds plans to the given plan list with the given link removed and
