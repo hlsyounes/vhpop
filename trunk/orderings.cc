@@ -13,12 +13,14 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.cc,v 6.4 2003-08-28 15:33:17 lorens Exp $
+ * $Id: orderings.cc,v 6.5 2003-09-05 16:25:34 lorens Exp $
  */
 #include "orderings.h"
 #include "plans.h"
 #include "domains.h"
+#include "expressions.h"
 #include "debug.h"
+#include "exceptions.h"
 #include "mathport.h"
 
 
@@ -514,10 +516,21 @@ TemporalOrderings::refine(const Ordering& new_ordering,
       orderings.distance_.push_back(fv);
       FloatVector::register_use(fv);
       fv = new FloatVector(4*new_step.id(), INFINITY);
-      (*fv)[4*new_step.id() - 1] =
-	-(threshold + new_step.action().min_duration());
-      (*fv)[2*new_step.id() - 1] = new_step.action().max_duration();
-      (*fv)[2*new_step.id()] = -new_step.action().min_duration();
+      const Value* min_v =
+	dynamic_cast<const Value*>(&new_step.action().min_duration());
+      if (min_v == NULL) {
+	throw Exception("trying to add step with non-constant minimum"
+			" duration");
+      }
+      (*fv)[4*new_step.id() - 1] = -(threshold + min_v->value());
+      const Value* max_v =
+	dynamic_cast<const Value*>(&new_step.action().max_duration());
+      if (max_v == NULL) {
+	throw Exception("trying to add step with non-constant maximum"
+			" duration");
+      }
+      (*fv)[2*new_step.id() - 1] = max_v->value();
+      (*fv)[2*new_step.id()] = -min_v->value();
       own_data.insert(std::make_pair(orderings.distance_.size(), fv));
       orderings.distance_.push_back(fv);
       FloatVector::register_use(fv);
@@ -644,19 +657,10 @@ TemporalOrderings::fill_transitive(std::map<size_t, FloatVector*>& own_data,
 void TemporalOrderings::print(std::ostream& os) const {
   size_t n = distance_.size();
   for (size_t r = 0; r <= n; r++) {
-    if (r > 0) {
-      os << std::endl;
-    }
+    os << std::endl;
     for (size_t c = 0; c <= n; c++) {
-      if (r == c) {
-	os.width(6);
-	os << 0;
-      } else {
-	size_t i = std::max(r, c) - 1;
-	size_t j = (r <= c) ? r : 2*i - c + 1;
-	os.width(6);
-	os << distance(i, j);
-      }
+      os.width(8);
+      os << distance(r, c);
     }
   }
 }
