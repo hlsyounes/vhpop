@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 6.16 2003-12-10 02:28:51 lorens Exp $
+ * $Id: plans.cc,v 6.17 2003-12-10 03:44:19 lorens Exp $
  */
 #include "mathport.h"
 #include "plans.h"
@@ -1127,7 +1127,7 @@ int Plan::separate(PlanList& plans, const Unsafe& unsafe,
     if (bindings != NULL) {
       if (!test_only) {
 	const Orderings* new_orderings = orderings_;
-	if (!goal->tautology()) {
+	if (!goal->tautology() && planning_graph != NULL) {
 	  const TemporalOrderings* to =
 	    dynamic_cast<const TemporalOrderings*>(new_orderings);
 	  if (to != NULL) {
@@ -1736,7 +1736,8 @@ int Plan::make_link(PlanList& plans, const Step& step, const Effect& effect,
       orderings().refine(Ordering(step.id(), et, open_cond.step_id(), gt),
 			 step, planning_graph,
 			 params->ground_actions ? NULL : bindings);
-    if (new_orderings != NULL && !cond_goal->tautology()) {
+    if (new_orderings != NULL && !cond_goal->tautology()
+	&& planning_graph != NULL) {
       const TemporalOrderings* to =
 	dynamic_cast<const TemporalOrderings*>(new_orderings);
       if (to != NULL) {
