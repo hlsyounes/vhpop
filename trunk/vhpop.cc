@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 3.29 2003-03-01 18:53:49 lorens Exp $
+ * $Id: vhpop.cc,v 3.30 2003-03-01 23:45:53 lorens Exp $
  */
 #include "plans.h"
 #include "reasons.h"
@@ -145,15 +145,15 @@ static void display_help() {
 
 /* Displays version information. */
 static void display_version() {
-  std::cout << PACKAGE " " VERSION << std::endl
+  std::cout << PACKAGE_STRING << std::endl
 	    << "Copyright (C) 2003 Carnegie Mellon University" << std::endl
-	    << PACKAGE
+	    << PACKAGE_NAME
 	    << " comes with NO WARRANTY, to the extent permitted by law."
 	    << std::endl
 	    << "For information about the terms of redistribution,"
 	    << std::endl
-	    << "see the file named COPYING in the " PACKAGE " distribution."
-	    << std::endl
+	    << "see the file named COPYING in the " PACKAGE_NAME
+	    << " distribution." << std::endl
 	    << std::endl
 	    << "Written by H\345kan L. S. Younes." << std::endl;
 }
