@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.30 2001-10-30 16:02:24 lorens Exp $
+ * $Id: plans.cc,v 1.31 2001-11-08 19:21:41 lorens Exp $
  */
 #include <queue>
 #include <hash_set>
@@ -12,6 +12,8 @@
 #include "costgraph.h"
 #include "debug.h"
 
+
+//#define INEQUALITY_AS_BRANCHING
 
 /* Id of goal step. */
 const size_t Plan::GOAL_ID = UINT_MAX;
@@ -249,9 +251,21 @@ static bool add_goal(const OpenConditionChain*& open_conds,
       if (neq != NULL) {
 	const Variable* var = dynamic_cast<const Variable*>(&neq->term1);
 	if (var != NULL) {
-	  new_bindings.push_back(new InequalityBinding(*var, neq->term2,
-						       reason));
-	  num_bindings++;
+#ifdef INEQUALITY_AS_BRANCHING
+	  if (dynamic_cast<const Variable*>(&neq->term2) != NULL) {
+	    /* Both are variables, so handle specially. */
+	    if (!add_open_condition(open_conds, num_open_conds, *goal,
+				    step_id, reason, links)) {
+	      return false;
+	    }
+	  } else {
+#endif
+	    new_bindings.push_back(new InequalityBinding(*var, neq->term2,
+							 reason));
+	    num_bindings++;
+#ifdef INEQUALITY_AS_BRANCHING
+	  }
+#endif
 	} else {
 	  var = dynamic_cast<const Variable*>(&neq->term2);
 	  if (var != NULL) {
@@ -299,30 +313,6 @@ static bool add_goal(const OpenConditionChain*& open_conds,
 }
 
 
-/* Returns a chain of unsafes with all obsolete unsafes in the given
-   chain removed, and sets num_unsafes to the remaining number of
-   unsafes. */
-static const UnsafeChain*
-remove_obsolete_unsafes(const UnsafeChain* unsafes, size_t& num_unsafes,
-			const Orderings& orderings, const Bindings& bindings) {
-  if (unsafes == NULL) {
-    return NULL;
-  } else {
-    const UnsafeChain* tail =
-      remove_obsolete_unsafes(unsafes->tail, num_unsafes, orderings, bindings);
-    const Unsafe* u = unsafes->head;
-    if (!(orderings.possibly_before(u->link.from_id, u->step_id) &&
-	  orderings.possibly_after(u->link.to_id, u->step_id) &&
-	  bindings.affects(u->effect_add, u->link.condition))) {
-      num_unsafes--;
-      return tail;
-    } else {
-      return new UnsafeChain(u, tail);
-    }
-  }
-}
-
-
 /* Returns plan for given problem. */
 const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
   /* Set planning parameters. */
@@ -332,7 +322,8 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
 
   achieves_pred.clear();
   achieves_neg_pred.clear();
-  if (params.ground_actions || !params.heuristic.ucpop()) {
+  if (params.ground_actions || params.domain_constraints
+      || !params.heuristic.ucpop()) {
     planning_graph = new PlanningGraph(problem);
   }
   if (!params.ground_actions) {
@@ -340,7 +331,11 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
 	 i != domain->actions.end(); i++) {
       const ActionSchema* action = (*i).second;
       if (!params.heuristic.ucpop()) {
+#ifdef INEQUALITY_AS_BRANCHING
+	action = &action->strip_static(*domain);
+#else
 	action = &action->strip_equality();
+#endif
       }
       hash_set<string> preds;
       hash_set<string> neg_preds;
@@ -420,9 +415,11 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
 	plans.pop();
       }
     } while (current_plan != NULL && current_plan->duplicate());
+#ifdef HILLCLIMB_TRANSFORMATIONAL
     if (params.transformational) {
       plans = priority_queue<const Plan*, PlanList>();
     }
+#endif
   }
   if (verbosity > 0) {
     /*
@@ -532,10 +529,18 @@ const Plan* Plan::make_initial_plan(const Problem& problem) {
 
 
 const Flaw& Plan::get_flaw() const {
-  h_rank();
+  if (best_open_cond_ == NULL) {
+    h_rank();
+    best_open_cond_ =
+      params.flaw_order.select(open_conds_, *planning_graph,
+			       (params.ground_actions ? NULL : &bindings_));
+  }
   const PredicateOpenCondition* oc =
     dynamic_cast<const PredicateOpenCondition*>(best_open_cond_);
-  static_pred_flaw = oc != NULL && domain->static_predicate(oc->predicate);
+  static_pred_flaw = ((oc != NULL && domain->static_predicate(oc->predicate))
+		      || (best_open_cond_ != NULL &&
+			  typeid(best_open_cond_->condition)
+			  == typeid(Inequality)));
   if (!static_pred_flaw && unsafes_ != NULL) {
     return *unsafes_->head;
   } else {
@@ -565,9 +570,9 @@ void Plan::handle_unsafe(PlanList& new_plans, const Unsafe& unsafe) const {
   if (orderings_.possibly_before(unsafe.link.from_id, unsafe.step_id) &&
       orderings_.possibly_after(unsafe.link.to_id, unsafe.step_id) &&
       bindings_.affects(unsafe.effect_add, unsafe.link.condition)) {
-    separate(new_plans, unsafe);
     demote(new_plans, unsafe);
     promote(new_plans, unsafe);
+    separate(new_plans, unsafe);
     if (num_prev_plans == new_plans.size()) {
       if (params.transformational) {
 	if (verbosity > 2) {
@@ -643,10 +648,6 @@ void Plan::separate(PlanList& new_plans, const Unsafe& unsafe) const {
       if (bindings != NULL) {
 	const UnsafeChain* unsafes = unsafes_->remove(&unsafe);
 	size_t num_unsafes = num_unsafes_ - 1;
-#ifdef DELETE_OBSOLETE_UNSAFES
-	unsafes = remove_obsolete_unsafes(unsafes, num_unsafes,
-					  orderings_, *bindings);
-#endif
 	const Plan* p =
 	  new Plan(steps_, num_steps_, high_step_id_, links_, num_links_,
 		   unsafes, num_unsafes, open_conds, num_open_conds,
@@ -686,10 +687,6 @@ void Plan::new_ordering(PlanList& new_plans, const Ordering& ordering,
   const Orderings& orderings = orderings_.refine(ordering);
   const UnsafeChain* unsafes = unsafes_->remove(&unsafe);
   size_t num_unsafes = num_unsafes_ - 1;
-#ifdef DELETE_OBSOLETE_UNSAFES
-  unsafes = remove_obsolete_unsafes(unsafes, num_unsafes,
-				    orderings, bindings_);
-#endif
   const Plan* new_plan =
     new Plan(steps_, num_steps_, high_step_id_, links_, num_links_,
 	     unsafes, num_unsafes, open_conds_, num_open_conds_,
@@ -1025,12 +1022,13 @@ pair<const Plan*, const OpenCondition*> Plan::unlink(const Link& link) const {
   return pair<const Plan*, const OpenCondition*>(plan, link_cond);
 }
 
+
 void Plan::handle_open_condition(PlanList& new_plans,
 				 const OpenCondition& open_cond) const {
-  const Disjunction* disjunction =
-    dynamic_cast<const Disjunction*>(&open_cond.condition);
-  if (disjunction != NULL) {
+  if (typeid(open_cond.condition) == typeid(Disjunction)) {
     handle_disjunction(new_plans, open_cond);
+  } else if (typeid(open_cond.condition) == typeid(Inequality)) {
+    handle_inequality(new_plans, open_cond);
   } else {
     const PredicateOpenCondition& poc =
       dynamic_cast<const PredicateOpenCondition&>(open_cond);
@@ -1052,21 +1050,58 @@ void Plan::handle_disjunction(PlanList& new_plans,
 		 open_cond.step_id, open_cond.reason, links_)) {
       const Bindings* bindings = bindings_.add(new_bindings);
       if (bindings != NULL) {
-	const UnsafeChain* unsafes = unsafes_;
-	size_t num_unsafes = num_unsafes_;
-#ifdef DELETE_OBSOLETE_UNSAFES
-	unsafes = remove_obsolete_unsafes(unsafes, num_unsafes,
-					  orderings_, *bindings);
-#endif
 	const Plan* new_plan =
 	  new Plan(steps_, num_steps_, high_step_id_, links_, num_links_,
-		   unsafes, num_unsafes, open_conds, num_open_conds,
+		   unsafes_, num_unsafes_, open_conds, num_open_conds,
 		   *bindings, orderings_, this);
 	new_plans.push_back(new_plan);
       }
     }
   }
 }
+
+
+/* Handles inequality constraint between two variables. */
+void Plan::handle_inequality(PlanList& new_plans,
+			     const OpenCondition& open_cond) const {
+  const Inequality& neq = dynamic_cast<const Inequality&>(open_cond.condition);
+  const StepVar& v1 = dynamic_cast<const StepVar&>(neq.term1);
+  const StepVar& v2 = dynamic_cast<const StepVar&>(neq.term2);
+  const NameSet* d1 = bindings_.domain(v1);
+  const NameSet* d2 = bindings_.domain(v2);
+  if (d1 == NULL || d2 == NULL) {
+    return;
+  }
+  const StepVar* var1;
+  const StepVar* var2;
+  const NameSet* domain;
+  if (d1->size() < d2->size()) {
+    var1 = &v1;
+    var2 = &v2;
+    domain = d1;
+  } else {
+    var1 = &v2;
+    var2 = &v1;
+    domain = d2;
+  }
+  const OpenConditionChain* open_conds = open_conds_->remove(&open_cond);
+  size_t num_open_conds = num_open_conds_ - 1;
+  for (NameSetIter ni = domain->begin(); ni != domain->end(); ni++) {
+    const Name& name = **ni;
+    BindingList new_bindings;
+    new_bindings.push_back(new EqualityBinding(*var1, name, open_cond.reason));
+    new_bindings.push_back(new InequalityBinding(*var2, name,
+						 open_cond.reason));
+    const Bindings* bindings = bindings_.add(new_bindings);
+    if (bindings != NULL) {
+      new_plans.push_back(new Plan(steps_, num_steps_, high_step_id_, links_,
+				   num_links_, unsafes_, num_unsafes_,
+				   open_conds, num_open_conds,
+				   *bindings, orderings_, this));
+    }
+  }
+}
+
 
 void Plan::add_step(PlanList& new_plans,
 		    const PredicateOpenCondition& open_cond) const {
@@ -1199,10 +1234,6 @@ void Plan::new_cw_link(PlanList& new_plans, const Step& step,
   }
   const UnsafeChain* unsafes = unsafes_;
   size_t num_unsafes = num_unsafes_;
-#ifdef DELETE_OBSOLETE_UNSAFES
-  unsafes = remove_obsolete_unsafes(unsafes, num_unsafes,
-				    orderings_, *bindings);
-#endif
   const Plan* new_plan =
     new Plan(steps_, num_steps_, high_step_id_, links, num_links_ + 1,
 	     unsafes, num_unsafes, open_conds, num_open_conds,
@@ -1260,7 +1291,7 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
   if (step.id > high_step_id_) {
     num_steps++;
     high_step_id = step.id;
-    if (planning_graph != NULL) {
+    if (params.domain_constraints) {
       bindings = bindings->add(step, *planning_graph);
       if (bindings == NULL) {
 	return NULL;
@@ -1277,10 +1308,6 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
   const Orderings& orderings = orderings_.refine(new_ordering, &step);
   const UnsafeChain* unsafes = unsafes_;
   size_t num_unsafes = num_unsafes_;
-#ifdef DELETE_OBSOLETE_UNSAFES
-  unsafes = remove_obsolete_unsafes(unsafes, num_unsafes,
-				    orderings, *bindings);
-#endif
   hash_set<size_t> seen_steps;
   for (const StepChain* ss = steps_; ss != NULL; ss = ss->tail) {
     const Step& s = *ss->head;
@@ -1526,9 +1553,6 @@ void Plan::h_rank() const {
   if (params.heuristic.ucpop()) {
     rank1_ = num_steps_ + num_open_conds_ + num_unsafes_;
     rank2_ = 0;
-    best_open_cond_ = params.flaw_order.select(open_conds_, *planning_graph,
-					       (params.ground_actions
-						? NULL : &bindings_));
     return;
   }
   CostGraph cg;
@@ -1551,9 +1575,6 @@ void Plan::h_rank() const {
   pair<int, int> cost = cg.cost(goal_node);
   rank1_ = cost.first;
   rank2_ = cost.second;
-  best_open_cond_ = params.flaw_order.select(open_conds_, *planning_graph,
-					     (params.ground_actions
-					      ? NULL : &bindings_));
 #if 0
   AchievesMap::const_iterator fali = achieves.find(&oc->head->condition);
   if (fali != achieves.end()) {

@@ -1,5 +1,5 @@
 /*
- * $Id: heuristics.cc,v 1.7 2001-10-25 17:59:26 lorens Exp $
+ * $Id: heuristics.cc,v 1.8 2001-11-08 19:22:11 lorens Exp $
  */
 #include <set>
 #include "heuristics.h"
@@ -607,6 +607,10 @@ FlawSelectionOrder::select(const Chain<const OpenCondition*>* open_conds,
     return best_oc;
   }
   HeuristicValue best_value = best_oc->condition.heuristic_value(pg, bindings);
+  if (verbosity > 2) {
+    cout << endl << *best_oc << " with value " << best_value
+	 << " (best)" << endl;
+  }
   int streak = 1;
   for (const OpenConditionChain* oci = open_conds->tail;
        oci != NULL; oci = oci->tail) {
@@ -619,9 +623,14 @@ FlawSelectionOrder::select(const Chain<const OpenCondition*>* open_conds,
       if (heuristic_ == MAX) {
 	if (primary_ == COST) {
 	  better = ((extreme_ == MOST)
-		    ? value.max_cost() > best_value.max_cost()
-		    : value.max_cost() < best_value.max_cost());
-	  equal = value.max_cost() == best_value.max_cost();
+		    ? (value.max_cost() > best_value.max_cost()
+		       || (value.max_cost() == best_value.max_cost()
+			   && value.max_work() > best_value.max_work()))
+		    : (value.max_cost() < best_value.max_cost()
+		       || (value.max_cost() == best_value.max_cost()
+			   && value.max_work() < best_value.max_work())));
+	  equal = (value.max_cost() == best_value.max_cost()
+		   && value.max_work() == best_value.max_work());
 	} else if (primary_ == WORK) {
 	  better = ((extreme_ == MOST)
 		    ? value.max_work() > best_value.max_work()
@@ -631,9 +640,14 @@ FlawSelectionOrder::select(const Chain<const OpenCondition*>* open_conds,
       } else if (heuristic_ == SUM) {
 	if (primary_ == COST) {
 	  better = ((extreme_ == MOST)
-		    ? value.sum_cost() > best_value.sum_cost()
-		    : value.sum_cost() < best_value.sum_cost());
-	  equal = value.sum_cost() == best_value.sum_cost();
+		    ? (value.sum_cost() > best_value.sum_cost()
+		       || (value.sum_cost() == best_value.sum_cost()
+			   && value.sum_work() > best_value.sum_work()))
+		    : (value.sum_cost() < best_value.sum_cost()
+		       || (value.sum_cost() == best_value.sum_cost()
+			   && value.sum_work() < best_value.sum_work())));
+	  equal = (value.sum_cost() == best_value.sum_cost()
+		   && value.sum_work() == best_value.sum_work());
 	} else if (primary_ == WORK) {
 	  better = ((extreme_ == MOST)
 		    ? value.sum_work() > best_value.sum_work()
@@ -641,6 +655,9 @@ FlawSelectionOrder::select(const Chain<const OpenCondition*>* open_conds,
 	  equal = value.sum_work() == best_value.sum_work();
 	}
       }
+    }
+    if (verbosity > 2) {
+      cout << *oc << " with value " << value;
     }
     if (equal) {
       streak++;
@@ -650,8 +667,13 @@ FlawSelectionOrder::select(const Chain<const OpenCondition*>* open_conds,
     if (better
 	|| (equal && (secondary_ == FIFO
 		      || (secondary_ == RANDOM && drand48() < 1.0/streak)))) {
+      if (verbosity > 2) {
+	cout << " (best)" << endl;
+      }
       best_oc = oc;
       best_value = value;
+    } else if (verbosity > 2) {
+      cout << endl;
     }
   }
   return best_oc;

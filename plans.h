@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.22 2001-10-18 21:16:23 lorens Exp $
+ * $Id: plans.h,v 1.23 2001-11-08 19:22:26 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -429,6 +429,9 @@ private:
 
   void handle_disjunction(PlanList& new_plans,
 			  const OpenCondition& open_cond) const;
+
+  void handle_inequality(PlanList& new_plans,
+			 const OpenCondition& open_cond) const;
 
   void add_step(PlanList& new_plans,
 		const PredicateOpenCondition& open_cond) const;

@@ -2,7 +2,7 @@
 /*
  * Planning parameters.
  *
- * $Id: parameters.h,v 1.1 2001-09-29 18:55:37 lorens Exp $
+ * $Id: parameters.h,v 1.2 2001-11-08 19:22:18 lorens Exp $
  */
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
@@ -27,10 +27,13 @@ struct Parameters : public gc {
   int weight;
   /* Flaw selecion order. */
   FlawSelectionOrder flaw_order;
+  /* Whether to use parameter domain constraints. */
+  bool domain_constraints;
 
   Parameters()
     : search_limit(2000), ground_actions(false), transformational(false),
-      heuristic("SUMR"), weight(1), flaw_order("LIFO") {
+      heuristic("SUMR"), weight(1), flaw_order("LIFO"),
+      domain_constraints(false) {
   }
 };
 

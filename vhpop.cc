@@ -1,7 +1,7 @@
 /*
  * Main program.
  *
- * $Id: vhpop.cc,v 1.13 2001-10-16 19:31:55 lorens Exp $
+ * $Id: vhpop.cc,v 1.14 2001-11-08 19:22:32 lorens Exp $
  */
 #include <iostream>
 #include <cstdio>
@@ -32,6 +32,7 @@ string PROGRAM_NAME("tpop");
 
 /* Program options. */
 static struct option long_options[] = {
+  { "domain-constraints", no_argument, NULL, 'd' },
   { "flaw-order", required_argument, NULL, 'f' },
   { "ground-actions", no_argument, NULL, 'g' },
   { "heuristic", required_argument, NULL, 'h' },
@@ -51,6 +52,8 @@ static void display_help() {
   cout << PROGRAM_NAME << endl
        << "usage: " << PROGRAM_NAME << " [options] [file ...]" << endl
        << "options:" << endl
+       << "  -d,    --domain-constraints" << endl
+       << "\t\t\tuse parameter domain constraints" << endl
        << "  -f f,  --flaw-order=f\t"
        << "use flaw selection order f;" << endl
        << "\t\t\t  ordering schemes can be combined by repeating the option"
@@ -120,12 +123,15 @@ int main(int argc, char* argv[]) {
    */
   while (1) {
     int option_index = 0;
-    int c = getopt_long(argc, argv, "f:gh:l:tv::Vw:W::?",
+    int c = getopt_long(argc, argv, "df:gh:l:tv::Vw:W::?",
 			long_options, &option_index);
     if (c == -1) {
       break;
     }
     switch (c) {
+    case 'd':
+      params.domain_constraints = true;
+      break;
     case 'f':
       try {
 	params.flaw_order = optarg;
