@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 3.12 2002-05-26 23:53:24 lorens Exp $
+ * $Id: pddl.yy,v 3.13 2002-05-28 22:17:36 lorens Exp $
  */
 %{
 #include "requirements.h"
@@ -107,8 +107,7 @@ static const Domain* pdomain;
 static Domain* domain;
 static Requirements* requirements;
 static Predicate* predicate = NULL;
-static string problem_name;
-static NameMap* problem_objects;
+static Problem* problem;
 static string current_predicate;
 static string context;
 static enum { TYPE_MAP, CONSTANT_MAP, OBJECT_MAP } name_map_type;
@@ -118,8 +117,6 @@ static pair<float, float> action_duration;
 static Formula::FormulaTime formula_time;
 static VariableList* variables;
 static Context free_variables;
-static const Effect* problem_init;
-static const Formula* problem_goal;
 %}
 
 %token DEFINE DOMAIN PROBLEM
@@ -208,7 +205,7 @@ domain : '(' define '(' domain name ')'
 	     delete $5;
 	     requirements = &domain->requirements;
 	     context = " in domain `" + domain->name + "'";
-	     problem_objects = NULL;
+	     problem = NULL;
 	   }
          domain_body ')'
        ;
@@ -635,9 +632,7 @@ timed_effect : '(' at start
 
 problem : '(' define '(' problem name ')' 
             {
-	      problem_name = *$5;
-	      delete $5;
-	      context = " in problem `" + problem_name + "'";
+	      context = " in problem `" + *$5 + "'";
 	    }
           '(' PDOMAIN name ')'
             {
@@ -650,12 +645,11 @@ problem : '(' define '(' problem name ')'
 		yyerror("undeclared domain used");
 		requirements = new Requirements();
 	      }
-	      problem_objects = new NameMap();
+	      problem = new Problem(*$5, *pdomain);
+	      delete $5;
 	    }
           problem_body ')'
             {
-	      new Problem(problem_name, *pdomain, *problem_objects,
-			  *problem_init, *problem_goal);
 	      delete requirements;
 	    }
         ;
@@ -669,14 +663,9 @@ problem_body2 : object_decl problem_body3
               ;
 
 problem_body3 : init goals
-                  { problem_init = $1; problem_goal = $2; }
+                  { problem->set_init(*$1); problem->set_goal(*$2); }
               | goals
-                  {
-		    problem_init = new Effect(*(new AtomList()),
-					      *(new NegationList()),
-					      Effect::AT_END);
-		    problem_goal = $1;
-		  }
+                  { problem->set_goal(*$1); }
               ;
 
 object_decl : '(' OBJECTS
@@ -689,7 +678,7 @@ object_decl : '(' OBJECTS
 init : '(' INIT
          {
 	   context =
-	     " in initial conditions of problem `" + problem_name + "'";
+	     " in initial conditions of problem `" + problem->name + "'";
 	 }
        name_literals ')'
          {
@@ -750,7 +739,7 @@ goal_list : goal { $$ = new FormulaList($1); }
 
 goal : '(' GOAL
          {
-	   context = " in goal of problem `" + problem_name + "'";
+	   context = " in goal of problem `" + problem->name + "'";
 	   formula_time = Formula::AT_START;
 	 }
        formula ')'
@@ -1162,9 +1151,8 @@ static const Name* find_constant(const string& name) {
   if (c == NULL && domain != NULL) {
     c = domain->find_constant(name);
   }
-  if (c == NULL && problem_objects != NULL) {
-    NameMapIter ni = problem_objects->find(name);
-    c = (ni != problem_objects->end()) ? (*ni).second : NULL;
+  if (c == NULL && problem != NULL) {
+    c = problem->find_object(name);
   }
   return c;
 }
@@ -1219,13 +1207,13 @@ static void add_names(const vector<string>& names, const Type& type) {
 	yywarning("ignoring declaration of object `" + s
 		  + "' previously declared as constant");
       } else {
-	NameMapIter ni = problem_objects->find(s);
-	if (ni == problem_objects->end()) {
-	  problem_objects->insert(make_pair(s, new Name(s, *t)));
+	const Name* old_name = problem->find_object(s);
+	if (old_name == NULL) {
+	  problem->add_object(*(new Name(s, *t)));
 	} else {
-	  const Name* old_name = (*ni).second;
-	  (*problem_objects)[s] =
-	    new Name(s, UnionType::add(old_name->type(), *t));
+	  problem->add_object(*(new Name(s,
+					 UnionType::add(old_name->type(),
+							*t))));
 	  delete old_name;
 	  if (ut != NULL) {
 	    delete t;
@@ -1350,7 +1338,7 @@ static TermList& add_name(TermList& terms, const string& name) {
       domain->add_constant(*c);
       yywarning("implicit declaration of constant `" + name + "'");
     } else {
-      problem_objects->insert(make_pair(name, c));
+      problem->add_object(*c);
       yywarning("implicit declaration of object `" + name + "'");
     }
   }
