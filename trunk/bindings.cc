@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.cc,v 3.1 2002-03-10 14:28:24 lorens Exp $
+ * $Id: bindings.cc,v 3.2 2002-03-12 22:19:22 lorens Exp $
  */
 #include <typeinfo>
 #include "bindings.h"
@@ -378,7 +378,7 @@ Binding::Binding(const Variable& variable, const Term& term,
 
 /* Constructs an equality binding from the given substitution. */
 EqualityBinding::EqualityBinding(const Substitution& s, const Reason& reason)
-  : Binding(s.var, s.term, reason) {
+  : Binding(*s.var, *s.term, reason) {
 }
 
 
@@ -401,7 +401,7 @@ void EqualityBinding::print(ostream& os) const {
 /* Constructs an inequality binding from the given substitution. */
 InequalityBinding::InequalityBinding(const Substitution& s,
 				     const Reason& reason)
-  : Binding(s.var, s.term, reason) {
+  : Binding(*s.var, *s.term, reason) {
 }
 
 
@@ -730,7 +730,7 @@ bool Bindings::unify(SubstitutionList& mgu,
   for (BindingListIter bi = bl.begin(); bi != bl.end(); bi++) {
     /* Add unification to most general unifier. */
     const Binding& b = **bi;
-    mgu.push_back(new Substitution(b.variable, b.term));
+    mgu.push_back(Substitution(b.variable, b.term));
   }
   /* Successful unification. */
   return true;
