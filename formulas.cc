@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 6.10 2003-08-28 16:49:00 lorens Exp $
+ * $Id: formulas.cc,v 6.11 2003-09-05 16:23:24 lorens Exp $
  */
 #include "formulas.h"
 #include "bindings.h"
@@ -211,6 +211,20 @@ const Formula& Constant::negation() const {
 /* ====================================================================== */
 /* Literal */
 
+/* Next id for ground literals. */
+size_t Literal::next_id = 1;
+
+
+/* Assigns an id to this literal. */
+void Literal::assign_id(bool ground) {
+  if (ground) {
+    id_ = next_id++;
+  } else {
+    id_ = 0;
+  }
+}
+
+
 /* Returns a formula that separates the given literal from anything
    definitely asserted by this formula. */
 const Formula& Literal::separator(const Literal& literal) const {
@@ -310,6 +324,7 @@ const Atom& Atom::make(Predicate predicate, const TermList& terms) {
     }
   }
   if (!ground) {
+    atom->assign_id(ground);
     return *atom;
   } else {
     std::pair<AtomTable::const_iterator, bool> result = atoms.insert(atom);
@@ -317,15 +332,11 @@ const Atom& Atom::make(Predicate predicate, const TermList& terms) {
       delete atom;
       return **result.first;
     } else {
+      atom->assign_id(ground);
       return *atom;
     }
   }
 }
-
-
-/* Constructs an atomic formula with the given predicate. */
-Atom::Atom(Predicate predicate)
-  : predicate_(predicate) {}
 
 
 /* Deletes this atomic formula. */
@@ -339,23 +350,27 @@ Atom::~Atom() {
 
 /* Returns this formula subject to the given substitutions. */
 const Atom& Atom::substitution(const SubstitutionMap& subst) const {
-  TermList inst_terms;
-  bool substituted = false;
-  for (TermList::const_iterator ti = terms_.begin();
-       ti != terms_.end(); ti++) {
-    SubstitutionMap::const_iterator si =
-      is_variable(*ti) ? subst.find(*ti) : subst.end();
-    if (si != subst.end()) {
-      inst_terms.push_back((*si).second);
-      substituted = true;
-    } else {
-      inst_terms.push_back(*ti);
-    }
-  }
-  if (substituted) {
-    return make(predicate(), inst_terms);
-  } else {
+  if (id() > 0) {
     return *this;
+  } else {
+    TermList inst_terms;
+    bool substituted = false;
+    for (TermList::const_iterator ti = terms_.begin();
+	 ti != terms_.end(); ti++) {
+      SubstitutionMap::const_iterator si =
+	is_variable(*ti) ? subst.find(*ti) : subst.end();
+      if (si != subst.end()) {
+	inst_terms.push_back((*si).second);
+	substituted = true;
+      } else {
+	inst_terms.push_back(*ti);
+      }
+    }
+    if (substituted) {
+      return make(predicate(), inst_terms);
+    } else {
+      return *this;
+    }
   }
 }
 
@@ -363,50 +378,49 @@ const Atom& Atom::substitution(const SubstitutionMap& subst) const {
 /* Returns an instantiation of this formula. */
 const Formula& Atom::instantiation(const SubstitutionMap& subst,
 				   const Problem& problem) const {
-  TermList inst_terms;
   bool substituted = false;
-  size_t objects = 0;
-  for (TermList::const_iterator ti = terms_.begin();
-       ti != terms_.end(); ti++) {
-    SubstitutionMap::const_iterator si =
-      is_variable(*ti) ? subst.find(*ti) : subst.end();
-    if (si != subst.end()) {
-      inst_terms.push_back((*si).second);
-      substituted = true;
-      objects++;
-    } else {
-      inst_terms.push_back(*ti);
-      if (is_object(*ti)) {
-	objects++;
+  const Atom* inst_atom;
+  if (id() > 0) {
+    inst_atom = this;
+  } else {
+    TermList inst_terms;
+    for (TermList::const_iterator ti = terms_.begin();
+	 ti != terms_.end(); ti++) {
+      SubstitutionMap::const_iterator si =
+	is_variable(*ti) ? subst.find(*ti) : subst.end();
+      if (si != subst.end()) {
+	inst_terms.push_back((*si).second);
+	substituted = true;
+      } else {
+	inst_terms.push_back(*ti);
       }
     }
+    inst_atom = substituted ? &make(predicate(), inst_terms) : this;
   }
-  const Atom& inst_atom = substituted ? make(predicate(), inst_terms) : *this;
   if (problem.domain().predicates().static_predicate(predicate())) {
-    if (objects == inst_terms.size()) {
-      if (problem.init_atoms().find(&inst_atom)
-	  != problem.init_atoms().end()) {
-	register_use(&inst_atom);
-	unregister_use(&inst_atom);
+    if (inst_atom->id() > 0) {
+      if (problem.init_atoms().find(inst_atom) != problem.init_atoms().end()) {
+	register_use(inst_atom);
+	unregister_use(inst_atom);
 	return TRUE;
       } else {
-	register_use(&inst_atom);
-	unregister_use(&inst_atom);
+	register_use(inst_atom);
+	unregister_use(inst_atom);
 	return FALSE;
       }
     } else {
       for (AtomSet::const_iterator ai = problem.init_atoms().begin();
 	   ai != problem.init_atoms().end(); ai++) {
-	if (unifiable_atoms(inst_atom, **ai)) {
-	  return inst_atom;
+	if (unifiable_atoms(*inst_atom, **ai)) {
+	  return *inst_atom;
 	}
       }
-      register_use(&inst_atom);
-      unregister_use(&inst_atom);
+      register_use(inst_atom);
+      unregister_use(inst_atom);
       return FALSE;
     }
   } else {
-    return inst_atom;
+    return *inst_atom;
   }
 }
 
@@ -456,14 +470,9 @@ bool Negation::NegationLess::operator()(const Negation* n1,
 /* Returns a negation of the given atom. */
 const Negation& Negation::make(const Atom& atom) {
   Negation* negation = new Negation(atom);
-  bool ground = true;
-  size_t n = atom.arity();
-  for (size_t i = 0; i < n; i++) {
-    if (ground && is_variable(atom.term(i))) {
-      ground = false;
-    }
-  }
+  bool ground = atom.id() > 0;
   if (!ground) {
+    negation->assign_id(ground);
     return *negation;
   } else {
     std::pair<NegationTable::const_iterator, bool> result =
@@ -472,6 +481,7 @@ const Negation& Negation::make(const Atom& atom) {
       delete negation;
       return **result.first;
     } else {
+      negation->assign_id(ground);
       return *negation;
     }
   }
@@ -497,11 +507,15 @@ Negation::~Negation() {
 
 /* Returns this formula subject to the given substitutions. */
 const Negation& Negation::substitution(const SubstitutionMap& subst) const {
-  const Atom& f = atom().substitution(subst);
-  if (&f == atom_) {
+  if (id() > 0) {
     return *this;
   } else {
-    return make(f);
+    const Atom& f = atom().substitution(subst);
+    if (&f == atom_) {
+      return *this;
+    } else {
+      return make(f);
+    }
   }
 }
 
@@ -1277,7 +1291,7 @@ void Quantification::add_parameter(Variable parameter) {
 
 /* Sets the body of this quantified formula. */
 void Quantification::set_body(const Formula& body) {
-  if (body_ != &body) {
+  if (&body != body_) {
     unregister_use(body_);
     body_ = &body;
     register_use(body_);
