@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: problems.cc,v 6.8 2003-09-18 21:51:21 lorens Exp $
+ * $Id: problems.cc,v 6.9 2004-02-07 11:32:57 lorens Exp $
  */
 #include "problems.h"
 #include "domains.h"
@@ -151,9 +151,9 @@ void Problem::add_init_value(const Application& application, float value) {
 /* Sets the goal of this problem. */
 void Problem::set_goal(const Formula& goal) {
   if (goal_ != &goal) {
+    Formula::register_use(&goal);
     Formula::unregister_use(goal_);
     goal_ = &goal;
-    Formula::register_use(goal_);
   }
 }
 
@@ -174,9 +174,9 @@ void Problem::set_metric(const Expression& metric, bool negate) {
     real_metric = &inst_metric;
   }
   if (real_metric != metric_) {
+    Expression::register_use(real_metric);
     Expression::unregister_use(metric_);
     metric_ = real_metric;
-    Expression::register_use(metric_);
   }
 }
 

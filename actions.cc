@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: actions.cc,v 6.6 2003-12-05 21:01:56 lorens Exp $
+ * $Id: actions.cc,v 6.7 2004-02-07 11:33:54 lorens Exp $
  */
 #include "actions.h"
 #include "bindings.h"
@@ -56,9 +56,9 @@ Action::~Action() {
 /* Sets the condition for this action. */
 void Action::set_condition(const Condition& condition) {
   if (condition_ != &condition) {
+    Condition::register_use(&condition);
     Condition::unregister_use(condition_);
     condition_ = &condition;
-    Condition::register_use(condition_);
   }
 }
 
@@ -73,9 +73,9 @@ void Action::add_effect(const Effect& effect) {
 void Action::set_min_duration(const Expression& min_duration) {
   const Expression& md = Maximum::make(*min_duration_, min_duration);
   if (&md != min_duration_) {
+    Expression::register_use(&md);
     Expression::unregister_use(min_duration_);
     min_duration_ = &md;
-    Expression::register_use(min_duration_);
   }
 }
 
@@ -84,9 +84,9 @@ void Action::set_min_duration(const Expression& min_duration) {
 void Action::set_max_duration(const Expression& max_duration) {
   const Expression& md = Minimum::make(*max_duration_, max_duration);
   if (&md != max_duration_) {
+    Expression::register_use(&md);
     Expression::unregister_use(max_duration_);
     max_duration_ = &md;
-    Expression::register_use(max_duration_);
   }
 }
 
