@@ -2,7 +2,7 @@
 /*
  * Domain descriptions.
  *
- * $Id: domains.h,v 1.23 2001-10-18 21:15:40 lorens Exp $
+ * $Id: domains.h,v 1.24 2001-10-25 17:58:38 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -180,6 +180,7 @@ typedef ActionList::const_iterator ActionListIter;
 
 
 struct GroundActionList;
+struct Domain;
 
 /*
  * Action schema definition.
@@ -199,6 +200,10 @@ struct ActionSchema : public Action {
   /* Fills the provided action list with all instantiations of this
      action schema. */
   void instantiations(GroundActionList& actions, const Problem& problem) const;
+
+  /* Returns this action schema with all static preconditions assumed
+     true. */
+  const ActionSchema& strip_static(const Domain& domain) const;
 
 protected:
   /* Prints this object on the given stream. */

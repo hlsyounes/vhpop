@@ -2,7 +2,7 @@
 /*
  * Formulas.
  *
- * $Id: formulas.h,v 1.26 2001-10-18 21:15:57 lorens Exp $
+ * $Id: formulas.h,v 1.27 2001-10-25 17:59:07 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -225,6 +225,7 @@ struct hash<const Formula*> {
 
 
 struct Problem;
+struct Domain;
 
 /*
  * Abstract formula.
@@ -247,6 +248,9 @@ struct Formula : public Hashable, public Printable, public gc {
 
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const = 0;
+
+  /* Returns this formula with static predicates assumed true. */
+  virtual const Formula& strip_static(const Domain& domain) const = 0;
 
   /* Returns the heuristic value of this formula. */
   virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
@@ -335,6 +339,9 @@ struct Atom : public Formula {
   /* Returns this formula subject to the given substitutions. */
   virtual const Atom& substitution(const SubstitutionList& subst) const;
 
+  /* Returns this formula with static predicates assumed true. */
+  virtual const Formula& strip_static(const Domain& domain) const;
+
   /* Returns the heuristic value of this formula. */
   virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
 					 const Bindings* b = NULL) const;
@@ -406,6 +413,9 @@ struct Negation : public Formula {
 
   /* Returns this formula subject to the given substitutions. */
   virtual const Negation& substitution(const SubstitutionList& subst) const;
+
+  /* Returns this formula with static predicates assumed true. */
+  virtual const Formula& strip_static(const Domain& domain) const;
 
   /* Returns the heuristic value of this formula. */
   virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
@@ -482,6 +492,9 @@ struct Equality : public Formula {
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
 
+  /* Returns this formula with static predicates assumed true. */
+  virtual const Formula& strip_static(const Domain& domain) const;
+
   /* Returns the heuristic value of this formula. */
   virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
 					 const Bindings* b = NULL) const;
@@ -531,6 +544,9 @@ struct Inequality : public Formula {
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
 
+  /* Returns this formula with static predicates assumed true. */
+  virtual const Formula& strip_static(const Domain& domain) const;
+
   /* Returns the heuristic value of this formula. */
   virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
 					 const Bindings* b = NULL) const;
@@ -571,6 +587,9 @@ struct Conjunction : public Formula {
 
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
+
+  /* Returns this formula with static predicates assumed true. */
+  virtual const Formula& strip_static(const Domain& domain) const;
 
   /* Returns the heuristic value of this formula. */
   virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
@@ -620,6 +639,9 @@ struct Disjunction : public Formula {
 
   /* Returns this formula subject to the given substitution. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
+
+  /* Returns this formula with static predicates assumed true. */
+  virtual const Formula& strip_static(const Domain& domain) const;
 
   /* Returns the heuristic value of this formula. */
   virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
@@ -692,6 +714,9 @@ struct ExistsFormula : public QuantifiedFormula {
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
 
+  /* Returns this formula with static predicates assumed true. */
+  virtual const Formula& strip_static(const Domain& domain) const;
+
   /* Checks if this formula is equivalent to the given formula.  Two
      formulas is equivalent if they only differ in the choice of
      variable names. */
@@ -730,6 +755,9 @@ struct ForallFormula : public QuantifiedFormula {
 
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
+
+  /* Returns this formula with static predicates assumed true. */
+  virtual const Formula& strip_static(const Domain& domain) const;
 
   /* Checks if this formula is equivalent to the given formula.  Two
      formulas is equivalent if they only differ in the choice of

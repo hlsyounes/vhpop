@@ -1,5 +1,5 @@
 /*
- * $Id: domains.cc,v 1.23 2001-10-18 21:15:36 lorens Exp $
+ * $Id: domains.cc,v 1.24 2001-10-25 17:58:25 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -314,6 +314,14 @@ void ActionSchema::instantiations(GroundActionList& actions,
       i++;
     }
   }
+}
+
+
+/* Returns this action schema with all static preconditions assumed
+   true. */
+const ActionSchema& ActionSchema::strip_static(const Domain& domain) const {
+  return *(new ActionSchema(name, parameters,
+			    precondition.strip_static(domain), effects));
 }
 
 
