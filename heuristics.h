@@ -2,7 +2,7 @@
 /*
  * Heuristics.
  *
- * $Id: heuristics.h,v 1.10 2001-12-26 18:51:56 lorens Exp $
+ * $Id: heuristics.h,v 1.11 2001-12-30 14:20:04 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
@@ -155,8 +155,7 @@ private:
 
   /* Mapping of literals to actions. */
   struct LiteralActionsMap
-    : public HashMultimap<const Literal*, const Action*, hash<const Literal*>,
-			  equal_to<const Literal*> > {
+    : public HashMultimap<const Literal*, const Action*> {
   };
 
   /* Iterator for LiteralActionsMap. */
