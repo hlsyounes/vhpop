@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 3.4 2002-03-12 22:19:17 lorens Exp $
+ * $Id: formulas.cc,v 3.5 2002-03-12 22:42:53 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -123,6 +123,15 @@ void Term::print(ostream& os) const {
 /* Constructs a name. */
 Name::Name(const string& name, const Type& type)
   : Term(name, type) {}
+
+
+/* Deletes this name. */
+Name::~Name() {
+  const UnionType* ut = dynamic_cast<const UnionType*>(&type);
+  if (ut != NULL) {
+    delete ut;
+  }
+}
 
 
 /* Returns an instantiation of this term. */

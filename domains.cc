@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.cc,v 3.5 2002-03-12 22:19:05 lorens Exp $
+ * $Id: domains.cc,v 3.6 2002-03-12 22:42:36 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -591,6 +591,10 @@ Domain::Domain(const string& name, const Requirements& requirements,
 Domain::~Domain() {
   domains.erase(name);
   delete &requirements;
+  for (NameMapIter ni = constants.begin(); ni != constants.end(); ni++) {
+    delete (*ni).second;
+  }
+  delete &constants;
   /* Delete supertypes that are union types first.  Would like to do
      this in the destructor of the simple type, but that causes core
      dump if supertype is a simple type that has been deleted. */
