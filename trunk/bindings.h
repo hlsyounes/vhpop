@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.h,v 3.7 2002-06-11 20:24:46 lorens Exp $
+ * $Id: bindings.h,v 3.8 2002-06-12 19:56:28 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
@@ -108,6 +108,9 @@ typedef BindingList::const_iterator BindingListIter;
 typedef CollectibleChain<Binding> BindingChain;
 
 
+/* ====================================================================== */
+/* NameSet */
+
 /*
  * A set of names.
  */
@@ -117,6 +120,9 @@ struct NameSet : public set<const Name*, less<const LessThanComparable*> > {
 /* Iterator for name sets. */
 typedef NameSet::const_iterator NameSetIter;
 
+
+/* ====================================================================== */
+/* ActionDomain */
 
 /*
  * Domain for action parameters.
@@ -181,7 +187,7 @@ struct StepDomain;
 /*
  * Chain of step domains.
  */
-typedef Chain<const StepDomain*> StepDomainChain;
+typedef CollectibleChain<StepDomain> StepDomainChain;
 
 
 /* ====================================================================== */
