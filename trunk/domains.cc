@@ -1,5 +1,5 @@
 /*
- * $Id: domains.cc,v 1.22 2001-10-16 19:31:14 lorens Exp $
+ * $Id: domains.cc,v 1.23 2001-10-18 21:15:36 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -244,12 +244,6 @@ void EffectList::achievable_predicates(hash_set<string>& preds,
 }
 
 
-/* Constructs an action. */
-Action::Action(const Formula& precondition, const EffectList& effects)
-  : precondition(precondition), effects(effects) {
-}
-
-
 /* Fills the provided sets with predicates achievable by this
    action. */
 void Action::achievable_predicates(hash_set<string>& preds,
@@ -269,8 +263,8 @@ const Atom& ActionSchema::action_formula() const {
 
 
 /* Fills the provided action list with all instantiations of this
-   action. */
-void ActionSchema::instantiations(ActionList& actions,
+   action schema. */
+void ActionSchema::instantiations(GroundActionList& actions,
 				  const Problem& problem) const {
   Vector<NameList*> arguments;
   Vector<NameListIter> next_arg;
@@ -292,11 +286,12 @@ void ActionSchema::instantiations(ActionList& actions,
 	const EffectList& new_effects = effects.instantiation(args, problem);
 	if (!new_effects.empty()) {
 	  /* consistent instantiation */
-	  TermList& terms = *(new TermList());
+	  NameList& names = *(new NameList());
 	  for (SubstListIter si = args.begin(); si != args.end(); si++) {
-	    terms.push_back(&(*si)->term);
+	    const Name& name = dynamic_cast<const Name&>((*si)->term);
+	    names.push_back(&name);
 	  }
-	  actions.push_back(new GroundAction(name, terms, new_precond,
+	  actions.push_back(new GroundAction(name, names, new_precond,
 					     new_effects));
 	}
       }
@@ -351,38 +346,25 @@ void ActionSchema::print(ostream& os) const {
 }
 
 
-/* Constructs a ground action, assuming arguments are names. */
-GroundAction::GroundAction(const string& name, const TermList& arguments,
-			   const Formula& precondition,
-			   const EffectList& effects)
-  : Action(precondition, effects),
-    formula(*(new Atom(name, arguments))) {
-}
-
-
 /* Returns a formula representing this action. */
 const Atom& GroundAction::action_formula() const {
-  return formula;
-}
-
-
-/* Fills the provided action list with all instantiations of this
-   action. */
-void GroundAction::instantiations(ActionList& actions,
-				  const Problem& problem) const {
-  actions.push_back(this);
+  if (formula == NULL) {
+    TermList& terms = *(new TermList());
+    copy(arguments.begin(), arguments.end(), back_inserter(terms));
+    formula = new Atom(name, terms);
+  }
+  return *formula;
 }
 
 
 /* Prints this object on the given stream. */
 void GroundAction::print(ostream& os) const {
-  os << '(' << formula.predicate << " (";
-  for (TermListIter ti = formula.terms.begin();
-       ti != formula.terms.end(); ti++) {
-    if (ti != formula.terms.begin()) {
+  os << '(' << name << " (";
+  for (NameListIter ni = arguments.begin(); ni != arguments.end(); ni++) {
+    if (ni != arguments.begin()) {
       os << ' ';
     }
-    os << **ti;
+    os << **ni;
   }
   os << ") ";
   if (precondition != Formula::TRUE) {
@@ -427,8 +409,8 @@ const Predicate* Domain::find_predicate(const string& name) const {
 
 /* Returns the action with the given name, or NULL if it is
    undefined. */
-const Action* Domain::find_action(const string& name) const {
-  ActionMapIter ai = actions.find(name);
+const ActionSchema* Domain::find_action(const string& name) const {
+  ActionSchemaMapIter ai = actions.find(name);
   return (ai != actions.end()) ? (*ai).second : NULL;
 }
 
@@ -448,10 +430,10 @@ void Domain::compatible_constants(NameList& constants, const Type& t) const {
 
 /* Returns a set of static predicates. */
 hash_set<string> Domain::static_predicates(const PredicateMap& predicates,
-					   const ActionMap& actions) {
+					   const ActionSchemaMap& actions) {
   hash_set<string> static_preds;
   hash_set<string> achievable_preds;
-  for (ActionMapIter ai = actions.begin(); ai != actions.end(); ai++) {
+  for (ActionSchemaMapIter ai = actions.begin(); ai != actions.end(); ai++) {
     (*ai).second->achievable_predicates(achievable_preds, achievable_preds);
   }
   for (PredicateMapIter pi = predicates.begin();
@@ -490,7 +472,7 @@ void Domain::print(ostream& os) const {
     os << endl << "  " << *(*pi).second;
   }
   os << endl << "actions:";
-  for (ActionMapIter ai = actions.begin(); ai != actions.end(); ai++) {
+  for (ActionSchemaMapIter ai = actions.begin(); ai != actions.end(); ai++) {
     os << endl << "  " << *(*ai).second;
   }
 }

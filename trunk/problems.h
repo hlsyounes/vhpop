@@ -2,7 +2,7 @@
 /*
  * Problem descriptions.
  *
- * $Id: problems.h,v 1.7 2001-10-08 03:09:06 lorens Exp $
+ * $Id: problems.h,v 1.8 2001-10-18 21:16:38 lorens Exp $
  */
 #ifndef PROBLEMS_H
 #define PROBLEMS_H
@@ -15,7 +15,7 @@ struct Domain;
 struct NameMap;
 struct Effect;
 struct Formula;
-struct ActionList;
+struct GroundActionList;
 struct Name;
 struct NameList;
 
@@ -83,7 +83,7 @@ struct Problem : public Printable, public gc {
 
   /* Fills the provided action list with ground actions instantiated
      from the action schemas of the domain. */
-  void instantiated_actions(ActionList& actions) const;
+  void instantiated_actions(GroundActionList& actions) const;
 
 protected:
   /* Prints this object on the given stream. */

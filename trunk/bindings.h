@@ -2,19 +2,27 @@
 /*
  * Binding constraints.
  *
- * $Id: bindings.h,v 1.5 2001-10-06 23:44:09 lorens Exp $
+ * $Id: bindings.h,v 1.6 2001-10-18 21:15:30 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
 
-#include <iostream>
 #include "support.h"
 #include "chain.h"
-#include "formulas.h"
 
 
+struct Term;
+struct Name;
+struct Variable;
+struct Substitution;
+struct SubstitutionList;
+struct NameList;
+struct Formula;
+struct Equality;
+struct Inequality;
 struct Reason;
-
+struct Step;
+struct PlanningGraph;
 
 /*
  * Abstract variable binding.
@@ -40,9 +48,7 @@ protected:
  */
 struct EqualityBinding : public Binding {
   /* Constructs an equality binding from the given substitution. */
-  EqualityBinding(const Substitution& s, const Reason& reason)
-    : Binding(s.var, s.term, reason) {
-  }
+  EqualityBinding(const Substitution& s, const Reason& reason);
 
   /* Construct an equality binding, binding the given variable to the
      given term. */
@@ -62,9 +68,7 @@ protected:
  */
 struct InequalityBinding : public Binding {
   /* Constructs an inequality binding from the given substitution. */
-  InequalityBinding(const Substitution& s, const Reason& reason)
-    : Binding(s.var, s.term, reason) {
-  }
+  InequalityBinding(const Substitution& s, const Reason& reason);
 
   /* Constructs an inequality binding, separating the given variable
      from the given term. */
@@ -82,7 +86,7 @@ protected:
 /*
  * List of bindings.
  */
-struct BindingList : public gc, vector<const Binding*, container_alloc> {
+struct BindingList : Vector<const Binding*> {
 };
 
 
@@ -92,12 +96,77 @@ struct BindingList : public gc, vector<const Binding*, container_alloc> {
 typedef Chain<const Binding*> BindingChain;
 
 
+/*
+ * A set of names.
+ */
+struct NameSet : public Set<const Name*, less<const LessThanComparable*> > {
+};
+
+
+/*
+ * Domain for action parameters.
+ */
+struct ActionDomain : public Printable, public gc {
+  /* Constructs an action domain with a single tuple. */
+  ActionDomain(const NameList& tuple);
+
+  /* Number of tuples. */
+  size_t size() const;
+
+  /* Adds a tuple to this domain. */
+  void add(const NameList& tuple);
+
+  /* Returns the set of names from the given column. */
+  const NameSet& projection(size_t column) const;
+
+  /* Returns the size of the projection of the given column. */
+  const size_t projection_size(size_t column) const;
+
+  /* Returns a domain where the given column has been restricted to
+     the given name, or NULL if this would leave an empty domain. */
+  const ActionDomain* restrict(const Name& name, size_t column) const;
+
+  /* Returns a domain where the given column has been restricted to
+     the given set of names, or NULL if this would leave an empty
+     domain. */
+  const ActionDomain* restrict(const NameSet& names, size_t column) const;
+
+  /* Returns a domain where the given column exclues the given name,
+     or NULL if this would leave an empty domain. */
+  const ActionDomain* exclude(const Name& name, size_t column) const;
+
+protected:
+  /* Prints this object on the given stream. */
+  virtual void print(ostream& os) const;
+
+private:
+  /* A list of parameter tuples. */
+  struct TupleList : public Vector<const NameList*> {
+  };
+
+  /* A tuple list iterator. */
+  typedef TupleList::const_iterator TupleListIter;
+
+  /* Possible parameter tuples. */
+  TupleList tuples;
+  /* Projections. */
+  Vector<NameSet*> projections;
+};
+
+
 struct Varset;
 
 /*
  * Chain of varsets.
  */
 typedef Chain<const Varset*> VarsetChain;
+
+struct StepDomain;
+
+/*
+ * Chain of step domains.
+ */
+typedef Chain<const StepDomain*> StepDomainChain;
 
 
 /*
@@ -109,23 +178,23 @@ struct Bindings : public Printable, public gc {
   /* Inequality bindings. */
   const BindingChain* const inequalities;
 
+  /* Creates a binding collection with parameter constrains if pg is
+     not NULL, or an empty binding collection otherwise. */
+  static const Bindings& make_bindings(const Chain<const Step*>* steps,
+				       const PlanningGraph* pg);
+
   /* Creates a collection of variable bindings with the given equality
      and inequality bindings. */
-  static const Bindings* make_bindings(const BindingChain* equalities,
+  static const Bindings* make_bindings(const Chain<const Step*>* steps,
+				       const PlanningGraph* pg,
+				       const BindingChain* equalities,
 				       const BindingChain* inequalities);
 
-  /* Constructs an empty binding collection. */
-  Bindings()
-    : equalities(NULL), inequalities(NULL), varsets_(NULL) {
-  }
-
-  /* Returns an instantiation of the given formula, where bound
-     variables have been substituted for the value they are bound
-     to. */
-  const Formula& instantiation(const Formula& f) const;
+  /* Checks if the given formulas can be unified. */
+  static bool unifiable(const Formula& f1, const Formula& f2);
 
   /* Returns the binding for the given term, or the term itself if it
-     is unbound. */
+     is not bound to a single name. */
   const Term& binding(const Term& t) const;
 
   /* Checks if one of the given formulas is the negation of the other,
@@ -159,18 +228,28 @@ struct Bindings : public Printable, public gc {
      are inconsistent with the current. */
   const Bindings* add(const BindingList& new_bindings) const;
 
+  /* Returns the binding collection obtained by adding the constraints
+     associated with the given step to this binding collection, or
+     NULL if the new binding collection would be inconsistent. */
+  const Bindings* add(const Step& step, const PlanningGraph& pg) const;
+
+protected:
+  /* Prints this object on the given stream. */
+  virtual void print(ostream& os) const;
+
 private:
   /* Varsets representing the transitive closure of the bindings. */
   const VarsetChain* const varsets_;
+  /* Step domains. */
+  const StepDomainChain* const step_domains_;
 
   /* Constructs a binding collection. */
   Bindings(const BindingChain* equalities, const BindingChain* inequalities,
-	   const VarsetChain* varsets)
-    : equalities(equalities), inequalities(inequalities), varsets_(varsets) {
+	   const VarsetChain* varsets, const StepDomainChain* step_domains)
+    : equalities(equalities), inequalities(inequalities),
+      varsets_(varsets), step_domains_(step_domains) {
   }
-
-  /* Prints this binding collection on the given stream. */
-  virtual void print(ostream& os) const;
 };
 
 #endif /* BINDINGS_H */
+

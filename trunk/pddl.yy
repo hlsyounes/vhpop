@@ -2,7 +2,7 @@
 /*
  * PDDL parser.
  *
- * $Id: pddl.yy,v 1.17 2001-10-13 22:12:23 lorens Exp $
+ * $Id: pddl.yy,v 1.18 2001-10-18 21:16:14 lorens Exp $
  */
 %{
 #include <utility>
@@ -91,7 +91,7 @@ static Requirements* requirements;
 static TypeMap* domain_types;
 static NameMap* domain_constants;
 static PredicateMap* domain_predicates;
-static ActionMap* domain_actions;
+static ActionSchemaMap* domain_actions;
 static string problem_name;
 static NameMap* problem_objects;
 static string current_predicate;
@@ -185,7 +185,7 @@ domain : '(' DEFINE '(' DOMAIN NAME ')'
 	     domain_types = new TypeMap();
 	     domain_constants = new NameMap();
 	     domain_predicates = new PredicateMap();
-	     domain_actions = new ActionMap();
+	     domain_actions = new ActionSchemaMap();
 	     problem_objects = NULL;
 	   }
          domain_body ')'
@@ -765,7 +765,7 @@ static void add_names(const vector<string>& names, const Type& type) {
     const string& s = *si;
     if (name_map_type == "type") {
       if (find_type(s) == NULL) {
-	(*domain_types)[s] = new SimpleType(s, type);
+	domain_types->insert(make_pair(s, new SimpleType(s, type)));
       } else {
 	yywarning("ignoring repeated declaration of " + name_map_type
 		  + " `" + s + "'");
@@ -773,7 +773,7 @@ static void add_names(const vector<string>& names, const Type& type) {
     } else {
       NameMap::const_iterator ni = name_map->find(s);
       if (ni == name_map->end()) {
-	(*name_map)[s] = new Name(s, type);
+	name_map->insert(make_pair(s, new Name(s, type)));
       } else {
 	(*name_map)[s] = new Name(s, (*ni).second->type + type);
       }
@@ -787,7 +787,8 @@ static void add_names(const vector<string>& names, const Type& type) {
  */
 static void add_predicate(const string& name, const VariableList& parameters) {
   if (find_predicate(name) == NULL) {
-    (*domain_predicates)[name] = new Predicate(name, parameters);
+    domain_predicates->insert(make_pair(name,
+					new Predicate(name, parameters)));
   } else {
     yywarning("ignoring repeated declaration of predicate `" + name
 	      + "' in domain `" + domain_name + "'");
@@ -803,7 +804,7 @@ static void add_action(const ActionSchema& action) {
     yywarning("ignoring repeated declaration of action `" + action.name
 	      + "' in domain `" + domain_name + "'");
   } else {
-    (*domain_actions)[action.name] = &action;
+    domain_actions->insert(make_pair(action.name, &action));
   }
 }
 
@@ -844,7 +845,8 @@ static const Atom& make_atom(const string& predicate, const TermList& terms) {
       for (size_t i = 0; i < terms.size(); i++) {
 	params.push_back(new Variable("?x" + tostring(i + 1)));
       }
-      (*domain_predicates)[predicate] = new Predicate(predicate, params);
+      domain_predicates->insert(make_pair(predicate,
+					  new Predicate(predicate, params)));
       yywarning("implicit declaration of predicate `" + predicate + "'");
     } else {
       yyerror("undeclared predicate `" + predicate + "' used");
@@ -872,10 +874,10 @@ static TermList& add_name(TermList& terms, const string& name) {
       c = new Name(name, predicate->parameters[terms.size()]->type);
     }
     if (domain_constants != NULL) {
-      (*domain_constants)[name] = c;
+      domain_constants->insert(make_pair(name, c));
       yywarning("implicit declaration of constant `" + name + "'");
     } else {
-      (*problem_objects)[name] = c;
+      problem_objects->insert(make_pair(name, c));
       yywarning("implicit declaration of object `" + name + "'");
     }
   }
@@ -889,7 +891,7 @@ static const Type& make_type(const string& name) {
   if (t == NULL) {
     const SimpleType& st = *(new SimpleType(name));
     if (domain_types != NULL) {
-      (*domain_types)[name] = &st;
+      domain_types->insert(make_pair(name, &st));
       yywarning("implicit declaration of type `" + name + "'");
     } else {
       yyerror("undeclared type `" + name + "' used");

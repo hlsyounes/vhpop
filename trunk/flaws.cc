@@ -1,4 +1,5 @@
 #include "plans.h"
+#include "formulas.h"
 
 
 /* Prints this open condition on the given stream. */

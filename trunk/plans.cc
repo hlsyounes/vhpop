@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.27 2001-10-16 19:31:39 lorens Exp $
+ * $Id: plans.cc,v 1.28 2001-10-18 21:16:19 lorens Exp $
  */
 #include <queue>
 #include <hash_set>
@@ -7,6 +7,7 @@
 #include <climits>
 #include <cassert>
 #include "plans.h"
+#include "formulas.h"
 #include "parameters.h"
 #include "costgraph.h"
 #include "debug.h"
@@ -14,11 +15,6 @@
 
 /* Id of goal step. */
 const size_t Plan::GOAL_ID = UINT_MAX;
-
-struct AchievesMap : public gc,
-		     hash_map<const Formula*, ActionList, hash<const Formula*>,
-		     equal_to<const Formula*>, container_alloc> {
-};
 
 
 /* Planning parameters. */
@@ -35,22 +31,6 @@ static hash_map<string, ActionList> achieves_pred;
 static hash_map<string, ActionList> achieves_neg_pred;
 /* Planning graph. */
 static const PlanningGraph* planning_graph;
-
-
-/*
- * Abstract reason.
- */
-struct Reason : public Printable, public gc {
-  /* Checks if this reason involves the given link. */
-  virtual bool involves(const Link& link) const {
-    return false;
-  }
-
-  /* Checks if this reason involves the given step. */
-  virtual bool involves(const Step& step) const {
-    return false;
-  }
-};
 
 
 /*
@@ -168,6 +148,39 @@ struct less<const Plan*> {
 /* Prints this causal link. */
 void Link::print(ostream& os) const {
   os << "#<LINK " << from_id << ' ' << condition << ' ' << to_id << '>';
+}
+
+
+/* Constructs a step. */
+Step::Step(size_t id, const Formula& precondition, const EffectList& effects,
+	   const Reason& reason)
+  : id(id), action(NULL), precondition(precondition.instantiation(id)),
+    effects(effects.instantiation(id)), reason(reason), formula(NULL) {
+}
+
+
+/* Constructs a step instantiated from an action. */
+Step::Step(size_t id, const Action& action, const Reason& reason)
+  : id(id), action(&action),
+    precondition((typeid(action) == typeid(ActionSchema))
+		 ? action.precondition.instantiation(id)
+		 : action.precondition),
+    effects((typeid(action) == typeid(ActionSchema))
+	    ? action.effects.instantiation(id) : action.effects),
+    reason(reason), formula(NULL) {
+}
+
+
+/* Returns a formula representing this step. */
+const Atom* Step::step_formula() const {
+  if (action == NULL) {
+    return NULL;
+  } else if (formula == NULL) {
+    formula = &((typeid(*action) == typeid(ActionSchema))
+		? action->action_formula().instantiation(id)
+		: action->action_formula());
+  }
+  return formula;
 }
 
 
@@ -326,7 +339,7 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
     planning_graph = new PlanningGraph(problem);
   }
   if (!params.ground_actions) {
-    for (ActionMap::const_iterator i = domain->actions.begin();
+    for (ActionSchemaMap::const_iterator i = domain->actions.begin();
 	 i != domain->actions.end(); i++) {
       hash_set<string> preds;
       hash_set<string> neg_preds;
@@ -490,7 +503,7 @@ const Plan* Plan::make_initial_plan(const Problem& problem) {
   const StepChain* steps = new StepChain(&goal_step,
 					 new StepChain(&init_step, NULL));
   /* Variable bindings. */
-  const Bindings* bindings = Bindings().add(new_bindings);
+  const Bindings* bindings = &Bindings::make_bindings(steps, planning_graph);
   if (bindings == NULL) {
     /* Bindings are inconsistent. */
     return NULL;
@@ -986,7 +999,8 @@ pair<const Plan*, const OpenCondition*> Plan::unlink(const Link& link) const {
   const Plan* plan =
     new Plan(steps, num_steps, high_step_id_, links, num_links,
 	     unsafes, num_unsafes, open_conds, num_open_conds,
-	     *(Bindings::make_bindings(equalities, inequalities)),
+	     *(Bindings::make_bindings(steps, planning_graph,
+				       equalities, inequalities)),
 	     *(new Orderings(steps, orderings)), this, INTERMEDIATE_PLAN);
   return pair<const Plan*, const OpenCondition*>(plan, link_cond);
 }
@@ -1220,18 +1234,24 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
       return NULL;
     }
   }
-  const Bindings* bindings;
-  bindings = bindings_.add(new_bindings);
-  if (bindings == NULL) {
-    return NULL;
-  }
-  StepChain* steps = new StepChain(&step, steps_);
+  const Bindings* bindings = &bindings_;
   size_t num_steps = num_steps_;
   size_t high_step_id = high_step_id_;
   if (step.id > high_step_id_) {
     num_steps++;
     high_step_id = step.id;
+    if (planning_graph != NULL) {
+      bindings = bindings->add(step, *planning_graph);
+      if (bindings == NULL) {
+	return NULL;
+      }
+    }
   }
+  bindings = bindings->add(new_bindings);
+  if (bindings == NULL) {
+    return NULL;
+  }
+  StepChain* steps = new StepChain(&step, steps_);
   const Ordering& new_ordering =
     *(new Ordering(step.id, open_cond.step_id, establish_reason));
   const Orderings& orderings = orderings_.refine(new_ordering, &step);
@@ -1329,7 +1349,7 @@ void Plan::print(ostream& os) const {
     os << (num_steps_ - 2);
     for (vector<const Step*>::const_iterator s = ordered_steps.begin();
 	 s != ordered_steps.end(); s++) {
-      os << ' ' << bindings_.instantiation(*(*s)->action);
+      os << ' ' << (*s)->step_formula()->instantiation(bindings_);
     }
   } else {
     os << "Initial  :";
@@ -1350,7 +1370,7 @@ void Plan::print(ostream& os) const {
 	}
 	os << ' ';
       }
-      os << " : " << bindings_.instantiation(*(*s)->action);
+      os << " : " << (*s)->step_formula()->instantiation(bindings_);
       for (const LinkChain* links = links_;
 	   links != NULL; links = links->tail) {
 	if (links->head->to_id == (*s)->id) {
@@ -1358,7 +1378,7 @@ void Plan::print(ostream& os) const {
 	  if (links->head->from_id < 10) {
 	    os << ' ';
 	  }
-	  os << " -> " << bindings_.instantiation(links->head->condition);
+	  os << " -> " << links->head->condition.instantiation(bindings_);
 	  for (const UnsafeChain* unsafes = unsafes_;
 	       unsafes != NULL; unsafes = unsafes->tail) {
 	    if (&unsafes->head->link == links->head) {
@@ -1371,7 +1391,7 @@ void Plan::print(ostream& os) const {
 	   oc != NULL; oc = oc->tail) {
 	if (oc->head->step_id == (*s)->id) {
 	  os << endl << "           ?? -> "
-	     << bindings_.instantiation(oc->head->condition);
+	     << oc->head->condition.instantiation(bindings_);
 	}
       }
     }
@@ -1455,9 +1475,9 @@ bool Plan::equivalent(const Plan& p) const {
       size_t id = s->head->id;
       if (s->head->action != NULL && steps1.find(id) == steps1.end()) {
 	if (params.ground_actions) {
-	  steps1[id] = s->head->action;
+	  steps1[id] = s->head->step_formula();
 	} else {
-	  steps1[id] = &bindings_.instantiation(*s->head->action);
+	  steps1[id] = &s->head->step_formula()->instantiation(bindings_);
 	}
       }
     }
@@ -1466,9 +1486,9 @@ bool Plan::equivalent(const Plan& p) const {
       size_t id = s->head->id;
       if (s->head->action != NULL && steps2.find(id) == steps2.end()) {
 	if (params.ground_actions) {
-	  steps2[id] = s->head->action;
+	  steps2[id] = s->head->step_formula();
 	} else {
-	  steps2[id] = &p.bindings_.instantiation(*s->head->action);
+	  steps2[id] = &s->head->step_formula()->instantiation(p.bindings_);
 	}
       }
     }

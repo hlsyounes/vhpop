@@ -2,7 +2,7 @@
 /*
  * Domain descriptions.
  *
- * $Id: domains.h,v 1.22 2001-10-16 19:31:17 lorens Exp $
+ * $Id: domains.h,v 1.23 2001-10-18 21:15:40 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -142,12 +142,12 @@ struct EffectList : public Vector<const Effect*> {
 typedef EffectList::const_iterator EffectListIter;
 
 
-struct ActionList;
-
 /*
  * Abstract action definition.
  */
 struct Action : public Printable, public gc {
+  /* Name of this action. */
+  const string name;
   /* Action precondition. */
   const Formula& precondition;
   /* List of action effects. */
@@ -156,11 +156,6 @@ struct Action : public Printable, public gc {
   /* Returns a formula representing this action. */
   virtual const Atom& action_formula() const = 0;
 
-  /* Fills the provided action list with all instantiations of this
-     action. */
-  virtual void instantiations(ActionList& actions,
-			      const Problem& problem) const = 0;
-
   /* Fills the provided sets with predicates achievable by this
      action. */
   void achievable_predicates(hash_set<string>& preds,
@@ -168,7 +163,10 @@ struct Action : public Printable, public gc {
 
 protected:
   /* Constructs an action. */
-  Action(const Formula& precondition, const EffectList& effects);
+  Action(const string& name, const Formula& precondition,
+	 const EffectList& effects)
+    : name(name), precondition(precondition), effects(effects) {
+  }
 };
 
 
@@ -181,36 +179,26 @@ struct ActionList : public Vector<const Action*> {
 typedef ActionList::const_iterator ActionListIter;
 
 
-/*
- * Table of action definitions.
- */
-struct ActionMap : public HashMap<string, const Action*> {
-};
-
-typedef ActionMap::const_iterator ActionMapIter;
-
+struct GroundActionList;
 
 /*
  * Action schema definition.
  */
 struct ActionSchema : public Action {
-  /* Name of this action schema. */
-  const string name;
-  /* Action parameters. */
+  /* Action schema parameters. */
   const VariableList& parameters;
 
   ActionSchema(const string& name, const VariableList& parameters,
 	       const Formula& precondition, const EffectList& effects)
-    : Action(precondition, effects), name(name), parameters(parameters) {
+    : Action(name, precondition, effects), parameters(parameters) {
   }
 
   /* Returns a formula representing this action. */
   virtual const Atom& action_formula() const;
 
   /* Fills the provided action list with all instantiations of this
-     action. */
-  virtual void instantiations(ActionList& actions,
-			      const Problem& problem) const;
+     action schema. */
+  void instantiations(GroundActionList& actions, const Problem& problem) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -219,20 +207,30 @@ protected:
 
 
 /*
+ * Table of action schema definitions.
+ */
+struct ActionSchemaMap : public HashMap<string, const ActionSchema*> {
+};
+
+typedef ActionSchemaMap::const_iterator ActionSchemaMapIter;
+
+
+/*
  * Ground action.
  */
 struct GroundAction : public Action {
+  /* Action arguments. */
+  const NameList& arguments;
+
   /* Constructs a ground action, assuming arguments are names. */
-  GroundAction(const string& name, const TermList& arguments,
-	       const Formula& precondition, const EffectList& effects);
+  GroundAction(const string& name, const NameList& arguments,
+	       const Formula& precondition, const EffectList& effects)
+    : Action(name, precondition, effects), arguments(arguments),
+      formula(NULL) {
+  }
 
   /* Returns a formula representing this action. */
   virtual const Atom& action_formula() const;
-
-  /* Fills the provided action list with all instantiations of this
-     action. */
-  virtual void instantiations(ActionList& actions,
-			      const Problem& problem) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -240,8 +238,17 @@ protected:
 
 private:
   /* Atomic representation of this ground action. */
-  const Atom& formula;
+  mutable const Atom* formula;
 };
+
+
+/*
+ * List of ground actions.
+ */
+struct GroundActionList : public Vector<const GroundAction*> {
+};
+
+typedef GroundActionList::const_iterator GroundActionListIter;
 
 
 struct Requirements;
@@ -264,8 +271,8 @@ struct Domain : public Printable, public gc {
   const NameMap& constants;
   /* Domain predicates. */
   const PredicateMap& predicates;
-  /* Domain actions. */
-  const ActionMap& actions;
+  /* Domain action schemas. */
+  const ActionSchemaMap& actions;
 
   /* Returns a const_iterator pointing to the first domain. */
   static DomainMap::const_iterator begin() {
@@ -291,7 +298,7 @@ struct Domain : public Printable, public gc {
   /* Constructs a domain. */
   Domain(const string& name, const Requirements& requirements,
 	 const TypeMap& types, const NameMap& constants,
-	 const PredicateMap& predicates, const ActionMap& actions)
+	 const PredicateMap& predicates, const ActionSchemaMap& actions)
     : name(name), requirements(requirements), types(types),
       constants(constants), predicates(predicates), actions(actions),
       static_predicates_(static_predicates(predicates, actions)) {
@@ -315,9 +322,9 @@ struct Domain : public Printable, public gc {
      undefined. */
   const Predicate* find_predicate(const string& name) const;
 
-  /* Returns the action with the given name, or NULL if it is
+  /* Returns the action schema with the given name, or NULL if it is
      undefined. */
-  const Action* find_action(const string& name) const;
+  const ActionSchema* find_action(const string& name) const;
 
   /* Fills the provided name list with constants that are compatible
      with the given type. */
@@ -342,7 +349,7 @@ private:
 
   /* Returns a set of static predicates. */
   static hash_set<string> static_predicates(const PredicateMap& predicates,
-					    const ActionMap& actions);
+					    const ActionSchemaMap& actions);
 };
 
 #endif /* DOMAINS_H */
