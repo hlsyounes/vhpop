@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.h,v 3.2 2002-03-23 19:05:48 lorens Exp $
+ * $Id: heuristics.h,v 3.3 2002-03-24 23:56:02 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
@@ -127,7 +127,7 @@ ostream& operator<<(ostream& os, const HeuristicValue& v);
 /*
  * A planning graph.
  */
-struct PlanningGraph : public gc {
+struct PlanningGraph {
   /* Constructs a planning graph. */
   PlanningGraph(const Problem& problem, bool domain_constraints);
 

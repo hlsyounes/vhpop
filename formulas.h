@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 3.8 2002-03-19 17:19:28 lorens Exp $
+ * $Id: formulas.h,v 3.9 2002-03-24 23:55:57 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -172,7 +172,7 @@ struct Variable : public Term {
 /*
  * Instantiated variable.
  */
-struct StepVar : public Variable, public gc {
+struct StepVar : public Variable {
   /* The id of the step that this variable belongs to. */
   const size_t id;
 
@@ -252,7 +252,7 @@ struct Literal;
 /*
  * Abstract formula.
  */
-struct Formula : public Printable, public gc {
+struct Formula : public Printable {
   /* Possible temporal annotations for formulas. */
   typedef enum { AT_START, AT_END, OVER_ALL } FormulaTime;
 

@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  * 
- * $Id: support.h,v 3.2 2002-03-23 15:18:28 lorens Exp $
+ * $Id: support.h,v 3.3 2002-03-24 23:56:34 lorens Exp $
  */
 #ifndef SUPPORT_H
 #define SUPPORT_H
@@ -29,14 +29,6 @@
 #include <set>
 #include <hash_map>
 #include <hash_set>
-#include <gc_cpp.h>
-#include <new_gc_alloc.h>
-
-
-/*
- * Allocator to use with all STL container classes.
- */
-typedef single_client_gc_alloc container_alloc;
 
 
 #ifdef DEBUG
@@ -114,11 +106,11 @@ inline bool member_if(I first, I last, P pred) {
  * A vector using a traceable allocator.
  */
 template<typename T>
-struct Vector : public vector<T, container_alloc>, public gc {
+struct Vector : public vector<T> {
   Vector<T>() {}
 
   Vector<T>(size_t n, T x)
-    : vector<T, container_alloc>(n, x) {}
+    : vector<T>(n, x) {}
 };
 
 
@@ -126,11 +118,11 @@ struct Vector : public vector<T, container_alloc>, public gc {
  * A deque using a traceable allocator.
  */
 template<typename T>
-struct Deque : public deque<T, container_alloc>, public gc {
+struct Deque : public deque<T> {
   Deque<T>() {}
 
   Deque<T>(size_t n, T x)
-    : deque<T, container_alloc>(n, x) {}
+    : deque<T>(n, x) {}
 };
 
 
@@ -138,7 +130,7 @@ struct Deque : public deque<T, container_alloc>, public gc {
  * A stack using a traceable allocator.
  */
 template<typename T>
-struct Stack : public stack<T, Deque<T> >, public gc {
+struct Stack : public stack<T, Deque<T> > {
 };
 
 
@@ -146,7 +138,7 @@ struct Stack : public stack<T, Deque<T> >, public gc {
  * A set using a traceable allocator.
  */
 template<typename T, typename L = less<T> >
-struct Set : public set<T, L, container_alloc>, public gc {
+struct Set : public set<T, L> {
 };
 
 
@@ -155,7 +147,7 @@ struct Set : public set<T, L, container_alloc>, public gc {
  */
 template<typename K, typename T,
 	 typename H = hash<K>, typename E = equal_to<K> >
-struct HashMap : public hash_map<K, T, H, E, container_alloc>, public gc {
+struct HashMap : public hash_map<K, T, H, E> {
 };
 
 
@@ -164,10 +156,8 @@ struct HashMap : public hash_map<K, T, H, E, container_alloc>, public gc {
  */
 template<typename K, typename T,
 	 typename H = hash<K>, typename E = equal_to<K> >
-struct HashMultimap : public hash_multimap<K, T, H, E, container_alloc>,
-		      public gc {
-  typedef typename hash_multimap<K, T, H, E, container_alloc>::const_iterator
-  const_iterator;
+struct HashMultimap : public hash_multimap<K, T, H, E> {
+  typedef typename hash_multimap<K, T, H, E>::const_iterator const_iterator;
 
   /* Finds the given element. */
   const_iterator find(const pair<K, T>& x) const {

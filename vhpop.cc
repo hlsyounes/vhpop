@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 3.6 2002-03-23 19:10:33 lorens Exp $
+ * $Id: vhpop.cc,v 3.7 2002-03-24 23:56:39 lorens Exp $
  */
 #include <iostream>
 #include <cstdio>
@@ -69,7 +69,6 @@ static struct option long_options[] = {
   { "weight", required_argument, NULL, 'w' },
   { "warnings", optional_argument, NULL, 'W' },
   { "help", no_argument, NULL, '?' },
-  { "no-gc", no_argument, NULL, 1 },
   { 0, 0, 0, 0 }
 };
 #endif
@@ -188,9 +187,6 @@ int main(int argc, char* argv[]) {
       break;
     }
     switch (c) {
-    case 1:
-      GC_dont_gc = 1;
-      break;
     case 'd':
       params.domain_constraints = true;
       params.keep_static_preconditions = (optarg == NULL || atoi(optarg) != 0);
