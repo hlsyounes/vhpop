@@ -1,12 +1,13 @@
 /*
- * $Id: heuristics.cc,v 1.10 2001-12-26 18:51:49 lorens Exp $
+ * $Id: heuristics.cc,v 1.11 2001-12-29 16:39:31 lorens Exp $
  */
 #include <set>
 #include "heuristics.h"
-#include "domains.h"
-#include "problems.h"
-#include "debug.h"
 #include "plans.h"
+#include "flaws.h"
+#include "problems.h"
+#include "domains.h"
+#include "debug.h"
 
 
 /* Returns the sum of two integers, avoiding overflow. */
