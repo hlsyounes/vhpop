@@ -13,12 +13,21 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: problems.cc,v 6.7 2003-09-05 16:31:04 lorens Exp $
+ * $Id: problems.cc,v 6.8 2003-09-18 21:51:21 lorens Exp $
  */
 #include "problems.h"
 #include "domains.h"
 #include "bindings.h"
 #include <iostream>
+#include <typeinfo>
+#if HAVE_SSTREAM
+#include <sstream>
+#else
+#include <strstream>
+namespace std {
+  typedef std::ostrstream ostringstream;
+}
+#endif
 
 
 /* ====================================================================== */
@@ -61,7 +70,7 @@ void Problem::clear() {
 /* Constructs a problem. */
 Problem::Problem(const std::string& name, const Domain& domain)
   : name_(name), domain_(&domain), terms_(TermTable(domain.terms())),
-    init_action_(GroundAction("", false)), goal_(&Formula::TRUE),
+    init_action_(GroundAction("<init 0>", false)), goal_(&Formula::TRUE),
     metric_(new Value(0)) {
   Formula::register_use(goal_);
   Expression::register_use(metric_);
@@ -80,6 +89,10 @@ Problem::~Problem() {
        vi != init_values_.end(); vi++) {
     Expression::unregister_use((*vi).first);
   }
+  for (TimedActionTable::const_iterator ai = timed_actions_.begin();
+       ai != timed_actions_.end(); ai++) {
+    delete (*ai).second;
+  }
   Formula::unregister_use(goal_);
   Expression::unregister_use(metric_);
   for (std::map<Type, const ObjectList*>::const_iterator oi =
@@ -94,6 +107,32 @@ Problem::~Problem() {
 void Problem::add_init_atom(const Atom& atom) {
   init_atoms_.insert(&atom);
   init_action_.add_effect(*new Effect(atom, Effect::AT_END));
+}
+
+
+/* Adds a timed initial literal to this problem. */
+void Problem::add_init_literal(float time, const Literal& literal) {
+  if (time == 0.0f) {
+    const Atom* atom = dynamic_cast<const Atom*>(&literal);
+    if (atom != NULL) {
+      add_init_atom(*atom);
+    }
+  } else {
+    GroundAction* action;
+    TimedActionTable::const_iterator ai = timed_actions_.find(time);
+    if (ai != timed_actions_.end()) {
+      action = (*ai).second;
+    } else {
+      std::ostringstream ss;
+      ss << "<init " << time << '>';
+#if !HAVE_SSTREAM
+      ss << '\0';
+#endif
+      action = new GroundAction(ss.str(), false);
+      timed_actions_.insert(std::make_pair(time, action));
+    }
+    action->add_effect(*new Effect(literal, Effect::AT_END));
+  }
 }
 
 
@@ -203,12 +242,23 @@ std::ostream& operator<<(std::ostream& os, const Problem& p) {
     os << " - ";
     p.domain().types().print_type(os, p.terms().type(i));
   }
-  os << std::endl << "init: ";
-  AtomSet::const_iterator ai = p.init_atoms().begin();
-  (*ai)->print(os, p.domain().predicates(), p.terms(), 0, Bindings::EMPTY);
-  for (ai++; ai != p.init_atoms().end(); ai++) {
+  os << std::endl << "init:";
+  for (AtomSet::const_iterator ai = p.init_atoms().begin();
+       ai != p.init_atoms().end(); ai++) {
     os << ' ';
     (*ai)->print(os, p.domain().predicates(), p.terms(), 0, Bindings::EMPTY);
+  }
+  for (TimedActionTable::const_iterator ai = p.timed_actions().begin();
+       ai != p.timed_actions().end(); ai++) {
+    float time = (*ai).first;
+    const EffectList& effects = (*ai).second->effects();
+    for (EffectList::const_iterator ei = effects.begin();
+	 ei != effects.end(); ei++) {
+      os << " (at " << time << ' ';
+      (*ei)->literal().print(os, p.domain().predicates(), p.terms(),
+			     0, Bindings::EMPTY);
+      os << ")";
+    }
   }
   for (ValueMap::const_iterator vi = p.init_values_.begin();
        vi != p.init_values_.end(); vi++) {

@@ -16,11 +16,12 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: tokens.ll,v 6.3 2003-09-05 16:34:09 lorens Exp $
+ * $Id: tokens.ll,v 6.4 2003-09-18 21:52:29 lorens Exp $
  */
 %{
 struct Condition;
 struct Formula;
+struct Literal;
 struct Atom;
 struct Expression;
 struct Application;
@@ -72,6 +73,7 @@ problem				return make_string(yytext, PROBLEM);
 :durative-actions		return DURATIVE_ACTIONS;
 :duration-inequalities		return DURATION_INEQUALITIES;
 :continuous-effects		return CONTINUOUS_EFFECTS;
+:timed-initial-literals		return TIMED_INITIAL_LITERALS;
 :action				return ACTION;
 :durative-action		return DURATIVE_ACTION;
 :parameters			return PARAMETERS;
