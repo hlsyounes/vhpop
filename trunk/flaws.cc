@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: flaws.cc,v 3.4 2002-09-23 02:34:13 lorens Exp $
+ * $Id: flaws.cc,v 3.5 2002-12-16 17:08:13 lorens Exp $
  */
 #include "flaws.h"
 #include "plans.h"
@@ -25,7 +25,7 @@
 /* ====================================================================== */
 /* Flaw */
 
-ostream& operator<<(ostream& os, const Flaw& f) {
+std::ostream& operator<<(std::ostream& os, const Flaw& f) {
   f.print(os);
   return os;
 }
@@ -38,6 +38,7 @@ ostream& operator<<(ostream& os, const Flaw& f) {
 OpenCondition::OpenCondition(size_t step_id, const Formula& condition,
 			     const Reason& reason)
   : step_id_(step_id), condition_(&condition) {
+  Formula::register_use(condition_);
 #ifdef TRANSFORMATIONAL
   reason_ = &reason;
   Collectible::register_use(reason_);
@@ -45,10 +46,22 @@ OpenCondition::OpenCondition(size_t step_id, const Formula& condition,
 }
 
 
+/* Constructs an open condition. */
+OpenCondition::OpenCondition(const OpenCondition& oc)
+  : step_id_(oc.step_id_), condition_(oc.condition_) {
+  Formula::register_use(condition_);
+#ifdef TRANSFORMATIONAL
+  reason_ = oc.reason_;
+  Collectible::register_use(reason_);
+#endif
+}
+
+
 /* Deletes this open condition. */
 OpenCondition::~OpenCondition() {
+  Formula::unregister_use(condition_);
 #ifdef TRANSFORMATIONAL
-  Collectible::unregister_use(reason_);
+  Reason::unregister_use(reason_);
 #endif
 }
 
@@ -93,7 +106,7 @@ const Disjunction* OpenCondition::disjunction() const {
 
 
 /* Prints this open condition on the given stream. */
-void OpenCondition::print(ostream& os) const {
+void OpenCondition::print(std::ostream& os) const {
   os << "#<OPEN " << condition() << " step " << step_id() << ">";
 }
 
@@ -109,7 +122,7 @@ Unsafe::Unsafe(const Link& link, size_t step_id, const Effect& effect,
 
 
 /* Prints this threatened causal link on the given stream. */
-void Unsafe::print(ostream& os) const {
+void Unsafe::print(std::ostream& os) const {
   os << "#<UNSAFE " << link().from_id() << ' ' << link().condition()
      << ' ' << link().to_id() << " step " << step_id() << ">";
 }
