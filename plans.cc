@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.7 2001-07-22 19:10:31 lorens Exp $
+ * $Id: plans.cc,v 1.8 2001-07-29 18:01:23 lorens Exp $
  */
 #include <queue>
 #include <hash_set>
@@ -309,13 +309,13 @@ static bool add_goal(const OpenConditionChain*& open_conds,
 	    dynamic_cast<const ForallFormula*>(goal);
 	  if (forall != NULL) {
 	    // handle FORALL
-	    throw Unimplemented();
+	    throw Unimplemented("adding universally quantified goal");
 	  } else {
 	    const ExistsFormula* exists =
 	      dynamic_cast<const ExistsFormula*>(goal);
 	    if (exists != NULL) {
 	      // handle EXISTS
-	      throw Unimplemented();
+	      throw Unimplemented("adding existentially quantified goal");
 	    } else {
 	      if (!add_open_condition(open_conds, num_open_conds,
 				      num_static_open_conds, *goal, step_id,
@@ -605,9 +605,9 @@ void Plan::separate(PlanList& new_plans, const Unsafe& unsafe) const {
   FormulaList& goals = *(new FormulaList());
   for (SubstitutionList::const_iterator i = unifier.begin();
        i != unifier.end(); i++) {
-    const Substitution& s = *i;
-    if (!effect_forall.contains(*s.first)) {
-      const Inequality& neq = *new Inequality(*s.first, *s.second);
+    const Substitution& s = **i;
+    if (!effect_forall.contains(s.var)) {
+      const Inequality& neq = *new Inequality(s.var, s.term);
       if (bindings_.consistent_with(neq)) {
 	goals.push_back(&neq);
       }
@@ -620,9 +620,9 @@ void Plan::separate(PlanList& new_plans, const Unsafe& unsafe) const {
       SubstitutionList forall_subst;
       for (SubstitutionList::const_iterator i = unifier.begin();
 	   i != unifier.end(); i++) {
-	const Substitution& s = *i;
-	if (effect_forall.contains(*s.first)) {
-	  forall_subst.push_back(s);
+	const Substitution& s = **i;
+	if (effect_forall.contains(s.var)) {
+	  forall_subst.push_back(&s);
 	}
       }
       cond_goal = &effect_cond->substitution(forall_subst);
@@ -1093,7 +1093,7 @@ void Plan::handle_disjunction(PlanList& new_plans,
 void Plan::add_step(PlanList& new_plans,
 		    const OpenCondition& open_cond) const {
   ActionList actions;
-  domain->find_applicable_actions(actions, open_cond.condition);
+  domain->applicable_actions(actions, open_cond.condition);
   unsigned int step_id = high_step_id_ + 1;
   if (!actions.empty()) {
     const Link& link = *(new Link(step_id, open_cond));
@@ -1255,8 +1255,8 @@ void Plan::new_cw_link(PlanList& new_plans, const Step& step,
 	  FormulaList& binds = *(new FormulaList());
 	  for (SubstitutionList::const_iterator i = mgu.begin();
 	       i != mgu.end(); i++) {
-	    const Substitution& s = *i;
-	    binds.push_back(new Inequality(*s.first, *s.second));
+	    const Substitution& s = **i;
+	    binds.push_back(new Inequality(s.var, s.term));
 	  }
 	  const Formula* bgoal;
 	  if (binds.size() > 1) {
@@ -1324,8 +1324,8 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
   BindingList new_bindings;
   for (SubstitutionList::const_iterator i = unifier.begin();
        i != unifier.end(); i++) {
-    const Substitution& s = *i;
-    if (!effect_forall.contains(*s.first)) {
+    const Substitution& s = **i;
+    if (!effect_forall.contains(s.var)) {
       new_bindings.push_back(new EqualityBinding(s, establish_reason));
     }
   }
@@ -1342,9 +1342,9 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
       SubstitutionList forall_subst;
       for (SubstitutionList::const_iterator i = unifier.begin();
 	   i != unifier.end(); i++) {
-	const Substitution& s = *i;
-	if (effect_forall.contains(*s.first)) {
-	  forall_subst.push_back(s);
+	const Substitution& s = **i;
+	if (effect_forall.contains(s.var)) {
+	  forall_subst.push_back(&s);
 	}
       }
       cond_goal = &effect.condition->substitution(forall_subst);
@@ -1613,7 +1613,7 @@ void Plan::h_rank() const {
   CostGraph cg;
   hash_map<const OpenCondition*, unsigned int> oc_nodes;
   hash_map<unsigned int, unsigned int> step_nodes;
-  hash_map<string, unsigned int> pred_nodes;
+  hash_map<const Action*, unsigned int> pred_nodes;
   unsigned int goal_node = make_node(cg, oc_nodes, step_nodes, pred_nodes,
 				     GOAL_ID);
   if (heuristic == MAX_HEURISTIC) {
@@ -1648,7 +1648,7 @@ unsigned int
 Plan::make_node(CostGraph& cg,
 		hash_map<const OpenCondition*, unsigned int>& oc_nodes,
 		hash_map<unsigned int, unsigned int>& step_nodes,
-		hash_map<string, unsigned int>& pred_nodes,
+		hash_map<const Action*, unsigned int>& pred_nodes,
 		unsigned int step_id) const {
   hash_map<unsigned int, unsigned int>::const_iterator s =
     step_nodes.find(step_id);
@@ -1714,9 +1714,9 @@ Plan::make_node(CostGraph& cg,
 
 size_t Plan::make_node(CostGraph& cg,
 		       hash_map<size_t, size_t>& step_nodes,
-		       hash_map<string, size_t>& pred_nodes,
+		       hash_map<const Action*, size_t>& pred_nodes,
 		       const Action& pred, size_t step_id) const {
-  hash_map<string, size_t>::const_iterator p = pred_nodes.find(pred.name);
+  hash_map<const Action*, size_t>::const_iterator p = pred_nodes.find(&pred);
   if (p != pred_nodes.end()) {
     return (*p).second;
   } else {
@@ -1730,9 +1730,10 @@ size_t Plan::make_node(CostGraph& cg,
       break;
     }
     size_t pred_node = cg.add_node(node_type, pred.cost);
-    pred_nodes[pred.name] = pred_node;
+    pred_nodes[&pred] = pred_node;
     if (verbosity > 3) {
-      cout << "predicate '" << pred.name << "' is node " << pred_node << endl;
+      cout << "predicate '" << pred.action_formula(step_id)
+	   << "' is node " << pred_node << endl;
     }
     if (pred.precondition == NULL) {
       cg.set_distance(pred_node, 0, 0);
@@ -1747,7 +1748,7 @@ size_t Plan::make_node(CostGraph& cg,
 
 size_t Plan::make_node(CostGraph& cg,
 		       hash_map<size_t, size_t>& step_nodes,
-		       hash_map<string, size_t>& pred_nodes,
+		       hash_map<const Action*, size_t>& pred_nodes,
 		       const Formula& condition, size_t step_id) const {
   size_t cond_node;
   const Conjunction* conjunction =
@@ -1843,7 +1844,7 @@ size_t Plan::make_node(CostGraph& cg,
 	if (!done) {
 	  // try to add step
 	  ActionList actions;
-	  domain->find_applicable_actions(actions, condition);
+	  domain->applicable_actions(actions, condition);
 	  for (ActionList::const_iterator i = actions.begin();
 	       i != actions.end(); i++) {
 	    size_t pred_node = make_node(cg, step_nodes, pred_nodes, **i,
