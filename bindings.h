@@ -2,7 +2,7 @@
 /*
  * Binding constraints.
  *
- * $Id: bindings.h,v 1.11 2001-12-23 16:34:16 lorens Exp $
+ * $Id: bindings.h,v 1.12 2001-12-23 17:36:45 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
@@ -85,6 +85,8 @@ protected:
  */
 struct BindingList : Vector<const Binding*> {
 };
+
+typedef BindingList::const_iterator BindingListIter;
 
 
 /*
