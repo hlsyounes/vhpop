@@ -1,7 +1,7 @@
 /*
  * Main program.
  *
- * $Id: vhpop.cc,v 1.11 2001-09-29 18:56:54 lorens Exp $
+ * $Id: vhpop.cc,v 1.12 2001-10-05 15:50:53 lorens Exp $
  */
 #include <iostream>
 #include <cstdio>
@@ -165,12 +165,12 @@ int main(int argc, char* argv[]) {
     case 'W':
       warning_level = (optarg != NULL) ? atoi(optarg) : 1;
       break;
-    case ':':
     case '?':
       if (optopt == '?') {
 	display_help();
 	return 0;
       }
+    case ':':
     default:
       cerr << "Try `" << PROGRAM_NAME << " --help' for more information."
 	   << endl;
