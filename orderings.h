@@ -16,14 +16,13 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.h,v 6.2 2003-07-21 02:22:35 lorens Exp $
+ * $Id: orderings.h,v 6.3 2003-08-28 15:33:31 lorens Exp $
  */
 #ifndef ORDERINGS_H
 #define ORDERINGS_H
 
 #include <config.h>
 #include "formulas.h"
-#include "hashing.h"
 
 struct Step;
 struct Effect;
@@ -132,8 +131,8 @@ struct Orderings {
   /* Fills the given tables with distances for each step from the
      start step, and returns the greatest distance. */
   virtual float
-  schedule(hashing::hash_map<size_t, float>& start_times,
-	   hashing::hash_map<size_t, float>& end_times) const = 0;
+  schedule(std::map<size_t, float>& start_times,
+	   std::map<size_t, float>& end_times) const = 0;
 
 protected:
   /* Constructs an empty ordering collection. */
@@ -192,8 +191,8 @@ struct BinaryOrderings : public Orderings {
 
   /* Fills the given tables with distances for each step from the
      start step, and returns the greatest distance. */
-  virtual float schedule(hashing::hash_map<size_t, float>& start_times,
-			 hashing::hash_map<size_t, float>& end_times) const;
+  virtual float schedule(std::map<size_t, float>& start_times,
+			 std::map<size_t, float>& end_times) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -208,19 +207,18 @@ private:
   BinaryOrderings(const BinaryOrderings& o);
 
   /* Schedules the given instruction. */
-  float schedule(hashing::hash_map<size_t, float>& start_times,
-		 hashing::hash_map<size_t, float>& end_times,
-		 size_t step_id) const;
+  float schedule(std::map<size_t, float>& start_times,
+		 std::map<size_t, float>& end_times, size_t step_id) const;
 
   /* Returns true iff the first step is ordered before the second step. */
   bool before(size_t id1, size_t id2) const;
 
   /* Orders the first step before the second step. */
-  void set_before(hashing::hash_map<size_t, BoolVector*>& own_data,
+  void set_before(std::map<size_t, BoolVector*>& own_data,
 		  size_t id1, size_t id2);
 
   /* Updates the transitive closure given a new ordering constraint. */
-  void fill_transitive(hashing::hash_map<size_t, BoolVector*>& own_data,
+  void fill_transitive(std::map<size_t, BoolVector*>& own_data,
 		       const Ordering& ordering);
 };
 
@@ -260,8 +258,8 @@ struct TemporalOrderings : public Orderings {
 
   /* Fills the given tables with distances for each step from the
      start step, and returns the greatest distance. */
-  virtual float schedule(hashing::hash_map<size_t, float>& start_times,
-			 hashing::hash_map<size_t, float>& end_times) const;
+  virtual float schedule(std::map<size_t, float>& start_times,
+			 std::map<size_t, float>& end_times) const;
 
 protected:
   /* Prints this opbject on the given stream. */
@@ -275,9 +273,8 @@ private:
   TemporalOrderings(const TemporalOrderings& o);
 
   /* Schedules the given instruction. */
-  float schedule(hashing::hash_map<size_t, float>& start_times,
-		 hashing::hash_map<size_t, float>& end_times,
-		 size_t step_id) const;
+  float schedule(std::map<size_t, float>& start_times,
+		 std::map<size_t, float>& end_times, size_t step_id) const;
 
   /* Returns the time node for the given step. */
   size_t time_node(size_t id, StepTime t) const {
@@ -288,11 +285,11 @@ private:
   float distance(size_t t1, size_t t2) const;
 
   /* Sets the maximum distance from the first and the second time node. */
-  void set_distance(hashing::hash_map<size_t, FloatVector*>& own_data,
+  void set_distance(std::map<size_t, FloatVector*>& own_data,
 		    size_t t1, size_t t2, float d);
 
   /* Updates the transitive closure given a new ordering constraint. */
-  bool fill_transitive(hashing::hash_map<size_t, FloatVector*>& own_data,
+  bool fill_transitive(std::map<size_t, FloatVector*>& own_data,
 		       const Ordering& ordering);
 };
 

@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: terms.h,v 6.2 2003-07-21 02:19:08 lorens Exp $
+ * $Id: terms.h,v 6.3 2003-08-28 15:35:31 lorens Exp $
  */
 #ifndef TERMS_H
 #define TERMS_H
@@ -54,7 +54,7 @@ inline bool is_variable(Term term) { return term < 0; }
 /*
  * Variable substitutions.
  */
-struct SubstitutionMap : public hashing::hash_map<Variable, Object> {
+struct SubstitutionMap : public std::map<Variable, Object> {
 };
 
 

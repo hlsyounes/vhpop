@@ -16,15 +16,15 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: types.h,v 6.2 2003-07-13 16:12:06 lorens Exp $
+ * $Id: types.h,v 6.3 2003-08-28 15:35:43 lorens Exp $
  */
 #ifndef TYPES_H
 #define TYPES_H
 
 #include <config.h>
-#include "hashing.h"
 #include <iostream>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -48,7 +48,7 @@ struct TypeList : public std::vector<Type> {
 /* ====================================================================== */
 /* TypeSet */
 
-struct TypeSet : public hashing::hash_set<Type> {
+struct TypeSet : public std::set<Type> {
 };
 
 

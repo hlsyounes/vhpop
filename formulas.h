@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 6.9 2003-08-24 21:20:21 lorens Exp $
+ * $Id: formulas.h,v 6.10 2003-08-28 15:32:51 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -24,7 +24,6 @@
 #include <config.h>
 #include "predicates.h"
 #include "terms.h"
-#include "hashing.h"
 #include <iostream>
 #include <set>
 #include <vector>
@@ -833,7 +832,7 @@ const Condition& operator||(const Condition& c1, const Condition& c2);
 /*
  * List of ground atoms.
  */
-struct AtomSet : public hashing::hash_set<const Atom*> {
+struct AtomSet : public std::set<const Atom*> {
 };
 
 
