@@ -2,7 +2,7 @@
 /*
  * Problem descriptions.
  *
- * $Id: problems.h,v 1.1 2001-05-03 15:27:07 lorens Exp $
+ * $Id: problems.h,v 1.2 2001-05-04 17:59:54 lorens Exp $
  */
 #ifndef PROBLEMS_H
 #define PROBLEMS_H
@@ -72,6 +72,34 @@ struct Problem : public gc {
   const Name* find_object(const string& name) const {
     NameMap::const_iterator i = objects_.find(name);
     return (i != objects_.end()) ? (*i).second : NULL;
+  }
+
+  /* Fills the provided name list with objects that are compatible
+     with the given type. */
+  void compatible_objects(NameList& objects,
+			  const Type& t = SimpleType::OBJECT_TYPE) const {
+    for (NameMap::const_iterator i = objects_.begin();
+	 i != objects_.end(); i++) {
+      const Name& name = *(*i).second;
+      if (name.type.compatible(t)) {
+	objects.push_back(&name);
+      }
+    }
+  }
+
+  /* Fills the provided name list with objects (including constants
+     declared in the domain) that are compatible with the given
+     type. */
+  void all_compatible_objects(NameList& objects,
+			      const Type& t = SimpleType::OBJECT_TYPE) const {
+    domain.compatible_constants(objects, t);
+    for (NameMap::const_iterator i = objects_.begin();
+	 i != objects_.end(); i++) {
+      const Name& name = *(*i).second;
+      if (name.type.compatible(t)) {
+	objects.push_back(&name);
+      }
+    }
   }
 
 private:
