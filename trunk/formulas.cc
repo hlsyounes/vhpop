@@ -1,5 +1,5 @@
 /*
- * $Id: formulas.cc,v 1.12 2001-10-06 00:35:18 lorens Exp $
+ * $Id: formulas.cc,v 1.13 2001-10-06 00:44:59 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -64,6 +64,13 @@ struct TrueFormula : public Formula {
     return *this;
   }
 
+  /* Checks if this formula is equivalent to the given formula.  Two
+     formulas is equivalent if they only differ in the choice of
+     variable names. */
+  virtual bool equivalent(const Formula& f) const {
+    return equals(f);
+  }
+
 protected:
   /* Prints this formula on the given stream. */
   virtual void print(ostream& os) const {
@@ -106,6 +113,13 @@ struct FalseFormula : public Formula {
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const {
     return *this;
+  }
+
+  /* Checks if this formula is equivalent to the given formula.  Two
+     formulas is equivalent if they only differ in the choice of
+     variable names. */
+  virtual bool equivalent(const Formula& f) const {
+    return equals(f);
   }
 
 protected:
@@ -162,6 +176,14 @@ const Name& Name::substitution(const SubstitutionList& subst) const {
 }
 
 
+/* Checks if this term is equivalent to the given term.  Two terms
+   are equivalent if they are the same name, or if they are both
+   variables. */
+bool Name::equivalent(const Term& t) const {
+  return equals(t);
+}
+
+
 /* Checks if this term equals the given term. */
 bool Name::equals(const Term& t) const {
   const Name* nt = dynamic_cast<const Name*>(&t);
@@ -179,6 +201,14 @@ const Variable& Variable::instantiation(size_t id) const {
 const Term& Variable::substitution(const SubstitutionList& subst) const {
   SLCI si = find_if(subst.begin(), subst.end(), bind2nd(Substitutes(), this));
   return (si != subst.end()) ? (*si)->term : *this;
+}
+
+
+/* Checks if this term is equivalent to the given term.  Two terms
+   are equivalent if they are the same name, or if they are both
+   variables. */
+bool Variable::equivalent(const Term& t) const {
+  return dynamic_cast<const Variable*>(&t) != NULL;
 }
 
 
@@ -219,6 +249,22 @@ const TermList& TermList::substitution(const SubstitutionList& subst) const {
     terms.push_back(&(*ti)->substitution(subst));
   }
   return terms;
+}
+
+
+/* Checks if this term list is equivalent to the given term list. */
+bool TermList::equivalent(const TermList& terms) const {
+  if (size() != terms.size()) {
+    return false;
+  } else {
+    for (const_iterator ti = begin(), tj = terms.begin();
+	 ti != end(); ti++, tj++) {
+      if (!(*ti)->equivalent(**tj)) {
+	return false;
+      }
+    }
+    return true;
+  }
 }
 
 
@@ -433,6 +479,22 @@ void FormulaList::achievable_predicates(hash_set<string>& preds,
 }
 
 
+/* Checks if this formula list is equivalent to the given formula list. */
+bool FormulaList::equivalent(const FormulaList& formulas) const {
+  if (size() != formulas.size()) {
+    return false;
+  } else {
+    for (const_iterator i = begin(), j = formulas.begin();
+	 i != end(); i++, j++) {
+      if (!(*i)->equivalent(**j)) {
+	return false;
+      }
+    }
+    return true;
+  }
+}
+
+
 /* Equality operator for formula lists. */
 bool FormulaList::operator==(const FormulaList& formulas) const {
   if (size() != formulas.size()) {
@@ -494,8 +556,7 @@ const Formula& Atom::instantiation(const SubstitutionList& subst,
 
 
 /* Returns this formula subject to the given substitutions. */
-const Formula&
-Atom::substitution(const SubstitutionList& subst) const {
+const Atom& Atom::substitution(const SubstitutionList& subst) const {
   return *(new Atom(predicate, terms.substitution(subst)));
 }
 
@@ -525,6 +586,16 @@ void Atom::achievable_predicates(hash_set<string>& preds,
       return;
     }
   }
+}
+
+
+/* Checks if this formula is equivalent to the given formula.  Two
+   formulas is equivalent if they only differ in the choice of
+   variable names. */
+bool Atom::equivalent(const Formula& f) const {
+  const Atom* atom = dynamic_cast<const Atom*>(&f);
+  return (atom != NULL && predicate == atom->predicate
+	  && terms.equivalent(atom->terms));
 }
 
 
@@ -591,6 +662,15 @@ void Negation::achievable_predicates(hash_set<string>& preds,
 }
 
 
+/* Checks if this formula is equivalent to the given formula.  Two
+   formulas is equivalent if they only differ in the choice of
+   variable names. */
+bool Negation::equivalent(const Formula& f) const {
+  const Negation* negation = dynamic_cast<const Negation*>(&f);
+  return negation != NULL && atom.equivalent(negation->atom);
+}
+
+
 /* Prints this formula on the given stream. */
 void Negation::print(ostream& os) const {
   os << "(not " << atom << ")";
@@ -643,6 +723,16 @@ const Formula& Equality::substitution(const SubstitutionList& subst) const {
 }
 
 
+/* Checks if this formula is equivalent to the given formula.  Two
+   formulas is equivalent if they only differ in the choice of
+   variable names. */
+bool Equality::equivalent(const Formula& f) const {
+  const Equality* eq = dynamic_cast<const Equality*>(&f);
+  return (eq != NULL
+	  && term1.equivalent(eq->term1) && term2.equivalent(eq->term2));
+}
+
+
 /* Prints this formula on the given stream. */
 void Equality::print(ostream& os) const {
   os << "(= " << term1 << ' ' << term2 << ")";
@@ -687,6 +777,16 @@ const Formula& Inequality::substitution(const SubstitutionList& subst) const {
     return ((&t1 == &term1 && &t2 == &term2)
 	    ? *this : *(new Inequality(t1, t2)));
   }
+}
+
+
+/* Checks if this formula is equivalent to the given formula.  Two
+   formulas is equivalent if they only differ in the choice of
+   variable names. */
+bool Inequality::equivalent(const Formula& f) const {
+  const Inequality* neq = dynamic_cast<const Inequality*>(&f);
+  return (neq != NULL
+	  && term1.equivalent(neq->term1) && term2.equivalent(neq->term2));
 }
 
 
@@ -772,6 +872,15 @@ void Conjunction::achievable_predicates(hash_set<string>& preds,
 }
 
 
+/* Checks if this formula is equivalent to the given formula.  Two
+   formulas is equivalent if they only differ in the choice of
+   variable names. */
+bool Conjunction::equivalent(const Formula& f) const {
+  const Conjunction* conjunction = dynamic_cast<const Conjunction*>(&f);
+  return conjunction != NULL && conjuncts.equivalent(conjunction->conjuncts);
+}
+
+
 /* Prints this formula on the given stream. */
 void Conjunction::print(ostream& os) const {
   os << "(and";
@@ -853,6 +962,15 @@ void Disjunction::achievable_predicates(hash_set<string>& preds,
 }
 
 
+/* Checks if this formula is equivalent to the given formula.  Two
+   formulas is equivalent if they only differ in the choice of
+   variable names. */
+bool Disjunction::equivalent(const Formula& f) const {
+  const Disjunction* disjunction = dynamic_cast<const Disjunction*>(&f);
+  return disjunction != NULL && disjuncts.equivalent(disjunction->disjuncts);
+}
+
+
 /* Prints this formula on the given stream. */
 void Disjunction::print(ostream& os) const {
   os << "(or";
@@ -900,6 +1018,16 @@ const Formula&
 ExistsFormula::substitution(const SubstitutionList& subst) const {
   const Formula& b = body.substitution(subst);
   return (b == FALSE || b == TRUE) ? b : *(new ExistsFormula(parameters, b));
+}
+
+
+/* Checks if this formula is equivalent to the given formula.  Two
+   formulas is equivalent if they only differ in the choice of
+   variable names. */
+bool ExistsFormula::equivalent(const Formula& f) const {
+  const ExistsFormula* exists = dynamic_cast<const ExistsFormula*>(&f);
+  return (exists != NULL && parameters.size() == exists->parameters.size()
+	  && body.equivalent(exists->body));
 }
 
 
@@ -954,6 +1082,16 @@ const Formula&
 ForallFormula::substitution(const SubstitutionList& subst) const {
   const Formula& b = body.substitution(subst);
   return (b == FALSE || b == TRUE) ? b : *(new ForallFormula(parameters, b));
+}
+
+
+/* Checks if this formula is equivalent to the given formula.  Two
+   formulas is equivalent if they only differ in the choice of
+   variable names. */
+bool ForallFormula::equivalent(const Formula& f) const {
+  const ForallFormula* forall = dynamic_cast<const ForallFormula*>(&f);
+  return (forall != NULL && parameters.size() == forall->parameters.size()
+	  && body.equivalent(forall->body));
 }
 
 

@@ -2,7 +2,7 @@
 /*
  * Formulas.
  *
- * $Id: formulas.h,v 1.17 2001-10-06 00:35:02 lorens Exp $
+ * $Id: formulas.h,v 1.18 2001-10-06 00:44:51 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -70,6 +70,11 @@ struct Term : public Printable {
   /* Returns this term subject to the given substitutions. */
   virtual const Term& substitution(const SubstitutionList& subst) const = 0;
 
+  /* Checks if this term is equivalent to the given term.  Two terms
+     are equivalent if they are the same name, or if they are both
+     variables. */
+  virtual bool equivalent(const Term& t) const = 0;
+
 protected:
   /* Prints this term on the given stream. */
   virtual void print(ostream& os) const;
@@ -119,6 +124,11 @@ struct Name : public Term {
   /* Returns this term subject to the given substitutions. */
   virtual const Name& substitution(const SubstitutionList& subst) const;
 
+  /* Checks if this term is equivalent to the given term.  Two terms
+     are equivalent if they are the same name, or if they are both
+     variables. */
+  virtual bool equivalent(const Term& t) const;
+
 protected:
   /* Checks if this term equals the given term. */
   virtual bool equals(const Term& t) const;
@@ -140,6 +150,11 @@ struct Variable : public Term {
   /* Returns this term subject to the given substitutions. */
   virtual const Term& substitution(const SubstitutionList& subst) const;
 
+  /* Checks if this term is equivalent to the given term.  Two terms
+     are equivalent if they are the same name, or if they are both
+     variables. */
+  virtual bool equivalent(const Term& t) const;
+
 protected:
   /* Checks if this term equals the given term. */
   virtual bool equals(const Term& t) const;
@@ -159,6 +174,9 @@ struct TermList : public gc, vector<const Term*, container_alloc> {
 
   /* Returns this term list subject to the given substitutions. */
   const TermList& substitution(const SubstitutionList& subst) const;
+
+  /* Checks if this term list is equivalent to the given term list. */
+  bool equivalent(const TermList& terms) const;
 
   /* Equality operator for term lists. */
   bool operator==(const TermList& terms) const;
@@ -223,7 +241,8 @@ struct Formula;
 /*
  * Equality function object for formula pointers.
  */
-struct equal_to<const Formula*> {
+struct equal_to<const Formula*> :
+  binary_function<const Formula*, const Formula*, bool> {
   bool operator()(const Formula* f1, const Formula* f2) const;
 };
 
@@ -274,6 +293,11 @@ struct Formula : public Printable {
   virtual void achievable_predicates(hash_set<string>& preds,
 				     hash_set<string>& neg_preds) const {
   }
+
+  /* Checks if this formula is equivalent to the given formula.  Two
+     formulas is equivalent if they only differ in the choice of
+     variable names. */
+  virtual bool equivalent(const Formula& f) const = 0;
 
 protected:
   /* Checks if this formula equals the given formula. */
@@ -355,6 +379,9 @@ struct FormulaList : public gc, vector<const Formula*, container_alloc> {
   void achievable_predicates(hash_set<string>& preds,
 			     hash_set<string>& neg_preds) const;
 
+  /* Checks if this formula list is equivalent to the given formula list. */
+  bool equivalent(const FormulaList& formulas) const;
+
   /* Equality operator for formula lists. */
   bool operator==(const FormulaList& formulas) const;
 
@@ -370,7 +397,7 @@ typedef FormulaList::const_iterator FLCI;
 
 
 /*
- * Atomic formula.
+ * An atom.
  */
 struct Atom : public Formula {
   /* Predicate of this atomic formula. */
@@ -391,7 +418,7 @@ struct Atom : public Formula {
 				       const Problem& problem) const;
 
   /* Returns this formula subject to the given substitutions. */
-  virtual const Formula& substitution(const SubstitutionList& subst) const;
+  virtual const Atom& substitution(const SubstitutionList& subst) const;
 
   /* Returns the heuristic cost of this formula. */
   virtual Cost cost(const hash_map<const Formula*, Cost>& atom_cost,
@@ -405,6 +432,11 @@ struct Atom : public Formula {
      formula. */
   virtual void achievable_predicates(hash_set<string>& preds,
 				     hash_set<string>& neg_preds) const;
+
+  /* Checks if this formula is equivalent to the given formula.  Two
+     formulas is equivalent if they only differ in the choice of
+     variable names. */
+  virtual bool equivalent(const Formula& f) const;
 
 protected:
   /* Prints this formula on the given stream. */
@@ -425,7 +457,7 @@ protected:
  * Negated atomic formula.
  */
 struct Negation : public Formula {
-  /* The negated atomic formula. */
+  /* The negated atom. */
   const Atom& atom;
 
   /* Returns an instantiation of this formula. */
@@ -446,6 +478,11 @@ struct Negation : public Formula {
      formula. */
   virtual void achievable_predicates(hash_set<string>& preds,
 				     hash_set<string>& neg_preds) const;
+
+  /* Checks if this formula is equivalent to the given formula.  Two
+     formulas is equivalent if they only differ in the choice of
+     variable names. */
+  virtual bool equivalent(const Formula& f) const;
 
 protected:
   /* Prints this formula on the given stream. */
@@ -495,6 +532,11 @@ struct Equality : public Formula {
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
 
+  /* Checks if this formula is equivalent to the given formula.  Two
+     formulas is equivalent if they only differ in the choice of
+     variable names. */
+  virtual bool equivalent(const Formula& f) const;
+
 protected:
   /* Prints this formula on the given stream. */
   virtual void print(ostream& os) const;
@@ -531,6 +573,11 @@ struct Inequality : public Formula {
 
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
+
+  /* Checks if this formula is equivalent to the given formula.  Two
+     formulas is equivalent if they only differ in the choice of
+     variable names. */
+  virtual bool equivalent(const Formula& f) const;
 
 protected:
   /* Prints this formula on the given stream. */
@@ -573,6 +620,11 @@ struct Conjunction : public Formula {
      formula. */
   virtual void achievable_predicates(hash_set<string>& preds,
 				     hash_set<string>& neg_preds) const;
+
+  /* Checks if this formula is equivalent to the given formula.  Two
+     formulas is equivalent if they only differ in the choice of
+     variable names. */
+  virtual bool equivalent(const Formula& f) const;
 
 protected:
   /* Prints this formula on the given stream. */
@@ -623,6 +675,11 @@ struct Disjunction : public Formula {
      formula. */
   virtual void achievable_predicates(hash_set<string>& preds,
 				     hash_set<string>& neg_preds) const;
+
+  /* Checks if this formula is equivalent to the given formula.  Two
+     formulas is equivalent if they only differ in the choice of
+     variable names. */
+  virtual bool equivalent(const Formula& f) const;
 
 protected:
   /* Prints this formula on the given stream. */
@@ -679,6 +736,11 @@ struct ExistsFormula : public QuantifiedFormula {
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
 
+  /* Checks if this formula is equivalent to the given formula.  Two
+     formulas is equivalent if they only differ in the choice of
+     variable names. */
+  virtual bool equivalent(const Formula& f) const;
+
 protected:
   /* Prints this formula on the given stream. */
   virtual void print(ostream& os) const;
@@ -709,6 +771,11 @@ struct ForallFormula : public QuantifiedFormula {
 
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
+
+  /* Checks if this formula is equivalent to the given formula.  Two
+     formulas is equivalent if they only differ in the choice of
+     variable names. */
+  virtual bool equivalent(const Formula& f) const;
 
 protected:
   /* Prints this formula on the given stream. */
