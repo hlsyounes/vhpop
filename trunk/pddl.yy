@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 3.13 2002-05-28 22:17:36 lorens Exp $
+ * $Id: pddl.yy,v 3.14 2002-06-13 23:05:11 lorens Exp $
  */
 %{
 #include "requirements.h"
@@ -204,7 +204,7 @@ domain : '(' define '(' domain name ')'
 	     domain = new Domain(*$5);
 	     delete $5;
 	     requirements = &domain->requirements;
-	     context = " in domain `" + domain->name + "'";
+	     context = " in domain `" + domain->name() + "'";
 	     problem = NULL;
 	   }
          domain_body ')'
@@ -326,7 +326,7 @@ atomic_formula_skeleton : '(' predicate
 action_def : '(' ACTION name
                {
 		 context = (" in action `" + *$3 + "' of domain `"
-			    + domain->name + "'");
+			    + domain->name() + "'");
 		 free_variables.push_frame();
 	       }
              PARAMETERS '(' opt_variables ')' action_body ')'
@@ -344,7 +344,7 @@ action_def : '(' ACTION name
 		   requirements->durative_actions = true;
 		 }
 		 context = (" in action `" + *$3 + "' of domain `"
-			    + domain->name + "'");
+			    + domain->name() + "'");
 		 free_variables.push_frame();
 		 free_variables.insert(&DURATION_VARIABLE);
 		 action_duration = make_pair(0.0f, INFINITY);
@@ -678,7 +678,7 @@ object_decl : '(' OBJECTS
 init : '(' INIT
          {
 	   context =
-	     " in initial conditions of problem `" + problem->name + "'";
+	     " in initial conditions of problem `" + problem->name() + "'";
 	 }
        name_literals ')'
          {
@@ -739,7 +739,7 @@ goal_list : goal { $$ = new FormulaList($1); }
 
 goal : '(' GOAL
          {
-	   context = " in goal of problem `" + problem->name + "'";
+	   context = " in goal of problem `" + problem->name() + "'";
 	   formula_time = Formula::AT_START;
 	 }
        formula ')'
@@ -1232,18 +1232,18 @@ static void add_names(const vector<string>& names, const Type& type) {
  * Adds a predicate to the current domain.
  */
 static void add_predicate(const Predicate& predicate) {
-  if (find_predicate(predicate.name) == NULL) {
-    if (find_type(predicate.name) == NULL) {
+  if (find_predicate(predicate.name()) == NULL) {
+    if (find_type(predicate.name()) == NULL) {
       domain->add_predicate(predicate);
     } else {
-      yywarning("ignoring declaration of predicate `" + predicate.name
-		+ "' in domain `" + domain->name
+      yywarning("ignoring declaration of predicate `" + predicate.name()
+		+ "' in domain `" + domain->name()
 		+ "' previously declared as type");
       delete &predicate;
     }
   } else {
-    yywarning("ignoring repeated declaration of predicate `" + predicate.name
-	      + "' in domain `" + domain->name + "'");
+    yywarning("ignoring repeated declaration of predicate `" + predicate.name()
+	      + "' in domain `" + domain->name() + "'");
     delete &predicate;
   }
 }
@@ -1255,7 +1255,7 @@ static void add_predicate(const Predicate& predicate) {
 static void add_action(const ActionSchema& action) {
   if (domain->find_action(action.name) != NULL) {
     yywarning("ignoring repeated declaration of action `" + action.name
-	      + "' in domain `" + domain->name + "'");
+	      + "' in domain `" + domain->name() + "'");
     delete &action;
   } else {
     domain->add_action(action);
