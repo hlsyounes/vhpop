@@ -1,5 +1,5 @@
 /*
- * $Id: domains.cc,v 1.4 2001-08-11 06:13:17 lorens Exp $
+ * $Id: domains.cc,v 1.5 2001-08-12 06:52:40 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -82,12 +82,6 @@ const Effect& Effect::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Checks if the add list of this effect matches the given formula. */
-bool Effect::matches(const Formula& f) const {
-  return add_list.matches(f);
-}
-
-
 /* Checks if the add list of this effect involves the given
    predicate. */
 bool Effect::involves(const string& predicate) const {
@@ -98,6 +92,14 @@ bool Effect::involves(const string& predicate) const {
 /* Fills the provided list with goals achievable by this effect. */
 void Effect::achievable_goals(FormulaList& goals) const {
   add_list.achievable_goals(goals);
+}
+
+
+/* Fills the provided list with predicates achievable by the
+   effect. */
+void Effect::achievable_predicates(vector<string>& preds,
+				   vector<string>& neg_preds) const {
+  add_list.achievable_predicates(preds, neg_preds);
 }
 
 
@@ -122,9 +124,42 @@ void Effect::print(ostream& os) const {
 }
 
 
+/* Fills the provided list with goals achievable by the effect in
+   this list. */
+void EffectList::achievable_goals(FormulaList& goals) const {
+  for (const_iterator i = begin(); i != end(); i++) {
+    (*i)->achievable_goals(goals);
+  }
+}
+
+
+/* Fills the provided list with predicates achievable by the effects
+   in this list. */
+void EffectList::achievable_predicates(vector<string>& preds,
+				       vector<string>& neg_preds) const {
+  for (const_iterator i = begin(); i != end(); i++) {
+    (*i)->achievable_predicates(preds, neg_preds);
+  }
+}
+
+
 /* Constructs an action. */
 Action::Action(const Formula& precondition, const EffectList& effects)
   : precondition(precondition), effects(effects), cost(precondition.cost()) {
+}
+
+
+/* Fills the provided list with goals achievable by this action. */
+void Action::achievable_goals(FormulaList& goals) const {
+  effects.achievable_goals(goals);
+}
+
+
+/* Fills the provided list with predicates achievable by this
+   action. */
+void Action::achievable_predicates(vector<string>& preds,
+				   vector<string>& neg_preds) const {
+  effects.achievable_predicates(preds, neg_preds);
 }
 
 
