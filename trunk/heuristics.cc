@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 6.4 2003-07-28 01:37:07 lorens Exp $
+ * $Id: heuristics.cc,v 6.5 2003-07-28 21:37:08 lorens Exp $
  */
 #include "heuristics.h"
 #include "plans.h"
@@ -61,34 +61,20 @@ formula_value(const Formula& formula, FormulaTime when, size_t step_id,
 						  step_id, gt)) {
 	    seen_steps.insert(step.id());
 	    const EffectList& effs = step.action().effects();
-	    for (EffectListIter ei = effs.begin(); ei != effs.end(); ei++) {
+	    for (EffectList::const_iterator ei = effs.begin();
+		 ei != effs.end(); ei++) {
 	      const Effect& e = **ei;
 	      StepTime et = end_time(e);
 	      if (plan.orderings().possibly_before(step.id(), et,
 						   step_id, gt)) {
-		if (typeid(*literal) == typeid(Atom)) {
-		  const AtomList& adds = e.add_list();
-		  for (AtomListIter fi = adds.begin();
-		       fi != adds.end(); fi++) {
-		    if ((bindings != NULL && bindings->unify(*literal, step_id,
-							     **fi, step.id()))
-			|| (bindings == NULL
-			    && Bindings::unifiable(*literal, step_id,
-						   **fi, step.id()))) {
-		      return HeuristicValue::ZERO_COST_UNIT_WORK;
-		    }
-		  }
-		} else {
-		  const NegationList& dels = e.del_list();
-		  for (NegationListIter fi = dels.begin();
-		       fi != dels.end(); fi++) {
-		    if ((bindings != NULL && bindings->unify(*literal, step_id,
-							     **fi, step.id()))
-			|| (bindings == NULL
-			    && Bindings::unifiable(*literal, step_id,
-						   **fi, step.id()))) {
-		      return HeuristicValue::ZERO_COST_UNIT_WORK;
-		    }
+		if (typeid(*literal) == typeid(e.literal())) {
+		  if ((bindings != NULL
+		       && bindings->unify(*literal, step_id,
+					  e.literal(), step.id()))
+		      || (bindings == NULL
+			  && Bindings::unifiable(*literal, step_id,
+						 e.literal(), step.id()))) {
+		    return HeuristicValue::ZERO_COST_UNIT_WORK;
 		  }
 		}
 	      }
@@ -413,8 +399,8 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
   /*
    * Add initial conditions at level 0.
    */
-  for (AtomListIter gi = problem.init().add_list().begin();
-       gi != problem.init().add_list().end(); gi++) {
+  for (AtomList::const_iterator gi = problem.init().begin();
+       gi != problem.init().end(); gi++) {
     const Atom& atom = **gi;
     if (problem.domain().predicates().static_predicate(atom.predicate())) {
       atom_values_.insert(std::make_pair(&atom, HeuristicValue::ZERO));
@@ -481,7 +467,7 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
 	  /* First time this action is applicable. */
 	  applicable_actions.insert(&action);
 	}
-	for (EffectListIter ei = action.effects().begin();
+	for (EffectList::const_iterator ei = action.effects().begin();
 	     ei != action.effects().end(); ei++) {
 	  const Effect& effect = **ei;
 	  if (effect.when() == Effect::AT_END && pre_value.infinite()) {
@@ -501,33 +487,33 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
 	    cond_value.add_cost(1);
 
 	    /*
-	     * Update heuristic values of atoms in add list of effect.
+	     * Update heuristic values of literal added by effect.
 	     */
-	    for (AtomListIter gi = effect.add_list().begin();
-		 gi != effect.add_list().end(); gi++) {
-	      const Atom& atom = **gi;
-	      if (find(achieves_, atom, action) == achieves_.end()) {
-		achieves_.insert(std::make_pair(&atom, &action));
-		if (useful_actions.find(&action) == useful_actions.end()) {
-		  useful_actions.insert(&action);
-		}
-		if (verbosity > 4) {
-		  std::cerr << "  ";
-		  action.print(std::cerr, problem.terms(), 0, Bindings());
-		  std::cerr << " achieves ";
-		  atom.print(std::cerr, problem.domain().predicates(),
-			     problem.terms(), 0, Bindings());
-		  std::cerr << std::endl;
-		}
+	    const Literal& literal = effect.literal();
+	    if (find(achieves_, literal, action) == achieves_.end()) {
+	      achieves_.insert(std::make_pair(&literal, &action));
+	      if (useful_actions.find(&action) == useful_actions.end()) {
+		useful_actions.insert(&action);
 	      }
-	      AtomValueMapIter vi = new_atom_values.find(&atom);
+	      if (verbosity > 4) {
+		std::cerr << "  ";
+		action.print(std::cerr, problem.terms(), 0, Bindings());
+		std::cerr << " achieves ";
+		literal.print(std::cerr, problem.domain().predicates(),
+			      problem.terms(), 0, Bindings());
+		std::cerr << std::endl;
+	      }
+	    }
+	    const Atom* atom = dynamic_cast<const Atom*>(&literal);
+	    if (atom != NULL) {
+	      AtomValueMapIter vi = new_atom_values.find(atom);
 	      if (vi == new_atom_values.end()) {
-		vi = atom_values_.find(&atom);
+		vi = atom_values_.find(atom);
 		if (vi == atom_values_.end()) {
 		  /* First level this atom is achieved. */
 		  HeuristicValue new_value = cond_value;
 		  new_value.add_work(1);
-		  new_atom_values.insert(std::make_pair(&atom, new_value));
+		  new_atom_values.insert(std::make_pair(atom, new_value));
 		  changed = true;
 		  continue;
 		}
@@ -538,32 +524,12 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
 	      new_value.add_work(1);
 	      new_value = min(new_value, old_value);
 	      if (new_value < old_value) {
-		new_atom_values[&atom] = new_value;
+		new_atom_values[atom] = new_value;
 		changed = true;
 	      }
-	    }
-
-	    /*
-	     * Update heuristic values of negated atoms in delete list
-	     * of effect.
-	     */
-	    for (NegationListIter gi = effect.del_list().begin();
-		 gi != effect.del_list().end(); gi++) {
-	      const Negation& negation = **gi;
-	      if (find(achieves_, negation, action) == achieves_.end()) {
-		achieves_.insert(std::make_pair(&negation, &action));
-		if (useful_actions.find(&action) == useful_actions.end()) {
-		  useful_actions.insert(&action);
-		}
-		if (verbosity > 4) {
-		  std::cerr << "  ";
-		  action.print(std::cerr, problem.terms(), 0, Bindings());
-		  std::cerr << " achieves ";
-		  negation.print(std::cerr, problem.domain().predicates(),
-				 problem.terms(), 0, Bindings());
-		  std::cerr << std::endl;
-		}
-	      }
+	    } else {
+	      const Negation& negation =
+		dynamic_cast<const Negation&>(literal);
 	      AtomValueMapIter vi = new_negation_values.find(&negation.atom());
 	      if (vi == new_negation_values.end()) {
 		vi = negation_values_.find(&negation.atom());

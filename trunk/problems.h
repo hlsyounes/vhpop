@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: problems.h,v 6.1 2003-07-13 16:10:24 lorens Exp $
+ * $Id: problems.h,v 6.2 2003-07-28 21:39:25 lorens Exp $
  */
 #ifndef PROBLEMS_H
 #define PROBLEMS_H
@@ -76,7 +76,7 @@ struct Problem {
   void set_goal(const Formula& goal);
 
   /* Returns the initial conditions of this problem. */
-  const Effect& init() const { return *init_; }
+  const AtomList& init() const { return init_; }
 
   /* Returns the action representing the initial conditions of this problem. */
   const GroundAction& init_action() const { return init_action_; }
@@ -112,7 +112,7 @@ private:
   /* Problem terms. */
   mutable TermTable terms_;
   /* Initial condition of problem. */
-  Effect* init_;
+  AtomList init_;
   /* Aciton representing initial conditions of problem. */
   GroundAction init_action_;
   /* Goal of problem. */
