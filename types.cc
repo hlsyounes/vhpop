@@ -13,9 +13,10 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: types.cc,v 4.2 2002-07-24 15:07:54 lorens Exp $
+ * $Id: types.cc,v 4.3 2002-09-22 22:07:32 lorens Exp $
  */
 #include "types.h"
+#include "support.h"
 
 
 /*
@@ -35,6 +36,13 @@ struct Subtype : public binary_function<const Type*, const Type*, bool> {
 /* Checks if this type is the object type. */
 bool Type::object() const {
   return this == &SimpleType::OBJECT;
+}
+
+
+/* Output operator for types. */
+ostream& operator<<(ostream& os, const Type& t) {
+  t.print(os);
+  return os;
 }
 
 
@@ -68,15 +76,9 @@ bool SimpleType::subtype(const Type& t) const {
 }
 
 
-/* Checks if this object is less than the given object. */
-bool SimpleType::less(const LessThanComparable& o) const {
-  return this < &o;
-}
-
-
-/* Checks if this object equals the given object. */
-bool SimpleType::equals(const EqualityComparable& o) const {
-  return this == &o;
+/* Checks if this type equals the given type. */
+bool SimpleType::equals(const Type& t) const {
+  return this == &t;
 }
 
 
@@ -154,12 +156,11 @@ bool UnionType::subtype(const Type& t) const {
 }
 
 
-/* Checks if this object equals the given object. */
-bool UnionType::equals(const EqualityComparable& o) const {
-  const UnionType* ut = dynamic_cast<const UnionType*>(&o);
+/* Checks if this type equals the given type. */
+bool UnionType::equals(const Type& t) const {
+  const UnionType* ut = dynamic_cast<const UnionType*>(&t);
   return (ut != NULL && types().size() == ut->types().size()
-	  && equal(types().begin(), types().end(), ut->types().begin(),
-		   equal_to<const EqualityComparable*>()));
+	  && equal(types().begin(), types().end(), ut->types().begin()));
 }
 
 

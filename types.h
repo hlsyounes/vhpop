@@ -16,13 +16,15 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: types.h,v 3.10 2002-06-28 20:13:41 lorens Exp $
+ * $Id: types.h,v 3.11 2002-09-22 22:07:37 lorens Exp $
  */
 #ifndef TYPES_H
 #define TYPES_H
 
+#include <string>
 #include <set>
-#include "support.h"
+
+using namespace std;
 
 
 /* ====================================================================== */
@@ -31,13 +33,36 @@
 /*
  * Abstract type.
  */
-struct Type : public EqualityComparable, public Printable {
+struct Type {
   /* Checks if this type is the object type. */
   bool object() const;
 
   /* Checks if this type is a subtype of the given type. */
   virtual bool subtype(const Type& t) const = 0;
+
+protected:
+  /* Checks if this type equals the given type. */
+  virtual bool equals(const Type& t) const = 0;
+
+  /* Prints this object on the given stream. */
+  virtual void print(ostream& os) const = 0;
+
+  friend bool operator==(const Type& t1, const Type& t2);
+  friend ostream& operator<<(ostream& os, const Type& t);
 };
+
+/* Equality operator for types. */
+inline bool operator==(const Type& t1, const Type& t2) {
+  return t1.equals(t2);
+}
+
+/* Inequality operator for types. */
+inline bool operator!=(const Type& t1, const Type& t2) {
+  return !(t1 == t2);
+}
+
+/* Output operator for types. */
+ostream& operator<<(ostream& os, const Type& t);
 
 
 /* ====================================================================== */
@@ -46,7 +71,7 @@ struct Type : public EqualityComparable, public Printable {
 /*
  * Simple type.
  */
-struct SimpleType : public LessThanComparable, public Type {
+struct SimpleType : public Type {
   /* The object type. */
   static const SimpleType OBJECT;
 
@@ -63,11 +88,8 @@ struct SimpleType : public LessThanComparable, public Type {
   virtual bool subtype(const Type& t) const;
 
 protected:
-  /* Checks if this object is less than the given object. */
-  virtual bool less(const LessThanComparable& o) const;
-
-  /* Checks if this object equals the given object. */
-  virtual bool equals(const EqualityComparable& o) const;
+  /* Checks if this type equals the given type. */
+  virtual bool equals(const Type& t) const;
 
   /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
@@ -84,8 +106,7 @@ private:
 /* TypeSet */
 
 /* Set of simple types. */
-struct TypeSet
-  : public set<const SimpleType*, less<const LessThanComparable*> > {
+struct TypeSet : public set<const SimpleType*> {
 };
 
 /* Iterator for type lists. */
@@ -117,8 +138,8 @@ struct UnionType : public Type {
   virtual bool subtype(const Type& t) const;
 
 protected:
-  /* Checks if this object equals the given object. */
-  virtual bool equals(const EqualityComparable& o) const;
+  /* Checks if this type equals the given type. */
+  virtual bool equals(const Type& t) const;
 
   /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
