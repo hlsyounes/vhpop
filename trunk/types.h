@@ -16,13 +16,14 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: types.h,v 3.13 2002-12-06 01:40:30 lorens Exp $
+ * $Id: types.h,v 3.14 2002-12-08 00:02:58 lorens Exp $
  */
 #ifndef TYPES_H
 #define TYPES_H
 
 #include <string>
 #include <vector>
+#include <map>
 
 
 /* ====================================================================== */
@@ -150,6 +151,19 @@ private:
   /* Constituent types. */
   SimpleTypeList types_;
 };
+
+
+/* ====================================================================== */
+/* TypeMap */
+
+/*
+ * Table of simple types.
+ */
+struct TypeMap : std::map<std::string, SimpleType*> {
+};
+
+/* Iterator for type tables. */
+typedef TypeMap::const_iterator TypeMapIter;
 
 
 #endif /* TYPES_H */
