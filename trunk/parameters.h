@@ -2,7 +2,7 @@
 /*
  * Planning parameters.
  *
- * Copyright (C) 2002 Carnegie Mellon University
+ * Copyright (C) 2003 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: parameters.h,v 3.8 2002-12-16 17:35:14 lorens Exp $
+ * $Id: parameters.h,v 3.9 2003-03-01 18:48:07 lorens Exp $
  */
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
@@ -59,8 +59,8 @@ struct Parameters {
   std::vector<FlawSelectionOrder> flaw_orders;
   /* Search limits. */
   std::vector<size_t> search_limits;
-  /* Whether to reverse the order that open conditions are added. */
-  bool reverse_open_conditions;
+  /* Whether to add open conditions in random order. */
+  bool random_open_conditions;
   /* Whether to use ground actions. */
   bool ground_actions;
   /* Whether to use parameter domain constraints. */
