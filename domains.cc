@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.cc,v 3.15 2002-06-30 23:03:16 lorens Exp $
+ * $Id: domains.cc,v 4.1 2002-07-22 22:42:58 lorens Exp $
  */
 #include <stack>
 #include "bindings.h"
@@ -55,6 +55,12 @@ const Type& Predicate::type(size_t i) const {
 /* Adds a parameter to this predicate. */
 void Predicate::add_parameter(const Type& type) {
   parameters_.push_back(&type);
+}
+
+
+/* Equality operator for predicates. */
+bool operator==(const Predicate& p1, const Predicate& p2) {
+  return &p1 == &p2;
 }
 
 
@@ -221,14 +227,15 @@ const Effect& Effect::substitution(const SubstitutionList& subst) const {
 
 /* Fills the provided sets with predicates achievable by the
    effect. */
-void Effect::achievable_predicates(hash_set<string>& preds,
-				   hash_set<string>& neg_preds) const {
+void
+Effect::achievable_predicates(PredicateSet& preds,
+			      PredicateSet& neg_preds) const {
   for (AtomListIter gi = add_list().begin(); gi != add_list().end(); gi++) {
-    preds.insert((*gi)->predicate());
+    preds.insert(&(*gi)->predicate());
   }
   for (NegationListIter gi = del_list().begin();
        gi != del_list().end(); gi++) {
-    neg_preds.insert((*gi)->predicate());
+    neg_preds.insert(&(*gi)->predicate());
   }
 }
 
@@ -341,8 +348,8 @@ EffectList::substitution(const SubstitutionList& subst) const {
 
 /* Fills the provided sets with predicates achievable by the effects
    in this list. */
-void EffectList::achievable_predicates(hash_set<string>& preds,
-				       hash_set<string>& neg_preds) const {
+void EffectList::achievable_predicates(PredicateSet& preds,
+				       PredicateSet& neg_preds) const {
   for (const_iterator i = begin(); i != end(); i++) {
     (*i)->achievable_predicates(preds, neg_preds);
   }
@@ -461,8 +468,8 @@ Action::Action(const string& name, const Formula& precondition,
 
 /* Fills the provided sets with predicates achievable by this
    action. */
-void Action::achievable_predicates(hash_set<string>& preds,
-				   hash_set<string>& neg_preds) const {
+void Action::achievable_predicates(PredicateSet& preds,
+				   PredicateSet& neg_preds) const {
   if (min_duration() <= max_duration()) {
     effects().achievable_predicates(preds, neg_preds);
   }
@@ -491,7 +498,7 @@ ActionSchema::ActionSchema(const string& name, const VariableList& parameters,
 const Atom& ActionSchema::action_formula() const {
   TermList& terms = *(new TermList());
   copy(parameters().begin(), parameters().end(), back_inserter(terms));
-  return *(new Atom(name(), terms, Formula::AT_START));
+  return *(new Atom(*(new Predicate(name())), terms, Formula::AT_START));
 }
 
 
@@ -648,7 +655,7 @@ const Atom& GroundAction::action_formula() const {
   if (formula_ == NULL) {
     TermList& terms = *(new TermList());
     copy(arguments().begin(), arguments().end(), back_inserter(terms));
-    formula_ = new Atom(name(), terms, Formula::AT_START);
+    formula_ = new Atom(*(new Predicate(name())), terms, Formula::AT_START);
   }
   return *formula_;
 }
@@ -780,16 +787,16 @@ void Domain::add_constant(const Name& constant) {
 /* Adds a predicate to this domain. */
 void Domain::add_predicate(const Predicate& predicate) {
   predicates_.insert(make_pair(predicate.name(), &predicate));
-  static_predicates_.insert(predicate.name());
+  static_predicates_.insert(&predicate);
 }
 
 
 /* Adds an action to this domain. */
 void Domain::add_action(const ActionSchema& action) {
   actions_.insert(make_pair(action.name(), &action));
-  hash_set<string> achievable_preds;
+  PredicateSet achievable_preds;
   action.achievable_predicates(achievable_preds, achievable_preds);
-  for (hash_set<string>::const_iterator pi = achievable_preds.begin();
+  for (PredicateSetIter pi = achievable_preds.begin();
        pi != achievable_preds.end(); pi++) {
     static_predicates_.erase(*pi);
   }
@@ -842,8 +849,8 @@ void Domain::compatible_constants(NameList& constants, const Type& t) const {
 
 
 /* Tests if the given predicate is static. */
-bool Domain::static_predicate(const string& predicate) const {
-  return (static_predicates_.find(predicate) != static_predicates_.end());
+bool Domain::static_predicate(const Predicate& predicate) const {
+  return (static_predicates_.find(&predicate) != static_predicates_.end());
 }
 
 

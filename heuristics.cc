@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 3.20 2002-07-18 22:41:06 lorens Exp $
+ * $Id: heuristics.cc,v 4.1 2002-07-22 22:40:26 lorens Exp $
  */
 #include <set>
 #include <typeinfo>
@@ -671,7 +671,7 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
   for (AtomValueMapIter vi = atom_values.begin();
        vi != atom_values.end(); vi++) {
     const Atom& atom = *(*vi).first;
-    predicate_atoms.insert(make_pair(atom.predicate(), &atom));
+    predicate_atoms.insert(make_pair(&atom.predicate(), &atom));
   }
 
   /*
@@ -680,7 +680,7 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
   for (AtomValueMapIter vi = negation_values.begin();
        vi != negation_values.end(); vi++) {
     const Atom& atom = *(*vi).first;
-    predicate_negations.insert(make_pair(atom.predicate(), &atom));
+    predicate_negations.insert(make_pair(&atom.predicate(), &atom));
   }
 
   if (verbosity > 0) {
@@ -731,7 +731,7 @@ HeuristicValue PlanningGraph::heuristic_value(const Atom& atom,
     /* Take minimum value of ground atoms that unify. */
     HeuristicValue value = HeuristicValue::INFINITE;
     pair<PredicateAtomsMapIter, PredicateAtomsMapIter> bounds =
-      predicate_atoms.equal_range(atom.predicate());
+      predicate_atoms.equal_range(&atom.predicate());
     for (PredicateAtomsMapIter gi = bounds.first; gi != bounds.second; gi++) {
       const Atom& a = *(*gi).second;
       if (bindings->unify(atom, a)) {
@@ -769,7 +769,7 @@ HeuristicValue PlanningGraph::heuristic_value(const Negation& negation,
     }
     HeuristicValue value = HeuristicValue::INFINITE;
     pair<PredicateAtomsMapIter, PredicateAtomsMapIter> bounds =
-      predicate_negations.equal_range(negation.predicate());
+      predicate_negations.equal_range(&negation.predicate());
     for (PredicateAtomsMapIter gi = bounds.first; gi != bounds.second; gi++) {
       const Atom& a = *(*gi).second;
       if (bindings->unify(atom, a)) {
