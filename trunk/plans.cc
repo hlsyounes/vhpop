@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 6.4 2003-07-21 18:16:52 lorens Exp $
+ * $Id: plans.cc,v 6.5 2003-07-28 01:39:37 lorens Exp $
  */
 #include "mathport.h"
 #include "plans.h"
@@ -236,10 +236,27 @@ static bool add_goal(const Chain<OpenCondition>*& open_conds,
 	      } else {
 		goals.push_back(&exists->body());
 	      }
-	    } else if (dynamic_cast<const Forall*>(goal) != NULL) {
-	      throw Exception("adding universally quantified goal");
 	    } else {
-	      throw Exception("unknown kind of goal");
+	      const Forall* forall = dynamic_cast<const Forall*>(goal);
+	      if (forall != NULL) {
+		const Formula& g = forall->universal_base(SubstitutionMap(),
+							  *problem);
+		if (params->random_open_conditions) {
+		  size_t pos =
+		    size_t((goals.size() + 1.0)*rand()/(RAND_MAX + 1.0));
+		  if (pos == goals.size()) {
+		    goals.push_back(&g);
+		  } else {
+		    const Formula* tmp = goals[pos];
+		    goals[pos] = &g;
+		    goals.push_back(tmp);
+		  }
+		} else {
+		  goals.push_back(&g);
+		}
+	      } else {
+		throw Exception("unknown kind of goal");
+	      }
 	    }
 	  }
 	}
@@ -1957,7 +1974,7 @@ std::ostream& operator<<(std::ostream& os, const Plan& p) {
    */
   const BinaryOrderings* orderings =
     dynamic_cast<const BinaryOrderings*>(&p.orderings());
-  if (orderings != NULL) {
+  if (p.complete() && orderings != NULL) {
     const Orderings& new_orderings =
       disable_interference(ordered_steps, p.links(),
 			   *orderings, *p.bindings_);
