@@ -2,7 +2,7 @@
 /*
  * Domain descriptions.
  *
- * $Id: domains.h,v 1.12 2001-08-20 04:10:14 lorens Exp $
+ * $Id: domains.h,v 1.13 2001-09-03 20:06:07 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -106,8 +106,9 @@ struct Effect : public gc {
   /* Returns this effect subject to the given substitutions. */
   const Effect& substitution(const SubstitutionList& subst) const;
 
-  /* Fills the provided list with goals achievable by this effect. */
-  void achievable_goals(FormulaList& goals) const;
+  /* Fills the provided lists with goals achievable by this effect. */
+  void achievable_goals(FormulaList& goals,
+			FormulaList& neg_goals) const;
 
   /* Fills the provided sets with predicates achievable by the
      effect. */
@@ -151,9 +152,10 @@ struct EffectList : public gc, vector<const Effect*, container_alloc> {
   /* Returns this effect list subject to the given substitutions. */
   const EffectList& substitution(const SubstitutionList& subst) const;
 
-  /* Fills the provided list with goals achievable by the effect in
+  /* Fills the provided lists with goals achievable by the effect in
      this list. */
-  void achievable_goals(FormulaList& goals) const;
+  void achievable_goals(FormulaList& goals,
+			FormulaList& neg_goals) const;
 
   /* Fills the provided sets with predicates achievable by the effects
      in this list. */
@@ -185,8 +187,9 @@ struct Action : public gc {
   virtual void instantiations(ActionList& actions,
 			      const Problem& problem) const = 0;
 
-  /* Fills the provided list with goals achievable by this action. */
-  void achievable_goals(FormulaList& goals) const;
+  /* Fills the provided lists with goals achievable by this action. */
+  void achievable_goals(FormulaList& goals,
+			FormulaList& neg_goals) const;
 
   /* Fills the provided sets with predicates achievable by this
      action. */

@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.11 2001-08-20 04:12:00 lorens Exp $
+ * $Id: plans.h,v 1.12 2001-09-03 20:06:28 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -399,10 +399,14 @@ private:
   /* Rank of this plan. */
   mutable int rank1_;
   mutable int rank2_;
-  /* The hardest open condition. */
-  mutable const OpenCondition* hardest_open_cond_;
-  /* The easiest open condition. */
-  mutable const OpenCondition* easiest_open_cond_;
+  /* The most costly open condition. */
+  mutable const OpenCondition* most_cost_open_cond_;
+  /* The least costly open condition. */
+  mutable const OpenCondition* least_cost_open_cond_;
+  /* The open condition requiring most work. */
+  mutable const OpenCondition* most_work_open_cond_;
+  /* The open condition requiring least work. */
+  mutable const OpenCondition* least_work_open_cond_;
 
   /* Returns the initial plan representing the given problem, or NULL
      if goals of problem are inconsistent. */
@@ -427,7 +431,8 @@ private:
       type_((parent != NULL && parent->type_ == INTERMEDIATE_PLAN) ?
 	    TRANSFORMED_PLAN : type),
       rank1_(-1), rank2_(-1),
-      hardest_open_cond_(NULL), easiest_open_cond_(NULL) {
+      most_cost_open_cond_(NULL), least_cost_open_cond_(NULL),
+      most_work_open_cond_(NULL), least_work_open_cond_(NULL) {
     if (type_ != INTERMEDIATE_PLAN) {
     }
   }
