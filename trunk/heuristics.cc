@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 3.19 2002-07-16 22:25:52 lorens Exp $
+ * $Id: heuristics.cc,v 3.20 2002-07-18 22:41:06 lorens Exp $
  */
 #include <set>
 #include <typeinfo>
@@ -1327,10 +1327,14 @@ FlawSelectionOrder& FlawSelectionOrder::operator=(const string& name) {
     return *this = "{n,s}LR/{o}MC_add";
   } else if (strcasecmp(n, "MC-Loc") == 0) {
     return *this = "{n,s}LR/{l}MC_add";
+  } else if (strcasecmp(n, "MC-Loc-Conf") == 0) {
+    return *this = "{n,s}LR/[u}MC_add/{l}MC_add";
   } else if (strcasecmp(n, "MW") == 0) {
     return *this = "{n,s}LR/{o}MW_add";
   } else if (strcasecmp(n, "MW-Loc") == 0) {
     return *this = "{n,s}LR/{l}MW_add";
+  } else if (strcasecmp(n, "MW-Loc-Conf") == 0) {
+    return *this = "{n,s}LR/{u}MW_add/{l}MW_add";
   }
   selection_criteria_.clear();
   needs_pg_ = false;
