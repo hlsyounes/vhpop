@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 3.15 2002-06-26 23:25:46 lorens Exp $
+ * $Id: pddl.yy,v 3.16 2002-06-26 23:35:00 lorens Exp $
  */
 %{
 #include "requirements.h"
@@ -1106,7 +1106,7 @@ static string tostring(unsigned int n) {
  * Outputs an error message.
  */
 static void yyerror(const string& s) {
-  cerr << PROGRAM_NAME << ':' << current_file << ':' << line_number << ": "
+  cerr << PACKAGE << ':' << current_file << ':' << line_number << ": "
        << s << context << endl;
   success = false;
 }
@@ -1117,7 +1117,7 @@ static void yyerror(const string& s) {
  */
 static void yywarning(const string& s) {
   if (warning_level > 0) {
-    cerr << PROGRAM_NAME << ':' << current_file << ':' << line_number << ": "
+    cerr << PACKAGE << ':' << current_file << ':' << line_number << ": "
 	 << s << context << endl;
     if (warning_level > 1) {
       success = false;
