@@ -1,5 +1,5 @@
 /*
- * $Id: bindings.cc,v 1.16 2002-01-04 20:25:06 lorens Exp $
+ * $Id: bindings.cc,v 1.17 2002-01-09 16:16:39 lorens Exp $
  */
 #include <typeinfo>
 #include "bindings.h"
@@ -25,6 +25,8 @@ struct Varset : public gc {
   const Name* const constant;
   /* The codesignation list. */
   const VariableChain* const cd_set;
+  /* The non-codesignation list. */
+  const VariableChain* const ncd_set;
 
   /* Checks if this varset includes the given name. */
   bool includes(const Name& name) const {
@@ -166,11 +168,25 @@ struct Varset : public gc {
 	 const VariableChain* ncd_set)
     : constant(constant), cd_set(cd_set), ncd_set(ncd_set) {
   }
-
-private:
-  /* The non-codesignation list. */
-  const VariableChain* const ncd_set;
 };
+
+/* Output operator for varsets. */
+ostream& operator<<(ostream& os, const Varset& vs) {
+  os << "CD{";
+  for (const VariableChain* vc = vs.cd_set; vc != NULL; vc = vc->tail) {
+    os << ' ' << *vc->head;
+  }
+  os << " }";
+  if (vs.constant != NULL) {
+    os << ' ' << *vs.constant;
+  }
+  os << " NCD{";
+  for (const VariableChain* vc = vs.ncd_set; vc != NULL; vc = vc->tail) {
+    os << ' ' << *vc->head;
+  }
+  os << " }";
+  return os;
+}
 
 
 /*
@@ -935,7 +951,7 @@ const Bindings* Bindings::add(const BindingList& new_bindings) const {
 	high_step_vars.insert(sv);
 	vs2 = NULL;
       }
-      if (vs1 == vs2) {
+      if (vs1 != NULL && vs2 != NULL && vs1 == vs2) {
 	/* The terms are already bound to eachother. */
 	return NULL;
       } else {
@@ -1073,6 +1089,7 @@ const Bindings* Bindings::add(size_t step_id, const Action* step_action,
 
 /* Prints this binding collection on the given stream. */
 void Bindings::print(ostream& os) const {
+#if 0
   os << "{";
   for (const BindingChain* b = equalities; b != NULL; b = b->tail) {
     os << ' ' << *b->head;
@@ -1081,6 +1098,11 @@ void Bindings::print(ostream& os) const {
     os << ' ' << *b->head;
   }
   os << " }";
+#else
+  for (const VarsetChain* vc = varsets_; vc != NULL; vc = vc->tail) {
+    os << ' ' << *vc->head;
+  }
+#endif
   hash_set<size_t> seen_steps;
   for (const StepDomainChain* s = step_domains_; s != NULL; s = s->tail) {
     if (seen_steps.find(s->head->id) == seen_steps.end()) {
