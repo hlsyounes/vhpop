@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.39 2001-12-29 22:16:36 lorens Exp $
+ * $Id: plans.cc,v 1.40 2001-12-30 14:36:49 lorens Exp $
  */
 #include <queue>
 #include <algorithm>
@@ -19,6 +19,16 @@
 #include "debug.h"
 
 
+/*
+ * Mapping of predicate names to actions.
+ */
+struct PredicateActionsMap : public HashMultimap<string, const Action*> {
+};
+
+/* Iterator for PredicateActionsMap. */
+typedef PredicateActionsMap::const_iterator PredicateActionsMapIter;
+
+
 /* Planning parameters. */
 static const Parameters* params;
 /* Domain of problem currently being solved. */
@@ -26,9 +36,9 @@ static const Domain* domain = NULL;
 /* Planning graph. */
 static const PlanningGraph* planning_graph;
 /* Maps predicates to actions. */
-static hash_map<string, ActionList> achieves_pred;
+static PredicateActionsMap achieves_pred;
 /* Maps negated predicates to actions. */
-static hash_map<string, ActionList> achieves_neg_pred;
+static PredicateActionsMap achieves_neg_pred;
 /* Whether last flaw was a static predicate. */
 static bool static_pred_flaw = false;
 
@@ -255,29 +265,28 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
       || params->flaw_order.needs_planning_graph()) {
     planning_graph = new PlanningGraph(problem);
   }
-  achieves_pred.clear();
-  achieves_neg_pred.clear();
   if (!params->ground_actions) {
+    achieves_pred.clear();
+    achieves_neg_pred.clear();
     for (ActionSchemaMapIter ai = domain->actions.begin();
 	 ai != domain->actions.end(); ai++) {
-      const ActionSchema* action = (*ai).second;
+      const ActionSchema* as = (*ai).second;
       if (params->domain_constraints) {
-#ifdef INEQUALITY_AS_BRANCHING
-	action = &action->strip_static(*domain);
-#else
-	action = &action->strip_equality();
+#ifndef KEEP_STATIC_PRECONDITIONS
+	as = &as->strip_static(*domain);
 #endif
+	as = &as->strip_equality();
       }
       hash_set<string> preds;
       hash_set<string> neg_preds;
-      action->achievable_predicates(preds, neg_preds);
-      for (hash_set<string>::const_iterator j = preds.begin();
-	   j != preds.end(); j++) {
-	achieves_pred[*j].push_back(action);
+      as->achievable_predicates(preds, neg_preds);
+      for (hash_set<string>::const_iterator si = preds.begin();
+	   si != preds.end(); si++) {
+	achieves_pred.insert(make_pair(*si, as));
       }
-      for (hash_set<string>::const_iterator j = neg_preds.begin();
-	   j != neg_preds.end(); j++) {
-	achieves_neg_pred[*j].push_back(action);
+      for (hash_set<string>::const_iterator si = neg_preds.begin();
+	   si != neg_preds.end(); si++) {
+	achieves_neg_pred.insert(make_pair(*si, as));
       }
     }
   }
@@ -295,8 +304,12 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
   const Plan* current_plan = make_initial_plan(problem);
   current_plan->id = 0;
   num_generated_plans++;
+
+  /* Variable for progress bar (number of generated plans). */
   size_t last_dot = 0;
+  /* Variable for progress bar (time). */
   size_t last_hash = 0;
+
   /*
    * Search for complete plan.
    */
@@ -313,18 +326,19 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
       /* Time limit exceeded. */
       break;
     }
+
     /*
-     * This is a new plan.
+     * Visiting a new plan.
      */
     num_visited_plans++;
     if (verbosity == 1) {
-      if (num_generated_plans - num_static - last_dot >= 1000) {
+      while (num_generated_plans - num_static - last_dot >= 1000) {
 	cout << '.';
-	last_dot = 1000*((num_generated_plans - num_static) / 1000);
+	last_dot += 1000;
       }
-      if (t - 60.0*last_hash >= 60.0) {
+      while (t - 60.0*last_hash >= 60.0) {
 	cout << '#';
-	last_hash = size_t(t/60.0);
+	last_hash++;
       }
     }
     if (verbosity > 1) {
@@ -343,27 +357,33 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
     current_plan->refinements(refinements);
     /* Add children to queue of pending plans. */
     bool added = false;
-    for (PlanListIter i = refinements.begin(); i != refinements.end(); i++) {
-      (*i)->id = num_generated_plans;
-      if ((*i)->primary_rank() < INT_MAX) {
+    for (PlanListIter pi = refinements.begin();
+	 pi != refinements.end(); pi++) {
+      const Plan& new_plan = **pi;
+      /* N.B. Must set id before computing rank, because it may be used. */
+      new_plan.id = num_generated_plans;
+      if (new_plan.primary_rank() < INT_MAX) {
 	added = true;
-	plans.push(*i);
+	plans.push(&new_plan);
 	num_generated_plans++;
 	if (verbosity > 2) {
-	  cout << endl << "####CHILD (id " << (*i)->id << ")"
-	       << " with rank (" << (*i)->primary_rank();
-	  for (size_t ri = 1; ri < (*i)->rank_.size(); ri++) {
-	    cout << ',' << (*i)->rank_[ri];
+	  cout << endl << "####CHILD (id " << new_plan.id << ")"
+	       << " with rank (" << new_plan.primary_rank();
+	  for (size_t ri = 1; ri < new_plan.rank_.size(); ri++) {
+	    cout << ',' << new_plan.rank_[ri];
 	  }
 	  cout << "):" << endl
-	       << **i << endl;
+	       << new_plan << endl;
 	}
       }
     }
     if (added && static_pred_flaw) {
       num_static++;
     }
-    /* Process next plan. */
+
+    /*
+     * Process next plan.
+     */
     do {
       if (plans.empty()) {
 	/* Problem lacks solution. */
@@ -373,10 +393,9 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
 	plans.pop();
       }
     } while (current_plan != NULL && current_plan->duplicate());
-#ifdef HILLCLIMB_TRANSFORMATIONAL
-    if (params->transformational) {
-      plans = PlanQueue();
-    }
+#ifdef HILL_CLIMBING
+    /* Discard the rest of the plan queue. */
+    plans = PlanQueue();
 #endif
   }
   if (verbosity > 0) {
@@ -418,8 +437,10 @@ const Flaw& Plan::get_flaw() const {
   const Flaw& flaw =
     params->flaw_order.select(unsafes_, open_conds_, planning_graph, *domain,
 			      (params->ground_actions ? NULL : &bindings_));
-  const OpenCondition* open_cond = dynamic_cast<const OpenCondition*>(&flaw);
-  static_pred_flaw = (open_cond != NULL && open_cond->is_static(*domain));
+  if (!params->ground_actions) {
+    const OpenCondition* open_cond = dynamic_cast<const OpenCondition*>(&flaw);
+    static_pred_flaw = (open_cond != NULL && open_cond->is_static(*domain));
+  }
   return flaw;
 }
 
@@ -972,18 +993,18 @@ void Plan::add_step(PlanList& new_plans,
   if (params->ground_actions) {
     planning_graph->achieves_formula(actions, open_cond.literal);
   } else if (typeid(open_cond.literal) == typeid(Atom)) {
-    hash_map<string, ActionList>::const_iterator sali =
-      achieves_pred.find(open_cond.literal.predicate());
-    if (sali != achieves_pred.end()) {
-      copy((*sali).second.begin(), (*sali).second.end(),
-	   back_inserter(actions));
+    pair<PredicateActionsMapIter, PredicateActionsMapIter> bounds =
+      achieves_pred.equal_range(open_cond.literal.predicate());
+    for (PredicateActionsMapIter pai = bounds.first;
+	 pai != bounds.second; pai++) {
+      actions.push_back((*pai).second);
     }
   } else {
-    hash_map<string, ActionList>::const_iterator sali =
-      achieves_neg_pred.find(open_cond.literal.predicate());
-    if (sali != achieves_neg_pred.end()) {
-      copy((*sali).second.begin(), (*sali).second.end(),
-	   back_inserter(actions));
+    pair<PredicateActionsMapIter, PredicateActionsMapIter> bounds =
+      achieves_neg_pred.equal_range(open_cond.literal.predicate());
+    for (PredicateActionsMapIter pai = bounds.first;
+	 pai != bounds.second; pai++) {
+      actions.push_back((*pai).second);
     }
   }
   size_t step_id = high_step_id_ + 1;
