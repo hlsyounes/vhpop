@@ -1,5 +1,5 @@
 /*
- * $Id: parameters.cc,v 1.3 2002-01-04 20:25:29 lorens Exp $
+ * $Id: parameters.cc,v 1.4 2002-01-06 21:45:59 lorens Exp $
  */
 #include "parameters.h"
 #include "heuristics.h"
@@ -21,7 +21,8 @@ Parameters::Parameters()
   : search_limit(2000), time_limit(1440), search_algorithm(A_STAR),
     heuristic(*(new Heuristic("SUM"))), weight(1.0),
     flaw_order(*(new FlawSelectionOrder("UCPOP"))),
-    ground_actions(false), domain_constraints(false),
+    reverse_open_conditions(false), ground_actions(false),
+    domain_constraints(false), keep_static_preconditions(true),
     transformational(false) {}
 
 
