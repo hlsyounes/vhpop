@@ -2,7 +2,7 @@
 /*
  * Formulas.
  *
- * $Id: formulas.h,v 1.18 2001-10-06 00:44:51 lorens Exp $
+ * $Id: formulas.h,v 1.19 2001-10-06 03:56:26 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -454,7 +454,30 @@ protected:
 
 
 /*
- * Negated atomic formula.
+ * List of atoms.
+ */
+struct AtomList : public gc, vector<const Atom*, container_alloc> {
+  /* Constructs an empty atom list. */
+  AtomList() {
+  }
+
+  /* Constructs an atom list with a single atom. */
+  AtomList(const Atom* atom)
+    : vector<const Atom*, container_alloc>(1, atom) {
+  }
+
+  /* Returns an instantiation of this atom list. */
+  const AtomList& instantiation(size_t id) const;
+
+  /* Returns this atom list subject to the given substitutions. */
+  const AtomList& substitution(const SubstitutionList& subst) const;
+};
+
+typedef AtomList::const_iterator AtomListIter;
+
+
+/*
+ * Negated atom.
  */
 struct Negation : public Formula {
   /* The negated atom. */
