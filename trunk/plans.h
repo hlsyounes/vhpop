@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.8 2001-08-11 06:17:43 lorens Exp $
+ * $Id: plans.h,v 1.9 2001-08-12 06:59:28 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -69,6 +69,25 @@ protected:
  * Chain of open conditions.
  */
 typedef Chain<const OpenCondition*> OpenConditionChain;
+
+
+/*
+ * A predicate open condition.
+ */
+struct PredicateOpenCondition : public OpenCondition {
+  /* Predicate. */
+  const string& predicate;
+  /* Whether the predicate is negated. */
+  const bool negated;
+
+  /* Constructs an open condition. */
+  PredicateOpenCondition(const Formula& condition, size_t step_id,
+			 const Reason& reason, const string& predicate,
+			 bool negated = false)
+    : OpenCondition(condition, step_id, reason),
+      predicate(predicate), negated(negated) {
+  }
+};
 
 
 struct Link;
@@ -317,7 +336,7 @@ struct Plan : public gc {
   static const size_t GOAL_ID;
 
   /* Returns plan for given problem. */
-  static const Plan* plan(const Problem& problem, Heuristic h, int e, bool g,
+  static const Plan* plan(const Problem& problem, Heuristic h, bool g,
 			  bool t, size_t limit, int v);
 
   /* Checks if this plan is complete. */
@@ -368,8 +387,6 @@ private:
   const OpenConditionChain* const open_conds_;
   /* Number of open conditions. */
   const size_t num_open_conds_;
-  /* Number of static open condition. */
-  const size_t num_static_open_conds_;
   /* Start of old open conditions. */
   const OpenConditionChain* const old_open_conds_;
   /* Binding constraints of this plan. */
@@ -395,14 +412,13 @@ private:
        const LinkChain* links, size_t num_links,
        const UnsafeChain* unsafes, size_t num_unsafes,
        const OpenConditionChain* open_conds, size_t num_open_conds,
-       size_t num_static_open_conds, const OpenConditionChain* old_open_conds,
+       const OpenConditionChain* old_open_conds,
        const Bindings& bindings, const Orderings& orderings,
        const Plan* parent, PlanType type = NORMAL_PLAN)
     : steps_(steps), num_steps_(num_steps), high_step_id_(high_id),
       links_(links), num_links_(num_links),
       unsafes_(unsafes), num_unsafes_(num_unsafes),
       open_conds_(open_conds), num_open_conds_(num_open_conds),
-      num_static_open_conds_(num_static_open_conds),
       old_open_conds_(old_open_conds),
       bindings_(bindings), orderings_(orderings),
       parent_((parent != NULL && parent->type_ == INTERMEDIATE_PLAN) ?
@@ -442,28 +458,26 @@ private:
   void handle_disjunction(PlanList& new_plans,
 			  const OpenCondition& open_cond) const;
 
-  void add_step(PlanList& new_plans, const OpenCondition& open_cond) const;
+  void add_step(PlanList& new_plans,
+		const PredicateOpenCondition& open_cond) const;
 
   void link_preconditions(PlanList& new_plans) const;
 
-  void reuse_step(PlanList& new_plans, const OpenCondition& open_cond,
-		  bool early_linking = false) const;
+  void reuse_step(PlanList& new_plans,
+		  const PredicateOpenCondition& open_cond) const;
 
   bool new_link(PlanList& new_plans, const Step& step,
 		const OpenCondition& open_cond, const Link& link,
-		const Reason& establish_reason,
-		bool early_linking = false) const;
+		const Reason& establish_reason) const;
 
   void new_cw_link(PlanList& new_plans, const Step& step,
 		   const OpenCondition& open_cond, const Link& link,
-		   const Reason& establish_reason,
-		   bool early_linking = false) const;
+		   const Reason& establish_reason) const;
 
   const Plan* make_link(const Step& step, const Effect& effect,
 			const OpenCondition& open_cond, const Link& link,
 			const Reason& establish_reason,
-			const SubstitutionList& unifier,
-			bool early_linking = false) const;
+			const SubstitutionList& unifier) const;
 
   void print(ostream& os) const;
 
