@@ -1,5 +1,5 @@
 /*
- * $Id: heuristics.cc,v 1.8 2001-11-08 19:22:11 lorens Exp $
+ * $Id: heuristics.cc,v 1.9 2001-12-23 22:08:54 lorens Exp $
  */
 #include <set>
 #include "heuristics.h"
@@ -8,24 +8,6 @@
 #include "problems.h"
 #include "debug.h"
 #include "plans.h"
-
-
-/* Selects a heuristic from a name. */
-Heuristic& Heuristic::operator=(const string& name) {
-  const char* n = name.c_str();
-  if (strcasecmp(n, "MAX") == 0) {
-    set_max();
-  } else if (strcasecmp(n, "SUM") == 0) {
-    set_sum();
-  } else if (strcasecmp(n, "SUMR") == 0) {
-    set_sum_reuse();
-  } else if (strcasecmp(n, "UCPOP") == 0) {
-    set_ucpop();
-  } else {
-    throw InvalidHeuristic(name);
-  }
-  return *this;
-}
 
 
 /* Returns the sum of two integers, avoiding overflow. */
@@ -547,32 +529,136 @@ const ActionDomain* PlanningGraph::action_domain(const string& name) const {
 }
 
 
+/* Selects a heuristic from a name. */
+Heuristic& Heuristic::operator=(const string& name) {
+  h_.clear();
+  needs_pg_ = false;
+  return *this += name;
+}
+
+
+/* Adds another heuristic to this heuristic. */
+Heuristic& Heuristic::operator+=(const string& name) {
+  const char* n = name.c_str();
+  if (strcasecmp(n, "LIFO") == 0) {
+    h_.push_back(LIFO);
+  } else if (strcasecmp(n, "FIFO") == 0) {
+    h_.push_back(FIFO);
+  } else if (strcasecmp(n, "OC") == 0) {
+    h_.push_back(OC);
+  } else if (strcasecmp(n, "UC") == 0) {
+    h_.push_back(UC);
+  } else if (strcasecmp(n, "BUC") == 0) {
+    h_.push_back(BUC);
+  } else if (strcasecmp(n, "S+OC") == 0) {
+    h_.push_back(S_PLUS_OC);
+  } else if (strcasecmp(n, "UCPOP") == 0) {
+    h_.push_back(UCPOP);
+  } else if (strcasecmp(n, "SUM") == 0) {
+    h_.push_back(SUM);
+    needs_pg_ = true;
+  } else if (strcasecmp(n, "SUM_COST") == 0) {
+    h_.push_back(SUM_COST);
+    needs_pg_ = true;
+  } else if (strcasecmp(n, "SUM_WORK") == 0) {
+    h_.push_back(SUM_WORK);
+    needs_pg_ = true;
+  } else {
+    throw InvalidHeuristic(name);
+  }
+  return *this;
+}
+
+
+/* Checks if this heuristic needs a planning graph. */
+bool Heuristic::needs_planning_graph() const {
+  return needs_pg_;
+}
+
+
+void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
+			  double weight,
+			  const PlanningGraph* planning_graph) const {
+  bool sum_done = false;
+  int sum_cost = 0;
+  int sum_work = 0;
+  for (vector<HVal>::const_iterator hi = h_.begin(); hi != h_.end(); hi++) {
+    HVal h = *hi;
+    switch (h) {
+    case LIFO:
+      rank.push_back(-plan.serial_no());
+      break;
+    case FIFO:
+      rank.push_back(plan.serial_no());
+      break;
+    case OC:
+      rank.push_back(plan.num_open_conds());
+      break;
+    case UC:
+      rank.push_back(plan.num_unsafes());
+      break;
+    case BUC:
+      rank.push_back((plan.num_unsafes() > 0) ? 1 : 0);
+      break;
+    case S_PLUS_OC:
+      rank.push_back(plan.num_steps() + weight*plan.num_open_conds());
+      break;
+    case UCPOP:
+      rank.push_back(plan.num_steps()
+		     + weight*(plan.num_open_conds() + plan.num_unsafes()));
+      break;
+    case SUM:
+    case SUM_COST:
+    case SUM_WORK:
+      if (!sum_done) {
+	for (const OpenConditionChain* occ = plan.open_conds();
+	     occ != NULL; occ = occ->tail) {
+	  HeuristicValue v =
+	    occ->head->condition.heuristic_value(*planning_graph,
+						 plan.bindings());
+	  sum_cost += v.sum_cost();
+	  sum_work += v.sum_work();
+	}
+      }
+      if (h != SUM_WORK) {
+	rank.push_back(plan.num_steps() + weight*sum_cost);
+      }
+      if (h != SUM_COST) {
+	rank.push_back(sum_work);
+      }
+      break;
+    }
+  }
+}
+
+
 /* Selects a flaw selection order from a name. */
 FlawSelectionOrder& FlawSelectionOrder::operator=(const string& name) {
   const char* n = name.c_str();
-  if (strcasecmp(n, "MAX") == 0) {
-    heuristic_ = MAX;
-  } else if (strcasecmp(n, "SUM") == 0 || strcasecmp(n, "SUMR") == 0) {
+  if (strcasecmp(n, "MC_SUM") == 0) {
+    primary_ = COST;
+    extreme_ = MOST;
     heuristic_ = SUM;
-  } else if (strcasecmp(n, "UCPOP") == 0) {
-  } else if (strcasecmp(n, "MC") == 0) {
-    primary_ = COST;
-    extreme_ = MOST;
-  } else if (strcasecmp(n, "LC") == 0) {
+  } else if (strcasecmp(n, "LC_SUM") == 0) {
     primary_ = COST;
     extreme_ = LEAST;
-  } else if (strcasecmp(n, "MW") == 0) {
+    heuristic_ = SUM;
+  } else if (strcasecmp(n, "MW_SUM") == 0) {
     primary_ = WORK;
     extreme_ = MOST;
-  } else if (strcasecmp(n, "LW") == 0) {
+    heuristic_ = SUM;
+  } else if (strcasecmp(n, "LW_SUM") == 0) {
     primary_ = WORK;
     extreme_ = LEAST;
+    heuristic_ = SUM;
   } else if (strcasecmp(n, "LIFO") == 0) {
     secondary_ = LIFO;
   } else if (strcasecmp(n, "FIFO") == 0) {
     secondary_ = FIFO;
   } else if (strcasecmp(n, "RANDOM") == 0) {
     secondary_ = RANDOM;
+  } else if (strcasecmp(n, "STATIC") == 0) {
+    static_first_ = true;
   } else {
     throw InvalidFlawSelectionOrder(name);
   }
@@ -580,33 +666,33 @@ FlawSelectionOrder& FlawSelectionOrder::operator=(const string& name) {
 }
 
 
-/* Sets the flaw value heuristic, but only if it is unspecified. */
-void FlawSelectionOrder::set_heuristic(const Heuristic& h) {
-  if (heuristic_ == UNSPEC) {
-    if (h.max()) {
-      heuristic_ = MAX;
-    } else if (h.sum() || h.sum_reuse()) {
-      heuristic_ = SUM;
-    }
-  } else if (h.ucpop()) {
-    primary_ = NONE;
-  }
+/* Checks if this flaw order needs a planning graph. */
+bool FlawSelectionOrder::needs_planning_graph() const {
+  return heuristic_ == SUM || heuristic_ == MAX;
 }
 
 
 /* Selects an open condition from the given list. */
-const OpenCondition*
-FlawSelectionOrder::select(const Chain<const OpenCondition*>* open_conds,
-			   const PlanningGraph& pg,
+const Flaw&
+FlawSelectionOrder::select(const Chain<const Unsafe*>* unsafes,
+			   const Chain<const OpenCondition*>* open_conds,
+			   const PlanningGraph* pg, const Domain& domain,
 			   const Bindings* bindings) const {
-  if (open_conds == NULL) {
-    return NULL;
+  if (open_conds == NULL || (!static_first_ && unsafes != NULL)) {
+    return *unsafes->head;
   }
   const OpenCondition* best_oc = open_conds->head;
-  if (primary_ == NONE && secondary_ == LIFO) {
-    return best_oc;
+  const PredicateOpenCondition* poc =
+    dynamic_cast<const PredicateOpenCondition*>(best_oc);
+  bool best_is_static = poc != NULL && domain.static_predicate(poc->predicate);
+  if (primary_ == NONE && secondary_ == LIFO
+      && (!static_first_ || best_is_static)) {
+    return *best_oc;
   }
-  HeuristicValue best_value = best_oc->condition.heuristic_value(pg, bindings);
+  HeuristicValue best_value;
+  if (pg != NULL) {
+    best_oc->condition.heuristic_value(*pg, bindings);
+  }
   if (verbosity > 2) {
     cout << endl << *best_oc << " with value " << best_value
 	 << " (best)" << endl;
@@ -615,11 +701,13 @@ FlawSelectionOrder::select(const Chain<const OpenCondition*>* open_conds,
   for (const OpenConditionChain* oci = open_conds->tail;
        oci != NULL; oci = oci->tail) {
     const OpenCondition* oc = oci->head;
+    poc = dynamic_cast<const PredicateOpenCondition*>(oc);
+    bool is_static = poc != NULL && domain.static_predicate(poc->predicate);
     bool better = false;
     bool equal = true;
     HeuristicValue value;
     if (heuristic_ != UNSPEC && primary_ != NONE) {
-      value = oc->condition.heuristic_value(pg, bindings);
+      value = oc->condition.heuristic_value(*pg, bindings);
       if (heuristic_ == MAX) {
 	if (primary_ == COST) {
 	  better = ((extreme_ == MOST)
@@ -656,6 +744,15 @@ FlawSelectionOrder::select(const Chain<const OpenCondition*>* open_conds,
 	}
       }
     }
+    if (static_first_) {
+      if (is_static && !best_is_static) {
+	better = true;
+	equal = false;
+      } else if (!is_static && best_is_static) {
+	better = false;
+	equal = false;
+      }
+    }
     if (verbosity > 2) {
       cout << *oc << " with value " << value;
     }
@@ -666,17 +763,22 @@ FlawSelectionOrder::select(const Chain<const OpenCondition*>* open_conds,
     }
     if (better
 	|| (equal && (secondary_ == FIFO
-		      || (secondary_ == RANDOM && drand48() < 1.0/streak)))) {
+		      || (secondary_ == RANDOM && rand01ex() < 1.0/streak)))) {
       if (verbosity > 2) {
 	cout << " (best)" << endl;
       }
       best_oc = oc;
       best_value = value;
+      best_is_static = is_static;
     } else if (verbosity > 2) {
       cout << endl;
     }
   }
-  return best_oc;
+  if (!best_is_static && unsafes != NULL) {
+    return *unsafes->head;
+  } else {
+    return *best_oc;
+  }
 }
 
 

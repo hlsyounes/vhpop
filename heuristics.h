@@ -2,7 +2,7 @@
 /*
  * Heuristics.
  *
- * $Id: heuristics.h,v 1.8 2001-10-18 21:16:08 lorens Exp $
+ * $Id: heuristics.h,v 1.9 2001-12-23 22:08:47 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
@@ -17,87 +17,13 @@ struct Negation;
 struct NameList;
 struct ActionList;
 struct Action;
+struct Domain;
 struct Problem;
 struct Bindings;
+struct Flaw;
+struct Unsafe;
 struct OpenCondition;
-
-
-/*
- * An invalid heuristic exception.
- */
-struct InvalidHeuristic : public Exception {
-  /* Constructs an invalid heuristic exception. */
-  InvalidHeuristic(const string& name)
-    : Exception("invalid heuristic `" + name + "'") {
-  }
-};
-
-
-/*
- * Heuristic.
- *
- * The MAX heuristic estimates the parallel cost of a plan.  The SUM
- * heuristic estimates the sequential cost of a plan.  The SUMR
- * heuristic is a variant of the SUM heuristic, trying to be more
- * clever about reuse of steps.  The UCPOP is from the UCPOP planner.
- */
-struct Heuristic {
-private:
-  typedef enum { MAX, SUM, SUMR, UCPOP } HVal;
-
-public:
-  /* Constructs a heuristic from a name. */
-  Heuristic(const string& name = "SUMR") {
-    *this = name;
-  }
-
-  /* Selects a heuristic from a name. */
-  Heuristic& operator=(const string& name);
-
-  /* Selects the MAX heuristic. */
-  void set_max() {
-    h_ = MAX;
-  }
-
-  /* Checks if the MAX heuristic is selected. */
-  bool max() const {
-    return h_ == MAX;
-  }
-
-  /* Selects the SUM heuristic. */
-  void set_sum() {
-    h_ = SUM;
-  }
-
-  /* Checks if the SUM (or SUMR) heuristic is selected. */
-  bool sum() const {
-    return h_ == SUM || h_ == SUMR;
-  }
-
-  /* Selects the SUMR heuristic. */
-  void set_sum_reuse() {
-    h_ = SUMR;
-  }
-
-  /* Checks if the SUMR heuristic is selected. */
-  bool sum_reuse() const {
-    return h_ == SUMR;
-  }
-
-  /* Selects the UCPOP heuristic. */
-  void set_ucpop() {
-    h_ = UCPOP;
-  }
-
-  /* Checks if the UCPOP heuristic is selected. */
-  bool ucpop() const {
-    return h_ == UCPOP;
-  }
-
-private:
-  /* The selected heuristic. */
-  HVal h_;
-};
+struct Plan;
 
 
 /*
@@ -269,6 +195,56 @@ private:
 
 
 /*
+ * An invalid heuristic exception.
+ */
+struct InvalidHeuristic : public Exception {
+  /* Constructs an invalid heuristic exception. */
+  InvalidHeuristic(const string& name)
+    : Exception("invalid heuristic `" + name + "'") {
+  }
+};
+
+
+/*
+ * Heuristic.
+ *
+ * The MAX heuristic estimates the parallel cost of a plan.  The SUM
+ * heuristic estimates the sequential cost of a plan.  The SUMR
+ * heuristic is a variant of the SUM heuristic, trying to be more
+ * clever about reuse of steps.  The UCPOP is from the UCPOP planner.
+ */
+struct Heuristic {
+private:
+  typedef enum { LIFO, FIFO, OC, UC, BUC, S_PLUS_OC, UCPOP,
+		 SUM, SUM_COST, SUM_WORK } HVal;
+
+public:
+  /* Constructs a heuristic from a name. */
+  Heuristic(const string& name = "SUM") {
+    *this = name;
+  }
+
+  /* Selects a heuristic from a name. */
+  Heuristic& operator=(const string& name);
+
+  /* Adds another heuristic to this heuristic. */
+  Heuristic& operator+=(const string& name);
+
+  /* Checks if this heuristic needs a planning graph. */
+  bool needs_planning_graph() const;
+
+  void plan_rank(vector<double>& rank, const Plan& plan, double weight,
+		 const PlanningGraph* planning_graph) const;
+
+private:
+  /* The selected heuristics. */
+  vector<HVal> h_;
+  /* Whether a planning graph is needed by this heuristic. */
+  bool needs_pg_;
+};
+
+
+/*
  * An invalid flaw selection order exception.
  */
 struct InvalidFlawSelectionOrder : public Exception {
@@ -296,20 +272,22 @@ private:
 public:
   /* Constructs a default flaw selection order. */
   FlawSelectionOrder(const string& name = "LIFO")
-    : heuristic_(UNSPEC), primary_(NONE), extreme_(MOST), secondary_(LIFO) {
+    : heuristic_(UNSPEC), primary_(NONE), extreme_(MOST), secondary_(LIFO),
+      static_first_(false) {
     *this = name;
   }
 
   /* Selects a flaw selection order from a name. */
   FlawSelectionOrder& operator=(const string& name);
 
-  /* Sets the flaw value heuristic, but only if it is unspecified. */
-  void set_heuristic(const Heuristic& h);
+  /* Checks if this flaw order needs a planning graph. */
+  bool needs_planning_graph() const;
 
-  /* Selects an open condition from the given list. */
-  const OpenCondition* select(const Chain<const OpenCondition*>* open_conds,
-			      const PlanningGraph& pg,
-			      const Bindings* bindings = NULL) const;
+  /* Selects a flaw from the given lists. */
+  const Flaw& select(const Chain<const Unsafe*>* unsafes,
+		     const Chain<const OpenCondition*>* open_conds,
+		     const PlanningGraph* pg, const Domain& domain,
+		     const Bindings* bindings = NULL) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -324,6 +302,8 @@ private:
   PrimaryExtreme extreme_;
   /* Secondary order. */
   SecondaryOrder secondary_;
+  /* Whether to select static preconditions before other flaws. */
+  bool static_first_;
 };
 
 #endif /* HEURISTICS_H */

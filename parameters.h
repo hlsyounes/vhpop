@@ -2,7 +2,7 @@
 /*
  * Planning parameters.
  *
- * $Id: parameters.h,v 1.2 2001-11-08 19:22:18 lorens Exp $
+ * $Id: parameters.h,v 1.3 2001-12-23 22:08:40 lorens Exp $
  */
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
@@ -17,6 +17,8 @@
 struct Parameters : public gc {
   /* Search limit. */
   size_t search_limit;
+  /* Time limit, in minutes. */
+  size_t time_limit;
   /* Whether to use ground actions. */
   bool ground_actions;
   /* Whether to use transformational planner. */
@@ -24,16 +26,16 @@ struct Parameters : public gc {
   /* Plan selection heuristic. */
   Heuristic heuristic;
   /* Weight to use with heuristic. */
-  int weight;
+  double weight;
   /* Flaw selecion order. */
   FlawSelectionOrder flaw_order;
   /* Whether to use parameter domain constraints. */
   bool domain_constraints;
 
   Parameters()
-    : search_limit(2000), ground_actions(false), transformational(false),
-      heuristic("SUMR"), weight(1), flaw_order("LIFO"),
-      domain_constraints(false) {
+    : search_limit(2000), time_limit(1440), ground_actions(false),
+      transformational(false), heuristic("SUM"), weight(1.0),
+      flaw_order("LIFO"), domain_constraints(false) {
   }
 };
 
