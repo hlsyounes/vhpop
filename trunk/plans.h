@@ -2,123 +2,30 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.28 2001-12-28 19:58:53 lorens Exp $
+ * $Id: plans.h,v 1.29 2001-12-29 16:39:34 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
 
-#include <vector>
-#include <stack>
 #include <utility>
 #include "support.h"
 #include "domains.h"
-#include "problems.h"
 #include "bindings.h"
 
+struct Problem;
 struct Reason;
-
-
-/*
- * Abstract flaw.
- */
-struct Flaw : public Printable, public gc {
-};
-
-
-/*
- * Open condition.
- */
-struct OpenCondition : public Flaw {
-  /* Id of step to which this open condition belongs. */
-  const size_t step_id;
-  /* Reason for open condition. */
-  const Reason& reason;
-
-  /* Constructs an open condition. */
-  OpenCondition(size_t step_id, const Reason& reason);
-
-  /* Returns the open condition. */
-  virtual const Formula& condition() const = 0;
-
-  /* Checks if this is a static open condition. */
-  virtual bool is_static(const Domain& domain) const = 0;
-
-protected:
-  /* Prints this open condition on the given stream. */
-  virtual void print(ostream& os) const;
-};
+struct Flaw;
+struct OpenCondition;
+struct LiteralOpenCondition;
+struct InequalityOpenCondition;
+struct DisjunctiveOpenCondition;
+struct Unsafe;
 
 
 /*
  * Chain of open conditions.
  */
 typedef Chain<const OpenCondition*> OpenConditionChain;
-
-
-/*
- * A literal open condition.
- */
-struct LiteralOpenCondition : public OpenCondition {
-  /* Literal. */
-  const Literal& literal;
-
-  /* Constructs a literal open condition. */
-  LiteralOpenCondition(const Literal& condition, size_t step_id,
-		       const Reason& reason);
-
-  /* Returns the open condition. */
-  virtual const Formula& condition() const;
-
-  /* Checks if this is a static open condition. */
-  virtual bool is_static(const Domain& domain) const;
-};
-
-
-/*
- * A formula open condition.
- */
-struct FormulaOpenCondition : public OpenCondition {
-  /* Constructs a formula open condition. */
-  FormulaOpenCondition(const Formula& condition, size_t step_id,
-		       const Reason& reason);
-
-  /* Returns the open condition. */
-  virtual const Formula& condition() const;
-
-  /* Checks if this is a static open condition. */
-  virtual bool is_static(const Domain& domain) const;
-
-private:
-  /* The open condition. */
-  const Formula& condition_;
-};
-
-
-struct Link;
-
-/*
- * Threatened causal link.
- */
-struct Unsafe : public Flaw {
-  /* Threatened link. */
-  const Link& link;
-  /* Id of threatening step. */
-  const size_t step_id;
-  /* Threatening effect. */
-  const Effect& effect;
-  /* Specific part of effect that threatens link. */
-  const Literal& effect_add;
-
-  /* Constructs a threatened causal link. */
-  Unsafe(const Link& link, size_t step_id, const Effect& effect,
-	 const Literal& effect_add)
-    : link(link), step_id(step_id), effect(effect), effect_add(effect_add) {
-  }
-
-protected:
-  /* Prints this threatened causal link on the given stream. */
-  virtual void print(ostream& os) const;
-};
 
 
 /*
@@ -141,10 +48,7 @@ struct Link : public Printable, public gc {
   const Reason& reason;
 
   /* Constructs a causal link. */
-  Link(size_t from_id, const LiteralOpenCondition& open_cond)
-    : from_id(from_id), to_id(open_cond.step_id),
-      condition(open_cond.literal), reason(open_cond.reason) {
-  }
+  Link(size_t from_id, const LiteralOpenCondition& open_cond);
 
 protected:
   /* Prints this causal link. */
@@ -374,8 +278,6 @@ private:
   const OpenConditionChain* const open_conds_;
   /* Number of open conditions. */
   const size_t num_open_conds_;
-  /* Number of static open conditions. */
-  const size_t num_static_;
   /* Binding constraints of this plan. */
   const Bindings& bindings_;
   /* Ordering constraints of this plan. */
@@ -398,13 +300,13 @@ private:
        const LinkChain* links, size_t num_links,
        const UnsafeChain* unsafes, size_t num_unsafes,
        const OpenConditionChain* open_conds, size_t num_open_conds,
-       size_t num_static, const Bindings& bindings, const Orderings& orderings,
+       const Bindings& bindings, const Orderings& orderings,
        const Plan* parent, PlanType type = NORMAL_PLAN)
     : steps_(steps), num_steps_(num_steps), high_step_id_(high_id),
       links_(links), num_links_(num_links),
       unsafes_(unsafes), num_unsafes_(num_unsafes),
       open_conds_(open_conds), num_open_conds_(num_open_conds),
-      num_static_(num_static), bindings_(bindings), orderings_(orderings),
+      bindings_(bindings), orderings_(orderings),
 #if 0
       parent_((parent != NULL && parent->type_ == INTERMEDIATE_PLAN) ?
 	      parent->parent_ : parent),
@@ -441,10 +343,10 @@ private:
 			     const OpenCondition& open_cond) const;
 
   void handle_disjunction(PlanList& new_plans,
-			  const OpenCondition& open_cond) const;
+			  const DisjunctiveOpenCondition& open_cond) const;
 
   void handle_inequality(PlanList& new_plans,
-			 const OpenCondition& open_cond) const;
+			 const InequalityOpenCondition& open_cond) const;
 
   void add_step(PlanList& new_plans,
 		const LiteralOpenCondition& open_cond) const;
