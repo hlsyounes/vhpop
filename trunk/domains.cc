@@ -1,5 +1,5 @@
 /*
- * $Id: domains.cc,v 1.13 2001-09-18 15:45:16 lorens Exp $
+ * $Id: domains.cc,v 1.14 2001-09-28 16:23:12 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -264,6 +264,9 @@ void ActionSchema::instantiations(ActionList& actions,
   for (VLCI i = parameters.begin(); i != parameters.end(); i++) {
     arguments.push_back(new NameList());
     problem.compatible_objects(*arguments.back(), (*i)->type);
+    if (arguments.back()->empty()) {
+      return;
+    }
     next_arg.push_back(arguments.back()->begin());
   }
   SubstitutionList args;
