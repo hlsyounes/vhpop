@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.h,v 6.8 2003-09-05 16:19:45 lorens Exp $
+ * $Id: bindings.h,v 6.9 2003-12-05 21:13:10 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
@@ -219,13 +219,15 @@ struct Bindings {
 
   /* Checks if the given formulas can be unified. */
   static bool unifiable(const Literal& l1, size_t id1,
-			const Literal& l2, size_t id2);
+			const Literal& l2, size_t id2,
+			const TypeTable& types, const TermTable& terms);
 
   /* Checks if the given formulas can be unified; the most general
      unifier is added to the provided substitution list. */
   static bool unifiable(BindingList& mgu,
 			const Literal& l1, size_t id1,
-			const Literal& l2, size_t id2);
+			const Literal& l2, size_t id2,
+			const TypeTable& types, const TermTable& terms);
 
   /* Deletes this binding collection. */
   ~Bindings();
@@ -241,22 +243,24 @@ struct Bindings {
   /* Checks if one of the given formulas is the negation of the other,
      and the atomic formulas can be unified. */
   bool affects(const Literal& l1, size_t id1, const Literal& l2, size_t id2,
-	       const Problem* problem) const;
+	       const TypeTable& types, const TermTable& terms) const;
 
   /* Checks if one of the given formulas is the negation of the other,
      and the atomic formulas can be unified; the most general unifier
      is added to the provided substitution list. */
   bool affects(BindingList& mgu, const Literal& l1, size_t id1,
-	       const Literal& l2, size_t id2, const Problem* problem) const;
+	       const Literal& l2, size_t id2,
+	       const TypeTable& types, const TermTable& terms) const;
 
   /* Checks if the given formulas can be unified. */
   bool unify(const Literal& l1, size_t id1, const Literal& l2, size_t id2,
-	     const Problem* problem) const;
+	     const TypeTable& types, const TermTable& terms) const;
 
   /* Checks if the given formulas can be unified; the most general
      unifier is added to the provided substitution list. */
   bool unify(BindingList& mgu, const Literal& l1, size_t id1,
-	     const Literal& l2, size_t id2, const Problem* problem) const;
+	     const Literal& l2, size_t id2,
+	     const TypeTable& types, const TermTable& terms) const;
 
   /* Checks if the given equality is consistent with the current
      bindings. */
@@ -270,6 +274,7 @@ struct Bindings {
      bindings to this binding collection, or NULL if the new bindings
      are inconsistent with the current. */
   const Bindings* add(const BindingList& new_bindings,
+		      const TypeTable& types, const TermTable& terms,
 		      bool test_only = false) const;
 
   /* Returns the binding collection obtained by adding the constraints
