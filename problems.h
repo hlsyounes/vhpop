@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: problems.h,v 6.4 2003-08-27 17:03:51 lorens Exp $
+ * $Id: problems.h,v 6.5 2003-08-27 22:13:27 lorens Exp $
  */
 #ifndef PROBLEMS_H
 #define PROBLEMS_H
@@ -91,11 +91,6 @@ struct Problem {
 
   /* Returns a new variable for this problem. */
   Variable new_variable(Type type) const;
-
-  /* Prints the given term on the given stream with the given
-     bindings. */
-  void print_term(std::ostream& os, Term term, size_t step_id,
-		  const Bindings& bindings) const;
 
 private:
   /* Table of defined problems. */

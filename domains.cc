@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.cc,v 6.5 2003-08-24 23:17:55 lorens Exp $
+ * $Id: domains.cc,v 6.6 2003-08-27 22:13:54 lorens Exp $
  */
 #include "domains.h"
 #include "bindings.h"
@@ -141,7 +141,7 @@ std::ostream& operator<<(std::ostream& os, const Domain& d) {
   for (Object i = d.terms().first_object();
        i <= d.terms().last_object(); i++) {
     os << std::endl << "  ";
-    d.terms().print_term(os, i, 0, Bindings());
+    d.terms().print_term(os, i);
     os << " - ";
     d.types().print_type(os, d.terms().type(i));
   }
