@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.h,v 6.1 2003-07-13 16:07:00 lorens Exp $
+ * $Id: plans.h,v 6.2 2003-07-13 16:51:28 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -85,15 +85,6 @@ inline bool operator==(const Link& l1, const Link& l2) {
 
 
 /* ====================================================================== */
-/* LinkChain */
-
-/*
- * Chain of causal links.
- */
-typedef CollectibleChain<Link> LinkChain;
-
-
-/* ====================================================================== */
 /* Step */
 
 /*
@@ -126,15 +117,6 @@ private:
 
 
 /* ====================================================================== */
-/* StepChain */
-
-/*
- * Chain of plan steps.
- */
-typedef CollectibleChain<Step> StepChain;
-
-
-/* ====================================================================== */
 /* Plan */
 
 /*
@@ -155,13 +137,13 @@ struct Plan {
   ~Plan();
 
   /* Returns the steps of this plan. */
-  const StepChain* steps() const { return steps_; }
+  const Chain<Step>* steps() const { return steps_; }
 
   /* Returns the number of unique steps in this plan. */
   size_t num_steps() const { return num_steps_; }
   
   /* Returns the links of this plan. */
-  const LinkChain* links() const { return links_; }
+  const Chain<Link>* links() const { return links_; }
 
   /* Returns the number of links in this plan. */
   size_t num_links() const { return num_links_; }
@@ -173,13 +155,13 @@ struct Plan {
   const Bindings* bindings() const;
 
   /* Returns the potentially threatened links of this plan. */
-  const UnsafeChain* unsafes() const { return unsafes_; }
+  const Chain<Unsafe>* unsafes() const { return unsafes_; }
 
   /* Returns the number of potentially threatened links in this plan. */
   size_t num_unsafes() const { return num_unsafes_; }
 
   /* Returns the open conditions of this plan. */
-  const OpenConditionChain* open_conds() const { return open_conds_; }
+  const Chain<OpenCondition>* open_conds() const { return open_conds_; }
 
   /* Returns the number of open conditions in this plan. */
   size_t num_open_conds() const { return num_open_conds_; }
@@ -240,13 +222,13 @@ private:
   typedef PlanList::const_iterator PlanListIter;
 
   /* Chain of steps. */
-  const StepChain* steps_;
+  const Chain<Step>* steps_;
   /* Number of unique steps in plan. */
   size_t num_steps_;
   /* Highest step id that has been used so far. */
   size_t high_step_id_;
   /* Chain of causal links. */
-  const LinkChain* links_;
+  const Chain<Link>* links_;
   /* Number of causal links. */
   size_t num_links_;
   /* Ordering constraints of this plan. */
@@ -254,11 +236,11 @@ private:
   /* Binding constraints of this plan. */
   const Bindings* bindings_;
   /* Chain of potentially threatened links. */
-  const UnsafeChain* unsafes_;
+  const Chain<Unsafe>* unsafes_;
   /* Number of potentially threatened links. */
   size_t num_unsafes_;
   /* Chain of open conditions. */
-  const OpenConditionChain* open_conds_;
+  const Chain<OpenCondition>* open_conds_;
   /* Number of open conditions. */
   const size_t num_open_conds_;
   /* Rank of this plan. */
@@ -275,11 +257,11 @@ private:
   static const Plan* make_initial_plan(const Problem& problem);
 
   /* Constructs a plan. */
-  Plan(const StepChain* steps, size_t num_steps,
-       const LinkChain* links, size_t num_links,
+  Plan(const Chain<Step>* steps, size_t num_steps,
+       const Chain<Link>* links, size_t num_links,
        const Orderings& orderings, const Bindings& bindings,
-       const UnsafeChain* unsafes, size_t num_unsafes,
-       const OpenConditionChain* open_conds, size_t num_open_conds,
+       const Chain<Unsafe>* unsafes, size_t num_unsafes,
+       const Chain<OpenCondition>* open_conds, size_t num_open_conds,
        const Plan* parent);
 
   /* Returns the next flaw to work on. */
@@ -358,7 +340,7 @@ private:
      given open condition. */
   const Plan* make_link(const Step& step, const Effect& effect,
 			const Literal& literal, const OpenCondition& open_cond,
-			const LinkChain* new_links,
+			const Chain<Link>* new_links,
 			const BindingList& unifier) const;
 
   /* Checks if this plan is a duplicate of a previous plan. */

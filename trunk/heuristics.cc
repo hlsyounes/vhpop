@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 6.1 2003-07-13 16:02:15 lorens Exp $
+ * $Id: heuristics.cc,v 6.2 2003-07-13 16:51:20 lorens Exp $
  */
 #include "heuristics.h"
 #include "plans.h"
@@ -54,7 +54,7 @@ formula_value(const Formula& formula, size_t step_id, const Plan& plan,
       StepTime gt = start_time(*literal);
       if (!domain.predicates().static_predicate(literal->predicate())) {
 	hashing::hash_set<size_t> seen_steps;
-	for (const StepChain* sc = plan.steps(); sc != NULL; sc = sc->tail) {
+	for (const Chain<Step>* sc = plan.steps(); sc != NULL; sc = sc->tail) {
 	  const Step& step = sc->head;
 	  if (step.id() != 0 && seen_steps.find(step.id()) == seen_steps.end()
 	      && plan.orderings().possibly_before(step.id(), STEP_START,
@@ -1037,7 +1037,7 @@ void Heuristic::plan_rank(std::vector<float>& rank, const Plan& plan,
     case ADD_WORK:
       if (!add_done) {
 	add_done = true;
-	for (const OpenConditionChain* occ = plan.open_conds();
+	for (const Chain<OpenCondition>* occ = plan.open_conds();
 	     occ != NULL; occ = occ->tail) {
 	  const OpenCondition& open_cond = occ->head;
 	  HeuristicValue v =
@@ -1072,7 +1072,7 @@ void Heuristic::plan_rank(std::vector<float>& rank, const Plan& plan,
     case ADDR_WORK:
       if (!addr_done) {
 	addr_done = true;
-	for (const OpenConditionChain* occ = plan.open_conds();
+	for (const Chain<OpenCondition>* occ = plan.open_conds();
 	     occ != NULL; occ = occ->tail) {
 	  const OpenCondition& open_cond = occ->head;
 	  HeuristicValue v =
@@ -1111,7 +1111,7 @@ void Heuristic::plan_rank(std::vector<float>& rank, const Plan& plan,
 	hashing::hash_map<size_t, float> end_dist;
 	max_cost = max_steps =
 	  int(plan.orderings().schedule(start_dist, end_dist) + 0.5);
-	for (const OpenConditionChain* occ = plan.open_conds();
+	for (const Chain<OpenCondition>* occ = plan.open_conds();
 	     occ != NULL; occ = occ->tail) {
 	  const OpenCondition& open_cond = occ->head;
 	  HeuristicValue v =
@@ -1152,7 +1152,7 @@ void Heuristic::plan_rank(std::vector<float>& rank, const Plan& plan,
 	hashing::hash_map<size_t, float> end_dist;
 	maxr_cost = max_steps =
 	  int(plan.orderings().schedule(start_dist, end_dist) + 0.5);
-	for (const OpenConditionChain* occ = plan.open_conds();
+	for (const Chain<OpenCondition>* occ = plan.open_conds();
 	     occ != NULL; occ = occ->tail) {
 	  const OpenCondition& open_cond = occ->head;
 	  HeuristicValue v =
@@ -1731,7 +1731,7 @@ int FlawSelectionOrder::select_unsafe(FlawSelection& selection,
     return INT_MAX;
   }
   /* Loop through usafes. */
-  for (const UnsafeChain* uc = plan.unsafes();
+  for (const Chain<Unsafe>* uc = plan.unsafes();
        uc != NULL && first_criterion <= last_criterion; uc = uc->tail) {
     const Unsafe& unsafe = uc->head;
     if (verbosity > 1) {
@@ -1905,7 +1905,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
   }
   size_t local_id = 0;
   /* Loop through open conditions. */
-  for (const OpenConditionChain* occ = plan.open_conds();
+  for (const Chain<OpenCondition>* occ = plan.open_conds();
        occ != NULL && first_criterion <= last_criterion; occ = occ->tail) {
     const OpenCondition& open_cond = occ->head;
     if (verbosity > 1) {

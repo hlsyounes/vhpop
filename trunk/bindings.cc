@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.cc,v 6.1 2003-07-13 15:50:02 lorens Exp $
+ * $Id: bindings.cc,v 6.2 2003-07-13 16:51:05 lorens Exp $
  */
 #include "bindings.h"
 #include "plans.h"
@@ -45,12 +45,6 @@ typedef VariableSet::const_iterator VariableSetIter;
 
 
 /* ====================================================================== */
-/* VariableChain */
-
-typedef CollectibleChain<StepVariable> VariableChain;
-
-
-/* ====================================================================== */
 /* Varset */
 
 /*
@@ -58,34 +52,34 @@ typedef CollectibleChain<StepVariable> VariableChain;
  */
 struct Varset {
   /* Constructs a varset. */
-  Varset(Object constant, const VariableChain* cd_set,
-	 const VariableChain* ncd_set)
+  Varset(Object constant, const Chain<StepVariable>* cd_set,
+	 const Chain<StepVariable>* ncd_set)
     : constant_(constant), cd_set_(cd_set), ncd_set_(ncd_set) {
-    VariableChain::register_use(cd_set_);
-    VariableChain::register_use(ncd_set_);
+    Chain<StepVariable>::register_use(cd_set_);
+    Chain<StepVariable>::register_use(ncd_set_);
   }
 
   /* Constructs a varset. */
   Varset(const Varset& vs)
     : constant_(vs.constant_), cd_set_(vs.cd_set_), ncd_set_(vs.ncd_set_) {
-    VariableChain::register_use(cd_set_);
-    VariableChain::register_use(ncd_set_);
+    Chain<StepVariable>::register_use(cd_set_);
+    Chain<StepVariable>::register_use(ncd_set_);
   }
 
   /* Deletes this varset. */
   ~Varset() {
-    VariableChain::unregister_use(cd_set_);
-    VariableChain::unregister_use(ncd_set_);
+    Chain<StepVariable>::unregister_use(cd_set_);
+    Chain<StepVariable>::unregister_use(ncd_set_);
   }
 
   /* The constant of this varset, or NULL. */
   Object constant() const { return constant_; }
 
   /* The codesignation list. */
-  const VariableChain* cd_set() const { return cd_set_; }
+  const Chain<StepVariable>* cd_set() const { return cd_set_; }
 
   /* The non-codesignation list. */
-  const VariableChain* ncd_set() const { return ncd_set_; }
+  const Chain<StepVariable>* ncd_set() const { return ncd_set_; }
 
   /* Checks if this varset includes the given name. */
   bool includes(Object name) const {
@@ -94,7 +88,7 @@ struct Varset {
 
   /* Checks if this varset includes the given variable. */
   bool includes(Variable var, size_t step_id) const {
-    for (const VariableChain* vc = cd_set(); vc != NULL; vc = vc->tail) {
+    for (const Chain<StepVariable>* vc = cd_set(); vc != NULL; vc = vc->tail) {
       if (vc->head.first == var && vc->head.second == step_id) {
 	return true;
       }
@@ -104,7 +98,8 @@ struct Varset {
 
   /* Checks if this varset excludes the given variable. */
   bool excludes(Variable var, size_t step_id) const {
-    for (const VariableChain* vc = ncd_set(); vc != NULL; vc = vc->tail) {
+    for (const Chain<StepVariable>* vc = ncd_set();
+	 vc != NULL; vc = vc->tail) {
       if (vc->head.first == var && vc->head.second == step_id) {
 	return true;
       }
@@ -115,29 +110,30 @@ struct Varset {
   /* Returns the varset obtained by adding the given name to this
      varset, or NULL if the name is inconsistent with the current
      constant. */
-  const Varset* add(const VarsetChain*& vsc, Object name) const {
+  const Varset* add(const Chain<Varset>*& vsc, Object name) const {
     if (constant() != Object(NULL_TERM)) {
       return (constant() == name) ? this : NULL;
     } else {
-      vsc = new VarsetChain(Varset(name, cd_set(), ncd_set()), vsc);
+      vsc = new Chain<Varset>(Varset(name, cd_set(), ncd_set()), vsc);
       return &vsc->head;
     }
   }
 
   /* Returns the varset obtained by adding the given term to this
      varset, or NULL if the term is excluded from this varset. */
-  const Varset* add(const VarsetChain*& vsc, Term t, size_t step_id) const {
+  const Varset* add(const Chain<Varset>*& vsc, Term t, size_t step_id) const {
     if (is_object(t)) {
       return add(vsc, t);
     } else if (excludes(t, step_id)) {
       return NULL;
     } else {
-      vsc = new VarsetChain(Varset(constant(),
-				   new VariableChain(std::make_pair(t,
-								    step_id),
-						     cd_set()),
-				   ncd_set()),
-			    vsc);
+      vsc =
+	new Chain<Varset>(Varset(constant(),
+				 new Chain<StepVariable>(std::make_pair(t,
+									step_id),
+							 cd_set()),
+				 ncd_set()),
+			vsc);
       return &vsc->head;
     }
   }
@@ -145,94 +141,100 @@ struct Varset {
   /* Returns the varset obtained by adding the given variable to the
      non-codesignation list of this varset; N.B. assumes that the
      variable is not included in the varset already. */
-  const Varset* restrict(const VarsetChain*& vsc,
+  const Varset* restrict(const Chain<Varset>*& vsc,
 			 Variable var, size_t step_id) const {
-    vsc = new VarsetChain(Varset(constant(),
-				 cd_set(),
-				 new VariableChain(std::make_pair(var,
-								  step_id),
-						   ncd_set())),
-			  vsc);
+    vsc =
+      new Chain<Varset>(Varset(constant(),
+			       cd_set(),
+			       new Chain<StepVariable>(std::make_pair(var,
+								      step_id),
+						       ncd_set())),
+			vsc);
     return &vsc->head;
   }
 
   /* Returns the combination of this and the given varset, or NULL if
      the combination is inconsistent. */
-  const Varset* combine(const VarsetChain*& vsc, const Varset& vs) const {
+  const Varset* combine(const Chain<Varset>*& vsc, const Varset& vs) const {
     if (constant() != Object(NULL_TERM) && vs.constant() != Object(NULL_TERM)
 	&& constant() != vs.constant()) {
       return NULL;
     }
     Object comb_const =
       (constant() != Object(NULL_TERM)) ? constant() : vs.constant();
-    const VariableChain* comb_cd = cd_set();
-    for (const VariableChain* vc = vs.cd_set(); vc != NULL; vc = vc->tail) {
+    const Chain<StepVariable>* comb_cd = cd_set();
+    for (const Chain<StepVariable>* vc = vs.cd_set();
+	 vc != NULL; vc = vc->tail) {
       const StepVariable& step_var = vc->head;
       if (excludes(step_var.first, step_var.second)) {
-	VariableChain::register_use(comb_cd);
-	VariableChain::unregister_use(comb_cd);
+	Chain<StepVariable>::register_use(comb_cd);
+	Chain<StepVariable>::unregister_use(comb_cd);
 	return NULL;
       } else {
-	comb_cd = new VariableChain(step_var, comb_cd);
+	comb_cd = new Chain<StepVariable>(step_var, comb_cd);
       }
     }
-    const VariableChain* comb_ncd = ncd_set();
-    for (const VariableChain* vc = vs.ncd_set(); vc != NULL; vc = vc->tail) {
+    const Chain<StepVariable>* comb_ncd = ncd_set();
+    for (const Chain<StepVariable>* vc = vs.ncd_set();
+	 vc != NULL; vc = vc->tail) {
       const StepVariable& step_var = vc->head;
       if (includes(step_var.first, step_var.second)) {
-	VariableChain::register_use(comb_cd);
-	VariableChain::unregister_use(comb_cd);
-	VariableChain::register_use(comb_ncd);
-	VariableChain::unregister_use(comb_ncd);
+	Chain<StepVariable>::register_use(comb_cd);
+	Chain<StepVariable>::unregister_use(comb_cd);
+	Chain<StepVariable>::register_use(comb_ncd);
+	Chain<StepVariable>::unregister_use(comb_ncd);
 	return NULL;
       } else if (!excludes(step_var.first, step_var.second)) {
-	comb_ncd = new VariableChain(step_var, comb_ncd);
+	comb_ncd = new Chain<StepVariable>(step_var, comb_ncd);
       }
     }
-    vsc = new VarsetChain(Varset(comb_const, comb_cd, comb_ncd), vsc);
+    vsc = new Chain<Varset>(Varset(comb_const, comb_cd, comb_ncd), vsc);
     return &vsc->head;
   }
 
   /* Returns the varset representing the given equality binding. */
-  static const Varset* make_varset(const VarsetChain*& vsc,
+  static const Varset* make_varset(const Chain<Varset>*& vsc,
 				   const Binding& b, bool reverse = false) {
     if (b.equality()) {
-      const VariableChain* cd_set =
-	new VariableChain(std::make_pair(b.var(), b.var_id()), NULL);
+      const Chain<StepVariable>* cd_set =
+	new Chain<StepVariable>(std::make_pair(b.var(), b.var_id()), NULL);
       if (is_variable(b.term())) {
-	cd_set = new VariableChain(std::make_pair(b.term(), b.term_id()),
-				   cd_set);
-	vsc = new VarsetChain(Varset(NULL_TERM, cd_set, NULL), vsc);
+	cd_set = new Chain<StepVariable>(std::make_pair(b.term(), b.term_id()),
+					 cd_set);
+	vsc = new Chain<Varset>(Varset(NULL_TERM, cd_set, NULL), vsc);
       } else {
-	vsc = new VarsetChain(Varset(b.term(), cd_set, NULL), vsc);
+	vsc = new Chain<Varset>(Varset(b.term(), cd_set, NULL), vsc);
       }
       return &vsc->head;
     } else {
       Object constant;
-      const VariableChain* cd_set;
-      const VariableChain* ncd_set;
+      const Chain<StepVariable>* cd_set;
+      const Chain<StepVariable>* ncd_set;
       if (reverse) {
 	if (is_variable(b.term())) {
 	  constant = NULL_TERM;
-	  cd_set = new VariableChain(std::make_pair(b.term(), b.term_id()),
-				     NULL);
+	  cd_set = new Chain<StepVariable>(std::make_pair(b.term(),
+							  b.term_id()),
+					   NULL);
 	} else {
 	  constant = b.term();
 	  cd_set = NULL;
 	}
-	ncd_set = new VariableChain(std::make_pair(b.var(), b.var_id()), NULL);
+	ncd_set = new Chain<StepVariable>(std::make_pair(b.var(), b.var_id()),
+					  NULL);
       } else { /* !reverse */
 	if (is_variable(b.term())) {
 	  constant = NULL_TERM;
-	  cd_set = new VariableChain(std::make_pair(b.var(), b.var_id()),
-				     NULL);
-	  ncd_set = new VariableChain(std::make_pair(b.term(), b.term_id()),
-				      NULL);
+	  cd_set = new Chain<StepVariable>(std::make_pair(b.var(), b.var_id()),
+					   NULL);
+	  ncd_set = new Chain<StepVariable>(std::make_pair(b.term(),
+							   b.term_id()),
+					    NULL);
 	} else {
 	  return NULL;
 	}
       }
-      vsc = new VarsetChain(Varset(constant, cd_set, ncd_set), vsc);
+      vsc = new Chain<Varset>(Varset(constant, cd_set, ncd_set), vsc);
       return &vsc->head;
     }
   }
@@ -241,15 +243,16 @@ private:
   /* The constant of this varset, or NULL. */
   Object constant_;
   /* The codesignation list. */
-  const VariableChain* cd_set_;
+  const Chain<StepVariable>* cd_set_;
   /* The non-codesignation list. */
-  const VariableChain* ncd_set_;
+  const Chain<StepVariable>* ncd_set_;
 };
 
 /* Output operator for varsets. */
 std::ostream& operator<<(std::ostream& os, const Varset& vs) {
   os << "CD{";
-  for (const VariableChain* vc = vs.cd_set(); vc != NULL; vc = vc->tail) {
+  for (const Chain<StepVariable>* vc = vs.cd_set();
+       vc != NULL; vc = vc->tail) {
     os << " ?v" << -vc->head.first << '[' << vc->head.second << ']';
   }
   os << " }";
@@ -257,7 +260,8 @@ std::ostream& operator<<(std::ostream& os, const Varset& vs) {
     os << ' ' << vs.constant();
   }
   os << " NCD{";
-  for (const VariableChain* vc = vs.ncd_set(); vc != NULL; vc = vc->tail) {
+  for (const Chain<StepVariable>* vc = vs.ncd_set();
+       vc != NULL; vc = vc->tail) {
     os << " ?v" << -vc->head.first << '[' << vc->head.second << ']';
   }
   os << " }";
@@ -266,8 +270,9 @@ std::ostream& operator<<(std::ostream& os, const Varset& vs) {
 
 
 /* Returns the varset containing the given constant, or NULL if none do. */
-static const Varset* find_varset(const VarsetChain* varsets, Object constant) {
-  for (const VarsetChain* vsc = varsets; vsc != NULL; vsc = vsc->tail) {
+static const Varset* find_varset(const Chain<Varset>* varsets,
+				 Object constant) {
+  for (const Chain<Varset>* vsc = varsets; vsc != NULL; vsc = vsc->tail) {
     const Varset& vs = vsc->head;
     if (vs.includes(constant)) {
       return &vs;
@@ -278,12 +283,12 @@ static const Varset* find_varset(const VarsetChain* varsets, Object constant) {
 
 
 /* Returns the varset containing the given term, or NULL if none do. */
-static const Varset* find_varset(const VarsetChain* varsets,
+static const Varset* find_varset(const Chain<Varset>* varsets,
 				 Term t, size_t step_id) {
   if (is_object(t)) {
     return find_varset(varsets, t);
   } else {
-    for (const VarsetChain* vsc = varsets; vsc != NULL; vsc = vsc->tail) {
+    for (const Chain<Varset>* vsc = varsets; vsc != NULL; vsc = vsc->tail) {
       const Varset& vs = vsc->head;
       if (vs.includes(t, step_id)) {
 	return &vs;
@@ -358,7 +363,7 @@ struct StepDomain {
 
   /* Returns a domain where the given column has been restricted to
      the given name, or NULL if this would leave an empty domain. */
-  const StepDomain* restrict(const StepDomainChain*& sdc,
+  const StepDomain* restrict(const Chain<StepDomain>*& sdc,
 			     Object name, size_t column) const {
     const ActionDomain* ad = domain().restrict(name, column);
     if (ad == NULL) {
@@ -366,7 +371,7 @@ struct StepDomain {
     } else if (ad == &domain()) {
       return this;
     } else {
-      sdc = new StepDomainChain(StepDomain(id(), parameters(), *ad), sdc);
+      sdc = new Chain<StepDomain>(StepDomain(id(), parameters(), *ad), sdc);
       return &sdc->head;
     }
   }
@@ -374,7 +379,7 @@ struct StepDomain {
   /* Returns a domain where the given column has been restricted to
      the given set of names, or NULL if this would leave an empty
      domain. */
-  const StepDomain* restrict(const StepDomainChain*& sdc,
+  const StepDomain* restrict(const Chain<StepDomain>*& sdc,
 			     const NameSet& names, size_t column) const {
     const ActionDomain* ad = domain().restrict(names, column);
     if (ad == NULL) {
@@ -382,14 +387,14 @@ struct StepDomain {
     } else if (ad == &domain()) {
       return this;
     } else {
-      sdc = new StepDomainChain(StepDomain(id(), parameters(), *ad), sdc);
+      sdc = new Chain<StepDomain>(StepDomain(id(), parameters(), *ad), sdc);
       return &sdc->head;
     }
   }
 
   /* Returns a domain where the given column exclues the given name,
      or NULL if this would leave an empty domain. */
-  const StepDomain* exclude(const StepDomainChain*& sdc,
+  const StepDomain* exclude(const Chain<StepDomain>*& sdc,
 			    Object name, size_t column) const {
     const ActionDomain* ad = domain().exclude(name, column);
     if (ad == NULL) {
@@ -397,7 +402,7 @@ struct StepDomain {
     } else if (ad == &domain()) {
       return this;
     } else {
-      sdc = new StepDomainChain(StepDomain(id(), parameters(), *ad), sdc);
+      sdc = new Chain<StepDomain>(StepDomain(id(), parameters(), *ad), sdc);
       return &sdc->head;
     }
   }
@@ -429,10 +434,11 @@ std::ostream& operator<<(std::ostream& os, const StepDomain& sd) {
 /* Returns the step domain containing the given variable, or NULL if
    none does. */
 static std::pair<const StepDomain*, size_t>
-find_step_domain(const StepDomainChain* step_domains,
+find_step_domain(const Chain<StepDomain>* step_domains,
 		 Variable var, size_t step_id) {
   if (step_id > 0) {
-    for (const StepDomainChain* sd = step_domains; sd != NULL; sd = sd->tail) {
+    for (const Chain<StepDomain>* sd = step_domains;
+	 sd != NULL; sd = sd->tail) {
       const StepDomain& step_domain = sd->head;
       if (step_domain.id() == step_id) {
 	int column = step_domain.index_of(var);
@@ -643,10 +649,10 @@ std::ostream& operator<<(std::ostream& os, const ActionDomain& ad) {
 
 /* Creates a collection of variable bindings with the given equality
    and inequality bindings. */
-const Bindings* Bindings::make_bindings(const StepChain* steps,
+const Bindings* Bindings::make_bindings(const Chain<Step>* steps,
 					const PlanningGraph* pg) {
-  const StepDomainChain* step_domains = NULL;
-  for (const StepChain* sc = steps; sc != NULL; sc = sc->tail) {
+  const Chain<StepDomain>* step_domains = NULL;
+  for (const Chain<Step>* sc = steps; sc != NULL; sc = sc->tail) {
     const Step& step = sc->head;
     if (!step.dummy()) {
       const ActionSchema* action =
@@ -655,9 +661,9 @@ const Bindings* Bindings::make_bindings(const StepChain* steps,
 	const ActionDomain* domain = pg->action_domain(action->name());
 	if (domain != NULL) {
 	  step_domains =
-	    new StepDomainChain(StepDomain(step.id(), action->parameters(),
-					   *domain),
-				step_domains);
+	    new Chain<StepDomain>(StepDomain(step.id(), action->parameters(),
+					     *domain),
+				  step_domains);
 	}
       }
     }
@@ -696,15 +702,15 @@ Bindings::Bindings()
 
 
 /* Constructs a binding collection. */
-Bindings::Bindings(const VarsetChain* varsets, size_t high_step,
-		   const StepDomainChain* step_domains)
+Bindings::Bindings(const Chain<Varset>* varsets, size_t high_step,
+		   const Chain<StepDomain>* step_domains)
   : varsets_(varsets), high_step_(high_step), step_domains_(step_domains),
     ref_count_(0) {
 #ifdef DEBUG_MEMORY
   created_bindings++;
 #endif
-  VarsetChain::register_use(varsets_);
-  StepDomainChain::register_use(step_domains_);
+  Chain<Varset>::register_use(varsets_);
+  Chain<StepDomain>::register_use(step_domains_);
 }
 
 
@@ -713,8 +719,8 @@ Bindings::~Bindings() {
 #ifdef DEBUG_MEMORY
   deleted_bindings++;
 #endif
-  VarsetChain::unregister_use(varsets_);
-  StepDomainChain::unregister_use(step_domains_);
+  Chain<Varset>::unregister_use(varsets_);
+  Chain<StepDomain>::unregister_use(step_domains_);
 }
 
 
@@ -933,13 +939,13 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
   }
 
   /* Varsets for new binding collection */
-  const VarsetChain* varsets = varsets_;
+  const Chain<Varset>* varsets = varsets_;
   /* Highest step id of variable in varsets. */
   size_t high_step = high_step_;
   /* Variables above previous high step. */
   VariableSet high_step_vars;
   /* Step domains for new binding collection */
-  const StepDomainChain* step_domains = step_domains_;
+  const Chain<StepDomain>* step_domains = step_domains_;
 
   BindingList new_binds(new_bindings);
   /*
@@ -1007,10 +1013,10 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
       }
       if (comb == NULL) {
 	/* Binding is inconsistent with current bindings. */
-	VarsetChain::register_use(varsets);
-	VarsetChain::unregister_use(varsets);
-	StepDomainChain::register_use(step_domains);
-	StepDomainChain::unregister_use(step_domains);
+	Chain<Varset>::register_use(varsets);
+	Chain<Varset>::unregister_use(varsets);
+	Chain<StepDomain>::register_use(step_domains);
+	Chain<StepDomain>::unregister_use(step_domains);
 	return NULL;
       } else {
 	/* Binding is consistent with current bindings. */
@@ -1019,7 +1025,7 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 	  Object name = comb->constant();
 	  /* Restrict step domain for all codesignated variables. */
 	  const NameSet* intersection = NULL;
-	  const VariableChain* vc = NULL;
+	  const Chain<StepVariable>* vc = NULL;
 	  int phase = 0;
 	  while (phase < 4 || (intersection != NULL && phase < 8)) {
 	    Variable var = NULL_TERM;
@@ -1075,10 +1081,10 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 		    sd.first->restrict(step_domains, name, sd.second);
 		  if (new_sd == NULL) {
 		    /* Domain became empty. */
-		    VarsetChain::register_use(varsets);
-		    VarsetChain::unregister_use(varsets);
-		    StepDomainChain::register_use(step_domains);
-		    StepDomainChain::unregister_use(step_domains);
+		    Chain<Varset>::register_use(varsets);
+		    Chain<Varset>::unregister_use(varsets);
+		    Chain<StepDomain>::register_use(step_domains);
+		    Chain<StepDomain>::unregister_use(step_domains);
 		    NameSet::unregister_use(intersection);
 		    return NULL;
 		  }
@@ -1093,10 +1099,10 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 					 *intersection, sd.second);
 		    if (new_sd == NULL) {
 		      /* Domain became empty. */
-		      VarsetChain::register_use(varsets);
-		      VarsetChain::unregister_use(varsets);
-		      StepDomainChain::register_use(step_domains);
-		      StepDomainChain::unregister_use(step_domains);
+		      Chain<Varset>::register_use(varsets);
+		      Chain<Varset>::unregister_use(varsets);
+		      Chain<StepDomain>::register_use(step_domains);
+		      Chain<StepDomain>::unregister_use(step_domains);
 		      NameSet::unregister_use(intersection);
 		      return NULL;
 		    }
@@ -1118,10 +1124,10 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 		    NameSet::register_use(intersection);
 		    if (intersection->empty()) {
 		      /* Domain became empty. */
-		      VarsetChain::register_use(varsets);
-		      VarsetChain::unregister_use(varsets);
-		      StepDomainChain::register_use(step_domains);
-		      StepDomainChain::unregister_use(step_domains);
+		      Chain<Varset>::register_use(varsets);
+		      Chain<Varset>::unregister_use(varsets);
+		      Chain<StepDomain>::register_use(step_domains);
+		      Chain<StepDomain>::unregister_use(step_domains);
 		      NameSet::unregister_use(intersection);
 		      return NULL;
 		    }
@@ -1161,10 +1167,10 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
       }
       if (vs1 != NULL && vs2 != NULL && vs1 == vs2) {
 	/* The terms are already bound to eachother. */
-	VarsetChain::register_use(varsets);
-	VarsetChain::unregister_use(varsets);
-	StepDomainChain::register_use(step_domains);
-	StepDomainChain::unregister_use(step_domains);
+	Chain<Varset>::register_use(varsets);
+	Chain<Varset>::unregister_use(varsets);
+	Chain<StepDomain>::register_use(step_domains);
+	Chain<StepDomain>::unregister_use(step_domains);
 	return NULL;
       } else {
 	/* The terms are not bound to eachother. */
@@ -1202,7 +1208,7 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 	if (separate1 && vs1 != NULL) {
 	  /* The second term was not separated from the first already. */
 	  if (vs1->constant() != Object(NULL_TERM) && vs2 != NULL) {
-	    for (const VariableChain* vc = vs2->cd_set();
+	    for (const Chain<StepVariable>* vc = vs2->cd_set();
 		 vc != NULL; vc = vc->tail) {
 	      std::pair<const StepDomain*, size_t> sd =
 		find_step_domain(step_domains,
@@ -1212,10 +1218,10 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 		  sd.first->exclude(step_domains, vs1->constant(), sd.second);
 		if (new_sd == NULL) {
 		  /* Domain became empty. */
-		  VarsetChain::register_use(varsets);
-		  VarsetChain::unregister_use(varsets);
-		  StepDomainChain::register_use(step_domains);
-		  StepDomainChain::unregister_use(step_domains);
+		  Chain<Varset>::register_use(varsets);
+		  Chain<Varset>::unregister_use(varsets);
+		  Chain<StepDomain>::register_use(step_domains);
+		  Chain<StepDomain>::unregister_use(step_domains);
 		  return NULL;
 		}
 		if (sd.first != new_sd) {
@@ -1228,7 +1234,8 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 	if (separate2 && vs2 != NULL) {
 	  /* The first term was not separated from the second already. */
 	  if (vs2->constant() != Object(NULL_TERM)) {
-	    const VariableChain* vc = (vs1 != NULL) ? vs1->cd_set() : NULL;
+	    const Chain<StepVariable>* vc =
+	      (vs1 != NULL) ? vs1->cd_set() : NULL;
 	    Variable var = (vc != NULL) ? vc->head.first : bind.var();
 	    size_t var_id = (vc != NULL) ? vc->head.second : bind.var_id();
 	    while (is_variable(var)) {
@@ -1239,10 +1246,10 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 		  sd.first->exclude(step_domains, vs2->constant(), sd.second);
 		if (new_sd == NULL) {
 		  /* Domain became empty. */
-		  VarsetChain::register_use(varsets);
-		  VarsetChain::unregister_use(varsets);
-		  StepDomainChain::register_use(step_domains);
-		  StepDomainChain::unregister_use(step_domains);
+		  Chain<Varset>::register_use(varsets);
+		  Chain<Varset>::unregister_use(varsets);
+		  Chain<StepDomain>::register_use(step_domains);
+		  Chain<StepDomain>::unregister_use(step_domains);
 		  return NULL;
 		}
 		if (sd.first != new_sd) {
@@ -1262,10 +1269,10 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
   if (test_only
       || (varsets == varsets_ && high_step == high_step_
 	  && step_domains == step_domains_)) {
-    VarsetChain::register_use(varsets);
-    VarsetChain::unregister_use(varsets);
-    StepDomainChain::register_use(step_domains);
-    StepDomainChain::unregister_use(step_domains);
+    Chain<Varset>::register_use(varsets);
+    Chain<Varset>::unregister_use(varsets);
+    Chain<StepDomain>::register_use(step_domains);
+    Chain<StepDomain>::unregister_use(step_domains);
     return this;
   } else {
     return new Bindings(varsets, high_step, step_domains);
@@ -1286,27 +1293,27 @@ const Bindings* Bindings::add(size_t step_id, const Action& step_action,
   if (domain == NULL) {
     return NULL;
   }
-  const StepDomainChain* step_domains =
-    new StepDomainChain(StepDomain(step_id, action->parameters(), *domain),
-			step_domains_);
-  const VarsetChain* varsets = varsets_;
+  const Chain<StepDomain>* step_domains =
+    new Chain<StepDomain>(StepDomain(step_id, action->parameters(), *domain),
+			  step_domains_);
+  const Chain<Varset>* varsets = varsets_;
   size_t high_step = high_step_;
   const StepDomain& step_domain = step_domains->head;
   for (size_t c = 0; c < step_domain.width(); c++) {
     if (step_domain.projection_size(c) == 1) {
-      const VariableChain* cd_set =
-	new VariableChain(std::make_pair(step_domain.parameters()[c],
-					 step_domain.id()),
-			  NULL);
-      varsets = new VarsetChain(Varset(*step_domain.projection(c).begin(),
-				       cd_set, NULL),
-				varsets);
+      const Chain<StepVariable>* cd_set =
+	new Chain<StepVariable>(std::make_pair(step_domain.parameters()[c],
+					       step_domain.id()),
+				NULL);
+      varsets = new Chain<Varset>(Varset(*step_domain.projection(c).begin(),
+					 cd_set, NULL),
+				  varsets);
       high_step = std::max(high_step, step_id);
     }
   }
   if (test_only) {
-    StepDomainChain::register_use(step_domains);
-    StepDomainChain::unregister_use(step_domains);
+    Chain<StepDomain>::register_use(step_domains);
+    Chain<StepDomain>::unregister_use(step_domains);
     return this;
   } else {
     return new Bindings(varsets, high_step, step_domains);
@@ -1318,10 +1325,10 @@ const Bindings* Bindings::add(size_t step_id, const Action& step_action,
 std::ostream& operator<<(std::ostream& os, const Bindings& b) {
   hashing::hash_map<size_t, std::vector<Variable> > seen_vars;
   std::vector<Object> seen_names;
-  for (const VarsetChain* vsc = b.varsets_; vsc != NULL; vsc = vsc->tail) {
+  for (const Chain<Varset>* vsc = b.varsets_; vsc != NULL; vsc = vsc->tail) {
     const Varset& vs = vsc->head;
     if (vs.cd_set() != NULL) {
-      const VariableChain* vc = vs.cd_set();
+      const Chain<StepVariable>* vc = vs.cd_set();
       if (find(seen_vars[vc->head.second].begin(),
 	       seen_vars[vc->head.second].end(),
 	       vc->head.first)
@@ -1353,13 +1360,14 @@ std::ostream& operator<<(std::ostream& os, const Bindings& b) {
     }
     if (vs.ncd_set() != NULL) {
       os << " != {";
-      for (const VariableChain* vc = vs.ncd_set(); vc != NULL; vc = vc->tail) {
+      for (const Chain<StepVariable>* vc =
+	     vs.ncd_set(); vc != NULL; vc = vc->tail) {
 	os << ' ' << vc->head.first << '(' << vc->head.second << ')';
       }
       os << " }";
     }
   }
-  for (const StepDomainChain* sd = b.step_domains_;
+  for (const Chain<StepDomain>* sd = b.step_domains_;
        sd != NULL; sd = sd->tail) {
     os << std::endl << sd->head;
   }
