@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.h,v 3.4 2002-03-23 15:18:26 lorens Exp $
+ * $Id: bindings.h,v 3.5 2002-03-24 22:05:59 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
@@ -46,7 +46,7 @@ struct PlanningGraph;
 /*
  * Abstract variable binding.
  */
-struct Binding : public Printable, public gc {
+struct Binding : public Printable {
   /* Returns the variable of this binding. */
   const Variable& var() const { return *var_; }
 
@@ -155,7 +155,7 @@ typedef VariableSet::const_iterator VariableSetIter;
 /*
  * Domain for action parameters.
  */
-struct ActionDomain : public Printable, public gc {
+struct ActionDomain : public Printable {
   /* Constructs an action domain with a single tuple. */
   ActionDomain(const NameList& tuple);
 

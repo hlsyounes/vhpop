@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.cc,v 3.8 2002-03-23 18:59:52 lorens Exp $
+ * $Id: bindings.cc,v 3.9 2002-03-24 22:03:21 lorens Exp $
  */
 #include <typeinfo>
 #include "bindings.h"
@@ -34,7 +34,7 @@ typedef Chain<const Variable*> VariableChain;
 /*
  * Variable codesignation, and non-codesignation.
  */
-struct Varset : public gc {
+struct Varset {
   /* The constant of this varset, or NULL. */
   const Name* const constant;
   /* The codesignation list. */
@@ -207,7 +207,7 @@ ostream& operator<<(ostream& os, const Varset& vs) {
 /*
  * A step domain.
  */
-struct StepDomain : public Printable, public gc {
+struct StepDomain : public Printable {
   const size_t id;
   const VariableList& parameters;
   const ActionDomain& domain;
