@@ -13,37 +13,51 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.cc,v 3.6 2002-03-12 22:42:36 lorens Exp $
+ * $Id: domains.cc,v 3.7 2002-03-15 19:01:33 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
-#include "formulas.h"
-#include "types.h"
-#include "requirements.h"
 
 
 /* ====================================================================== */
 /* Predicate */
 
-/* Constructs a predicate with the given names and parameters. */
-Predicate::Predicate(const string& name, const VariableList& params)
-  : name(name), parameters(params) {}
+/* Constructs a predicate with the given name. */
+Predicate::Predicate(const string& name)
+  : name(name) {}
+
+
+/* Deletes this predicate. */
+Predicate::~Predicate() {
+  for (VarListIter vi = parameters_.begin(); vi != parameters_.end(); vi++) {
+    delete *vi;
+  }
+}
+
+
+/* Adds a parameter to this predicate. */
+void Predicate::add(const Variable& param) {
+  parameters_.push_back(&param);
+}
 
 
 /* Returns the arity of this predicate. */
 size_t Predicate::arity() const {
-  return parameters.size();
+  return parameters_.size();
+}
+
+
+/* Predicate parameters. */
+const VariableList& Predicate::parameters() const {
+  return parameters_;
 }
 
 
 /* Prints this object on the given stream. */
 void Predicate::print(ostream& os) const {
   os << '(' << name;
-  for (VarListIter vi = parameters.begin(); vi != parameters.end(); vi++) {
-    os << ' ' << **vi;
-    if (!(*vi)->type.object()) {
-      os << " - " << (*vi)->type;
-    }
+  for (VarListIter vi = parameters_.begin(); vi != parameters_.end(); vi++) {
+    os << ' ' << **vi << " - " << (*vi)->type();
   }
   os << ')';
 }
@@ -109,7 +123,7 @@ void Effect::instantiations(EffectList& effects, const SubstitutionList& subst,
     SubstitutionList args;
     for (SubstListIter si = subst.begin(); si != subst.end(); si++) {
       const Substitution& s = *si;
-      if (!member(forall.begin(), forall.end(), s.var)) {
+      if (!member(forall.begin(), forall.end(), &s.var())) {
 	args.push_back(s);
       }
     }
@@ -117,7 +131,7 @@ void Effect::instantiations(EffectList& effects, const SubstitutionList& subst,
     Vector<NameListIter> next_arg;
     for (VarListIter vi = forall.begin(); vi != forall.end(); vi++) {
       arguments.push_back(new NameList());
-      problem.compatible_objects(*arguments.back(), (*vi)->type);
+      problem.compatible_objects(*arguments.back(), (*vi)->type());
       if (arguments.back()->empty()) {
 	return;
       }
@@ -168,7 +182,7 @@ const Effect& Effect::substitution(const SubstitutionList& subst) const {
     SubstitutionList eff_subst;
     for (SubstListIter si = subst.begin(); si != subst.end(); si++) {
       const Substitution& s = *si;
-      if (!member(forall.begin(), forall.end(), s.var)) {
+      if (!member(forall.begin(), forall.end(), &s.var())) {
 	eff_subst.push_back(s);
       }
     }
@@ -217,12 +231,8 @@ void Effect::print(ostream& os) const {
     }
   } else {
     os << "(and";
-    for (AtomListIter gi = add_list.begin(); gi != add_list.end(); gi++) {
-      os << ' ' << **gi;
-    }
-    for (NegationListIter gi = del_list.begin(); gi != del_list.end(); gi++) {
-      os << ' ' << **gi;
-    }
+    copy(add_list.begin(), add_list.end(), pre_ostream_iterator<Atom>(os));
+    copy(del_list.begin(), del_list.end(), pre_ostream_iterator<Negation>(os));
     os << ")";
   }
   os << ']' << ')';
@@ -367,7 +377,7 @@ void ActionSchema::instantiations(GroundActionList& actions,
   Vector<NameListIter> next_arg;
   for (VarListIter vi = parameters.begin(); vi != parameters.end(); vi++) {
     arguments.push_back(new NameList());
-    problem.compatible_objects(*arguments.back(), (*vi)->type);
+    problem.compatible_objects(*arguments.back(), (*vi)->type());
     if (arguments.back()->empty()) {
       return;
     }
@@ -389,7 +399,7 @@ void ActionSchema::instantiations(GroundActionList& actions,
 	  /* consistent instantiation */
 	  NameList& names = *(new NameList());
 	  for (SubstListIter si = args.begin(); si != args.end(); si++) {
-	    const Name& name = dynamic_cast<const Name&>(*(*si).term);
+	    const Name& name = dynamic_cast<const Name&>((*si).term());
 	    names.push_back(&name);
 	  }
 	  if (durative) {
@@ -446,10 +456,7 @@ void ActionSchema::print(ostream& os) const {
     if (vi != parameters.begin()) {
       os << ' ';
     }
-    os << **vi;
-    if (!(*vi)->type.object()) {
-      os << " - " << (*vi)->type;
-    }
+    os << **vi << " - " << (*vi)->type();
   }
   os << ") ";
   if (!precondition.tautology()) {
@@ -562,97 +569,124 @@ void Domain::clear() {
 }
 
 
-/* Constructs a domain. */
-Domain::Domain(const string& name, const Requirements& requirements,
-	       const TypeMap& types, const NameMap& constants,
-	       const PredicateMap& predicates, const ActionSchemaMap& actions)
-  : name(name), requirements(requirements), types(types),
-    constants(constants), predicates(predicates), actions(actions) {
+/* Constructs an empty domain with the given name. */
+Domain::Domain(const string& name)
+  : name(name) {
   const Domain* d = find(name);
   if (d != NULL) {
     delete d;
   }
   domains[name] = this;
-  hash_set<string> achievable_preds;
-  for (ActionSchemaMapIter ai = actions.begin(); ai != actions.end(); ai++) {
-    (*ai).second->achievable_predicates(achievable_preds, achievable_preds);
-  }
-  for (PredicateMapIter pi = predicates.begin();
-       pi != predicates.end(); pi++) {
-    const string& p = (*pi).first;
-    if (achievable_preds.find(p) == achievable_preds.end()) {
-      static_predicates_.insert(p);
-    }
-  }
 }
 
 
 /* Deletes a domain. */
 Domain::~Domain() {
   domains.erase(name);
-  delete &requirements;
-  for (NameMapIter ni = constants.begin(); ni != constants.end(); ni++) {
+  for (ActionSchemaMapIter ai = actions_.begin(); ai != actions_.end(); ai++) {
+    delete (*ai).second;
+  }
+  for (PredicateMapIter pi = predicates_.begin();
+       pi != predicates_.end(); pi++) {
+    delete (*pi).second;
+  }
+  for (NameMapIter ni = constants_.begin(); ni != constants_.end(); ni++) {
     delete (*ni).second;
   }
-  delete &constants;
   /* Delete supertypes that are union types first.  Would like to do
      this in the destructor of the simple type, but that causes core
      dump if supertype is a simple type that has been deleted. */
-  for (TypeMapIter ti = types.begin(); ti != types.end(); ti++) {
+  for (TypeMapIter ti = types_.begin(); ti != types_.end(); ti++) {
     const UnionType* ut =
-      dynamic_cast<const UnionType*>(&(*ti).second->supertype);
+      dynamic_cast<const UnionType*>(&(*ti).second->supertype());
     if (ut != NULL) {
       delete ut;
     }
   }
-  for (TypeMapIter ti = types.begin(); ti != types.end(); ti++) {
+  for (TypeMapIter ti = types_.begin(); ti != types_.end(); ti++) {
     if (!(*ti).second->object()) {
       delete (*ti).second;
     }
   }
-  delete &types;
+}
+
+
+/* Domain actions. */
+const ActionSchemaMap& Domain::actions() const {
+  return actions_;
+}
+
+
+/* Adds a type to this domain. */
+void Domain::add(const SimpleType& type) {
+  types_.insert(make_pair(type.name(), &type));
+}
+
+
+/* Adds a constant to this domain. */
+void Domain::add(const Name& constant) {
+  constants_[constant.name()] = &constant;
+}
+
+
+/* Adds a predicate to this domain. */
+void Domain::add(const Predicate& predicate) {
+  predicates_.insert(make_pair(predicate.name, &predicate));
+  static_predicates_.insert(predicate.name);
+}
+
+
+/* Adds an action to this domain. */
+void Domain::add(const ActionSchema& action) {
+  actions_.insert(make_pair(action.name, &action));
+  hash_set<string> achievable_preds;
+  action.achievable_predicates(achievable_preds, achievable_preds);
+  for (hash_set<string>::const_iterator pi = achievable_preds.begin();
+       pi != achievable_preds.end(); pi++) {
+    static_predicates_.erase(*pi);
+  }
 }
 
 
 /* Returns the type with the given name, or NULL if it is
    undefined. */
 const SimpleType* Domain::find_type(const string& name) const {
-  TypeMapIter ti = types.find(name);
-  return (ti != types.end()) ? (*ti).second : NULL;
+  TypeMapIter ti = types_.find(name);
+  return (ti != types_.end()) ? (*ti).second : NULL;
 }
 
 
 /* Returns the constant with the given name, or NULL if it is
    undefined. */
 const Name* Domain::find_constant(const string& name) const {
-  NameMapIter ni = constants.find(name);
-  return (ni != constants.end()) ? (*ni).second : NULL;
+  NameMapIter ni = constants_.find(name);
+  return (ni != constants_.end()) ? (*ni).second : NULL;
 }
 
 
 /* Returns the predicate with the given name, or NULL if it is
    undefined. */
 const Predicate* Domain::find_predicate(const string& name) const {
-  PredicateMapIter pi = predicates.find(name);
-  return (pi != predicates.end()) ? (*pi).second : NULL;
+  PredicateMapIter pi = predicates_.find(name);
+  return (pi != predicates_.end()) ? (*pi).second : NULL;
 }
 
 
 /* Returns the action with the given name, or NULL if it is
    undefined. */
 const ActionSchema* Domain::find_action(const string& name) const {
-  ActionSchemaMapIter ai = actions.find(name);
-  return (ai != actions.end()) ? (*ai).second : NULL;
+  ActionSchemaMapIter ai = actions_.find(name);
+  return (ai != actions_.end()) ? (*ai).second : NULL;
 }
 
 
 /* Fills the provided name list with constants that are compatible
    with the given type. */
 void Domain::compatible_constants(NameList& constants, const Type& t) const {
-  for (NameMapIter ni = this->constants.begin();
-       ni != this->constants.end(); ni++) {
+  for (NameMapIter ni = this->constants_.begin();
+       ni != this->constants_.end(); ni++) {
     const Name& name = *(*ni).second;
-    if (name.type.subtype(t)) {
+    if (name.type().subtype(t)) {
       constants.push_back(&name);
     }
   }
@@ -669,28 +703,22 @@ bool Domain::static_predicate(const string& predicate) const {
 void Domain::print(ostream& os) const {
   os << "name: " << name;
   os << endl << "types:";
-  for (TypeMapIter ti = types.begin(); ti != types.end(); ti++) {
+  for (TypeMapIter ti = types_.begin(); ti != types_.end(); ti++) {
     if (!(*ti).second->object()) {
-      os << ' ' << *(*ti).second;
-      if (!(*ti).second->supertype.object()) {
-	os << " - " << (*ti).second->supertype;
-      }
+      os << ' ' << *(*ti).second << " - " << (*ti).second->supertype();
     }
   }
   os << endl << "constants:";
-  for (NameMapIter ni = constants.begin(); ni != constants.end(); ni++) {
-    os << ' ' << *(*ni).second;
-    if (!(*ni).second->type.object()) {
-      os << " - " << (*ni).second->type;
-    }
+  for (NameMapIter ni = constants_.begin(); ni != constants_.end(); ni++) {
+    os << ' ' << *(*ni).second << " - " << (*ni).second->type();
   }
   os << endl << "predicates:";
-  for (PredicateMapIter pi = predicates.begin();
-       pi != predicates.end(); pi++) {
+  for (PredicateMapIter pi = predicates_.begin();
+       pi != predicates_.end(); pi++) {
     os << endl << "  " << *(*pi).second;
   }
   os << endl << "actions:";
-  for (ActionSchemaMapIter ai = actions.begin(); ai != actions.end(); ai++) {
+  for (ActionSchemaMapIter ai = actions_.begin(); ai != actions_.end(); ai++) {
     os << endl << "  " << *(*ai).second;
   }
 }

@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 3.2 2002-03-12 22:19:13 lorens Exp $
+ * $Id: plans.cc,v 3.3 2002-03-15 19:02:12 lorens Exp $
  */
 #include <queue>
 #include <algorithm>
@@ -37,7 +37,8 @@
 /*
  * Mapping of predicate names to actions.
  */
-struct PredicateActionsMap : public HashMultimap<string, const Action*> {
+struct PredicateActionsMap
+  : public hash_multimap<string, const ActionSchema*> {
 };
 
 /* Iterator for PredicateActionsMap. */
@@ -127,7 +128,7 @@ const Atom* Step::step_formula() const {
 /*
  * A plan queue.
  */
-struct PlanQueue : public priority_queue<const Plan*, Vector<const Plan*>,
+struct PlanQueue : public priority_queue<const Plan*, vector<const Plan*>,
 		   less<const LessThanComparable*> > {
 };
 
@@ -440,13 +441,11 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
   if (!params->ground_actions) {
     achieves_pred.clear();
     achieves_neg_pred.clear();
-    for (ActionSchemaMapIter ai = domain->actions.begin();
-	 ai != domain->actions.end(); ai++) {
+    for (ActionSchemaMapIter ai = domain->actions().begin();
+	 ai != domain->actions().end(); ai++) {
       const ActionSchema* as = (*ai).second;
-      if (params->domain_constraints) {
-	if (!params->keep_static_preconditions) {
-	  as = &as->strip_static(*domain);
-	}
+      if (params->domain_constraints && !params->keep_static_preconditions) {
+	as = &as->strip_static(*domain);
       }
       hash_set<string> preds;
       hash_set<string> neg_preds;
@@ -552,6 +551,7 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
 	  if (params->search_algorithm == Parameters::IDA_STAR
 	      && new_plan.primary_rank() > f_limit) {
 	    next_f_limit = min(next_f_limit, new_plan.primary_rank());
+	    delete &new_plan;
 	    continue;
 	  }
 	  if (!added && static_pred_flaw) {
@@ -576,6 +576,9 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
        * Process next plan.
        */
       do {
+	if (!params->transformational) {
+	  delete current_plan;
+	}
 	if (plans.empty()) {
 	  /* Problem lacks solution. */
 	  current_plan = NULL;
@@ -586,7 +589,10 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
       } while (current_plan != NULL && current_plan->duplicate());
       if (params->search_algorithm == Parameters::HILL_CLIMBING) {
 	/* Discard the rest of the plan queue. */
-	plans = PlanQueue();
+	while (!plans.empty()) {
+	  delete plans.top();
+	  plans.pop();
+	}
       }
     }
     if (current_plan != NULL && current_plan->complete()) {
@@ -594,6 +600,9 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
     }
     f_limit = next_f_limit;
     if (!isinf(f_limit)) {
+      if (current_plan != NULL) {
+	delete current_plan;
+      }
       current_plan = initial_plan;
     }
   } while (!isinf(f_limit));
@@ -880,8 +889,8 @@ int Plan::separable(const Unsafe& unsafe) const {
     const Formula* goal = &Formula::FALSE;
     for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
       const Substitution& subst = *si;
-      if (!member(effect_forall.begin(), effect_forall.end(), subst.var)) {
-	const Inequality& neq = *new Inequality(*subst.var, *subst.term);
+      if (!member(effect_forall.begin(), effect_forall.end(), &subst.var())) {
+	const Inequality& neq = *new Inequality(subst.var(), subst.term());
 	if (bindings_.consistent_with(neq)) {
 	  goal = &(*goal || neq);
 	}
@@ -893,7 +902,8 @@ int Plan::separable(const Unsafe& unsafe) const {
 	SubstitutionList forall_subst;
 	for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
 	  const Substitution& subst = *si;
-	  if (member(effect_forall.begin(), effect_forall.end(), subst.var)) {
+	  if (member(effect_forall.begin(), effect_forall.end(),
+		     &subst.var())) {
 	    forall_subst.push_back(subst);
 	  }
 	}
@@ -928,8 +938,8 @@ void Plan::separate(PlanList& plans, const Unsafe& unsafe) const {
   const Formula* goal = &Formula::FALSE;
   for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
     const Substitution& subst = *si;
-    if (!member(effect_forall.begin(), effect_forall.end(), subst.var)) {
-      const Inequality& neq = *new Inequality(*subst.var, *subst.term);
+    if (!member(effect_forall.begin(), effect_forall.end(), &subst.var())) {
+      const Inequality& neq = *new Inequality(subst.var(), subst.term());
       if (bindings_.consistent_with(neq)) {
 	goal = &(*goal || neq);
       }
@@ -941,7 +951,7 @@ void Plan::separate(PlanList& plans, const Unsafe& unsafe) const {
       SubstitutionList forall_subst;
       for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
 	const Substitution& subst = *si;
-	if (member(effect_forall.begin(), effect_forall.end(), subst.var)) {
+	if (member(effect_forall.begin(), effect_forall.end(), &subst.var())) {
 	  forall_subst.push_back(subst);
 	}
       }
@@ -1437,7 +1447,7 @@ int Plan::cw_link_possible(const EffectList& effects,
 	const Formula* binds = &Formula::FALSE;
 	for (SubstListIter si = mgu.begin(); si != mgu.end(); si++) {
 	  const Substitution& subst = *si;
-	  binds = &(*binds || *(new Inequality(*subst.var, *subst.term)));
+	  binds = &(*binds || *(new Inequality(subst.var(), subst.term())));
 	}
 	goals = &(*goals && *binds);
       }
@@ -1479,7 +1489,7 @@ void Plan::new_cw_link(PlanList& plans, const Step& step,
 	const Formula* binds = &Formula::FALSE;
 	for (SubstListIter si = mgu.begin(); si != mgu.end(); si++) {
 	  const Substitution& subst = *si;
-	  binds = &(*binds || *(new Inequality(*subst.var, *subst.term)));
+	  binds = &(*binds || *(new Inequality(subst.var(), subst.term())));
 	}
 	goals = &(*goals && *binds);
       }
@@ -1521,7 +1531,7 @@ int Plan::link_possible(const Formula& precondition, const Effect& effect,
   BindingList new_bindings;
   for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
     const Substitution& subst = *si;
-    if (!member(effect_forall.begin(), effect_forall.end(), subst.var)) {
+    if (!member(effect_forall.begin(), effect_forall.end(), &subst.var())) {
       new_bindings.push_back(new EqualityBinding(subst, Reason::DUMMY));
     }
   }
@@ -1537,7 +1547,7 @@ int Plan::link_possible(const Formula& precondition, const Effect& effect,
       SubstitutionList forall_subst;
       for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
 	const Substitution& subst = *si;
-	if (member(effect_forall.begin(), effect_forall.end(), subst.var)) {
+	if (member(effect_forall.begin(), effect_forall.end(), &subst.var())) {
 	  forall_subst.push_back(subst);
 	}
       }
@@ -1585,7 +1595,7 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
   BindingList new_bindings;
   for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
     const Substitution& subst = *si;
-    if (!member(effect_forall.begin(), effect_forall.end(), subst.var)) {
+    if (!member(effect_forall.begin(), effect_forall.end(), &subst.var())) {
       new_bindings.push_back(new EqualityBinding(subst, reason));
     }
   }
@@ -1601,7 +1611,7 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
       SubstitutionList forall_subst;
       for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
 	const Substitution& subst = *si;
-	if (member(effect_forall.begin(), effect_forall.end(), subst.var)) {
+	if (member(effect_forall.begin(), effect_forall.end(), &subst.var())) {
 	  forall_subst.push_back(subst);
 	}
       }
