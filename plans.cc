@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 6.14 2003-12-05 21:27:19 lorens Exp $
+ * $Id: plans.cc,v 6.15 2003-12-05 23:17:21 lorens Exp $
  */
 #include "mathport.h"
 #include "plans.h"
@@ -241,7 +241,7 @@ static bool add_goal(const Chain<OpenCondition>*& open_conds,
 		  goals.push_back(&g);
 		}
 	      } else {
-		throw Exception("unknown kind of goal");
+		throw std::logic_error("unknown kind of goal");
 	      }
 	    }
 	  }
@@ -388,9 +388,6 @@ static const Bindings* step_instantiation(const Chain<Step>* steps, size_t n,
       if (v != bindings.binding(v, step.id())) {
 	return step_instantiation(steps, n + 1, bindings);
       } else {
-	std::cout << "instantiating parameter " << n << " of ";
-	as->print(std::cout, problem->terms(), step.id(), bindings);
-	std::cout << std::endl;
 	Type t = problem->domain().terms().type(v);
 	const ObjectList& arguments = problem->compatible_objects(t);
 	for (ObjectList::const_iterator oi = arguments.begin();
@@ -933,7 +930,7 @@ void Plan::refinements(PlanList& plans,
     if (open_cond != NULL) {
       handle_open_condition(plans, *open_cond);
     } else {
-      throw Exception("unknown kind of flaw");
+      throw std::logic_error("unknown kind of flaw");
     }
   }
 }
@@ -1283,7 +1280,7 @@ bool Plan::open_cond_refinements(int& refinements, int& addable, int& reusable,
 	if (neq != NULL) {
 	  refinements = handle_inequality(dummy, *neq, open_cond, true);
 	} else {
-	  throw Exception("unknown kind of open condition");
+	  throw std::logic_error("unknown kind of open condition");
 	}
       }
     }
@@ -1316,7 +1313,7 @@ void Plan::handle_open_condition(PlanList& plans,
       if (neq != NULL) {
 	handle_inequality(plans, *neq, open_cond);
       } else {
-	throw Exception("unknown kind of open condition");
+	throw std::logic_error("unknown kind of open condition");
       }
     }
   }

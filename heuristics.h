@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.h,v 6.6 2003-12-05 21:46:11 lorens Exp $
+ * $Id: heuristics.h,v 6.7 2003-12-05 23:16:12 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
@@ -24,7 +24,7 @@
 #include <config.h>
 #include "domains.h"
 #include "formulas.h"
-#include "exceptions.h"
+#include <stdexcept>
 
 struct Action;
 struct ActionList;
@@ -208,7 +208,7 @@ private:
 /*
  * An invalid heuristic exception.
  */
-struct InvalidHeuristic : public Exception {
+struct InvalidHeuristic : public std::runtime_error {
   /* Constructs an invalid heuristic exception. */
   InvalidHeuristic(const std::string& name);
 };
@@ -267,7 +267,7 @@ private:
 /*
  * An invalid flaw selection order exception.
  */
-struct InvalidFlawSelectionOrder : public Exception {
+struct InvalidFlawSelectionOrder : public std::runtime_error {
   /* Constructs an invalid flaw selection order exception. */
   InvalidFlawSelectionOrder(const std::string& name);
 };

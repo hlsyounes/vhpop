@@ -16,14 +16,14 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: parameters.h,v 6.3 2003-12-05 21:43:49 lorens Exp $
+ * $Id: parameters.h,v 6.4 2003-12-05 23:16:55 lorens Exp $
  */
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
 
 #include <config.h>
 #include "heuristics.h"
-#include "exceptions.h"
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -34,7 +34,7 @@
 /*
  * An invalid search algorithm exception.
  */
-struct InvalidSearchAlgorithm : public Exception {
+struct InvalidSearchAlgorithm : public std::runtime_error {
   /* Constructs an invalid search algorithm exception. */
   InvalidSearchAlgorithm(const std::string& name);
 };
@@ -46,7 +46,7 @@ struct InvalidSearchAlgorithm : public Exception {
 /*
  * An invalid action cost exception.
  */
-struct InvalidActionCost : public Exception {
+struct InvalidActionCost : public std::runtime_error {
   /* Constructs an invalid action cost exception. */
   InvalidActionCost(const std::string& name);
 };
