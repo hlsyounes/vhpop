@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.24 2001-12-23 22:09:05 lorens Exp $
+ * $Id: plans.h,v 1.25 2001-12-25 17:35:14 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -11,7 +11,6 @@
 #include <stack>
 #include <utility>
 #include <typeinfo>
-#include <queue>
 #include "support.h"
 #include "domains.h"
 #include "problems.h"
