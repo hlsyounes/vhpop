@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.cc,v 4.10 2003-03-01 18:55:49 lorens Exp $
+ * $Id: domains.cc,v 6.1 2003-07-13 15:53:53 lorens Exp $
  */
 #include "domains.h"
 #include "bindings.h"
@@ -21,55 +21,6 @@
 #include "mathport.h"
 #include <stack>
 #include <iostream>
-
-
-/* ====================================================================== */
-/* Predicate */
-
-/* Constructs a predicate with the given name. */
-Predicate::Predicate(const std::string& name)
-  : name_(name) {}
-
-
-/* Deletes this predicate. */
-Predicate::~Predicate() {
-  for (TypeListIter ti = parameters_.begin(); ti != parameters_.end(); ti++) {
-    const UnionType* ut = dynamic_cast<const UnionType*>(*ti);
-    if (ut != NULL) {
-      delete ut;
-    }
-  }
-}
-
-
-/* Returns the arity of this predicate. */
-size_t Predicate::arity() const {
-  return parameters_.size();
-}
-
-
-/* Predicate parameters. */
-const Type& Predicate::type(size_t i) const {
-  return *parameters_[i];
-}
-
-
-/* Adds a parameter to this predicate. */
-void Predicate::add_parameter(const Type& type) {
-  parameters_.push_back(&type);
-}
-
-
-/* Output operator for predicates. */
-std::ostream& operator<<(std::ostream& os, const Predicate& p) {
-  os << '(' << p.name();
-  size_t n = p.arity();
-  for (size_t i = 0; i < n; i++) {
-    os << " x? - " << p.type(i);
-  }
-  os << ')';
-  return os;
-}
 
 
 /* ====================================================================== */
@@ -85,9 +36,6 @@ Effect::Effect(EffectTime when)
 
 /* Deletes this effect. */
 Effect::~Effect() {
-  for (VarListIter vi = forall().begin(); vi != forall().end(); vi++) {
-    Variable::unregister_use(*vi);
-  }
   Formula::unregister_use(condition_);
   Formula::unregister_use(link_condition_);
   for (AtomListIter ai = add_list().begin(); ai != add_list().end(); ai++) {
@@ -101,9 +49,8 @@ Effect::~Effect() {
 
 
 /* Adds a universally quantified variable to this effect. */
-void Effect::add_forall(const Variable& parameter) {
-  forall_.push_back(&parameter);
-  Variable::register_use(&parameter);
+void Effect::add_forall(Variable parameter) {
+  forall_.push_back(parameter);
 }
 
 
@@ -143,7 +90,7 @@ void Effect::add_negative(const Negation& negation) {
 
 /* Fills the provided list with instantiations of this effect. */
 void Effect::instantiations(EffectList& effects, size_t& useful,
-			    const SubstitutionList& subst,
+			    const SubstitutionMap& subst,
 			    const Problem& problem) const {
   size_t n = forall().size();
   if (n == 0) {
@@ -161,17 +108,12 @@ void Effect::instantiations(EffectList& effects, size_t& useful,
       }
     }
   } else {
-    SubstitutionList args;
-    for (SubstListIter si = subst.begin(); si != subst.end(); si++) {
-      const Substitution& s = *si;
-      if (find(forall().begin(), forall().end(), &s.var()) == forall().end()) {
-	args.push_back(s);
-      }
-    }
-    std::vector<NameList> arguments(n, NameList());
-    std::vector<NameListIter> next_arg;
+    SubstitutionMap args(subst);
+    std::vector<ObjectList> arguments(n, ObjectList());
+    std::vector<ObjectList::const_iterator> next_arg;
     for (size_t i = 0; i < n; i++) {
-      problem.compatible_objects(arguments[i], forall()[i]->type());
+      problem.compatible_objects(arguments[i],
+				 problem.domain().terms().type(forall()[i]));
       if (arguments[i].empty()) {
 	return;
       }
@@ -181,9 +123,9 @@ void Effect::instantiations(EffectList& effects, size_t& useful,
     conds.push(&condition().instantiation(args, problem));
     Formula::register_use(conds.top());
     for (size_t i = 0; i < n; ) {
-      args.push_back(Substitution(*forall()[i], **next_arg[i]));
-      SubstitutionList pargs;
-      pargs.push_back(Substitution(*forall()[i], **next_arg[i]));
+      args.insert(std::make_pair(forall()[i], *next_arg[i]));
+      SubstitutionMap pargs;
+      pargs.insert(std::make_pair(forall()[i], *next_arg[i]));
       const Formula& inst_cond = conds.top()->instantiation(pargs, problem);
       conds.push(&inst_cond);
       Formula::register_use(conds.top());
@@ -200,7 +142,7 @@ void Effect::instantiations(EffectList& effects, size_t& useful,
 	for (int j = i; j >= 0; j--) {
 	  Formula::unregister_use(conds.top());
 	  conds.pop();
-	  args.pop_back();
+	  args.erase(forall()[j]);
 	  next_arg[j]++;
 	  if (next_arg[j] == arguments[j].end()) {
 	    if (j == 0) {
@@ -231,18 +173,18 @@ void Effect::instantiations(EffectList& effects, size_t& useful,
 void Effect::achievable_predicates(PredicateSet& preds,
 				   PredicateSet& neg_preds) const {
   for (AtomListIter gi = add_list().begin(); gi != add_list().end(); gi++) {
-    preds.insert(&(*gi)->predicate());
+    preds.insert((*gi)->predicate());
   }
   for (NegationListIter gi = del_list().begin();
        gi != del_list().end(); gi++) {
-    neg_preds.insert(&(*gi)->predicate());
+    neg_preds.insert((*gi)->predicate());
   }
 }
 
 
 
 /* Returns an instantiation of this effect. */
-const Effect* Effect::instantiation(const SubstitutionList& args,
+const Effect* Effect::instantiation(const SubstitutionMap& args,
 				    const Problem& problem,
 				    const Formula& condition) const {
   if (!(add_list().empty() && del_list().empty())) {
@@ -266,8 +208,9 @@ const Effect* Effect::instantiation(const SubstitutionList& args,
 /* Output operator for effects. */
 std::ostream& operator<<(std::ostream& os, const Effect& e) {
   os << '(';
-  for (VarListIter vi = e.forall().begin(); vi != e.forall().end(); vi++) {
-    os << **vi << ' ';
+  for (VariableList::const_iterator vi = e.forall().begin();
+       vi != e.forall().end(); vi++) {
+    os << "?v" -*vi << ' ';
   }
   switch (e.when()) {
   case Effect::AT_START:
@@ -395,9 +338,9 @@ void Action::strengthen_effects() {
       for (AtomListIter ai = ei.add_list().begin();
 	   ai != ei.add_list().end(); ai++) {
 	Effect& one_eff = *(new Effect(ei.when()));
-	for (VarListIter vi = ei.forall().begin();
+	for (VariableList::const_iterator vi = ei.forall().begin();
 	     vi != ei.forall().end(); vi++) {
-	  one_eff.add_forall(**vi);
+	  one_eff.add_forall(*vi);
 	}
 	one_eff.set_condition(ei.condition());
 	one_eff.add_positive(**ai);
@@ -406,9 +349,9 @@ void Action::strengthen_effects() {
       for (NegationListIter ni = ei.del_list().begin();
 	   ni != ei.del_list().end(); ni++) {
 	Effect& one_eff = *(new Effect(ei.when()));
-	for (VarListIter vi = ei.forall().begin();
+	for (VariableList::const_iterator vi = ei.forall().begin();
 	     vi != ei.forall().end(); vi++) {
-	  one_eff.add_forall(**vi);
+	  one_eff.add_forall(*vi);
 	}
 	one_eff.set_condition(ei.condition());
 	one_eff.add_negative(**ni);
@@ -433,18 +376,18 @@ void Action::strengthen_effects() {
 	if (ei.when() == ej.when()
 	    && ej.condition().tautology() && !ej.add_list().empty()) {
 	  const Atom& atom = *ej.add_list().back();
-	  SubstitutionList mgu;
+	  BindingList mgu;
 	  if (Bindings::unifiable(mgu, neg.atom(), 0, atom, 0)) {
 	    const Formula* sep = &Formula::FALSE;
-	    for (SubstListIter si = mgu.begin(); si != mgu.end(); si++) {
-	      const Substitution& subst = *si;
-	      const Variable* var = &subst.var();
+	    for (BindingList::const_iterator si = mgu.begin();
+		 si != mgu.end(); si++) {
+	      const Binding& subst = *si;
+	      Variable var = subst.var();
 	      if (find(ej.forall().begin(), ej.forall().end(), var)
 		  == ej.forall().end()) {
-		var = dynamic_cast<const Variable*>(&subst.term());
-		if (var == NULL
-		    || (find(ej.forall().begin(), ej.forall().end(), var)
-			== ej.forall().end())) {
+		if (is_variable(subst.term())
+		    || (find(ej.forall().begin(), ej.forall().end(),
+			     subst.term()) == ej.forall().end())) {
 		  if (subst.var() != subst.term()) {
 		    sep =
 		      &(*sep || *(new Inequality(subst.var(), subst.term())));
@@ -496,18 +439,9 @@ ActionSchema::ActionSchema(const std::string& name, bool durative)
   : Action(name, durative) {}
 
 
-/* Deletes this action schema. */
-ActionSchema::~ActionSchema() {
-  for (VarListIter vi = parameters().begin(); vi != parameters().end(); vi++) {
-    Variable::unregister_use(*vi);
-  }
-}
-
-
 /* Adds a parameter to this action schema. */
-void ActionSchema::add_parameter(const Variable& var) {
-  parameters_.push_back(&var);
-  Variable::register_use(&var);
+void ActionSchema::add_parameter(Variable var) {
+  parameters_.push_back(var);
 }
 
 
@@ -522,16 +456,17 @@ void ActionSchema::instantiations(GroundActionList& actions,
   size_t n = parameters().size();
   if (n == 0) {
     const GroundAction* inst_action =
-      instantiation(SubstitutionList(), problem, precondition());
+      instantiation(SubstitutionMap(), problem, precondition());
     if (inst_action != NULL) {
       actions.push_back(inst_action);
     }
   } else {
-    SubstitutionList args;
-    std::vector<NameList> arguments(n, NameList());
-    std::vector<NameListIter> next_arg;
+    SubstitutionMap args;
+    std::vector<ObjectList> arguments(n, ObjectList());
+    std::vector<ObjectList::const_iterator> next_arg;
     for (size_t i = 0; i < n; i++) {
-      problem.compatible_objects(arguments[i], parameters()[i]->type());
+      problem.compatible_objects(arguments[i],
+				 problem.domain().terms().type(parameters()[i]));
       if (arguments[i].empty()) {
 	return;
       }
@@ -541,9 +476,9 @@ void ActionSchema::instantiations(GroundActionList& actions,
     preconds.push(&precondition());
     Formula::register_use(preconds.top());
     for (size_t i = 0; i < n; ) {
-      args.push_back(Substitution(*parameters()[i], **next_arg[i]));
-      SubstitutionList pargs;
-      pargs.push_back(Substitution(*parameters()[i], **next_arg[i]));
+      args.insert(std::make_pair(parameters()[i], *next_arg[i]));
+      SubstitutionMap pargs;
+      pargs.insert(std::make_pair(parameters()[i], *next_arg[i]));
       const Formula& inst_precond =
 	preconds.top()->instantiation(pargs, problem);
       preconds.push(&inst_precond);
@@ -559,7 +494,7 @@ void ActionSchema::instantiations(GroundActionList& actions,
 	for (int j = i; j >= 0; j--) {
 	  Formula::unregister_use(preconds.top());
 	  preconds.pop();
-	  args.pop_back();
+	  args.erase(parameters()[j]);
 	  next_arg[j]++;
 	  if (next_arg[j] == arguments[j].end()) {
 	    if (j == 0) {
@@ -586,7 +521,7 @@ void ActionSchema::instantiations(GroundActionList& actions,
 
 
 /* Returns an instantiation of this action schema. */
-const GroundAction* ActionSchema::instantiation(const SubstitutionList& args,
+const GroundAction* ActionSchema::instantiation(const SubstitutionMap& args,
 						const Problem& problem,
 						const Formula& precond) const {
   EffectList inst_effects;
@@ -596,8 +531,10 @@ const GroundAction* ActionSchema::instantiation(const SubstitutionList& args,
   }
   if (useful > 0) {
     GroundAction& ga = *(new GroundAction(name(), durative()));
-    for (SubstListIter si = args.begin(); si != args.end(); si++) {
-      ga.add_argument(dynamic_cast<const Name&>((*si).term()));
+    size_t n = parameters().size();
+    for (size_t i = 0; i < n; i++) {
+      SubstitutionMap::const_iterator si = args.find(parameters()[i]);
+      ga.add_argument((*si).second);
     }
     ga.set_precondition(precond);
     for (EffectListIter ei = inst_effects.begin();
@@ -619,18 +556,19 @@ const GroundAction* ActionSchema::instantiation(const SubstitutionList& args,
 
 /* Prints this action on the given stream with the given bindings. */
 void ActionSchema::print(std::ostream& os, size_t step_id,
+			 const Problem& problem,
 			 const Bindings* bindings) const {
   os << '(' << name();
   if (bindings != NULL) {
-    for (VarListIter ti = parameters().begin();
+    for (VariableList::const_iterator ti = parameters().begin();
 	 ti != parameters().end(); ti++) {
       os << ' ';
-      (*ti)->print(os, step_id, *bindings);
+      problem.terms().print_term(os, *ti, step_id, *bindings);
     }
   } else {
-    for (VarListIter ti = parameters().begin();
+    for (VariableList::const_iterator ti = parameters().begin();
 	 ti != parameters().end(); ti++) {
-      os << ' ' << **ti;
+      os << " ?v" << -*ti;
     }
   }
   os << ')';
@@ -640,11 +578,12 @@ void ActionSchema::print(std::ostream& os, size_t step_id,
 /* Prints this object on the given stream. */
 void ActionSchema::print(std::ostream& os) const {
   os << '(' << name() << " (";
-  for (VarListIter vi = parameters().begin(); vi != parameters().end(); vi++) {
+  for (VariableList::const_iterator vi = parameters().begin();
+       vi != parameters().end(); vi++) {
     if (vi != parameters().begin()) {
       os << ' ';
     }
-    os << **vi << " - " << (*vi)->type();
+    os << "?v" << -*vi;
   }
   os << ") ";
   if (!precondition().tautology()) {
@@ -672,17 +611,20 @@ GroundAction::GroundAction(const std::string& name, bool durative)
 
 
 /* Adds an argument to this ground action. */
-void GroundAction::add_argument(const Name& arg) {
-  arguments_.push_back(&arg);
+void GroundAction::add_argument(Object arg) {
+  arguments_.push_back(arg);
 }
 
 
 /* Prints this action on the given stream with the given bindings. */
 void GroundAction::print(std::ostream& os, size_t step_id,
+			 const Problem& problem,
 			 const Bindings* bindings) const {
   os << '(' << name();
-  for (NameListIter ni = arguments().begin(); ni != arguments().end(); ni++) {
-    os << ' ' << **ni;
+  for (ObjectList::const_iterator ni = arguments().begin();
+       ni != arguments().end(); ni++) {
+    os << ' ';
+    problem.terms().print_term(os, *ni, step_id, *bindings);
   }
   os << ')';
 }
@@ -691,11 +633,12 @@ void GroundAction::print(std::ostream& os, size_t step_id,
 /* Prints this object on the given stream. */
 void GroundAction::print(std::ostream& os) const {
   os << '(' << name() << " (";
-  for (NameListIter ni = arguments().begin(); ni != arguments().end(); ni++) {
+  for (ObjectList::const_iterator ni = arguments().begin();
+       ni != arguments().end(); ni++) {
     if (ni != arguments().begin()) {
       os << ' ';
     }
-    os << **ni;
+    os << *ni;
   }
   os << ") ";
   if (!precondition().tautology()) {
@@ -768,28 +711,6 @@ Domain::~Domain() {
   for (ActionSchemaMapIter ai = actions_.begin(); ai != actions_.end(); ai++) {
     delete (*ai).second;
   }
-  for (PredicateMapIter pi = predicates_.begin();
-       pi != predicates_.end(); pi++) {
-    delete (*pi).second;
-  }
-  for (NameMapIter ni = constants_.begin(); ni != constants_.end(); ni++) {
-    delete (*ni).second;
-  }
-  /* Delete supertypes that are union types first.  Would like to do
-     this in the destructor of the simple type, but that causes core
-     dump if supertype is a simple type that has been deleted. */
-  for (TypeMapIter ti = types_.begin(); ti != types_.end(); ti++) {
-    const UnionType* ut =
-      dynamic_cast<const UnionType*>(&(*ti).second->supertype());
-    if (ut != NULL) {
-      delete ut;
-    }
-  }
-  for (TypeMapIter ti = types_.begin(); ti != types_.end(); ti++) {
-    if (!(*ti).second->object()) {
-      delete (*ti).second;
-    }
-  }
 }
 
 
@@ -799,74 +720,15 @@ const ActionSchemaMap& Domain::actions() const {
 }
 
 
-/* Adds a type to this domain. */
-void Domain::add_type(SimpleType& type) {
-  types_.insert(make_pair(type.name(), &type));
-}
-
-
-/* Adds a constant to this domain. */
-void Domain::add_constant(Name& constant) {
-  constants_[constant.name()] = &constant;
-}
-
-
-/* Adds a predicate to this domain. */
-void Domain::add_predicate(const Predicate& predicate) {
-  predicates_.insert(make_pair(predicate.name(), &predicate));
-  static_predicates_.insert(&predicate);
-}
-
-
 /* Adds an action to this domain. */
 void Domain::add_action(const ActionSchema& action) {
   actions_.insert(make_pair(action.name(), &action));
   PredicateSet achievable_preds;
   action.achievable_predicates(achievable_preds, achievable_preds);
-  for (PredicateSetIter pi = achievable_preds.begin();
+  for (PredicateSet::const_iterator pi = achievable_preds.begin();
        pi != achievable_preds.end(); pi++) {
-    static_predicates_.erase(*pi);
+    predicates().make_dynamic(*pi);
   }
-}
-
-
-/* Returns the type with the given name, or NULL if it is
-   undefined. */
-SimpleType* Domain::find_type(const std::string& name) {
-  TypeMapIter ti = types_.find(name);
-  return (ti != types_.end()) ? (*ti).second : NULL;
-}
-
-
-/* Returns the type with the given name, or NULL if it is
-   undefined. */
-const SimpleType* Domain::find_type(const std::string& name) const {
-  TypeMapIter ti = types_.find(name);
-  return (ti != types_.end()) ? (*ti).second : NULL;
-}
-
-
-/* Returns the constant with the given name, or NULL if it is
-   undefined. */
-Name* Domain::find_constant(const std::string& name) {
-  NameMapIter ni = constants_.find(name);
-  return (ni != constants_.end()) ? (*ni).second : NULL;
-}
-
-
-/* Returns the constant with the given name, or NULL if it is
-   undefined. */
-const Name* Domain::find_constant(const std::string& name) const {
-  NameMapIter ni = constants_.find(name);
-  return (ni != constants_.end()) ? (*ni).second : NULL;
-}
-
-
-/* Returns the predicate with the given name, or NULL if it is
-   undefined. */
-const Predicate* Domain::find_predicate(const std::string& name) const {
-  PredicateMapIter pi = predicates_.find(name);
-  return (pi != predicates_.end()) ? (*pi).second : NULL;
 }
 
 
@@ -878,23 +740,15 @@ const ActionSchema* Domain::find_action(const std::string& name) const {
 }
 
 
-/* Fills the provided name list with constants that are compatible
+/* Fills the provided object list with constants that are compatible
    with the given type. */
-void Domain::compatible_constants(NameList& constants, const Type& t) const {
-  for (NameMapIter ni = this->constants_.begin();
-       ni != this->constants_.end(); ni++) {
-    const Name& name = *(*ni).second;
-    if (name.type().subtype(t)) {
-      constants.push_back(&name);
+void Domain::compatible_constants(ObjectList& constants, Type type) const {
+  Object last = terms().last_object();
+  for (Object i = terms().first_object(); i <= last; i++) {
+    if (types().subtype(terms().type(i), type)) {
+      constants.push_back(i);
     }
   }
-}
-
-
-/* Tests if the given predicate is static. */
-bool Domain::static_predicate(const Predicate& predicate) const {
-  return (static_predicates_.find(&predicate) != static_predicates_.end()
-	  || find_type(predicate.name()) != NULL);
 }
 
 
@@ -902,19 +756,42 @@ bool Domain::static_predicate(const Predicate& predicate) const {
 std::ostream& operator<<(std::ostream& os, const Domain& d) {
   os << "name: " << d.name();
   os << std::endl << "types:";
-  for (TypeMapIter ti = d.types_.begin(); ti != d.types_.end(); ti++) {
-    if (!(*ti).second->object()) {
-      os << ' ' << *(*ti).second << " - " << (*ti).second->supertype();
+  for (Type i = d.types().first_type(); i < d.types().last_type(); i++) {
+    os << std::endl << "  ";
+    d.types().print_type(os, i);
+    bool first = true;
+    for (Type j = d.types().first_type(); j < d.types().last_type(); j++) {
+      if (i != j && d.types().subtype(i, j)) {
+	if (first) {
+	  os << " <:";
+	  first = false;
+	}
+	os << ' ';
+	d.types().print_type(os, j);
+      }
+    }
+  }
+  os << std::endl << "predicates:";
+  for (Predicate i = d.predicates().first_predicate();
+       i < d.predicates().last_predicate(); i++) {
+    os << std::endl << "  (" << d.predicates().name(i);
+    size_t arity = d.predicates().arity(i);
+    for (size_t j = 0; j < arity; j++) {
+      os << " ?x - ";
+      d.types().print_type(os, d.predicates().parameter(i, j));
+    }
+    os << ")";
+    if (d.predicates().static_predicate(i)) {
+      os << " <static>";
     }
   }
   os << std::endl << "constants:";
-  for (NameMapIter ni = d.constants_.begin(); ni != d.constants_.end(); ni++) {
-    os << ' ' << *(*ni).second << " - " << (*ni).second->type();
-  }
-  os << std::endl << "predicates:";
-  for (PredicateMapIter pi = d.predicates_.begin();
-       pi != d.predicates_.end(); pi++) {
-    os << std::endl << "  " << *(*pi).second;
+  for (Object i = d.terms().first_object();
+       i <= d.terms().last_object(); i++) {
+    os << std::endl << "  ";
+    d.terms().print_term(os, i, 0, Bindings());
+    os << " - ";
+    d.types().print_type(os, d.terms().type(i));
   }
   os << std::endl << "actions:";
   for (ActionSchemaMapIter ai = d.actions_.begin();

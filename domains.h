@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.h,v 4.11 2003-03-01 18:52:45 lorens Exp $
+ * $Id: domains.h,v 6.1 2003-07-13 15:54:49 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -24,78 +24,13 @@
 #include <config.h>
 #include "requirements.h"
 #include "formulas.h"
+#include "terms.h"
+#include "predicates.h"
 #include "types.h"
 #include "hashing.h"
 #include <map>
 
 struct Problem;
-
-
-/* ====================================================================== */
-/* Predicate */
-/*
- * Predicate declaration.
- */
-struct Predicate {
-  /* Constructs a predicate with the given name. */
-  explicit Predicate(const std::string& name);
-
-  /* Deletes this predicate. */
-  ~Predicate();
-
-  /* Returns the name of this predicate. */
-  const std::string& name() const { return name_; }
-
-  /* Returns the arity of this predicate. */
-  size_t arity() const;
-
-  /* Returns the type of the ith parameter of this predicate. */
-  const Type& type(size_t i) const;
-
-  /* Adds a parameter to this predicate. */
-  void add_parameter(const Type& type);
-
-private:
-  /* Name of this predicate. */
-  std::string name_;
-  /* Parameter types. */
-  TypeList parameters_;
-};
-
-/* Equality operator for predicates. */
-inline bool operator==(const Predicate& p1, const Predicate& p2) {
-  return &p1 == &p2;
-}
-
-/* Inequality operator for predicates. */
-inline bool operator!=(const Predicate& p1, const Predicate& p2) {
-  return &p1 != &p2;
-}
-
-/* Output operator for predicates. */
-std::ostream& operator<<(std::ostream& os, const Predicate& p);
-
-
-/* ====================================================================== */
-/* PredicateMap */
-
-/* Table of predicate declarations. */
-struct PredicateMap : public std::map<std::string, const Predicate*> {
-};
-
-/* Iterator for predicate table. */
-typedef PredicateMap::const_iterator PredicateMapIter;
-
-
-/* ====================================================================== */
-/* PredicateSet */
-
-/* Set of predicate declarations. */
-struct PredicateSet : public hashing::hash_set<const Predicate*> {
-};
-
-/* Iterator for predicate sets. */
-typedef PredicateSet::const_iterator PredicateSetIter;
 
 
 /* ====================================================================== */
@@ -117,7 +52,7 @@ struct Effect {
   ~Effect();
 
   /* Adds a universally quantified variable to this effect. */
-  void add_forall(const Variable& parameter);
+  void add_forall(Variable parameter);
 
   /* Sets the condition of this effect. */
   void set_condition(const Formula& condition);
@@ -152,7 +87,7 @@ struct Effect {
 
   /* Fills the provided list with instantiations of this effect. */
   void instantiations(EffectList& effects, size_t& useful,
-		      const SubstitutionList& subst,
+		      const SubstitutionMap& subst,
 		      const Problem& problem) const;
 
   /* Fills the provided sets with predicates achievable by the
@@ -175,7 +110,7 @@ private:
   EffectTime when_;
 
   /* Returns an instantiation of this effect. */
-  const Effect* instantiation(const SubstitutionList& args,
+  const Effect* instantiation(const SubstitutionMap& args,
 			      const Problem& problem,
 			      const Formula& condition) const;
 };
@@ -249,7 +184,7 @@ struct Action {
   void strengthen_effects();
 
   /* Prints this action on the given stream with the given bindings. */
-  virtual void print(std::ostream& os, size_t step_id,
+  virtual void print(std::ostream& os, size_t step_id, const Problem& problem,
 		     const Bindings* bindings) const = 0;
 
 protected:
@@ -307,11 +242,8 @@ struct ActionSchema : public Action {
   /* Constructs an action schema with the given name. */
   ActionSchema(const std::string& name, bool durative);
 
-  /* Deletes this action schema. */
-  virtual ~ActionSchema();
-
   /* Adds a parameter to this action schema. */
-  void add_parameter(const Variable& var);
+  void add_parameter(Variable var);
 
   /* Returns the parameters of this action schema. */
   const VariableList& parameters() const { return parameters_; }
@@ -321,7 +253,7 @@ struct ActionSchema : public Action {
   void instantiations(GroundActionList& actions, const Problem& problem) const;
 
   /* Prints this action on the given stream with the given bindings. */
-  virtual void print(std::ostream& os, size_t step_id,
+  virtual void print(std::ostream& os, size_t step_id, const Problem& problem,
 		     const Bindings* bindings) const;
 
 protected:
@@ -333,7 +265,7 @@ private:
   VariableList parameters_;
 
   /* Returns an instantiation of this action schema. */
-  const GroundAction* instantiation(const SubstitutionList& args,
+  const GroundAction* instantiation(const SubstitutionMap& args,
 				    const Problem& problem,
 				    const Formula& precond) const;
 };
@@ -363,13 +295,13 @@ struct GroundAction : public Action {
   GroundAction(const std::string& name, bool durative);
 
   /* Adds an argument to this ground action. */
-  void add_argument(const Name& arg);
+  void add_argument(Object arg);
 
   /* Action arguments. */
-  const NameList& arguments() const { return arguments_; }
+  const ObjectList& arguments() const { return arguments_; }
 
   /* Prints this action on the given stream with the given bindings. */
-  virtual void print(std::ostream& os, size_t step_id,
+  virtual void print(std::ostream& os, size_t step_id, const Problem& problem,
 		     const Bindings* bindings) const;
 
 protected:
@@ -378,7 +310,7 @@ protected:
 
 private:
   /* Action arguments. */
-  NameList arguments_;
+  ObjectList arguments_;
 };
 
 
@@ -436,48 +368,28 @@ struct Domain {
   /* Domain actions. */
   const ActionSchemaMap& actions() const;
 
-  /* Adds a type to this domain. */
-  void add_type(SimpleType& type);
+  /* Returns the type table of this domain. */
+  TypeTable& types() const { return types_; }
 
-  /* Adds a constant to this domain. */
-  void add_constant(Name& constant);
+  /* Returns the predicate table of this domain. */
+  PredicateTable& predicates() const { return predicates_; }
 
-  /* Adds a predicate to this domain. */
-  void add_predicate(const Predicate& predicate);
+  /* Returns the term table of this domain. */
+  TermTable& terms() { return terms_; }
+
+  /* Returns the term table of this domain. */
+  const TermTable& terms() const { return terms_; }
 
   /* Adds an action to this domain. */
   void add_action(const ActionSchema& action);
-
-  /* Returns the type with the given name, or NULL if it is
-     undefined. */
-  SimpleType* find_type(const std::string& name);
-
-  /* Returns the type with the given name, or NULL if it is
-     undefined. */
-  const SimpleType* find_type(const std::string& name) const;
-
-  /* Returns the constant with the given name, or NULL if it is
-     undefined. */
-  Name* find_constant(const std::string& name);
-
-  /* Returns the constant with the given name, or NULL if it is
-     undefined. */
-  const Name* find_constant(const std::string& name) const;
-
-  /* Returns the predicate with the given name, or NULL if it is
-     undefined. */
-  const Predicate* find_predicate(const std::string& name) const;
 
   /* Returns the action schema with the given name, or NULL if it is
      undefined. */
   const ActionSchema* find_action(const std::string& name) const;
 
-  /* Fills the provided name list with constants that are compatible
+  /* Fills the provided object list with constants that are compatible
      with the given type. */
-  void compatible_constants(NameList& constants, const Type& t) const;
-
-  /* Tests if the given predicate is static. */
-  bool static_predicate(const Predicate& predicate) const;
+  void compatible_constants(ObjectList& constants, Type type) const;
 
 private:
   /* Table of all defined domains. */
@@ -486,15 +398,13 @@ private:
   /* Name of this domain. */
   std::string name_;
   /* Domain types. */
-  TypeMap types_;
-  /* Domain constants. */
-  NameMap constants_;
+  mutable TypeTable types_;
   /* Domain predicates. */
-  PredicateMap predicates_;
+  mutable PredicateTable predicates_;
+  /* Domain terms. */
+  TermTable terms_;
   /* Domain action schemas. */
   ActionSchemaMap actions_;
-  /* Static predicates. */
-  PredicateSet static_predicates_;
 
   friend std::ostream& operator<<(std::ostream& os, const Domain& d);
 };
