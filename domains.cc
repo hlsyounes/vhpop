@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.cc,v 3.3 2002-03-12 15:51:41 lorens Exp $
+ * $Id: domains.cc,v 3.4 2002-03-12 19:44:58 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -593,12 +593,28 @@ Domain::Domain(const string& name, const Requirements& requirements,
 Domain::~Domain() {
   domains.erase(name);
   delete &requirements;
+  /* Delete supertypes that are union types first.  Would like to do
+     this in the destructor of the simple type, but that causes core
+     dump if supertype is a simple type that has been deleted. */
+  for (TypeMapIter ti = types.begin(); ti != types.end(); ti++) {
+    const UnionType* ut =
+      dynamic_cast<const UnionType*>(&(*ti).second->supertype);
+    if (ut != NULL) {
+      delete ut;
+    }
+  }
+  for (TypeMapIter ti = types.begin(); ti != types.end(); ti++) {
+    if (!(*ti).second->object()) {
+      delete (*ti).second;
+    }
+  }
+  delete &types;
 }
 
 
 /* Returns the type with the given name, or NULL if it is
    undefined. */
-const Type* Domain::find_type(const string& name) const {
+const SimpleType* Domain::find_type(const string& name) const {
   TypeMapIter ti = types.find(name);
   return (ti != types.end()) ? (*ti).second : NULL;
 }

@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 3.3 2002-03-12 15:51:45 lorens Exp $
+ * $Id: pddl.yy,v 3.4 2002-03-12 19:44:42 lorens Exp $
  */
 %{
 #include "requirements.h"
@@ -40,7 +40,7 @@ extern size_t line_number;
 static string tostring(unsigned int n);
 static void yyerror(const string& s); 
 static void yywarning(const string& s);
-static const Type* find_type(const string& name);
+static const SimpleType* find_type(const string& name);
 static const Name* find_constant(const string& name);
 static const Predicate* find_predicate(const string& name);
 static void add_names(const vector<string>& names,
@@ -52,7 +52,7 @@ static const pair<AtomList*, NegationList*>& make_add_del(AtomList* adds,
 							  NegationList* dels);
 static const Atom& make_atom(const string& predicate, const TermList& terms);
 static TermList& add_name(TermList& terms, const string& name);
-static const Type& make_type(const string& name);
+static const SimpleType& make_type(const string& name);
 
 
 /*
@@ -156,6 +156,7 @@ static bool unique_variables = true;
   const string* str;
   float num;
   vector<string>* strings;
+  UnionType* utype;
   const Type* type;
 }
 
@@ -176,7 +177,7 @@ static bool unique_variables = true;
 %type <terms> terms
 %type <variables> opt_variables variables
 %type <strings> name_seq variable_seq
-%type <type> types
+%type <utype> types
 %type <type> type_spec type
 %type <str> predicate function_symbol name NAME variable DURATION_VAR VARIABLE
 %type <num> NUMBER
@@ -929,9 +930,16 @@ vars : variable_seq
 	 }
      | variable_seq type_spec 
          {
+	   const UnionType* ut = dynamic_cast<const UnionType*>($2);
 	   for (vector<string>::const_iterator si = $1->begin();
 		si != $1->end(); si++) {
-	     add_variable(*(new Variable(*si, *$2)));
+	     /* Duplicate type if it is a union type so that every
+		variable has its own copy. */
+	     const Type* t = (ut != NULL) ? new UnionType(*ut) : $2;
+	     add_variable(*(new Variable(*si, *t)));
+	   }
+	   if (ut != NULL) {
+	     delete ut;
 	   }
 	 }
        opt_vars
@@ -945,15 +953,15 @@ variable_seq : variable              { $$ = new vector<string>(1, *$1); }
              | variable_seq variable { $1->push_back(*$2); $$ = $1; }
              ;
 
-types : type
-      | types type { $$ = &(*$1 + *$2); }
+types : predicate       { $$ = new UnionType(make_type(*$1)); }
+      | types predicate { $$ = $1; $$->add(make_type(*$2)); }
       ;
 
 type_spec : '-' type { $$ = $2; }
           ;
 
 type : predicate            { $$ = &make_type(*$1); }
-     | '(' EITHER types ')' { $$ = $3; }
+     | '(' EITHER types ')' { $$ = &UnionType::simplify(*$3); }
      ;
 
 variable : DURATION_VAR
@@ -1059,7 +1067,7 @@ static void yywarning(const string& s) {
 /*
  * Returns the type with the given name, or NULL if it is undefined.
  */
-static const Type* find_type(const string& name) {
+static const SimpleType* find_type(const string& name) {
   if (pdomain != NULL) {
     return pdomain->find_type(name);
   } else if (domain_types != NULL) {
@@ -1111,12 +1119,16 @@ static const Predicate* find_predicate(const string& name) {
  * Adds types, constants, or objects to the current domain or problem.
  */
 static void add_names(const vector<string>& names, const Type& type) {
+  const UnionType* ut = dynamic_cast<const UnionType*>(&type);
   for (vector<string>::const_iterator si = names.begin();
        si != names.end(); si++) {
+    /* Duplicate type if it is a union type so that every name has its
+       own copy. */
+    const Type* t = (ut != NULL) ? new UnionType(*ut) : &type;
     const string& s = *si;
     if (name_map_type == "type") {
       if (find_type(s) == NULL) {
-	domain_types->insert(make_pair(s, new SimpleType(s, type)));
+	domain_types->insert(make_pair(s, new SimpleType(s, *t)));
       } else {
 	yywarning("ignoring repeated declaration of " + name_map_type
 		  + " `" + s + "'");
@@ -1128,12 +1140,18 @@ static void add_names(const vector<string>& names, const Type& type) {
 	  yywarning("ignoring declaration of object `" + s
 		    + "' previously declared as constant");
 	} else {
-	  name_map->insert(make_pair(s, new Name(s, type)));
+	  name_map->insert(make_pair(s, new Name(s, *t)));
 	}
       } else {
-	(*name_map)[s] = new Name(s, (*ni).second->type + type);
+	(*name_map)[s] = new Name(s, UnionType::add((*ni).second->type, *t));
+	if (ut != NULL) {
+	  delete t;
+	}
       }
     }
+  }
+  if (ut != NULL) {
+    delete ut;
   }
 }
 
@@ -1253,8 +1271,8 @@ static TermList& add_name(TermList& terms, const string& name) {
 }
 
 
-static const Type& make_type(const string& name) {
-  const Type* t = find_type(name);
+static const SimpleType& make_type(const string& name) {
+  const SimpleType* t = find_type(name);
   if (t == NULL) {
     const SimpleType& st = *(new SimpleType(name));
     if (domain_types != NULL) {
