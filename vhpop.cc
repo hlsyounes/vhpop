@@ -1,7 +1,7 @@
 /*
  * Main program.
  *
- * $Id: vhpop.cc,v 1.16 2001-12-27 19:13:25 lorens Exp $
+ * $Id: vhpop.cc,v 1.17 2001-12-27 19:58:25 lorens Exp $
  */
 #include <iostream>
 #include <cstdio>
@@ -247,9 +247,9 @@ int main(int argc, char* argv[]) {
       }
       cout << "----------------------------------------"<< endl;
       cout << "problems:" << endl;
-      for (Problem::ProblemMap::const_iterator i = Problem::begin();
-	   i != Problem::end(); i++) {
-	cout << endl << *(*i).second << endl;
+      for (Problem::ProblemMapIter pi = Problem::begin();
+	   pi != Problem::end(); pi++) {
+	cout << endl << *(*pi).second << endl;
       }
       cout << "----------------------------------------"<< endl;
     }
@@ -259,9 +259,9 @@ int main(int argc, char* argv[]) {
     /*
      * Solve the problems.
      */
-    for (Problem::ProblemMap::const_iterator i = Problem::begin();
-	 i != Problem::end(); i++) {
-      const Problem& problem = *(*i).second;
+    for (Problem::ProblemMapIter pi = Problem::begin();
+	 pi != Problem::end(); pi++) {
+      const Problem& problem = *(*pi).second;
       struct itimerval timer = { { 1000000, 900000 }, { 1000000, 900000 } };
       setitimer(ITIMER_PROF, &timer, NULL);
       const Plan* plan = Plan::plan(problem, params);

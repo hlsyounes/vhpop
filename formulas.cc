@@ -1,12 +1,12 @@
 /*
- * $Id: formulas.cc,v 1.30 2001-12-27 19:13:18 lorens Exp $
+ * $Id: formulas.cc,v 1.31 2001-12-27 19:58:20 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
-#include "types.h"
-#include "domains.h"
-#include "problems.h"
 #include "bindings.h"
+#include "problems.h"
+#include "domains.h"
+#include "types.h"
 
 
 /*

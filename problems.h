@@ -2,7 +2,7 @@
 /*
  * Problem descriptions.
  *
- * $Id: problems.h,v 1.9 2001-12-27 19:57:55 lorens Exp $
+ * $Id: problems.h,v 1.10 2001-12-27 20:00:07 lorens Exp $
  */
 #ifndef PROBLEMS_H
 #define PROBLEMS_H
@@ -81,5 +81,6 @@ private:
   /* Table of defined problems. */
   static ProblemMap problems;
 };
+
 
 #endif /* PROBLEMS_H */

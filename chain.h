@@ -2,7 +2,7 @@
 /*
  * Template chain class.
  *
- * $Id: chain.h,v 1.2 2001-09-04 19:10:43 lorens Exp $
+ * $Id: chain.h,v 1.3 2001-12-27 19:59:49 lorens Exp $
  */
 #ifndef CHAIN_H
 #define CHAIN_H
@@ -63,5 +63,6 @@ struct Chain : public gc {
     }
   }
 };
+
 
 #endif /* CHAIN_H */
