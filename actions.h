@@ -16,13 +16,16 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: actions.h,v 6.2 2003-08-24 23:10:29 lorens Exp $
+ * $Id: actions.h,v 6.3 2003-09-05 16:16:03 lorens Exp $
  */
 #ifndef ACTIONS_H
 #define ACTIONS_H
 
 #include <config.h>
 #include "effects.h"
+
+struct FunctionTable;
+struct Expression;
 
 
 /* ====================================================================== */
@@ -42,13 +45,16 @@ struct Action {
   void add_effect(const Effect& effect);
 
   /* Sets the minimum duration for this action. */
-  void set_min_duration(double min_duration);
+  void set_min_duration(const Expression& min_duration);
 
   /* Sets the maximum duration for this action. */
-  void set_max_duration(double max_duration);
+  void set_max_duration(const Expression& max_duration);
 
   /* Sets the duration for this action. */
-  void set_duration(double duration);
+  void set_duration(const Expression& duration);
+
+  /* Returns the id for this action. */
+  size_t id() const { return id_; }
 
   /* Returns the name of this action. */
   const std::string& name() const { return name_; }
@@ -63,10 +69,10 @@ struct Action {
   bool durative() const { return durative_; }
 
   /* Minimum duration of this action. */
-  float min_duration() const { return min_duration_; }
+  const Expression& min_duration() const { return *min_duration_; }
 
   /* Maximum duration of this action. */
-  float max_duration() const { return max_duration_; }
+  const Expression& max_duration() const { return *max_duration_; }
 
   /* "Strengthens" the effects of this action. */
   void strengthen_effects();
@@ -79,7 +85,15 @@ protected:
   /* Constructs an action with the given name. */
   Action(const std::string& name, bool durative);
 
+  /* Assigns an id to this literal. */
+  void assign_id();
+
 private:
+  /* Next action id. */
+  static size_t next_id;
+
+  /* Unique id for actions. */
+  size_t id_;
   /* Name of this action. */
   std::string name_;
   /* Action condition. */
@@ -89,10 +103,23 @@ private:
   /* Whether this is a durative action. */
   bool durative_;
   /* Minimum duration of this action. */
-  float min_duration_;
+  const Expression* min_duration_;
   /* Maximum duration of this action. */
-  float max_duration_;
+  const Expression* max_duration_;
 };
+
+/*
+ * Less than function object for action pointers.
+ */
+namespace std {
+  struct less<const Action*>
+    : public binary_function<const Action*, const Action*, bool> {
+    /* Comparison function operator. */
+    bool operator()(const Action* a1, const Action* a2) const {
+      return a1->id() < a2->id();
+    }
+  };
+}
 
 
 /* ====================================================================== */
@@ -130,7 +157,7 @@ struct ActionSchema : public Action {
 
   /* Prints this action on the given stream. */
   void print(std::ostream& os, const PredicateTable& predicates,
-	     const TermTable& terms) const;
+	     const FunctionTable& functions, const TermTable& terms) const;
 
   /* Prints this action on the given stream with the given bindings. */
   virtual void print(std::ostream& os, const TermTable& terms,
@@ -145,6 +172,14 @@ private:
 				    const Problem& problem,
 				    const Condition& condition) const;
 };
+
+/*
+ * Less than function object for action schemas pointers.
+ */
+namespace std {
+  struct less<const ActionSchema*> : public less<const Action*> {
+  };
+}
 
 
 /* ====================================================================== */
@@ -181,6 +216,14 @@ private:
   /* Action arguments. */
   ObjectList arguments_;
 };
+
+/*
+ * Less than function object for ground action pointers.
+ */
+namespace std {
+  struct less<const GroundAction*> : public less<const Action*> {
+  };
+}
 
 
 /* ====================================================================== */
