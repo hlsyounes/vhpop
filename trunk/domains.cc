@@ -1,5 +1,5 @@
 /*
- * $Id: domains.cc,v 1.8 2001-08-18 15:45:27 lorens Exp $
+ * $Id: domains.cc,v 1.9 2001-08-18 17:01:10 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -378,8 +378,7 @@ bool GroundAction::equals(const Action& a) const {
 
 /* Returns the hash value of this action. */
 size_t GroundAction::hash_value() const {
-  // should include arguments in hash
-  return hash<string>()(formula.predicate);
+  return hash<Formula>()(formula);
 }
 
 
