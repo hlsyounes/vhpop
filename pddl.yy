@@ -2,7 +2,7 @@
 /*
  * PDDL parser.
  *
- * $Id: pddl.yy,v 1.10 2001-09-28 16:24:37 lorens Exp $
+ * $Id: pddl.yy,v 1.11 2001-10-06 00:35:12 lorens Exp $
  */
 %{
 #include <utility>
@@ -125,7 +125,7 @@ static bool unique_variables = true;
   const Effect* effect;
   FormulaList* formulas;
   TermList* terms;
-  const AtomicFormula* atomic_formula;
+  const Atom* atom;
   const Name* name;
   VariableList* variables;
   const Variable* variable;
@@ -820,7 +820,7 @@ static const Formula& make_atomic_formula(const string& predicate,
 	      + "' expecting " + tostring(p->arity()));
     }
   }
-  return *(new AtomicFormula(predicate, terms));
+  return *(new Atom(predicate, terms));
 }
 
 

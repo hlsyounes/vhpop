@@ -1,5 +1,5 @@
 /*
- * $Id: domains.cc,v 1.14 2001-09-28 16:23:12 lorens Exp $
+ * $Id: domains.cc,v 1.15 2001-10-06 00:35:20 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -246,12 +246,12 @@ void Action::achievable_predicates(hash_set<string>& preds,
 
 
 /* Returns a formula representing this action. */
-const AtomicFormula& ActionSchema::action_formula() const {
+const Atom& ActionSchema::action_formula() const {
   TermList& terms = *(new TermList());
   for (VLCI vi = parameters.begin(); vi != parameters.end(); vi++) {
     terms.push_back(*vi);
   }
-  return *(new AtomicFormula(name, terms));
+  return *(new Atom(name, terms));
 }
 
 
@@ -355,12 +355,12 @@ GroundAction::GroundAction(const string& name, const TermList& arguments,
 			   const Formula& precondition,
 			   const EffectList& effects)
   : Action(precondition, effects),
-    formula(*(new AtomicFormula(name, arguments))) {
+    formula(*(new Atom(name, arguments))) {
 }
 
 
 /* Returns a formula representing this action. */
-const AtomicFormula& GroundAction::action_formula() const {
+const Atom& GroundAction::action_formula() const {
   return formula;
 }
 

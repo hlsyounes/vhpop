@@ -1,5 +1,5 @@
 /*
- * $Id: bindings.cc,v 1.3 2001-08-11 06:12:11 lorens Exp $
+ * $Id: bindings.cc,v 1.4 2001-10-06 00:34:53 lorens Exp $
  */
 #include "bindings.h"
 
@@ -11,14 +11,8 @@ typedef Chain<const Variable*> VariableChain;
  * Variable codesignation, and non-codesignation.
  */
 struct Varset : public gc {
-  /* Returns a specific term representing the codesignation of this varset. */
-  const Term& binding() const {
-    if (constant != NULL) {
-      return *constant;
-    } else {
-      return *cd_set->head;
-    }
-  }
+  /* The constant of this varset, or NULL. */
+  const Name* const constant;
 
   /* Checks if this varset includes the given name. */
   bool includes(const Name& name) const {
@@ -162,8 +156,6 @@ struct Varset : public gc {
   }
 
 private:
-  /* The constant of this varset, or NULL. */
-  const Name* const constant;
   /* The codesignation list. */
   const VariableChain* const cd_set;
   /* The non-codesignation list. */
@@ -238,14 +230,14 @@ const Bindings* Bindings::make_bindings(const BindingChain* equalities,
    variables have been substituted for the value they are bound
    to. */
 const Formula& Bindings::instantiation(const Formula& f) const {
-  const AtomicFormula* atom = dynamic_cast<const AtomicFormula*>(&f);
+  const Atom* atom = dynamic_cast<const Atom*>(&f);
   if (atom != NULL) {
     TermList& inst_terms = *(new TermList());
     const TermList& terms = atom->terms;
     for (TermList::const_iterator i = terms.begin(); i != terms.end(); i++) {
       inst_terms.push_back(&binding(**i));
     }
-    return *(new AtomicFormula(atom->predicate, inst_terms));
+    return *(new Atom(atom->predicate, inst_terms));
   }
   const Negation* negation = dynamic_cast<const Negation*>(&f);
   if (negation != NULL) {
@@ -286,18 +278,14 @@ const Formula& Bindings::instantiation(const Formula& f) const {
 /* Returns the binding for the given term, or the term itself if it
    is unbound. */
 const Term& Bindings::binding(const Term& t) const {
-  const Name* name = dynamic_cast<const Name*>(&t);
-  if (name != NULL) {
-    return t;
-  } else {
-    const Variable& var = dynamic_cast<const Variable&>(t);
-    const Varset* vs = find_varset(varsets_, var);
-    if (vs != NULL) {
-      return vs->binding();
-    } else {
-      return t;
+  const Variable* var = dynamic_cast<const Variable*>(&t);
+  if (var != NULL) {
+    const Varset* vs = find_varset(varsets_, *var);
+    if (vs != NULL && vs->constant != NULL) {
+      return *vs->constant;
     }
   }
+  return t;
 }
 
 
@@ -355,8 +343,8 @@ bool Bindings::unify(SubstitutionList& mgu,
       fp2 = negation2;
     }
   }
-  const AtomicFormula& atom1 = dynamic_cast<const AtomicFormula&>(*fp1);
-  const AtomicFormula& atom2 = dynamic_cast<const AtomicFormula&>(*fp2);
+  const Atom& atom1 = dynamic_cast<const Atom&>(*fp1);
+  const Atom& atom2 = dynamic_cast<const Atom&>(*fp2);
   if (atom1.predicate != atom2.predicate) {
     /* The predicates do not match. */
     return false;

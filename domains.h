@@ -2,7 +2,7 @@
 /*
  * Domain descriptions.
  *
- * $Id: domains.h,v 1.15 2001-09-28 17:55:55 lorens Exp $
+ * $Id: domains.h,v 1.16 2001-10-06 00:35:04 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -24,7 +24,7 @@ struct NameList;
 struct NameMap;
 struct Formula;
 struct FormulaList;
-struct AtomicFormula;
+struct Atom;
 struct Problem;
 
 /*
@@ -166,7 +166,7 @@ struct Action : public Printable {
   }
 
   /* Returns a formula representing this action. */
-  virtual const AtomicFormula& action_formula() const = 0;
+  virtual const Atom& action_formula() const = 0;
 
   /* Fills the provided action list with all instantiations of this
      action. */
@@ -265,7 +265,7 @@ struct ActionSchema : public Action {
   }
 
   /* Returns a formula representing this action. */
-  virtual const AtomicFormula& action_formula() const;
+  virtual const Atom& action_formula() const;
 
   /* Fills the provided action list with all instantiations of this
      action. */
@@ -293,7 +293,7 @@ struct GroundAction : public Action {
 	       const Formula& precondition, const EffectList& effects);
 
   /* Returns a formula representing this action. */
-  virtual const AtomicFormula& action_formula() const;
+  virtual const Atom& action_formula() const;
 
   /* Fills the provided action list with all instantiations of this
      action. */
@@ -312,7 +312,7 @@ protected:
 
 private:
   /* Atomic formula representing this ground action. */
-  const AtomicFormula& formula;
+  const Atom& formula;
 };
 
 
