@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.h,v 6.6 2003-08-28 16:48:32 lorens Exp $
+ * $Id: bindings.h,v 6.7 2003-09-01 19:32:27 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
@@ -30,6 +30,7 @@ struct Literal;
 struct Equality;
 struct Inequality;
 struct Action;
+struct Problem;
 struct Step;
 struct PlanningGraph;
 
@@ -234,7 +235,8 @@ struct Bindings {
   Term binding(Term t, size_t step_id) const;
 
   /* Returns the domain for the given step variable. */
-  const NameSet* domain(Variable v, size_t step_id) const;
+  const NameSet& domain(Variable v, size_t step_id,
+			const Problem& problem) const;
 
   /* Checks if one of the given formulas is the negation of the other,
      and the atomic formulas can be unified. */
