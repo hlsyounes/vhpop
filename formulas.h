@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 6.6 2003-07-28 21:34:54 lorens Exp $
+ * $Id: formulas.h,v 6.7 2003-08-22 01:41:57 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -306,7 +306,7 @@ struct Negation : public Literal {
   /* Deletes this negated atom. */
   virtual ~Negation();
 
-  /* Returns the the negated atom. */
+  /* Returns the negated atom. */
   const Atom& atom() const { return *atom_; }
 
   /* Returns the predicate of this literal. */
