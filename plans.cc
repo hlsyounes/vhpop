@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.6 2001-05-15 13:51:19 lorens Exp $
+ * $Id: plans.cc,v 1.7 2001-07-22 19:10:31 lorens Exp $
  */
 #include <queue>
 #include <hash_set>
@@ -1698,7 +1698,8 @@ Plan::make_node(CostGraph& cg,
 	 oc != NULL; oc = oc->tail) {
       if (oc->head->step_id == step->id) {
 	unsigned int prec_node =
-	  make_node(cg, step_nodes, pred_nodes, oc->head->condition);
+	  make_node(cg, step_nodes, pred_nodes, oc->head->condition,
+		    oc->head->step_id);
 	cg.set_distance(step_node, prec_node, 0);
 	oc_nodes[oc->head] = prec_node;
 	if (verbosity > 3) {
@@ -1711,12 +1712,11 @@ Plan::make_node(CostGraph& cg,
   }
 }
 
-unsigned int Plan::make_node(CostGraph& cg,
-			     hash_map<unsigned int, unsigned int>& step_nodes,
-			     hash_map<string, unsigned int>& pred_nodes,
-			     const Action& pred) const {
-  hash_map<string, unsigned int>::const_iterator p =
-    pred_nodes.find(pred.name);
+size_t Plan::make_node(CostGraph& cg,
+		       hash_map<size_t, size_t>& step_nodes,
+		       hash_map<string, size_t>& pred_nodes,
+		       const Action& pred, size_t step_id) const {
+  hash_map<string, size_t>::const_iterator p = pred_nodes.find(pred.name);
   if (p != pred_nodes.end()) {
     return (*p).second;
   } else {
@@ -1729,7 +1729,7 @@ unsigned int Plan::make_node(CostGraph& cg,
       node_type = CostGraph::SUM_NODE;
       break;
     }
-    unsigned int pred_node = cg.add_node(node_type, pred.cost);
+    size_t pred_node = cg.add_node(node_type, pred.cost);
     pred_nodes[pred.name] = pred_node;
     if (verbosity > 3) {
       cout << "predicate '" << pred.name << "' is node " << pred_node << endl;
@@ -1737,19 +1737,19 @@ unsigned int Plan::make_node(CostGraph& cg,
     if (pred.precondition == NULL) {
       cg.set_distance(pred_node, 0, 0);
     } else {
-      unsigned int prec_node =
-	make_node(cg, step_nodes, pred_nodes, *pred.precondition);
+      size_t prec_node =
+	make_node(cg, step_nodes, pred_nodes, *pred.precondition, step_id);
       cg.set_distance(pred_node, prec_node, 0);
     }
     return pred_node;
   }
 }
 
-unsigned int Plan::make_node(CostGraph& cg,
-			     hash_map<unsigned int, unsigned int>& step_nodes,
-			     hash_map<string, unsigned int>& pred_nodes,
-			     const Formula& condition) const {
-  unsigned int cond_node;
+size_t Plan::make_node(CostGraph& cg,
+		       hash_map<size_t, size_t>& step_nodes,
+		       hash_map<string, size_t>& pred_nodes,
+		       const Formula& condition, size_t step_id) const {
+  size_t cond_node;
   const Conjunction* conjunction =
     dynamic_cast<const Conjunction*>(&condition);
   if (conjunction != NULL) {
@@ -1769,7 +1769,7 @@ unsigned int Plan::make_node(CostGraph& cg,
     const FormulaList& conjuncts = conjunction->conjuncts;
     for (FormulaList::const_iterator i = conjuncts.begin();
 	 i != conjuncts.end(); i++) {
-      unsigned int prec_node = make_node(cg, step_nodes, pred_nodes, **i);
+      size_t prec_node = make_node(cg, step_nodes, pred_nodes, **i, step_id);
       cg.set_distance(cond_node, prec_node, 0);
     }
   } else {
@@ -1783,7 +1783,7 @@ unsigned int Plan::make_node(CostGraph& cg,
       const FormulaList& disjuncts = disjunction->disjuncts;
       for (FormulaList::const_iterator i = disjuncts.begin();
 	   i != disjuncts.end(); i++) {
-	unsigned int prec_node = make_node(cg, step_nodes, pred_nodes, **i);
+	size_t prec_node = make_node(cg, step_nodes, pred_nodes, **i, step_id);
 	cg.set_distance(cond_node, prec_node, 0);
       }
     } else {
@@ -1815,14 +1815,39 @@ unsigned int Plan::make_node(CostGraph& cg,
 	    break;
 	  }
 	}
+	if (!done && heuristic == SUM_HEURISTIC) {
+	  // try to reuse step
+	  hash_set<size_t> seen_steps;
+	  for (const StepChain* steps = steps_; steps != NULL;
+	       steps = steps->tail) {
+	    const Step& step = *steps->head;
+	    if (step.id != 0 && seen_steps.find(step.id) == seen_steps.end() &&
+		orderings_.possibly_before(step.id, step_id)) {
+	      seen_steps.insert(step.id);
+	      const EffectList& effs = step.effects;
+	      for (EffectList::const_iterator i = effs.begin();
+		   !done && i != effs.end(); i++) {
+		const FormulaList& adds = (*i)->add_list;
+		for (FormulaList::const_iterator j = adds.begin();
+		     !done && j != adds.end(); j++) {
+		  if (bindings_.unify(**j, condition)) {
+		    cg.set_distance(cond_node, 0, 0);
+		    done = true;
+		  }
+		}
+	      }
+	      break;
+	    }
+	  }
+	}
 	if (!done) {
 	  // try to add step
 	  ActionList actions;
 	  domain->find_applicable_actions(actions, condition);
 	  for (ActionList::const_iterator i = actions.begin();
 	       i != actions.end(); i++) {
-	    unsigned int pred_node =
-	      make_node(cg, step_nodes, pred_nodes, **i);
+	    size_t pred_node = make_node(cg, step_nodes, pred_nodes, **i,
+					 step_id);
 	    cg.set_distance(cond_node, pred_node, 1);
 	  }
 	}
