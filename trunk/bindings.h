@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.h,v 4.2 2002-09-22 23:20:41 lorens Exp $
+ * $Id: bindings.h,v 4.3 2002-09-23 18:22:36 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
@@ -54,6 +54,9 @@ struct Binding {
   /* Constructs a variable binding. */
   Binding(const Variable& var, size_t var_id, const Term& term, size_t term_id,
 	  bool equality, const Reason& reason);
+
+  /* Deletes this variable binding. */
+  ~Binding();
 
   /* Returns the variable of this binding. */
   const Variable& var() const { return *var_; }
@@ -125,6 +128,32 @@ typedef CollectibleChain<Binding> BindingChain;
  * A set of names.
  */
 struct NameSet : public set<const Name*> {
+  /* Register use of the given object. */
+  static void register_use(const NameSet* s) {
+    if (s != NULL) {
+      s->ref_count_++;
+    }
+  }
+
+  /* Unregister use of the given object. */
+  static void unregister_use(const NameSet* s) {
+    if (s != NULL) {
+      s->ref_count_--;
+      if (s->ref_count_ == 0) {
+	delete s;
+      }
+    }
+  }
+
+  /* Constructs a name set. */
+  NameSet();
+
+  /* Deletes this name set. */
+  ~NameSet();
+
+private:
+  /* Reference counter. */
+  mutable size_t ref_count_;
 };
 
 /* Iterator for name sets. */
@@ -138,8 +167,28 @@ typedef NameSet::const_iterator NameSetIter;
  * Domain for action parameters.
  */
 struct ActionDomain {
-  /* Constructs an action domain with a single tuple. */
+  /* Register use of this object. */
+  static void register_use(const ActionDomain* a) {
+    if (a != NULL) {
+      a->ref_count_++;
+    }
+  }
+
+  /* Unregister use of this object. */
+  static void unregister_use(const ActionDomain* a) {
+    if (a != NULL) {
+      a->ref_count_--;
+      if (a->ref_count_ == 0) {
+	delete a;
+      }
+    }
+  } 
+
+ /* Constructs an action domain with a single tuple. */
   ActionDomain(const NameList& tuple);
+
+  /* Deletes this action domain. */
+  ~ActionDomain();
 
   /* Number of tuples. */
   size_t size() const;
@@ -174,10 +223,19 @@ private:
   /* A tuple list iterator. */
   typedef TupleList::const_iterator TupleListIter;
 
+  /* A projection map. */
+  struct ProjectionMap : public hash_map<size_t, const NameSet*> {
+  };
+
+  /* A projection map iterator. */
+  typedef ProjectionMap::const_iterator ProjectionMapIter;
+
   /* Possible parameter tuples. */
   TupleList tuples_;
   /* Projections. */
-  vector<NameSet*> projections_;
+  mutable ProjectionMap projections_;
+  /* Reference counter. */
+  mutable size_t ref_count_;
 
   friend ostream& operator<<(ostream& os, const ActionDomain& ad);
 };
@@ -214,7 +272,24 @@ typedef CollectibleChain<StepDomain> StepDomainChain;
 /*
  * A collection of variable bindings.
  */
-struct Bindings : public Printable, public Collectible {
+struct Bindings {
+  /* Register use of this object. */
+  static void register_use(const Bindings* b) {
+    if (b != NULL) {
+      b->ref_count_++;
+    }
+  }
+
+  /* Unregister use of this object. */
+  static void unregister_use(const Bindings* b) {
+    if (b != NULL) {
+      b->ref_count_--;
+      if (b->ref_count_ == 0) {
+	delete b;
+      }
+    }
+  }
+
   /* Creates a collection of variable bindings with the given equality
      and inequality bindings. Parameter constrains are used if pg is
      not NULL. */
@@ -234,7 +309,7 @@ struct Bindings : public Printable, public Collectible {
 			const Literal& l2, size_t id2);
 
   /* Deletes this binding collection. */
-  virtual ~Bindings();
+  ~Bindings();
 
   /* Returns the equality bindings. */
   const BindingChain* equalities() const;
@@ -291,10 +366,6 @@ struct Bindings : public Printable, public Collectible {
   const Bindings* add(size_t step_id, const Action& step_action,
 		      const PlanningGraph& pg, bool test_only = false) const;
 
-protected:
-  /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const;
-
 private:
   /* Varsets representing the transitive closure of the bindings. */
   const VarsetChain* varsets_;
@@ -308,11 +379,19 @@ private:
   /* Inequality bindings. */
   const BindingChain* inequalities_;
 #endif
+  /* Reference counter. */
+  mutable size_t ref_count_;
 
   /* Constructs a binding collection. */
   Bindings(const VarsetChain* varsets, size_t high_step,
 	   const StepDomainChain* step_domains,
 	   const BindingChain* equalities, const BindingChain* inequalities);
+
+  friend ostream& operator<<(ostream& os, const Bindings& b);
 };
+
+/* Output operator for bindings. */
+ostream& operator<<(ostream& os, const Bindings& b);
+
 
 #endif /* BINDINGS_H */
