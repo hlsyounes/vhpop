@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: types.cc,v 3.6 2002-03-18 09:38:07 lorens Exp $
+ * $Id: types.cc,v 4.1 2002-07-22 22:38:19 lorens Exp $
  */
 #include "types.h"
 
@@ -77,8 +77,7 @@ bool SimpleType::less(const LessThanComparable& o) const {
 
 /* Checks if this object equals the given object. */
 bool SimpleType::equals(const EqualityComparable& o) const {
-  const SimpleType* st = dynamic_cast<const SimpleType*>(&o);
-  return st != NULL && name() == st->name();
+  return this == &o;
 }
 
 
