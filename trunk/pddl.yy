@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 3.8 2002-03-19 17:19:32 lorens Exp $
+ * $Id: pddl.yy,v 3.9 2002-03-19 17:36:57 lorens Exp $
  */
 %{
 #include "requirements.h"
@@ -759,7 +759,6 @@ ground_f_exp : '(' '+' ground_f_exp ground_f_exp ')'
              | '(' '/' ground_f_exp ground_f_exp ')'
              | NUMBER {}
              | '(' function_symbol names ')' { delete $2; }
-             | TOTAL_TIME {}
              | function_symbol { delete $1; }
              ;
 
