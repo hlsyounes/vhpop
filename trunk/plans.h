@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.h,v 6.3 2003-07-21 02:24:31 lorens Exp $
+ * $Id: plans.h,v 6.4 2003-09-01 19:50:43 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -107,9 +107,6 @@ struct Step {
   /* Returns the step id. */
   size_t id() const { return id_; }
 
-  /* Test if this is a dummy step. */
-  size_t dummy() const;
-
   /* Returns the action that this step is instantiated from. */
   const Action& action() const { return *action_; }
 
@@ -186,46 +183,41 @@ struct Plan {
   size_t depth() const { return depth_; }
 #endif
 
+  /* Counts the number of refinements for the given threat, and returns
+     true iff the number of refinements does not exceed the given
+     limit. */
+  bool unsafe_refinements(int& refinements, int& separable,
+			  int& promotable, int& demotable,
+			  const Unsafe& unsafe, int limit) const;
+
   /* Checks if the given threat is separable. */
   int separable(const Unsafe& unsafe) const;
-
-  /* Checks if the given threat is demotable. */
-  int demotable(const Unsafe& unsafe) const;
-
-  /* Checks if the given threat is promotable. */
-  int promotable(const Unsafe& unsafe) const;
 
   /* Checks if the given open conditions is threatened. */
   bool unsafe_open_condition(const OpenCondition& open_cond) const;
 
-  /* Counts the number of refinements for the given disjunctive open
-     condition. */
-  int disjunction_refinements(const Disjunction& disj, FormulaTime when,
-			      size_t step_id) const;
-
-  /* Counts the number of refinements for the given inequality open
-     condition. */
-  int inequality_refinements(const Inequality& neq, size_t step_id) const;
+  /* Counts the number of refinements for the given open condition, and
+     returns true iff the number of refinements does not exceed the
+     given limit. */
+  bool open_cond_refinements(int& refinements, int& addable, int& reusable,
+			     const OpenCondition& open_cond, int limit) const;
 
   /* Counts the number of add-step refinements for the given literal
      open condition, and returns true iff the number of refinements
      does not exceed the given limit. */
   bool addable_steps(int& refinements, const Literal& literal,
-		     FormulaTime when, size_t step_id, int limit) const;
+		     const OpenCondition& open_cond, int limit) const;
 
   /* Counts the number of reuse-step refinements for the given literal
      open condition, and returns true iff the number of refinements
      does not exceed the given limit. */
   bool reusable_steps(int& refinements, const Literal& open_cond,
-		      FormulaTime when, size_t step_id, int limit) const;
+		      const OpenCondition& open_cond, int limit) const;
 
 private:
   /* List of plans. */
   struct PlanList : public std::vector<const Plan*> {
   };
-
-  /* Iterator for plan lists. */
-  typedef PlanList::const_iterator PlanListIter;
 
   /* Chain of steps. */
   const Chain<Step>* steps_;
@@ -281,13 +273,16 @@ private:
   void handle_unsafe(PlanList& plans, const Unsafe& unsafe) const;
 
   /* Handles an unsafe link through separation. */
-  void separate(PlanList& new_plans, const Unsafe& unsafe) const;
+  int separate(PlanList& new_plans, const Unsafe& unsafe,
+		const BindingList& unifier, bool test_only = false) const;
 
   /* Handles an unsafe link through demotion. */
-  void demote(PlanList& new_plans, const Unsafe& unsafe) const;
+  int demote(PlanList& new_plans, const Unsafe& unsafe,
+	     bool test_only = false) const;
 
   /* Handles an unsafe link through promotion. */
-  void promote(PlanList& new_plans, const Unsafe& unsasfe) const;
+  int promote(PlanList& new_plans, const Unsafe& unsasfe,
+	      bool test_only = false) const;
 
   /* Adds a plan to the given plan list with an ordering added. */
   void new_ordering(PlanList& plans, size_t before_id, StepTime t1,
@@ -299,12 +294,14 @@ private:
 			     const OpenCondition& open_cond) const;
 
   /* Handles a disjunctive open condition. */
-  void handle_disjunction(PlanList& plans, const Disjunction& disj,
-			  const OpenCondition& open_cond) const;
+  int handle_disjunction(PlanList& plans, const Disjunction& disj,
+			 const OpenCondition& open_cond,
+			 bool test_only = false) const;
 
   /* Handles an inequality open condition. */
-  void handle_inequality(PlanList& plans, const Inequality& neq,
-			 const OpenCondition& open_cond) const;
+  int handle_inequality(PlanList& plans, const Inequality& neq,
+			const OpenCondition& open_cond,
+			bool test_only = false) const;
 
   /* Handles a literal open condition by adding a new step. */
   void add_step(PlanList& plans, const Literal& literal,
@@ -314,43 +311,24 @@ private:
   void reuse_step(PlanList& plans, const Literal& literal,
 		  const OpenCondition& open_cond) const;
 
-  /* Counts the number of new links that can be established between
-     the given effects and the open condition, and returns true iff
-     the number of refinements does not exceed the given limit. */
-  bool count_new_links(int& count, size_t step_id, const Action& action,
-		       const Literal& literal, FormulaTime when,
-		       size_t oc_step_id, int limit) const;
-
   /* Adds plans to the given plan list with a link from the given step
      to the given open condition added. */
-  void new_link(PlanList& plans, const Step& step, const Literal& literal,
-		const OpenCondition& open_cond) const;
-
-  /* Checks if a new link be established between the given effects and
-     the open condition using the closed world assumption. */
-  int cw_link_possible(const EffectList& effects,
-		       const Negation& negation, size_t step_id) const;
+  int new_link(PlanList& plans, const Step& step, const Effect& effect,
+	       const Literal& literal, const OpenCondition& open_cond,
+	       bool test_only = false) const;
 
   /* Adds plans to the given plan list with a link from the given step
      to the given open condition added using the closed world
      assumption. */
-  void new_cw_link(PlanList& plans, const Step& step, const Literal& literal,
-		   const OpenCondition& open_cond) const;
-
-  /* Checks if a new link can be established between the given effect
-     and the open condition. */
-  int link_possible(size_t step_id, const Action& action,
-		    const Effect& effect, const BindingList& unifier) const;
+  int new_cw_link(PlanList& plans, const EffectList& effects,
+		  const Negation& negation, const OpenCondition& open_cond,
+		  bool test_only = false) const;
 
   /* Returns a plan with a link added from the given effect to the
      given open condition. */
-  const Plan* make_link(const Step& step, const Effect& effect,
-			const Literal& literal, const OpenCondition& open_cond,
-			const Chain<Link>* new_links,
-			const BindingList& unifier) const;
-
-  /* Checks if this plan is a duplicate of a previous plan. */
-  bool duplicate() const;
+  int make_link(PlanList& plans, const Step& step, const Effect& effect,
+		const Literal& literal, const OpenCondition& open_cond,
+		const BindingList& unifier, bool test_only = false) const;
 
   friend bool operator<(const Plan& p1, const Plan& p2);
   friend std::ostream& operator<<(std::ostream& os, const Plan& p);
