@@ -2,7 +2,7 @@
 /*
  * Formulas.
  *
- * $Id: formulas.h,v 1.12 2001-08-18 21:15:15 lorens Exp $
+ * $Id: formulas.h,v 1.13 2001-08-20 04:10:47 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -14,6 +14,7 @@
 #include <vector>
 #include "support.h"
 #include "types.h"
+#include "heuristics.h"
 
 
 struct Term;
@@ -258,6 +259,23 @@ struct VariableList : public gc, vector<const Variable*, container_alloc> {
 };
 
 
+struct Formula;
+
+/*
+ * Equality function object for formula pointers.
+ */
+struct equal_to<const Formula*> {
+  bool operator()(const Formula* f1, const Formula* f2) const;
+};
+
+/*
+ * Hash function object for formula pointers.
+ */
+struct hash<const Formula*> {
+  size_t operator()(const Formula* f) const;
+};
+
+
 struct Problem;
 struct FormulaList;
 
@@ -297,9 +315,11 @@ struct Formula : public gc {
     return false;
   }
 
-  /* Roughly corresponds to the number of open conditions this formula
-     will give rise to. */
-  virtual size_t cost() const = 0;
+  /* Returns the heuristic cost of this formula. */
+  virtual Cost cost(const hash_map<const Formula*, Cost>& atom_cost,
+		    Heuristic h) const {
+    return Cost(0, 0);
+  }
 
   /* Fills the provided list with goals achievable by this formula. */
   virtual void achievable_goals(FormulaList& goals) const {
@@ -369,24 +389,6 @@ struct hash<Formula> {
   }
 };
 
-/*
- * Equality function object for formula pointers.
- */
-struct equal_to<const Formula*> {
-  bool operator()(const Formula* f1, const Formula* f2) const {
-    return *f1 == *f2;
-  }
-};
-
-/*
- * Hash function object for formula pointers.
- */
-struct hash<const Formula*> {
-  size_t operator()(const Formula* f) const {
-    return hash<Formula>()(*f);
-  }
-};
-
 
 /*
  * List of formulas.
@@ -419,16 +421,6 @@ struct FormulaList : public gc, vector<const Formula*, container_alloc> {
      formulas in this list. */
   void achievable_predicates(hash_set<string>& preds,
 			     hash_set<string>& neg_preds) const;
-
-  /* Roughly corresponds to the number of open conditions the formulas
-     in this list will give rise to. */
-  size_t cost() const {
-    size_t n = 0;
-    for (const_iterator i = begin(); i != end(); i++) {
-      n += (*i)->cost();
-    }
-    return n;
-  }
 
   /* Equality operator for formula lists. */
   bool operator==(const FormulaList& formulas) const;
@@ -478,11 +470,9 @@ struct AtomicFormula : public Formula {
   /* Checks if this atomic formula negates the given formula. */
   virtual bool negates(const Formula& f) const;
 
-  /* Roughly corresponds to the number of open conditions this formula
-     will give rise to. */
-  virtual size_t cost() const {
-    return 1;
-  }
+  /* Returns the heuristic cost of this formula. */
+  virtual Cost cost(const hash_map<const Formula*, Cost>& atom_cost,
+		    Heuristic h) const;
 
   /* Fills the provided list with goals achievable by this formula. */
   virtual void achievable_goals(FormulaList& goals) const;
@@ -532,12 +522,6 @@ struct Negation : public Formula {
 
   /* Checks if this is a negation of the given formula. */
   virtual bool negates(const Formula& f) const;
-
-  /* Roughly corresponds to the number of open conditions this formula
-     will give rise to. */
-  virtual size_t cost() const {
-    return 1;
-  }
 
   /* Fills the provided list with goals achievable by this formula. */
   virtual void achievable_goals(FormulaList& goals) const;
@@ -595,12 +579,6 @@ struct Equality : public Formula {
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
 
-  /* Roughly corresponds to the number of open conditions this formula
-     will give rise to. */
-  virtual size_t cost() const {
-    return 0;
-  }
-
 protected:
   /* Prints this formula on the given stream. */
   virtual void print(ostream& os) const;
@@ -638,12 +616,6 @@ struct Inequality : public Formula {
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
 
-  /* Roughly corresponds to the number of open conditions this formula
-     will give rise to. */
-  virtual size_t cost() const {
-    return 0;
-  }
-
 protected:
   /* Prints this formula on the given stream. */
   virtual void print(ostream& os) const;
@@ -673,11 +645,9 @@ struct Conjunction : public Formula {
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
 
-  /* Roughly corresponds to the number of open conditions this formula
-     will give rise to. */
-  virtual size_t cost() const {
-    return conjuncts.cost();
-  }
+  /* Returns the heuristic cost of this formula. */
+  virtual Cost cost(const hash_map<const Formula*, Cost>& atom_cost,
+		    Heuristic h) const;
 
   /* Fills the provided list with goals achievable by this formula. */
   virtual void achievable_goals(FormulaList& goals) const;
@@ -724,11 +694,9 @@ struct Disjunction : public Formula {
   /* Returns this formula subject to the given substitution. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
 
-  /* Roughly corresponds to the number of open conditions this formula
-     will give rise to. */
-  virtual size_t cost() const {
-    return 1;
-  }
+  /* Returns the heuristic cost of this formula. */
+  virtual Cost cost(const hash_map<const Formula*, Cost>& atom_cost,
+		    Heuristic h) const;
 
   /* Fills the provided list with goals achievable by this formula. */
   virtual void achievable_goals(FormulaList& goals) const;
@@ -798,12 +766,6 @@ struct ExistsFormula : public QuantifiedFormula {
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
 
-  /* Roughly corresponds to the number of open conditions this formula
-     will give rise to. */
-  virtual size_t cost() const {
-    return 1;
-  }
-
 protected:
   /* Prints this formula on the given stream. */
   virtual void print(ostream& os) const;
@@ -834,12 +796,6 @@ struct ForallFormula : public QuantifiedFormula {
 
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
-
-  /* Roughly corresponds to the number of open conditions this formula
-     will give rise to. */
-  virtual size_t cost() const {
-    return 1;
-  }
 
 protected:
   /* Prints this formula on the given stream. */
