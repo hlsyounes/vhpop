@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.cc,v 6.7 2003-09-05 16:21:24 lorens Exp $
+ * $Id: domains.cc,v 6.8 2003-09-09 18:21:35 lorens Exp $
  */
 #include "domains.h"
 #include "bindings.h"
@@ -108,11 +108,11 @@ void Domain::compatible_constants(ObjectList& constants, Type type) const {
 std::ostream& operator<<(std::ostream& os, const Domain& d) {
   os << "name: " << d.name();
   os << std::endl << "types:";
-  for (Type i = d.types().first_type(); i < d.types().last_type(); i++) {
+  for (Type i = d.types().first_type(); i <= d.types().last_type(); i++) {
     os << std::endl << "  ";
     d.types().print_type(os, i);
     bool first = true;
-    for (Type j = d.types().first_type(); j < d.types().last_type(); j++) {
+    for (Type j = d.types().first_type(); j <= d.types().last_type(); j++) {
       if (i != j && d.types().subtype(i, j)) {
 	if (first) {
 	  os << " <:";
@@ -133,7 +133,7 @@ std::ostream& operator<<(std::ostream& os, const Domain& d) {
   }
   os << std::endl << "predicates:";
   for (Predicate i = d.predicates().first_predicate();
-       i < d.predicates().last_predicate(); i++) {
+       i <= d.predicates().last_predicate(); i++) {
     os << std::endl << "  (" << d.predicates().name(i);
     size_t arity = d.predicates().arity(i);
     for (size_t j = 0; j < arity; j++) {
