@@ -16,11 +16,12 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: flaws.h,v 3.6 2002-11-05 05:02:57 lorens Exp $
+ * $Id: flaws.h,v 3.7 2002-12-16 17:08:23 lorens Exp $
  */
 #ifndef FLAWS_H
 #define FLAWS_H
 
+#include <config.h>
 #include "chain.h"
 #include <iostream>
 
@@ -62,6 +63,9 @@ struct OpenCondition : public Flaw {
   /* Constructs an open condition. */
   OpenCondition(size_t step_id, const Formula& condition,
 		const Reason& reason);
+
+  /* Constructs an open condition. */
+  OpenCondition(const OpenCondition& oc);
 
   /* Deletes this open condition. */
   virtual ~OpenCondition();

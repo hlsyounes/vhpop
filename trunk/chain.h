@@ -16,11 +16,12 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: chain.h,v 3.4 2002-06-12 23:05:05 lorens Exp $
+ * $Id: chain.h,v 3.5 2002-12-16 17:02:58 lorens Exp $
  */
 #ifndef CHAIN_H
 #define CHAIN_H
 
+#include <config.h>
 #include "debug.h"
 
 

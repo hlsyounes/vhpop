@@ -16,15 +16,15 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.h,v 4.3 2002-09-23 18:22:36 lorens Exp $
+ * $Id: bindings.h,v 4.4 2002-12-16 17:02:34 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
 
-#include <set>
-#include "support.h"
+#include <config.h>
 #include "chain.h"
-
+#include <set>
+#include "hashing.h"
 
 struct Term;
 struct Name;
@@ -54,6 +54,9 @@ struct Binding {
   /* Constructs a variable binding. */
   Binding(const Variable& var, size_t var_id, const Term& term, size_t term_id,
 	  bool equality, const Reason& reason);
+
+  /* Constructs a variable binding. */
+  Binding(const Binding& b);
 
   /* Deletes this variable binding. */
   ~Binding();
@@ -92,11 +95,11 @@ private:
   const Reason* reason_;
 #endif
 
-  friend ostream& operator<<(ostream& os, const Binding& b);
+  friend std::ostream& operator<<(std::ostream& os, const Binding& b);
 };
 
 /* Output operator for variable bindings. */
-ostream& operator<<(ostream& os, const Binding& b);
+std::ostream& operator<<(std::ostream& os, const Binding& b);
 
 
 /* ====================================================================== */
@@ -105,7 +108,7 @@ ostream& operator<<(ostream& os, const Binding& b);
 /*
  * List of bindings.
  */
-struct BindingList : vector<Binding> {
+struct BindingList : std::vector<Binding> {
 };
 
 /* Iterator for binding lists. */
@@ -127,7 +130,7 @@ typedef CollectibleChain<Binding> BindingChain;
 /*
  * A set of names.
  */
-struct NameSet : public set<const Name*> {
+struct NameSet : public std::set<const Name*> {
   /* Register use of the given object. */
   static void register_use(const NameSet* s) {
     if (s != NULL) {
@@ -217,14 +220,14 @@ struct ActionDomain {
 
 private:
   /* A list of parameter tuples. */
-  struct TupleList : public vector<const NameList*> {
+  struct TupleList : public std::vector<const NameList*> {
   };
 
   /* A tuple list iterator. */
   typedef TupleList::const_iterator TupleListIter;
 
   /* A projection map. */
-  struct ProjectionMap : public hash_map<size_t, const NameSet*> {
+  struct ProjectionMap : public hashing::hash_map<size_t, const NameSet*> {
   };
 
   /* A projection map iterator. */
@@ -237,11 +240,11 @@ private:
   /* Reference counter. */
   mutable size_t ref_count_;
 
-  friend ostream& operator<<(ostream& os, const ActionDomain& ad);
+  friend std::ostream& operator<<(std::ostream& os, const ActionDomain& ad);
 };
 
 /* Output operator for action domains. */
-ostream& operator<<(ostream& os, const ActionDomain& ad);
+std::ostream& operator<<(std::ostream& os, const ActionDomain& ad);
 
 
 /* ====================================================================== */
@@ -387,11 +390,11 @@ private:
 	   const StepDomainChain* step_domains,
 	   const BindingChain* equalities, const BindingChain* inequalities);
 
-  friend ostream& operator<<(ostream& os, const Bindings& b);
+  friend std::ostream& operator<<(std::ostream& os, const Bindings& b);
 };
 
 /* Output operator for bindings. */
-ostream& operator<<(ostream& os, const Bindings& b);
+std::ostream& operator<<(std::ostream& os, const Bindings& b);
 
 
 #endif /* BINDINGS_H */

@@ -13,9 +13,8 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.cc,v 4.5 2002-09-23 18:22:11 lorens Exp $
+ * $Id: bindings.cc,v 4.6 2002-12-16 17:02:43 lorens Exp $
  */
-#include <typeinfo>
 #include "bindings.h"
 #include "plans.h"
 #include "reasons.h"
@@ -24,12 +23,13 @@
 #include "formulas.h"
 #include "types.h"
 #include "debug.h"
+#include <typeinfo>
 
 
 /* ====================================================================== */
 /* StepVariable */
 
-typedef pair<const Variable*, size_t> StepVariable;
+typedef std::pair<const Variable*, size_t> StepVariable;
 
 
 /* ====================================================================== */
@@ -38,7 +38,7 @@ typedef pair<const Variable*, size_t> StepVariable;
 /*
  * A set of variables.
  */
-struct VariableSet : public set<StepVariable> {
+struct VariableSet : public std::set<StepVariable> {
 };
 
 /* Iterator for variable sets. */
@@ -133,7 +133,8 @@ struct Varset {
       return NULL;
     } else {
       vsc = new VarsetChain(Varset(constant(),
-				   new VariableChain(make_pair(&var, step_id),
+				   new VariableChain(std::make_pair(&var,
+								    step_id),
 						     cd_set()),
 				   ncd_set()),
 			    vsc);
@@ -161,7 +162,8 @@ struct Varset {
 			 const Variable& var, size_t step_id) const {
     vsc = new VarsetChain(Varset(constant(),
 				 cd_set(),
-				 new VariableChain(make_pair(&var, step_id),
+				 new VariableChain(std::make_pair(&var,
+								  step_id),
 						   ncd_set())),
 			  vsc);
     return &vsc->head;
@@ -208,10 +210,10 @@ struct Varset {
 				   const Binding& b, bool reverse = false) {
     if (b.equality()) {
       const VariableChain* cd_set =
-	new VariableChain(make_pair(&b.var(), b.var_id()), NULL);
+	new VariableChain(std::make_pair(&b.var(), b.var_id()), NULL);
       const Variable* v2 = dynamic_cast<const Variable*>(&b.term());
       if (v2 != NULL) {
-	cd_set = new VariableChain(make_pair(v2, b.term_id()), cd_set);
+	cd_set = new VariableChain(std::make_pair(v2, b.term_id()), cd_set);
 	vsc = new VarsetChain(Varset(NULL, cd_set, NULL), vsc);
       } else {
 	const Name& n = dynamic_cast<const Name&>(b.term());
@@ -226,19 +228,21 @@ struct Varset {
 	const Variable* v2 = dynamic_cast<const Variable*>(&b.term());
 	if (v2 != NULL) {
 	  constant = NULL;
-	  cd_set = new VariableChain(make_pair(v2, b.term_id()), NULL);
+	  cd_set = new VariableChain(std::make_pair(v2, b.term_id()), NULL);
 	} else {
 	  const Name& n = dynamic_cast<const Name&>(b.term());
 	  constant = &n;
 	  cd_set = NULL;
 	}
-	ncd_set = new VariableChain(make_pair(&b.var(), b.var_id()), NULL);
+	ncd_set = new VariableChain(std::make_pair(&b.var(), b.var_id()),
+				    NULL);
       } else {
 	const Variable* v2 = dynamic_cast<const Variable*>(&b.term());
 	if (v2 != NULL) {
 	  constant = NULL;
-	  cd_set = new VariableChain(make_pair(&b.var(), b.var_id()), NULL);
-	  ncd_set = new VariableChain(make_pair(v2, b.term_id()), NULL);
+	  cd_set = new VariableChain(std::make_pair(&b.var(), b.var_id()),
+				     NULL);
+	  ncd_set = new VariableChain(std::make_pair(v2, b.term_id()), NULL);
 	} else {
 	  return NULL;
 	}
@@ -258,7 +262,7 @@ private:
 };
 
 /* Output operator for varsets. */
-ostream& operator<<(ostream& os, const Varset& vs) {
+std::ostream& operator<<(std::ostream& os, const Varset& vs) {
   os << "CD{";
   for (const VariableChain* vc = vs.cd_set(); vc != NULL; vc = vc->tail) {
     os << ' ' << *vc->head.first << '(' << vc->head.second << ')';
@@ -432,7 +436,7 @@ private:
 };
 
 /* Output operator for step domains. */
-ostream& operator<<(ostream& os, const StepDomain& sd) {
+std::ostream& operator<<(std::ostream& os, const StepDomain& sd) {
   os << "<";
   for (VarListIter vi = sd.parameters().begin();
        vi != sd.parameters().end(); vi++) {
@@ -448,7 +452,7 @@ ostream& operator<<(ostream& os, const StepDomain& sd) {
 
 /* Returns the step domain containing the given variable, or NULL if
    none does. */
-static pair<const StepDomain*, size_t>
+static std::pair<const StepDomain*, size_t>
 find_step_domain(const StepDomainChain* step_domains,
 		 const Variable& var, size_t step_id) {
   if (step_id > 0) {
@@ -457,14 +461,14 @@ find_step_domain(const StepDomainChain* step_domains,
       if (step_domain.id() == step_id) {
 	int column = step_domain.index_of(var);
 	if (column >= 0) {
-	  return make_pair(&step_domain, column);
+	  return std::make_pair(&step_domain, column);
 	} else {
 	  break;
 	}
       }
     }
   }
-  return pair<const StepDomain*, size_t>(NULL, 0);
+  return std::pair<const StepDomain*, size_t>(NULL, 0);
 }
 
 
@@ -495,6 +499,18 @@ Binding::Binding(const Variable& var, size_t var_id,
 }
 
 
+/* Constructs a variable binding. */
+Binding::Binding(const Binding& b)
+  : var_(b.var_), var_id_(b.var_id_), term_(b.term_), term_id_(b.term_id_),
+    equality_(b.equality_) {
+#ifdef TRANSFORMATIONAL
+  reason_ = b.reason_;
+  Collectible::register_use(reason_);
+#endif
+}
+
+
+
 /* Deletes this variable binding. */
 Binding::~Binding() {
 #ifdef TRANSFORMATIONAL
@@ -514,7 +530,7 @@ const Reason& Binding::reason() const {
 
 
 /* Output operator for variable bindings. */
-ostream& operator<<(ostream& os, const Binding& b) {
+std::ostream& operator<<(std::ostream& os, const Binding& b) {
   return os << b.var() << '(' << b.var_id() << ')'
 	    << (b.equality() ? "==" : "!=")
 	    << b.term() << '(' << b.term_id() << ')';
@@ -528,7 +544,7 @@ ostream& operator<<(ostream& os, const Binding& b) {
 NameSet::NameSet()
   : ref_count_(0) {
 #ifdef DEBUG_MEMORY
-  created_collectibles++;
+  created_name_sets++;
 #endif
 }
 
@@ -536,7 +552,7 @@ NameSet::NameSet()
 /* Deletes this name set. */
 NameSet::~NameSet() {
 #ifdef DEBUG_MEMORY
-  deleted_collectibles++;
+  deleted_name_sets++;
 #endif
 }
 
@@ -548,7 +564,7 @@ NameSet::~NameSet() {
 ActionDomain::ActionDomain(const NameList& tuple)
   : ref_count_(0) {
 #ifdef DEBUG_MEMORY
-    created_collectibles++;
+    created_action_domains++;
 #endif
   add(tuple);
 }
@@ -557,7 +573,7 @@ ActionDomain::ActionDomain(const NameList& tuple)
 /* Deletes this action domain. */
 ActionDomain::~ActionDomain() {
 #ifdef DEBUG_MEMORY
-  deleted_collectibles++;
+  deleted_action_domains++;
 #endif
   for (ProjectionMapIter pi = projections_.begin();
        pi != projections_.end(); pi++) {
@@ -589,7 +605,7 @@ const NameSet& ActionDomain::projection(size_t column) const {
       const NameList& tuple = **ti;
       projection->insert(tuple[column]);
     }
-    projections_.insert(make_pair(column, projection));
+    projections_.insert(std::make_pair(column, projection));
     NameSet::register_use(projection);
     return *projection;
   }
@@ -679,7 +695,7 @@ const ActionDomain* ActionDomain::exclude(const Name& name,
 
 
 /* Output operator for action domains. */
-ostream& operator<<(ostream& os, const ActionDomain& ad) {
+std::ostream& operator<<(std::ostream& os, const ActionDomain& ad) {
   os << '{';
   for (ActionDomain::TupleListIter ti = ad.tuples_.begin();
        ti != ad.tuples_.end(); ti++) {
@@ -711,7 +727,7 @@ const Bindings* Bindings::make_bindings(const StepChain* steps,
 					const BindingChain* equalities,
 					const BindingChain* inequalities) {
   const StepDomainChain* step_domains = NULL;
-  hash_set<size_t> seen_steps;
+  hashing::hash_set<size_t> seen_steps;
   for (const StepChain* sc = steps; sc != NULL; sc = sc->tail) {
     const Step& step = sc->head;
     if (!step.dummy() && seen_steps.find(step.id()) == seen_steps.end()) {
@@ -749,11 +765,8 @@ const Bindings* Bindings::make_bindings(const StepChain* steps,
 /* Checks if the given formulas can be unified. */
 bool Bindings::unifiable(const Literal& l1, size_t id1,
 			 const Literal& l2, size_t id2) {
-#ifdef DEBUG_MEMORY
-  created_collectibles--;
-  deleted_collectibles--;
-#endif
-  return Bindings(NULL, 0, NULL, NULL, NULL).unify(l1, id1, l2, id2);
+  SubstitutionList dummy;
+  return unifiable(dummy, l1, id1, l2, id2);
 }
 
 
@@ -763,8 +776,8 @@ bool Bindings::unifiable(SubstitutionList& mgu,
 			 const Literal& l1, size_t id1,
 			 const Literal& l2, size_t id2) {
 #ifdef DEBUG_MEMORY
-  created_collectibles--;
-  deleted_collectibles--;
+  created_bindings--;
+  deleted_bindings--;
 #endif
   return Bindings(NULL, 0, NULL, NULL, NULL).unify(mgu, l1, id1, l2, id2);
 }
@@ -778,7 +791,7 @@ Bindings::Bindings(const VarsetChain* varsets, size_t high_step,
   : varsets_(varsets), high_step_(high_step), step_domains_(step_domains),
     ref_count_(0) {
 #ifdef DEBUG_MEMORY
-  created_collectibles++;
+  created_bindings++;
 #endif
   VarsetChain::register_use(varsets_);
   StepDomainChain::register_use(step_domains_);
@@ -794,7 +807,7 @@ Bindings::Bindings(const VarsetChain* varsets, size_t high_step,
 /* Deletes this binding collection. */
 Bindings::~Bindings() {
 #ifdef DEBUG_MEMORY
-  deleted_collectibles++;
+  deleted_bindings++;
 #endif
   VarsetChain::unregister_use(varsets_);
   StepDomainChain::unregister_use(step_domains_);
@@ -841,7 +854,7 @@ const Term& Bindings::binding(const Term& t, size_t step_id) const {
 
 /* Returns the domain for the given step variable. */
 const NameSet* Bindings::domain(const Variable& v, size_t step_id) const {
-  pair<const StepDomain*, size_t> sd =
+  std::pair<const StepDomain*, size_t> sd =
     find_step_domain(step_domains_, v, step_id);
   return (sd.first != NULL) ? &sd.first->projection(sd.second) : NULL;
 }
@@ -994,7 +1007,7 @@ bool Bindings::consistent_with(const Equality& eq, size_t step_id) const {
   } else if (vs2->excludes(*var, var_id)) {
     return false;
   } else if (vs2->constant() != NULL) {
-    pair<const StepDomain*, size_t> sd =
+    std::pair<const StepDomain*, size_t> sd =
       find_step_domain(step_domains_, *var, var_id);
     if (sd.first != NULL) {
       return sd.first->includes(*vs2->constant(), sd.second);
@@ -1099,8 +1112,8 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
       }
       /* Varset for term. */
       const Varset* vs2;
-      sv = make_pair(dynamic_cast<const Variable*>(&bind.term()),
-		     bind.term_id());
+      sv = std::make_pair(dynamic_cast<const Variable*>(&bind.term()),
+			  bind.term_id());
       if (sv.first == NULL || bind.term_id() <= high_step_
 	  || high_step_vars.find(sv) != high_step_vars.end()) {
 	vs2 = find_varset(varsets, bind.term(), bind.term_id());
@@ -1198,7 +1211,7 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 	    }
 	    if (var != NULL) {
 	      /* Step domain for variable. */
-	      pair<const StepDomain*, size_t> sd =
+	      std::pair<const StepDomain*, size_t> sd =
 		find_step_domain(step_domains, *var, var_id);
 	      if (sd.first != NULL) {
 		if (name != NULL) {
@@ -1287,8 +1300,8 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
       }
       /* Varset for term. */
       const Varset* vs2;
-      sv = make_pair(dynamic_cast<const Variable*>(&bind.term()),
-		     bind.term_id());
+      sv = std::make_pair(dynamic_cast<const Variable*>(&bind.term()),
+			  bind.term_id());
       if (sv.first == NULL || bind.term_id() <= high_step_
 	  || high_step_vars.find(sv) != high_step_vars.end()) {
 	vs2 = find_varset(varsets, bind.term(), bind.term_id());
@@ -1343,7 +1356,7 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 	  if (vs1->constant() != NULL && vs2 != NULL) {
 	    for (const VariableChain* vc = vs2->cd_set();
 		 vc != NULL; vc = vc->tail) {
-	      pair<const StepDomain*, size_t> sd =
+	      std::pair<const StepDomain*, size_t> sd =
 		find_step_domain(step_domains,
 				 *vc->head.first, vc->head.second);
 	      if (sd.first != NULL) {
@@ -1371,7 +1384,7 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 	    const Variable* var = (vc != NULL) ? vc->head.first : &bind.var();
 	    size_t var_id = (vc != NULL) ? vc->head.second : bind.var_id();
 	    while (var != NULL) {
-	      pair<const StepDomain*, size_t> sd =
+	      std::pair<const StepDomain*, size_t> sd =
 		find_step_domain(step_domains, *var, var_id);
 	      if (sd.first != NULL) {
 		const StepDomain* new_sd =
@@ -1445,13 +1458,13 @@ const Bindings* Bindings::add(size_t step_id, const Action& step_action,
   for (size_t c = 0; c < step_domain.width(); c++) {
     if (step_domain.projection_size(c) == 1) {
       const VariableChain* cd_set =
-	new VariableChain(make_pair(step_domain.parameters()[c],
-				    step_domain.id()),
+	new VariableChain(std::make_pair(step_domain.parameters()[c],
+					 step_domain.id()),
 			  NULL);
       varsets = new VarsetChain(Varset(*step_domain.projection(c).begin(),
 				       cd_set, NULL),
 				varsets);
-      high_step = max(high_step, step_id);
+      high_step = std::max(high_step, step_id);
     }
   }
   if (test_only) {
@@ -1466,19 +1479,20 @@ const Bindings* Bindings::add(size_t step_id, const Action& step_action,
 
 
 /* Output operator for bindings. */
-ostream& operator<<(ostream& os, const Bindings& b) {
-  hash_map<size_t, vector<const Variable*> > seen_vars;
-  vector<const Name*> seen_names;
+std::ostream& operator<<(std::ostream& os, const Bindings& b) {
+  hashing::hash_map<size_t, std::vector<const Variable*> > seen_vars;
+  std::vector<const Name*> seen_names;
   for (const VarsetChain* vsc = b.varsets_; vsc != NULL; vsc = vsc->tail) {
     const Varset& vs = vsc->head;
     if (vs.cd_set() != NULL) {
       const VariableChain* vc = vs.cd_set();
-      if (member(seen_vars[vc->head.second].begin(),
-		 seen_vars[vc->head.second].end(),
-		 vc->head.first)) {
+      if (find(seen_vars[vc->head.second].begin(),
+	       seen_vars[vc->head.second].end(),
+	       vc->head.first)
+	  != seen_vars[vc->head.second].end()) {
 	continue;
       }
-      os << endl << "{";
+      os << std::endl << "{";
       for (; vc != NULL; vc = vc->tail) {
 	const StepVariable& step_var = vc->head;
 	os << ' ' << *step_var.first << '(' << step_var.second << ')';
@@ -1491,11 +1505,12 @@ ostream& operator<<(ostream& os, const Bindings& b) {
     }
     if (vs.constant() != NULL) {
       const Name& name = *vs.constant();
-      if (member(seen_names.begin(), seen_names.end(), &name)) {
+      if (find(seen_names.begin(), seen_names.end(), &name)
+	  != seen_names.end()) {
 	continue;
       }
       if (vs.cd_set() == NULL) {
-	os << endl;
+	os << std::endl;
       }
       os << name;
       seen_names.push_back(&name);
@@ -1508,12 +1523,12 @@ ostream& operator<<(ostream& os, const Bindings& b) {
       os << " }";
     }
   }
-  hash_set<size_t> seen_steps;
+  hashing::hash_set<size_t> seen_steps;
   for (const StepDomainChain* sd = b.step_domains_;
        sd != NULL; sd = sd->tail) {
     if (seen_steps.find(sd->head.id()) == seen_steps.end()) {
       seen_steps.insert(sd->head.id());
-      os << endl << sd->head;
+      os << std::endl << sd->head;
     }
   }
   return os;
