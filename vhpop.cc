@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 3.24 2002-07-07 09:02:07 lorens Exp $
+ * $Id: vhpop.cc,v 3.25 2002-09-20 16:36:37 lorens Exp $
  */
 #include <cstdio>
 #include <cstdlib>
@@ -95,9 +95,8 @@ static void display_help() {
        << "\t\t\tuse search algorithm s" << endl
        << "  -t t,  --tolerance=t\t"
        << "use tolerance t with durative actions;" << endl
-       << "\t\t\t  time stamps less than t appart are considered"
-       << " indistinguashable;" << endl
-       << "\t\t\t  default is 0.01" << endl
+       << "\t\t\t  time stamps less than t appart are considered" << endl
+       << "\t\t\t  indistinguishable (default is 0.01)" << endl
 #ifdef TRANSFORMATIONAL
        << "         --transformational" << endl
        << "\t\t\tuse transformational planner" << endl
