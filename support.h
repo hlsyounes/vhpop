@@ -2,7 +2,7 @@
 /*
  * Auxiliary types and functions.
  *
- * $Id: support.h,v 1.13 2001-12-25 20:10:12 lorens Exp $
+ * $Id: support.h,v 1.14 2001-12-27 19:53:34 lorens Exp $
  */
 #ifndef SUPPORT_H
 #define SUPPORT_H
@@ -209,6 +209,17 @@ struct hash<const Hashable*> {
 
 
 /*
+ * Hash function object for strings.
+ */
+struct hash<string> {
+  /* Hash function for strings. */
+  size_t operator()(const string& s) const {
+    return hash<char*>()(s.c_str());
+  }
+};
+
+
+/*
  * A printable object.
  */
 struct Printable {
@@ -248,17 +259,6 @@ private:
 struct Unimplemented : public Exception {
   /* Constructs an unimplemented exception. */
   Unimplemented(const string& message);
-};
-
-
-/*
- * Hash function object for strings.
- */
-struct hash<string> {
-  /* Hash function for strings. */
-  size_t operator()(const string& s) const {
-    return hash<char*>()(s.c_str());
-  }
 };
 
 

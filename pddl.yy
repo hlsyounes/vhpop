@@ -2,15 +2,16 @@
 /*
  * PDDL parser.
  *
- * $Id: pddl.yy,v 1.22 2001-12-27 18:41:12 lorens Exp $
+ * $Id: pddl.yy,v 1.23 2001-12-27 19:58:10 lorens Exp $
  */
 %{
 #include <utility>
 #include <cstdlib>
 #include "requirements.h"
-#include "domains.h"
 #include "problems.h"
+#include "domains.h"
 #include "formulas.h"
+#include "types.h"
 
 
 /* The lexer. */
