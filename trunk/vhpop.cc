@@ -1,7 +1,7 @@
 /*
  * Main program.
  *
- * $Id: vhpop.cc,v 1.9 2001-09-18 15:52:25 lorens Exp $
+ * $Id: vhpop.cc,v 1.10 2001-09-18 16:22:35 lorens Exp $
  */
 #include <iostream>
 #include <cstdio>
@@ -50,8 +50,8 @@ static void display_help() {
        << "options:" << endl
        << "  -f f,  --flaw-order=f\t"
        << "use flaw selection order f;" << endl
-       << "\t\t\t  f can be `LIFO' (default), `FIFO',"
-       << " `MC', `LC', `MW', `LW', `ML', or `LL'"
+       << "\t\t\t  f can be `LIFO' (default), `FIFO', `MC', `LC'," << endl
+       << "\t\t\t  `MW', `LW', `ML', or `LL'"
        << endl
        << "  -g,    --ground\t"
        << "only use ground actions" << endl
