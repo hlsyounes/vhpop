@@ -2,13 +2,12 @@
 /*
  * Heuristics.
  *
- * $Id: heuristics.h,v 1.11 2001-12-30 14:20:04 lorens Exp $
+ * $Id: heuristics.h,v 1.12 2002-01-01 17:59:58 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
 
 #include "support.h"
-#include "chain.h"
 #include "formulas.h"
 
 
@@ -279,11 +278,9 @@ public:
   /* Checks if this flaw order needs a planning graph. */
   bool needs_planning_graph() const;
 
-  /* Selects a flaw from the given lists. */
-  const Flaw& select(const Chain<const Unsafe*>* unsafes,
-		     const Chain<const OpenCondition*>* open_conds,
-		     const PlanningGraph* pg, const Domain& domain,
-		     const Bindings* bindings = NULL) const;
+  /* Selects a flaw from the flaws of the given plan. */
+  const Flaw& select(const Plan& plan, const Domain& domain,
+		     const PlanningGraph* pg) const;
 
 protected:
   /* Prints this object on the given stream. */
