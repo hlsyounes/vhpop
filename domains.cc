@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.cc,v 4.1 2002-07-22 22:42:58 lorens Exp $
+ * $Id: domains.cc,v 4.2 2002-09-20 16:45:50 lorens Exp $
  */
 #include <stack>
 #include "bindings.h"
@@ -125,16 +125,6 @@ Effect::Effect(const VariableList& forall, const Formula& condition,
     add_list_(&add_list), del_list_(&del_list), when_(when) {}
 
 
-/* Returns an instantiation of this effect. */
-const Effect& Effect::instantiation(size_t id) const {
-  return *(new Effect(forall().instantiation(id),
-		      condition().instantiation(id),
-		      add_list().instantiation(id),
-		      del_list().instantiation(id),
-		      when(), link_condition().instantiation(id)));
-}
-
-
 /* Fills the provided list with instantiations of this effect. */
 void Effect::instantiations(EffectList& effects, const SubstitutionList& subst,
 			    const Problem& problem) const {
@@ -142,8 +132,8 @@ void Effect::instantiations(EffectList& effects, const SubstitutionList& subst,
     const Formula& new_condition = condition().instantiation(subst, problem);
     if (!new_condition.contradiction()) {
       effects.push_back(new Effect(forall(), new_condition,
-				   add_list().substitution(subst),
-				   del_list().substitution(subst),
+				   add_list().substitution(subst, 0),
+				   del_list().substitution(subst, 0),
 				   when(),
 				   link_condition().instantiation(subst,
 								  problem)));
@@ -173,8 +163,8 @@ void Effect::instantiations(EffectList& effects, const SubstitutionList& subst,
       if (i + 1 == n || new_condition.contradiction()) {
 	if (!new_condition.contradiction()) {
 	  effects.push_back(new Effect(VariableList::EMPTY, new_condition,
-				       add_list().substitution(args),
-				       del_list().substitution(args),
+				       add_list().substitution(args, 0),
+				       del_list().substitution(args, 0),
 				       when(),
 				       link_condition().instantiation(args,
 								      problem)));
@@ -198,29 +188,6 @@ void Effect::instantiations(EffectList& effects, const SubstitutionList& subst,
 	i++;
       }
     }
-  }
-}
-
-
-/* Returns this effect subject to the given substitutions. */
-const Effect& Effect::substitution(const SubstitutionList& subst) const {
-  if (forall().empty()) {
-    return *(new Effect(forall(), condition().substitution(subst),
-			add_list().substitution(subst),
-			del_list().substitution(subst),
-			when(), link_condition().substitution(subst)));
-  } else {
-    SubstitutionList eff_subst;
-    for (SubstListIter si = subst.begin(); si != subst.end(); si++) {
-      const Substitution& s = *si;
-      if (!member(forall().begin(), forall().end(), &s.var())) {
-	eff_subst.push_back(s);
-      }
-    }
-    return *(new Effect(forall(), condition().substitution(eff_subst),
-			add_list().substitution(eff_subst),
-			del_list().substitution(eff_subst),
-			when(), link_condition().substitution(eff_subst)));
   }
 }
 
@@ -303,20 +270,6 @@ EffectList::EffectList(const Effect* effect)
 
 
 /* Returns an instantiation of this effect list. */
-const EffectList& EffectList::instantiation(size_t id) const {
-  if (empty()) {
-    return EMPTY;
-  } else {
-    EffectList& effects = *(new EffectList());
-    for (const_iterator i = begin(); i != end(); i++) {
-      effects.push_back(&(*i)->instantiation(id));
-    }
-    return effects;
-  }
-}
-
-
-/* Returns an instantiation of this effect list. */
 const EffectList& EffectList::instantiation(const SubstitutionList& subst,
 					    const Problem& problem) const {
   if (empty()) {
@@ -325,21 +278,6 @@ const EffectList& EffectList::instantiation(const SubstitutionList& subst,
     EffectList& effects = *(new EffectList());
     for (const_iterator ei = begin(); ei != end(); ei++) {
       (*ei)->instantiations(effects, subst, problem);
-    }
-    return effects;
-  }
-}
-
-
-/* Returns this effect list subject to the given substitutions. */
-const EffectList&
-EffectList::substitution(const SubstitutionList& subst) const {
-  if (empty()) {
-    return EMPTY;
-  } else {
-    EffectList& effects = *(new EffectList());
-    for (const_iterator i = begin(); i != end(); i++) {
-      effects.push_back(&(*i)->substitution(subst));
     }
     return effects;
   }
@@ -400,7 +338,7 @@ const EffectList& EffectList::strengthen(const Formula& condition) const {
 	    && ej.condition().tautology() && !ej.add_list().empty()) {
 	  const Atom& atom = *ej.add_list().back();
 	  SubstitutionList mgu;
-	  if (Bindings::unifiable(mgu, neg.atom(), atom)) {
+	  if (Bindings::unifiable(mgu, neg.atom(), 0, atom, 0)) {
 	    const Formula* sep = &Formula::FALSE;
 	    for (SubstListIter si = mgu.begin(); si != mgu.end(); si++) {
 	      const Substitution& subst = *si;
@@ -492,14 +430,6 @@ ActionSchema::ActionSchema(const string& name, const VariableList& parameters,
 			   float min_duration, float max_duration)
   : Action(name, precondition, effects, min_duration, max_duration),
     parameters_(&parameters) {}
-
-
-/* Returns a formula representing this action. */
-const Atom& ActionSchema::action_formula() const {
-  TermList& terms = *(new TermList());
-  copy(parameters().begin(), parameters().end(), back_inserter(terms));
-  return *(new Atom(*(new Predicate(name())), terms, Formula::AT_START));
-}
 
 
 /* Fills the provided action list with all instantiations of this
@@ -604,6 +534,24 @@ const ActionSchema& ActionSchema::strip_static(const Domain& domain) const {
 }
 
 
+/* Prints this action on the given stream with the given bindings. */
+void ActionSchema::print(ostream& os, size_t step_id,
+			 const Bindings* bindings) const {
+  os << '(' << name();
+  if (bindings != NULL) {
+    for (VarListIter ti = parameters().begin();
+	 ti != parameters().end(); ti++) {
+      os << ' ';
+      (*ti)->print(os, step_id, *bindings);
+    }
+  } else {
+    copy(parameters().begin(), parameters().end(),
+	 pre_ostream_iterator<Term>(os));
+  }
+  os << ')';
+}
+
+
 /* Prints this object on the given stream. */
 void ActionSchema::print(ostream& os) const {
   os << '(' << name() << " (";
@@ -637,8 +585,7 @@ void ActionSchema::print(ostream& os) const {
 GroundAction::GroundAction(const string& name, const NameList& arguments,
 			   const Formula& precondition,
 			   const EffectList& effects)
-  : Action(name, precondition, effects), arguments_(&arguments),
-    formula_(NULL) {}
+  : Action(name, precondition, effects), arguments_(&arguments) {}
 
 
 /* Constructs a ground durative action, assuming arguments are names. */
@@ -647,17 +594,15 @@ GroundAction::GroundAction(const string& name, const NameList& arguments,
 			   const EffectList& effects,
 			   float min_duration, float max_duration)
   : Action(name, precondition, effects, min_duration, max_duration),
-    arguments_(&arguments), formula_(NULL) {}
+    arguments_(&arguments) {}
 
 
-/* Returns a formula representing this action. */
-const Atom& GroundAction::action_formula() const {
-  if (formula_ == NULL) {
-    TermList& terms = *(new TermList());
-    copy(arguments().begin(), arguments().end(), back_inserter(terms));
-    formula_ = new Atom(*(new Predicate(name())), terms, Formula::AT_START);
-  }
-  return *formula_;
+/* Prints this action on the given stream with the given bindings. */
+void GroundAction::print(ostream& os, size_t step_id,
+			 const Bindings* bindings) const {
+  os << '(' << name();
+  copy(arguments().begin(), arguments().end(), pre_ostream_iterator<Term>(os));
+  os << ')';
 }
 
 

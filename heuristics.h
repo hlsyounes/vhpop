@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.h,v 4.1 2002-07-22 22:39:59 lorens Exp $
+ * $Id: heuristics.h,v 4.2 2002-09-20 16:47:14 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
@@ -130,11 +130,11 @@ struct PlanningGraph {
   PlanningGraph(const Problem& problem, bool domain_constraints);
 
   /* Returns the heurisitc value of an atom. */
-  HeuristicValue heuristic_value(const Atom& atom,
+  HeuristicValue heuristic_value(const Atom& atom, size_t step_id,
 				 const Bindings* bindings = NULL) const;
 
   /* Returns the heuristic value of a negated atom. */
-  HeuristicValue heuristic_value(const Negation& negation,
+  HeuristicValue heuristic_value(const Negation& negation, size_t step_id,
 				 const Bindings* bindings = NULL) const;
 
   /* Fills the provided list with actions that achieve the given
