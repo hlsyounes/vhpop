@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.h,v 3.2 2002-03-10 19:45:47 lorens Exp $
+ * $Id: domains.h,v 3.3 2002-03-12 19:44:37 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -24,6 +24,7 @@
 #include "support.h"
 
 struct Type;
+struct SimpleType;
 struct TypeMap;
 struct SubstitutionList;
 struct TermList;
@@ -340,7 +341,7 @@ struct Domain : public Printable {
 
   /* Returns the type with the given name, or NULL if it is
      undefined. */
-  const Type* find_type(const string& name) const;
+  const SimpleType* find_type(const string& name) const;
 
   /* Returns the constant with the given name, or NULL if it is
      undefined. */

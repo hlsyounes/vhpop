@@ -16,10 +16,11 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: tokens.ll,v 3.1 2002-03-10 15:03:19 lorens Exp $
+ * $Id: tokens.ll,v 3.2 2002-03-12 19:45:33 lorens Exp $
  */
 %{
 struct Type;
+struct UnionType;
 struct TermList;
 struct Name;
 struct Variable;
