@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.cc,v 1.19 2002-01-25 18:23:04 lorens Exp $
+ * $Id: bindings.cc,v 3.1 2002-03-10 14:28:24 lorens Exp $
  */
 #include <typeinfo>
 #include "bindings.h"
@@ -687,10 +687,6 @@ bool Bindings::unify(SubstitutionList& mgu,
      */
     const Term& term1 = **ti;
     const Term& term2 = **tj;
-    if (!term2.type.subtype(term1.type)) {
-      /* Incompatible term types. */
-      return false;
-    }
     const Name* name1 = dynamic_cast<const Name*>(&term1);
     if (name1 != NULL) {
       /* The first term is a name. */
@@ -708,11 +704,22 @@ bool Bindings::unify(SubstitutionList& mgu,
 	 * The first term is a name and the second is a variable.
 	 */
 	const Variable& var2 = dynamic_cast<const Variable&>(term2);
+	if (!term1.type.subtype(term2.type)) {
+	  /* Incompatible term types. */
+	  return false;
+	}
 	bl.push_back(new EqualityBinding(var2, *name1, Reason::DUMMY));
       }
     } else {
       /* The first term is a variable. */
       const Variable& var1 = dynamic_cast<const Variable&>(term1);
+      const Name* name2 = dynamic_cast<const Name*>(&term2);
+      if ((name2 != NULL && !term2.type.subtype(term1.type))
+	  || (name2 == NULL && !(term1.type.subtype(term2.type)
+				 || term2.type.subtype(term1.type)))) {
+	/* Incompatible term types. */
+	return false;
+      }
       bl.push_back(new EqualityBinding(var1, term2, Reason::DUMMY));
     }
   }
