@@ -1,5 +1,5 @@
 /*
- * $Id: domains.cc,v 1.16 2001-10-06 04:23:28 lorens Exp $
+ * $Id: domains.cc,v 1.17 2001-10-06 15:06:15 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -29,35 +29,33 @@ void Predicate::print(ostream& os) const {
 }
 
 
-/* Constructs an unconditional single effect. */
-Effect::Effect(const Formula& add)
+/* Constructs an unconditional effect. */
+Effect::Effect(const AtomList& add_list, const NegationList& del_list)
   : forall(VariableList::EMPTY), condition(Formula::TRUE),
-    add_list(*(new FormulaList(&add))) {
-}
-
-
-/* Constructs an unconditional multiple effect. */
-Effect::Effect(const FormulaList& add_list)
-  : forall(VariableList::EMPTY), condition(Formula::TRUE), add_list(add_list) {
+    add_list(add_list), del_list(del_list) {
 }
 
 
 /* Constructs a conditional effect. */
-Effect::Effect(const Formula& condition, const FormulaList& add_list)
-  : forall(VariableList::EMPTY), condition(condition), add_list(add_list) {
+Effect::Effect(const Formula& condition,
+	       const AtomList& add_list, const NegationList& del_list)
+  : forall(VariableList::EMPTY), condition(condition),
+    add_list(add_list), del_list(del_list) {
 }
 
 
 /* Constructs a universally quantified unconditional effect. */
-Effect::Effect(const VariableList& forall, const FormulaList& add_list)
-  : forall(forall), condition(Formula::TRUE), add_list(add_list) {
+Effect::Effect(const VariableList& forall,
+	       const AtomList& add_list, const NegationList& del_list)
+  : forall(forall), condition(Formula::TRUE),
+    add_list(add_list), del_list(del_list) {
 }
 
 
 /* Returns an instantiation of this effect. */
 const Effect& Effect::instantiation(size_t id) const {
   return *(new Effect(forall.instantiation(id), condition.instantiation(id),
-		      add_list.instantiation(id)));
+		      add_list.instantiation(id), del_list.instantiation(id)));
 }
 
 
@@ -65,10 +63,11 @@ const Effect& Effect::instantiation(size_t id) const {
 void Effect::instantiations(EffectList& effects, const SubstitutionList& subst,
 			    const Problem& problem) const {
   if (forall.empty()) {
+    const AtomList& new_add_list = add_list.substitution(subst);
+    const NegationList& new_del_list = del_list.substitution(subst);
     const Formula& new_condition = condition.instantiation(subst, problem);
-    const FormulaList& new_add_list = add_list.instantiation(subst, problem);
-    if (!(new_condition == Formula::FALSE || new_add_list.empty())) {
-      effects.push_back(new Effect(new_condition, new_add_list));
+    if (new_condition != Formula::FALSE) {
+      effects.push_back(new Effect(new_condition, new_add_list, new_del_list));
     }
   } else {
     SubstitutionList args;
@@ -83,17 +82,21 @@ void Effect::instantiations(EffectList& effects, const SubstitutionList& subst,
     for (VLCI vi = forall.begin(); vi != forall.end(); vi++) {
       arguments.push_back(new NameList());
       problem.compatible_objects(*arguments.back(), (*vi)->type);
+      if (arguments.back()->empty()) {
+	return;
+      }
       next_arg.push_back(arguments.back()->begin());
     }
     size_t n = forall.size();
     for (size_t i = 0; i < n; ) {
       args.push_back(new Substitution(*forall[i], **next_arg[i]));
       const Formula& new_condition = condition.instantiation(args, problem);
-      const FormulaList& new_add_list = add_list.instantiation(args, problem);
-      if (i + 1 == n
-	  || new_condition == Formula::FALSE || new_add_list.empty()) {
-	if (!(new_condition == Formula::FALSE || new_add_list.empty())) {
-	  effects.push_back(new Effect(new_condition, new_add_list));
+      if (i + 1 == n || new_condition == Formula::FALSE) {
+	if (new_condition != Formula::FALSE) {
+	  const AtomList& new_add_list = add_list.substitution(args);
+	  const NegationList& new_del_list = del_list.substitution(args);
+	  effects.push_back(new Effect(new_condition,
+				       new_add_list, new_del_list));
 	}
 	for (int j = i; j >= 0; j--) {
 	  args.pop_back();
@@ -122,7 +125,8 @@ void Effect::instantiations(EffectList& effects, const SubstitutionList& subst,
 const Effect& Effect::substitution(const SubstitutionList& subst) const {
   if (forall.empty()) {
     return *(new Effect(forall, condition.substitution(subst),
-			add_list.substitution(subst)));
+			add_list.substitution(subst),
+			del_list.substitution(subst)));
   } else {
     SubstitutionList eff_subst;
     for (SLCI i = subst.begin(); i != subst.end(); i++) {
@@ -132,14 +136,16 @@ const Effect& Effect::substitution(const SubstitutionList& subst) const {
       }
     }
     return *(new Effect(forall, condition.substitution(eff_subst),
-			add_list.substitution(eff_subst)));
+			add_list.substitution(eff_subst),
+			del_list.substitution(eff_subst)));
   }
 }
 
 
 /* Fills the provided lists with goals achievable by this effect. */
-void Effect::achievable_goals(AtomList& goals, FormulaList& neg_goals) const {
-  add_list.achievable_goals(goals, neg_goals);
+void Effect::achievable_goals(AtomList& goals, NegationList& neg_goals) const {
+  copy(add_list.begin(), add_list.end(), back_inserter(goals));
+  copy(del_list.begin(), del_list.end(), back_inserter(neg_goals));
 }
 
 
@@ -147,7 +153,12 @@ void Effect::achievable_goals(AtomList& goals, FormulaList& neg_goals) const {
    effect. */
 void Effect::achievable_predicates(hash_set<string>& preds,
 				   hash_set<string>& neg_preds) const {
-  add_list.achievable_predicates(preds, neg_preds);
+  for (AtomListIter gi = add_list.begin(); gi != add_list.end(); gi++) {
+    preds.insert((*gi)->predicate);
+  }
+  for (NegationListIter gi = del_list.begin(); gi != del_list.end(); gi++) {
+    neg_preds.insert((*gi)->atom.predicate);
+  }
 }
 
 
@@ -158,12 +169,19 @@ void Effect::print(ostream& os) const {
     os << condition;
   }
   os << "->";
-  if (add_list.size() == 1) {
-    os << *add_list.front();
+  if (add_list.size() + del_list.size() == 1) {
+    if (!add_list.empty()) {
+      os << *add_list.front();
+    } else {
+      os << *del_list.front();
+    }
   } else {
     os << "(and";
-    for (FLCI i = add_list.begin(); i != add_list.end(); i++) {
-      os << ' ' << **i;
+    for (AtomListIter gi = add_list.begin(); gi != add_list.end(); gi++) {
+      os << ' ' << **gi;
+    }
+    for (NegationListIter gi = del_list.begin(); gi != del_list.end(); gi++) {
+      os << ' ' << **gi;
     }
     os << ")";
   }
@@ -188,6 +206,18 @@ const EffectList& EffectList::instantiation(const SubstitutionList& subst,
   for (const_iterator ei = begin(); ei != end(); ei++) {
     (*ei)->instantiations(effects, subst, problem);
   }
+  AtomList adds;
+  NegationList dels;
+  effects.achievable_goals(adds, dels);
+  for (NegationListIter gi = dels.begin(); gi != dels.end(); gi++) {
+    if (find_if(adds.begin(), adds.end(),
+		bind1st(equal_to<const Formula*>(), &(*gi)->atom))
+	!= adds.end()) {
+      /* conflicting effects */
+      effects.clear();
+      break;
+    }
+  }
   return effects;
 }
 
@@ -206,7 +236,7 @@ EffectList::substitution(const SubstitutionList& subst) const {
 /* Fills the provided lists with goals achievable by the effect in
    this list. */
 void EffectList::achievable_goals(AtomList& goals,
-				  FormulaList& neg_goals) const {
+				  NegationList& neg_goals) const {
   for (const_iterator i = begin(); i != end(); i++) {
     (*i)->achievable_goals(goals, neg_goals);
   }
@@ -230,7 +260,7 @@ Action::Action(const Formula& precondition, const EffectList& effects)
 
 
 /* Fills the provided lists with goals achievable by this action. */
-void Action::achievable_goals(AtomList& goals, FormulaList& neg_goals) const {
+void Action::achievable_goals(AtomList& goals, NegationList& neg_goals) const {
   effects.achievable_goals(goals, neg_goals);
 }
 
@@ -272,16 +302,18 @@ void ActionSchema::instantiations(ActionList& actions,
   for (size_t i = 0; i < n; ) {
     args.push_back(new Substitution(*parameters[i], **next_arg[i]));
     const Formula& new_precond = precondition.instantiation(args, problem);
-    const EffectList& new_effects = effects.instantiation(args, problem);
-    if (i + 1 == n || new_precond == Formula::FALSE || new_effects.empty()) {
-      if (!(new_precond == Formula::FALSE || new_effects.empty())) {
-	/* consistent instantiation */
-	TermList& terms = *(new TermList());
-	for (SLCI s = args.begin(); s != args.end(); s++) {
-	  terms.push_back(&(*s)->term);
+    if (i + 1 == n || new_precond == Formula::FALSE) {
+      if (new_precond != Formula::FALSE) {
+	const EffectList& new_effects = effects.instantiation(args, problem);
+	if (!new_effects.empty()) {
+	  /* consistent instantiation */
+	  TermList& terms = *(new TermList());
+	  for (SLCI s = args.begin(); s != args.end(); s++) {
+	    terms.push_back(&(*s)->term);
+	  }
+	  actions.push_back(new GroundAction(name, terms, new_precond,
+					     new_effects));
 	}
-	actions.push_back(new GroundAction(name, terms, new_precond,
-					   new_effects));
       }
       for (int j = i; j >= 0; j--) {
 	args.pop_back();
