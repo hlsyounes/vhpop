@@ -13,10 +13,11 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: reasons.cc,v 1.3 2002-01-26 04:17:32 lorens Exp $
+ * $Id: reasons.cc,v 3.1 2002-03-18 11:32:07 lorens Exp $
  */
 #include "reasons.h"
 #include "plans.h"
+#include "formulas.h"
 #include "parameters.h"
 
 
@@ -126,7 +127,8 @@ bool EstablishReason::involves(const Link& link) const {
 
 /* Prints this reason on the given stream. */
 void EstablishReason::print(ostream& os) const {
-  os << "#<EstablishReason " << link << ">";
+  os << "#<EstablishReason " << link.from_id() << ' ' << link.condition()
+     << ' ' << link.to_id() << ">";
 }
 
 
@@ -161,5 +163,6 @@ bool ProtectReason::involves(const Step& step) const {
 
 /* Prints this reason on the given stream. */
 void ProtectReason::print(ostream& os) const {
-  os << "#<ProtectReason " << link << " step " << step_id << ">";
+  os << "#<ProtectReason " << link.from_id() << ' ' << link.condition()
+     << ' ' << link.to_id() << " step " << step_id << ">";
 }
