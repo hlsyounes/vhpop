@@ -2,7 +2,7 @@
 /*
  * Ordering constraints.
  *
- * $Id: orderings.h,v 1.2 2002-01-02 20:58:58 lorens Exp $
+ * $Id: orderings.h,v 1.3 2002-01-19 22:26:20 lorens Exp $
  */
 #ifndef ORDERINGS_H
 #define ORDERINGS_H
@@ -66,6 +66,10 @@ struct Orderings : public Printable, public gc {
 
   /* Checks if the first step could be ordered after the second step. */
   bool possibly_after(size_t id1, size_t id2) const;
+
+  /* Computes the flexibility of this ordering collection as defined in
+     "Reviving Partial Order Planning" (Nguyen & Kambhampati 2001). */
+  double flexibility() const;
 
   /* Returns the ordering collection with the given addition. */
   const Orderings& refine(const Ordering& new_ordering) const;

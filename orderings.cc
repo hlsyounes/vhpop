@@ -1,5 +1,5 @@
 /*
- * $Id: orderings.cc,v 1.4 2002-01-02 20:58:49 lorens Exp $
+ * $Id: orderings.cc,v 1.5 2002-01-19 22:26:28 lorens Exp $
  */
 #include "orderings.h"
 #include "plans.h"
@@ -88,6 +88,23 @@ bool Orderings::possibly_before(size_t id1, size_t id2) const {
 /* Checks if the first step could be ordered after the second step. */
 bool Orderings::possibly_after(size_t id1, size_t id2) const {
   return id1 != id2 && !before(id1, id2);
+}
+
+
+/* Computes the flexibility of this ordering collection as defined in
+   "Reviving Partial Order Planning" (Nguyen & Kambhampati 2001). */
+double Orderings::flexibility() const {
+  size_t unordered = 0;
+  for (size_t i = 0; i < size_; i++) {
+    for (size_t j = 0; j < size_; j++) {
+      if (i != j) {
+	if (!order_[i][j] && !order_[j][i]) {
+	  unordered++;
+	}
+      }
+    }
+  }
+  return double(unordered)/size_;
 }
 
 

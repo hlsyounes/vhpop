@@ -1,7 +1,7 @@
 /*
  * Main program.
  *
- * $Id: vhpop.cc,v 1.24 2002-01-06 21:46:08 lorens Exp $
+ * $Id: vhpop.cc,v 1.25 2002-01-19 22:26:22 lorens Exp $
  */
 #include <iostream>
 #include <cstdio>
@@ -16,6 +16,7 @@
 #include "domains.h"
 #include "problems.h"
 #include "plans.h"
+#include "orderings.h"
 #include "heuristics.h"
 #include "parameters.h"
 #include "debug.h"
@@ -288,6 +289,7 @@ int main(int argc, char* argv[]) {
 	if (plan->complete()) {
 	  if (verbosity > 0) {
 	    cout << "Depth of solution: " << plan->depth << endl;
+	    cout << "Flexibility: " << plan->orderings.flexibility() << endl;
 	  }
 	  cout << problem.name << ' ' << t << ' ' << *plan << endl;
 	} else {
