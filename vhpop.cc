@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 6.3 2003-09-05 16:34:29 lorens Exp $
+ * $Id: vhpop.cc,v 6.4 2003-09-08 21:29:17 lorens Exp $
  */
 #include "plans.h"
 #include "parameters.h"
@@ -308,9 +308,9 @@ int main(int argc, char* argv[]) {
       break;
     case 't':
       if (optarg == std::string("unlimited")) {
-	TemporalOrderings::threshold = UINT_MAX;
+	Orderings::threshold = UINT_MAX;
       } else {
-	TemporalOrderings::threshold = atof(optarg);
+	Orderings::threshold = atof(optarg);
       }
       break;
     case 'T':
