@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.cc,v 3.22 2002-07-02 16:41:35 lorens Exp $
+ * $Id: orderings.cc,v 3.23 2002-07-16 22:25:50 lorens Exp $
  */
 #include "orderings.h"
 #include "plans.h"
@@ -21,9 +21,7 @@
 #include "domains.h"
 #include "formulas.h"
 #include "debug.h"
-#define __USE_ISOC99 1
-#define __USE_ISOC9X 1
-#include <cmath>
+#include "mathport.h"
 
 
 /* ====================================================================== */

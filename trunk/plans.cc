@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 3.27 2002-07-09 23:59:20 lorens Exp $
+ * $Id: plans.cc,v 3.28 2002-07-16 22:25:42 lorens Exp $
  */
 #include <queue>
 #include <stack>
@@ -21,9 +21,7 @@
 #include <typeinfo>
 #include <climits>
 #include <sys/time.h>
-#define __USE_ISOC99 1
-#define __USE_ISOC9X 1
-#include <cmath>
+#include "mathport.h"
 #include "plans.h"
 #include "heuristics.h"
 #include "bindings.h"

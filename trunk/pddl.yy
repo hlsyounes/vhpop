@@ -16,15 +16,13 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 3.21 2002-06-30 14:57:07 lorens Exp $
+ * $Id: pddl.yy,v 3.22 2002-07-16 22:25:44 lorens Exp $
  */
 %{
 #include <typeinfo>
 #include <utility>
 #include <cstdlib>
-#define __USE_ISOC99 1
-#define __USE_ISOC9X 1
-#include <cmath>
+#include "mathport.h"
 #include "requirements.h"
 #include "problems.h"
 #include "domains.h"
