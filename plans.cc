@@ -1,13 +1,15 @@
 /*
- * $Id: plans.cc,v 1.35 2001-12-27 19:13:29 lorens Exp $
+ * $Id: plans.cc,v 1.36 2001-12-28 19:58:55 lorens Exp $
  */
 #include <queue>
 #include <hash_set>
 #include <algorithm>
+#include <typeinfo>
 #include <climits>
 #include <cassert>
 #include <sys/time.h>
 #include "plans.h"
+#include "reasons.h"
 #include "formulas.h"
 #include "parameters.h"
 #include "costgraph.h"
@@ -35,97 +37,6 @@ static bool static_pred_flaw = false;
  */
 struct PlanQueue : public priority_queue<const Plan*, Vector<const Plan*>,
 		   less<const LessThanComparable*> > {
-};
-
-
-/*
- * Reason attached to elements of the initial plan.
- */
-struct InitReason : public Reason {
-protected:
-  /* Prints this reason on the given stream. */
-  virtual void print(ostream& os) const {
-    os << "#<InitReason>";
-  }
-};
-
-
-/*
- * Reason attached to elements added along with a step.
- */
-struct AddStepReason : public Reason {
-  /* Id of added step. */
-  const size_t step_id;
-
-  /* Constructs an AddStep reason. */
-  AddStepReason(size_t step_id)
-    : step_id(step_id) {}
-
-  /* Checks if this reason involves the given step. */
-  virtual bool involves(const Step& step) const {
-    return step_id == step.id;
-  }
-
-protected:
-  /* Prints this reason on the given stream. */
-  virtual void print(ostream& os) const {
-    os << "#<AddStepReason " << step_id << ">";
-  }
-};
-
-
-/*
- * Reason attached to elements needed to establish a link.
- */
-struct EstablishReason : public Reason {
-  /* Established link */
-  const Link& link;
-
-  /* Constructs an Establish reason. */
-  EstablishReason(const Link& link)
-    : link(link) {}
-
-  /* Checks if this reason involves the given link. */
-  virtual bool involves(const Link& link) const {
-    return &this->link == &link;
-  }
-
-protected:
-  /* Prints this reason on the given stream. */
-  virtual void print(ostream& os) const {
-    os << "#<EstablishReason " << link << ">";
-  }
-};
-
-
-/*
- * Reason attached to elements needed to protect a link.
- */
-struct ProtectReason : public Reason {
-  /* Protected link. */
-  const Link& link;
-  /* Id of threatening step. */
-  const size_t step_id;
-
-  /* Constructs a Protect reason. */
-  ProtectReason(const Link& link, size_t step_id)
-    : link(link), step_id(step_id) {}
-
-  /* Checks if this reason involves the given link. */
-  virtual bool involves(const Link& link) const {
-    return &this->link == &link;
-  }
-
-  /* Checks if this reason involves the given step. */
-  virtual bool involves(const Step& step) const {
-    return step_id == step.id;
-  }
-
-protected:
-  /* Prints this reason on the given stream. */
-  virtual void print(ostream& os) const {
-    os << "#<ProtectReason " << link << " step " << step_id << ">";
-  }
 };
 
 
@@ -303,7 +214,7 @@ static bool add_goal(const OpenConditionChain*& open_conds,
    if goals of problem are inconsistent. */
 const Plan* Plan::make_initial_plan(const Problem& problem) {
   /* Reason for initial steps in plan. */
-  const Reason& init_reason = *(new InitReason());
+  const Reason& init_reason = InitReason::make(params);
 
   /*
    * Create step representing initial conditions of problem.
@@ -319,7 +230,7 @@ const Plan* Plan::make_initial_plan(const Problem& problem) {
   const Step& goal_step =
     *(new Step(Plan::GOAL_ID, problem.goal, *(new EffectList()), init_reason));
   /* Reason for open conditions of goal. */
-  const Reason& goal_reason = *(new AddStepReason(goal_step.id));
+  const Reason& goal_reason = AddStepReason::make(params, goal_step.id);
   /* Chain of open conditions. */
   const OpenConditionChain* open_conds = NULL;
   /* Number of open conditions. */
@@ -622,7 +533,7 @@ void Plan::separate(PlanList& new_plans, const Unsafe& unsafe) const {
     size_t num_static = num_static_;
     BindingList new_bindings;
     const Reason& protect_reason =
-      *(new ProtectReason(unsafe.link, unsafe.step_id));
+      ProtectReason::make(params, unsafe.link, unsafe.step_id);
     if (add_goal(open_conds, num_open_conds, num_static, new_bindings, *goal,
 		 unsafe.step_id, protect_reason, links_)) {
       const Bindings* bindings = bindings_.add(new_bindings);
@@ -644,7 +555,7 @@ void Plan::demote(PlanList& new_plans, const Unsafe& unsafe) const {
   size_t after_id = unsafe.link.from_id;
   if (orderings_.possibly_before(before_id, after_id)) {
     const Reason& protect_reason =
-      *(new ProtectReason(unsafe.link, unsafe.step_id));
+      ProtectReason::make(params, unsafe.link, unsafe.step_id);
     new_ordering(new_plans,
 		 *(new Ordering(before_id, after_id, protect_reason)),
 		 unsafe);
@@ -656,7 +567,7 @@ void Plan::promote(PlanList& new_plans, const Unsafe& unsafe) const {
   size_t after_id = unsafe.step_id;
   if (orderings_.possibly_before(before_id, after_id)) {
     const Reason& protect_reason =
-      *(new ProtectReason(unsafe.link, unsafe.step_id));
+      ProtectReason::make(params, unsafe.link, unsafe.step_id);
     new_ordering(new_plans,
 		 *(new Ordering(before_id, after_id, protect_reason)),
 		 unsafe);
@@ -688,18 +599,12 @@ static const Step* find_step(const StepChain* steps, size_t id) {
 static bool
 valid_open_condition(const OpenCondition& open_cond,
 		     const StepChain* steps, const LinkChain* links) {
-  const AddStepReason* sr =
-    dynamic_cast<const AddStepReason*>(&open_cond.reason);
-  if (sr != NULL) {
-    return find_step(steps, sr->step_id) != NULL;
+  if (find_step(steps, open_cond.step_id) == NULL) {
+    return false;
   } else {
     const EstablishReason* er =
       dynamic_cast<const EstablishReason*>(&open_cond.reason);
-    if (er != NULL) {
-      return links->contains(&er->link);
-    } else {
-      return false;
-    }
+    return (er != NULL) ? links->contains(&er->link) : false;
   }
 }
 
@@ -1116,7 +1021,7 @@ void Plan::add_step(PlanList& new_plans,
   size_t step_id = high_step_id_ + 1;
   if (!actions.empty()) {
     const Link& link = *(new Link(step_id, open_cond));
-    const Reason& establish_reason = *(new EstablishReason(link));
+    const Reason& establish_reason = EstablishReason::make(params, link);
     for (ActionListIter ai = actions.begin(); ai != actions.end(); ai++) {
       const Step& step = *(new Step(step_id, **ai, establish_reason));
       new_link(new_plans, step, open_cond, link, establish_reason);
@@ -1133,7 +1038,7 @@ void Plan::reuse_step(PlanList& new_plans,
 	orderings_.possibly_before(step.id, open_cond.step_id)) {
       seen_steps.insert(step.id);
       const Link& link = *(new Link(step.id, open_cond));
-      const Reason& establish_reason = *(new EstablishReason(link));
+      const Reason& establish_reason = EstablishReason::make(params, link);
       new_link(new_plans, step, open_cond, link, establish_reason);
     }
   }
@@ -1270,11 +1175,10 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
       return NULL;
     }
   }
-  const Reason* step_reason = NULL;
   if (step.id > high_step_id_) {
-    step_reason = new AddStepReason(step.id);
+    const Reason& step_reason = AddStepReason::make(params, step.id);
     if (!add_goal(open_conds, num_open_conds, num_static, new_bindings,
-		  step.precondition, step.id, *step_reason, links)) {
+		  step.precondition, step.id, step_reason, links)) {
       return NULL;
     }
   }

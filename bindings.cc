@@ -1,22 +1,16 @@
 /*
- * $Id: bindings.cc,v 1.12 2001-12-27 19:58:15 lorens Exp $
+ * $Id: bindings.cc,v 1.13 2001-12-28 19:59:06 lorens Exp $
  */
+#include <typeinfo>
 #include "bindings.h"
 #include "plans.h"
+#include "reasons.h"
 #include "heuristics.h"
 #include "formulas.h"
 #include "types.h"
 
 
 const VariableSet& VariableSet::EMPTY = *(new VariableSet());
-
-
-struct DummyReason : public Reason {
-protected:
-  virtual void print(ostream& os) const {
-    os << "DummyReason";
-  }
-};
 
 
 typedef Chain<const Variable*> VariableChain;
@@ -636,13 +630,12 @@ bool Bindings::unify(SubstitutionList& mgu,
 	 * The first term is a name and the second is a variable.
 	 */
 	const Variable& var2 = dynamic_cast<const Variable&>(term2);
-	bl.push_back(new EqualityBinding(var2, *name1,
-					 *(new DummyReason())));
+	bl.push_back(new EqualityBinding(var2, *name1, Reason::DUMMY));
       }
     } else {
       /* The first term is a variable. */
       const Variable& var1 = dynamic_cast<const Variable&>(term1);
-      bl.push_back(new EqualityBinding(var1, term2, *(new DummyReason())));
+      bl.push_back(new EqualityBinding(var1, term2, Reason::DUMMY));
     }
   }
   if (!bl.empty() && add(bl) == NULL) {
@@ -720,8 +713,7 @@ static void add_domain_bindings(BindingList& bindings,
 	&& old_sd.projection_size(c) > 1) {
       const EqualityBinding* new_eq =
 	new EqualityBinding(*new_sd.parameters[c],
-			    **new_sd.projection(c).begin(),
-			    *(new DummyReason()));
+			    **new_sd.projection(c).begin(), Reason::DUMMY);
       bindings.push_back(new_eq);
     }
   }
@@ -909,7 +901,7 @@ const Bindings* Bindings::add(const BindingList& new_bindings) const {
 	  }
 	}
 	/* Add binding to chain of equality bindings. */
-	if (typeid(eq->reason) != typeid(DummyReason)) {
+	if (!eq->reason.dummy()) {
 	  equalities = new BindingChain(eq, equalities);
 	}
       }
@@ -1029,7 +1021,7 @@ const Bindings* Bindings::add(const BindingList& new_bindings) const {
 	}
       }
       /* Add binding to chain of inequality bindings. */
-      if (typeid(neq.reason) != typeid(DummyReason)) {
+      if (!neq.reason.dummy()) {
 	inequalities = new BindingChain(&neq, inequalities);
       }
     }
