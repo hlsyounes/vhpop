@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 3.12 2002-04-08 09:56:51 lorens Exp $
+ * $Id: heuristics.cc,v 3.13 2002-05-26 10:22:21 lorens Exp $
  */
 #include "heuristics.h"
 #include "plans.h"
@@ -458,6 +458,29 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
   if (verbosity > 0) {
     cout << endl << ";instantiated actions: " << actions.size() << endl;
   }
+
+  /*
+   * Remove actions with no contributing effects.
+   */
+  size_t nactions = actions.size();
+  for (size_t i = 0; i < nactions; ) {
+    const Action& action = *actions[i];
+    bool useful_effect = false;
+    for (EffectListIter ei = action.effects.begin();
+	 ei != action.effects.end() && ! useful_effect; ei++) {
+      const Effect& effect = **ei;
+      if (!effect.link_condition.contradiction()) {
+	useful_effect = true;
+      }
+    }
+    if (useful_effect) {
+      i++;
+    } else {
+      nactions--;
+      actions[i] = actions[nactions];
+    }
+  }
+  actions.resize(nactions);
 
   /*
    * Add initial conditions at level 0.

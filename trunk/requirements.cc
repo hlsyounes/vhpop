@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: requirements.cc,v 2.1 2002-01-30 22:43:17 lorens Exp $
+ * $Id: requirements.cc,v 3.1 2002-05-26 10:25:52 lorens Exp $
  */
 #include "requirements.h"
 
@@ -26,7 +26,8 @@ Requirements::Requirements()
   : strips(true), typing(false), negative_preconditions(false),
     disjunctive_preconditions(false), equality(false),
     existential_preconditions(false), universal_preconditions(false),
-    conditional_effects(false) {}
+    conditional_effects(false), durative_actions(false),
+    duration_inequalities(false) {}
 
 
 /* Enables quantified preconditions. */
