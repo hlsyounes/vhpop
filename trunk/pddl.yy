@@ -2,7 +2,7 @@
 /*
  * PDDL parser.
  *
- * $Id: pddl.yy,v 1.18 2001-10-18 21:16:14 lorens Exp $
+ * $Id: pddl.yy,v 1.19 2001-12-22 21:23:42 lorens Exp $
  */
 %{
 #include <utility>
@@ -17,8 +17,6 @@
 extern int yylex();
 /* Current line number. */
 extern size_t line_number;
-/* Program name. */
-extern string PROGRAM_NAME;
  
 
 static string tostring(unsigned int n);
@@ -773,7 +771,12 @@ static void add_names(const vector<string>& names, const Type& type) {
     } else {
       NameMap::const_iterator ni = name_map->find(s);
       if (ni == name_map->end()) {
-	name_map->insert(make_pair(s, new Name(s, type)));
+	if (pdomain != NULL && pdomain->find_constant(s) != NULL) {
+	  yywarning("ignoring declaration of object `" + s
+		    + "' previously declared as constant");
+	} else {
+	  name_map->insert(make_pair(s, new Name(s, type)));
+	}
       } else {
 	(*name_map)[s] = new Name(s, (*ni).second->type + type);
       }
@@ -787,8 +790,14 @@ static void add_names(const vector<string>& names, const Type& type) {
  */
 static void add_predicate(const string& name, const VariableList& parameters) {
   if (find_predicate(name) == NULL) {
-    domain_predicates->insert(make_pair(name,
-					new Predicate(name, parameters)));
+    if (find_type(name) == NULL) {
+      domain_predicates->insert(make_pair(name,
+					  new Predicate(name, parameters)));
+    } else {
+      yywarning("ignoring declaration of predicate `" + name
+		+ "' in domain `" + domain_name
+		+ "' previously declared as type");
+    }
   } else {
     yywarning("ignoring repeated declaration of predicate `" + name
 	      + "' in domain `" + domain_name + "'");
@@ -840,7 +849,12 @@ static const pair<AtomList*, NegationList*>& make_add_del(AtomList* adds,
 static const Atom& make_atom(const string& predicate, const TermList& terms) {
   const Predicate* p = find_predicate(predicate);
   if (p == NULL) {
-    if (domain_predicates != NULL) {
+    if (find_type(predicate) != NULL) {
+      if (terms.size() != 1) {
+	yyerror(tostring(terms.size())
+		+ "parameters passed to type predicate `" + predicate + "'");
+      }
+    } else if (domain_predicates != NULL) {
       VariableList& params = *(new VariableList());
       for (size_t i = 0; i < terms.size(); i++) {
 	params.push_back(new Variable("?x" + tostring(i + 1)));
