@@ -2,7 +2,7 @@
 /*
  * Heuristics.
  *
- * $Id: heuristics.h,v 1.4 2001-09-03 20:06:16 lorens Exp $
+ * $Id: heuristics.h,v 1.5 2001-09-18 15:58:58 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
@@ -134,7 +134,7 @@ struct Cost {
  */
 struct FlawSelectionOrder {
 private:
-  typedef enum { NONE, MC, LC, MW, LW } FVal;
+  typedef enum { NONE, MC, LC, MW, LW, ML, LL } FVal;
 
 public:
   /* Constructs a default flaw selection order. */
@@ -200,6 +200,26 @@ public:
   /* Checks if least work first order is selected. */
   bool least_work_first() const {
     return mode_ == LW;
+  }
+
+  /* Selects most linkable first order. */
+  void set_most_linkable_first() {
+    mode_ = ML;
+  }
+
+  /* Checks if most linkable first order is selected. */
+  bool most_linkable_first() const {
+    return mode_ == ML;
+  }
+
+  /* Selects least linkable first order. */
+  void set_least_linkable_first() {
+    mode_ = LL;
+  }
+
+  /* Checks if least linkable first order is selected. */
+  bool least_linkable_first() const {
+    return mode_ == LL;
   }
 
 private:
