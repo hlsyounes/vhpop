@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: parameters.cc,v 3.3 2002-07-02 16:41:58 lorens Exp $
+ * $Id: parameters.cc,v 3.4 2002-07-04 08:32:06 lorens Exp $
  */
 #include "parameters.h"
 
@@ -31,12 +31,13 @@ InvalidSearchAlgorithm::InvalidSearchAlgorithm(const string& name)
 
 /* Constructs default planning parameters. */
 Parameters::Parameters()
-  : time_limit(180), search_algorithm(A_STAR), heuristic("UCPOP"), weight(1.0),
+  : time_limit(UINT_MAX), search_algorithm(A_STAR),
+    heuristic("UCPOP"), weight(1.0),
     reverse_open_conditions(false), ground_actions(false),
     domain_constraints(false), keep_static_preconditions(true),
     transformational(false) {
   flaw_orders.push_back(FlawSelectionOrder("UCPOP")),
-  search_limits.push_back(10000);
+  search_limits.push_back(UINT_MAX);
 }
 
 
