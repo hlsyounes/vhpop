@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 3.1 2002-03-10 15:03:33 lorens Exp $
+ * $Id: vhpop.cc,v 3.2 2002-03-10 19:45:51 lorens Exp $
  */
 #include <iostream>
 #include <cstdio>
@@ -304,7 +304,7 @@ int main(int argc, char* argv[]) {
       /* Planning time. */
       double t = 1000000.9
 	- (timer.it_value.tv_sec + timer.it_value.tv_usec*1e-6);
-      cout << "Time: " << int(1000.0*t + 0.5) << endl;
+      cout << "Time: " << max(0, int(1000.0*t + 0.5)) << endl;
       if (plan != NULL) {
 	if (plan->complete()) {
 	  if (verbosity > 0) {
@@ -325,6 +325,8 @@ int main(int argc, char* argv[]) {
 	cout << ";Problem has no solution." << endl;
       }
     }
+    Problem::clear();
+    Domain::clear();
   } catch (const Exception& e) {
     cerr << PROGRAM_NAME << ": " << e << endl;
     return -1;

@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.cc,v 3.1 2002-03-10 14:31:29 lorens Exp $
+ * $Id: domains.cc,v 3.2 2002-03-10 19:45:44 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -554,6 +554,11 @@ const Domain* Domain::find(const string& name) {
 
 /* Removes all defined domains. */
 void Domain::clear() {
+  DomainMapIter di = begin();
+  while (di != end()) {
+    delete (*di).second;
+    di = begin();
+  }
   domains.clear();
 }
 
@@ -564,8 +569,11 @@ Domain::Domain(const string& name, const Requirements& requirements,
 	       const PredicateMap& predicates, const ActionSchemaMap& actions)
   : name(name), requirements(requirements), types(types),
     constants(constants), predicates(predicates), actions(actions) {
+  const Domain* d = find(name);
+  if (d != NULL) {
+    delete d;
+  }
   domains[name] = this;
-  hash_set<string> static_preds;
   hash_set<string> achievable_preds;
   for (ActionSchemaMapIter ai = actions.begin(); ai != actions.end(); ai++) {
     (*ai).second->achievable_predicates(achievable_preds, achievable_preds);
