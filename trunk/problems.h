@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: problems.h,v 6.5 2003-08-27 22:13:27 lorens Exp $
+ * $Id: problems.h,v 6.6 2003-08-28 15:34:40 lorens Exp $
  */
 #ifndef PROBLEMS_H
 #define PROBLEMS_H
@@ -109,7 +109,7 @@ private:
   /* Goal of problem. */
   const Formula* goal_;
   /* Cached results of compatible objects queries. */
-  mutable hashing::hash_map<Type, const ObjectList*> compatible_;
+  mutable std::map<Type, const ObjectList*> compatible_;
 
   friend std::ostream& operator<<(std::ostream& os, const Problem& p);
 };

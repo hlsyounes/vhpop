@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.cc,v 6.3 2003-07-21 18:12:22 lorens Exp $
+ * $Id: orderings.cc,v 6.4 2003-08-28 15:33:17 lorens Exp $
  */
 #include "orderings.h"
 #include "plans.h"
@@ -272,7 +272,7 @@ BinaryOrderings::refine(const Ordering& new_ordering) const {
       && possibly_after(new_ordering.before_id(), new_ordering.before_time(),
 			new_ordering.after_id(), new_ordering.after_time())) {
     BinaryOrderings& orderings = *new BinaryOrderings(*this);
-    hashing::hash_map<size_t, BoolVector*> own_data;
+    std::map<size_t, BoolVector*> own_data;
     orderings.fill_transitive(own_data, new_ordering);
     return &orderings;
   } else {
@@ -286,7 +286,7 @@ const BinaryOrderings* BinaryOrderings::refine(const Ordering& new_ordering,
 					       const Step& new_step) const {
   if (new_step.id() != 0 && new_step.id() != Plan::GOAL_ID) {
     BinaryOrderings& orderings = *new BinaryOrderings(*this);
-    hashing::hash_map<size_t, BoolVector*> own_data;
+    std::map<size_t, BoolVector*> own_data;
     if (new_step.id() > before_.size() + 1) {
       if (new_step.id() > 1) {
 	BoolVector* bv = new BoolVector(2*new_step.id() - 2, false);
@@ -308,9 +308,8 @@ const BinaryOrderings* BinaryOrderings::refine(const Ordering& new_ordering,
 
 /* Fills the given tables with distances for each step from the
    start step, and returns the greatest distance. */
-float
-BinaryOrderings::schedule(hashing::hash_map<size_t, float>& start_times,
-			  hashing::hash_map<size_t, float>& end_times) const {
+float BinaryOrderings::schedule(std::map<size_t, float>& start_times,
+				std::map<size_t, float>& end_times) const {
   float max_dist = 0.0f;
   size_t n = before_.size() + 1;
   for (size_t i = 1; i <= n; i++) {
@@ -321,11 +320,10 @@ BinaryOrderings::schedule(hashing::hash_map<size_t, float>& start_times,
 
 
 /* Schedules the given instruction. */
-float BinaryOrderings::schedule(hashing::hash_map<size_t, float>& start_times,
-				hashing::hash_map<size_t, float>& end_times,
+float BinaryOrderings::schedule(std::map<size_t, float>& start_times,
+				std::map<size_t, float>& end_times,
 				size_t step_id) const {
-  hashing::hash_map<size_t, float>::const_iterator d =
-    start_times.find(step_id);
+  std::map<size_t, float>::const_iterator d = start_times.find(step_id);
   if (d != start_times.end()) {
     return (*d).second;
   } else {
@@ -357,13 +355,12 @@ bool BinaryOrderings::before(size_t id1, size_t id2) const {
 
 /* Orders the first step before the second step. */
 void
-BinaryOrderings::set_before(hashing::hash_map<size_t, BoolVector*>& own_data,
+BinaryOrderings::set_before(std::map<size_t, BoolVector*>& own_data,
 			    size_t id1, size_t id2) {
   if (id1 != id2) {
     size_t i = std::max(id1, id2) - 2;
     BoolVector* bv;
-    hashing::hash_map<size_t, BoolVector*>::const_iterator vi =
-      own_data.find(i);
+    std::map<size_t, BoolVector*>::const_iterator vi = own_data.find(i);
     if (vi != own_data.end()) {
       bv = (*vi).second;
     } else {
@@ -384,8 +381,7 @@ BinaryOrderings::set_before(hashing::hash_map<size_t, BoolVector*>& own_data,
 
 
 /* Updates the transitive closure given a new ordering constraint. */
-void BinaryOrderings::fill_transitive(hashing::hash_map<size_t,
-				      BoolVector*>& own_data,
+void BinaryOrderings::fill_transitive(std::map<size_t, BoolVector*>& own_data,
 				      const Ordering& ordering) {
   size_t i = ordering.before_id();
   size_t j = ordering.after_id();
@@ -491,7 +487,7 @@ TemporalOrderings::refine(const Ordering& new_ordering) const {
       && possibly_after(new_ordering.before_id(), new_ordering.before_time(),
 			new_ordering.after_id(), new_ordering.after_time())) {
     TemporalOrderings& orderings = *new TemporalOrderings(*this);
-    hashing::hash_map<size_t, FloatVector*> own_data;
+    std::map<size_t, FloatVector*> own_data;
     if (orderings.fill_transitive(own_data, new_ordering)) {
       return &orderings;
     } else {
@@ -510,7 +506,7 @@ TemporalOrderings::refine(const Ordering& new_ordering,
 			  const Step& new_step) const {
   if (new_step.id() != 0 && new_step.id() != Plan::GOAL_ID) {
     TemporalOrderings& orderings = *new TemporalOrderings(*this);
-    hashing::hash_map<size_t, FloatVector*> own_data;
+    std::map<size_t, FloatVector*> own_data;
     if (new_step.id() > distance_.size()/2) {
       FloatVector* fv = new FloatVector(4*new_step.id() - 2, INFINITY);
       (*fv)[4*new_step.id() - 3] = -threshold;
@@ -545,8 +541,8 @@ TemporalOrderings::refine(const Ordering& new_ordering,
 /* Fills the given tables with distances for each step from the
    start step, and returns the greatest distance. */
 float
-TemporalOrderings::schedule(hashing::hash_map<size_t, float>& start_times,
-			    hashing::hash_map<size_t, float>& end_times) const {
+TemporalOrderings::schedule(std::map<size_t, float>& start_times,
+			    std::map<size_t, float>& end_times) const {
   float max_dist = 0.0f;
   size_t n = distance_.size()/2;
   for (size_t i = 1; i <= n; i++) {
@@ -557,11 +553,10 @@ TemporalOrderings::schedule(hashing::hash_map<size_t, float>& start_times,
 
 
 /* Schedules the given instruction. */
-float
-TemporalOrderings::schedule(hashing::hash_map<size_t, float>& start_times,
-			    hashing::hash_map<size_t, float>& end_times,
-			    size_t step_id) const {
-  hashing::hash_map<size_t, float>::const_iterator d = end_times.find(step_id);
+float TemporalOrderings::schedule(std::map<size_t, float>& start_times,
+				  std::map<size_t, float>& end_times,
+				  size_t step_id) const {
+  std::map<size_t, float>::const_iterator d = end_times.find(step_id);
   if (d != end_times.end()) {
     return (*d).second;
   } else {
@@ -588,14 +583,12 @@ float TemporalOrderings::distance(size_t t1, size_t t2) const {
 
 
 /* Sets the maximum distance from the first and the second time node. */
-void TemporalOrderings::set_distance(hashing::hash_map<size_t,
-				     FloatVector*>& own_data,
+void TemporalOrderings::set_distance(std::map<size_t, FloatVector*>& own_data,
 				     size_t t1, size_t t2, float d) {
   if (t1 != t2) {
     size_t i = std::max(t1, t2) - 1;
     FloatVector* fv;
-    hashing::hash_map<size_t, FloatVector*>::const_iterator vi =
-      own_data.find(i);
+    std::map<size_t, FloatVector*>::const_iterator vi = own_data.find(i);
     if (vi != own_data.end()) {
       fv = (*vi).second;
     } else {
@@ -617,8 +610,7 @@ void TemporalOrderings::set_distance(hashing::hash_map<size_t,
 
 /* Updates the transitive closure given a new ordering constraint. */
 bool
-TemporalOrderings::fill_transitive(hashing::hash_map<size_t,
-				   FloatVector*>& own_data,
+TemporalOrderings::fill_transitive(std::map<size_t, FloatVector*>& own_data,
 				   const Ordering& ordering) {
   size_t i = time_node(ordering.before_id(), ordering.before_time());
   size_t j = time_node(ordering.after_id(), ordering.after_time());

@@ -16,14 +16,13 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: predicates.h,v 6.2 2003-07-13 16:08:22 lorens Exp $
+ * $Id: predicates.h,v 6.3 2003-08-28 15:33:49 lorens Exp $
  */
 #ifndef PREDICATES_H
 #define PREDICATES_H
 
 #include <config.h>
 #include "types.h"
-#include "hashing.h"
 #include <iostream>
 #include <map>
 #include <string>
@@ -38,7 +37,7 @@ typedef int Predicate;
 /* PredicateSet */
 
 /* Set of predicate declarations. */
-struct PredicateSet : public hashing::hash_set<Predicate> {
+struct PredicateSet : public std::set<Predicate> {
 };
 
 
