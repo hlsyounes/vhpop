@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: types.cc,v 3.2 2002-03-18 09:37:28 lorens Exp $
+ * $Id: types.cc,v 3.3 2002-03-18 09:37:36 lorens Exp $
  */
 #include "types.h"
 
@@ -47,8 +47,8 @@ const SimpleType SimpleType::OBJECT = SimpleType("object");
 
 /* Constructs a simple type with the given name. */
 SimpleType::SimpleType(const string& name, const Type& supertype)
-  : name(name),
-    supertype(name == "object" ? (const Type&) *this : supertype) {}
+  : name_(name),
+    supertype_(name == "object" ? (const Type*) this : &supertype) {}
 
 
 /* Checks if this type is a subtype of the given type. */
@@ -58,7 +58,7 @@ bool SimpleType::subtype(const Type& t) const {
   } else {
     const SimpleType* st = dynamic_cast<const SimpleType*>(&t);
     if (st != NULL) {
-      return name == st->name || (!object() && supertype.subtype(t));
+      return name() == st->name() || (!object() && supertype().subtype(t));
     } else {
       const UnionType& ut = dynamic_cast<const UnionType&>(t);
       return member_if(ut.types().begin(), ut.types().end(),
@@ -71,20 +71,20 @@ bool SimpleType::subtype(const Type& t) const {
 /* Checks if this object is less than the given object. */
 bool SimpleType::less(const LessThanComparable& o) const {
   const SimpleType& st = dynamic_cast<const SimpleType&>(o);
-  return name < st.name;
+  return name() < st.name();
 }
 
 
 /* Checks if this object equals the given object. */
 bool SimpleType::equals(const EqualityComparable& o) const {
   const SimpleType* st = dynamic_cast<const SimpleType*>(&o);
-  return st != NULL && name == st->name;
+  return st != NULL && name() == st->name();
 }
 
 
 /* Prints this object on the given stream. */
 void SimpleType::print(ostream& os) const {
-  os << name;
+  os << name();
 }
 
 
@@ -94,11 +94,11 @@ void SimpleType::print(ostream& os) const {
 /* Returns the canonical form of the given union type. */
 const Type& UnionType::simplify(const UnionType& t) {
   const Type* canonical_type;
-  if (t.types_.empty()) {
+  if (t.types().empty()) {
     canonical_type = &SimpleType::OBJECT;
     delete &t;
-  } else if (t.types_.size() == 1) {
-    canonical_type = *t.types_.begin();
+  } else if (t.types().size() == 1) {
+    canonical_type = *t.types().begin();
     delete &t;
   } else {
     canonical_type = &t;
@@ -122,7 +122,7 @@ const Type& UnionType::add(const Type& t1, const Type& t2) {
     t->add(*st2);
   } else {
     const UnionType& ut2 = dynamic_cast<const UnionType&>(t2);
-    for (TypeSetIter ti = ut2.types_.begin(); ti != ut2.types_.end(); ti++) {
+    for (TypeSetIter ti = ut2.types().begin(); ti != ut2.types().end(); ti++) {
       t->add(**ti);
     }
   }
@@ -136,20 +136,14 @@ UnionType::UnionType(const SimpleType& type) {
 }
 
 
-/* Constituent types. */
-const TypeSet& UnionType::types() const {
-  return types_;
-}
-
-
 /* Adds the given simple type to this union. */
 void UnionType::add(const SimpleType& t) {
   if (!subtype(t)) {
     TypeSetIter ti =
-      find_if(types_.begin(), types_.end(), bind1st(Subtype(), &t));
-    while (ti != types_.end()) {
+      find_if(types().begin(), types().end(), bind1st(Subtype(), &t));
+    while (ti != types().end()) {
       types_.erase(ti);
-      ti = find_if(types_.begin(), types_.end(), bind1st(Subtype(), &t));
+      ti = find_if(types().begin(), types().end(), bind1st(Subtype(), &t));
     }
     types_.insert(&t);
   }
@@ -158,15 +152,15 @@ void UnionType::add(const SimpleType& t) {
 
 /* Checks if this type is a subtype of the given type. */
 bool UnionType::subtype(const Type& t) const {
-  return member_if(types_.begin(), types_.end(), bind2nd(Subtype(), &t));
+  return member_if(types().begin(), types().end(), bind2nd(Subtype(), &t));
 }
 
 
 /* Checks if this object equals the given object. */
 bool UnionType::equals(const EqualityComparable& o) const {
   const UnionType* ut = dynamic_cast<const UnionType*>(&o);
-  return (ut != NULL && types_.size() == ut->types_.size()
-	  && equal(types_.begin(), types_.end(), ut->types_.begin(),
+  return (ut != NULL && types().size() == ut->types().size()
+	  && equal(types().begin(), types().end(), ut->types().begin(),
 		   equal_to<const EqualityComparable*>()));
 }
 
@@ -174,7 +168,7 @@ bool UnionType::equals(const EqualityComparable& o) const {
 /* Prints this object on the given stream. */
 void UnionType::print(ostream& os) const {
   os << "(either";
-  for (TypeSetIter ti = types_.begin(); ti != types_.end(); ti++) {
+  for (TypeSetIter ti = types().begin(); ti != types().end(); ti++) {
     os << ' ' << **ti;
   }
   os << ")";
