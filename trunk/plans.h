@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.h,v 6.4 2003-09-01 19:50:43 lorens Exp $
+ * $Id: plans.h,v 6.5 2003-09-01 20:52:46 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -36,6 +36,7 @@ struct EffectList;
 struct Action;
 struct Problem;
 struct Bindings;
+struct ActionEffectMap;
 struct FlawSelectionOrder;
 
 
@@ -305,11 +306,13 @@ private:
 
   /* Handles a literal open condition by adding a new step. */
   void add_step(PlanList& plans, const Literal& literal,
-		const OpenCondition& open_cond) const;
+		const OpenCondition& open_cond,
+		const ActionEffectMap& achievers) const;
 
   /* Handles a literal open condition by reusing an existing step. */
   void reuse_step(PlanList& plans, const Literal& literal,
-		  const OpenCondition& open_cond) const;
+		  const OpenCondition& open_cond,
+		  const ActionEffectMap& achievers) const;
 
   /* Adds plans to the given plan list with a link from the given step
      to the given open condition added. */
@@ -322,6 +325,7 @@ private:
      assumption. */
   int new_cw_link(PlanList& plans, const EffectList& effects,
 		  const Negation& negation, const OpenCondition& open_cond,
+		  const ActionEffectMap& achievers,
 		  bool test_only = false) const;
 
   /* Returns a plan with a link added from the given effect to the
