@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 1.27 2002-01-25 18:23:02 lorens Exp $
+ * $Id: heuristics.cc,v 1.28 2002-01-25 21:58:34 lorens Exp $
  */
 #include <set>
 #include <typeinfo>
@@ -40,43 +40,37 @@ static HeuristicValue
 formula_value(const Formula& formula, size_t step_id, const Plan& plan,
 	      const Domain& domain, const PlanningGraph& pg,
 	      bool reuse = false) {
-  HeuristicValue h;
   const Bindings* bindings = plan.bindings();
-  bool has_reuse = false;
   if (reuse) {
     const Literal* literal = dynamic_cast<const Literal*>(&formula);
     if (literal != NULL) {
       if (!domain.static_predicate(literal->predicate())) {
 	hash_set<size_t> seen_steps;
-	for (const StepChain* sc = plan.steps;
-	     sc != NULL && !has_reuse; sc = sc->tail) {
+	for (const StepChain* sc = plan.steps; sc != NULL; sc = sc->tail) {
 	  const Step& step = *sc->head;
 	  if (step.id != 0 && seen_steps.find(step.id) == seen_steps.end()) {
 	    seen_steps.insert(step.id);
 	    if (plan.orderings.possibly_before(step.id, step_id)) {
 	      const EffectList& effs = step.effects;
-	      for (EffectListIter ei = effs.begin();
-		   ei != effs.end() && !has_reuse; ei++) {
+	      for (EffectListIter ei = effs.begin(); ei != effs.end(); ei++) {
 		if (typeid(*literal) == typeid(Atom)) {
 		  const AtomList& adds = (*ei)->add_list;
 		  for (AtomListIter fi = adds.begin();
-		       fi != adds.end() && !has_reuse; fi++) {
+		       fi != adds.end(); fi++) {
 		    if ((bindings != NULL && bindings->unify(*literal, **fi))
 			|| (bindings == NULL
 			    && Bindings::unifiable(*literal, **fi))) {
-		      h = HeuristicValue::ZERO_COST_UNIT_WORK;
-		      has_reuse = true;
+		      return HeuristicValue::ZERO_COST_UNIT_WORK;
 		    }
 		  }
 		} else {
 		  const NegationList& dels = (*ei)->del_list;
 		  for (NegationListIter fi = dels.begin();
-		       fi != dels.end() && !has_reuse; fi++) {
+		       fi != dels.end(); fi++) {
 		    if ((bindings != NULL && bindings->unify(*literal, **fi))
 			|| (bindings == NULL
 			    && Bindings::unifiable(*literal, **fi))) {
-		      h = HeuristicValue::ZERO_COST_UNIT_WORK;
-		      has_reuse = true;
+		      return HeuristicValue::ZERO_COST_UNIT_WORK;
 		    }
 		  }
 		}
@@ -86,12 +80,36 @@ formula_value(const Formula& formula, size_t step_id, const Plan& plan,
 	}
       }
     } else {
-      // reuse for disjunctions and conjunctions ?
+      const Disjunction* disj = dynamic_cast<const Disjunction*>(&formula);
+      if (disj != NULL) {
+	HeuristicValue h = HeuristicValue::INFINITE;
+	for (FormulaListIter fi = disj->disjuncts.begin();
+	     fi != disj->disjuncts.end(); fi++) {
+	  h = min(h, formula_value(**fi, step_id, plan, domain, pg, true));
+	}
+	return h;
+      } else {
+	const Conjunction* conj = dynamic_cast<const Conjunction*>(&formula);
+	if (conj != NULL) {
+	  HeuristicValue h = HeuristicValue::ZERO;
+	  for (FormulaListIter fi = conj->conjuncts.begin();
+	       fi != conj->conjuncts.end(); fi++) {
+	    h += formula_value(**fi, step_id, plan, domain, pg, true);
+	  }
+	  return h;
+	} else {
+	  const ExistsFormula* exists =
+	    dynamic_cast<const ExistsFormula*>(&formula);
+	  if (exists != NULL) {
+	    return formula_value(exists->body, step_id, plan, domain, pg,
+				 true);
+	  }
+	}
+      }
     }
   }
-  if (!has_reuse) {
-    formula.heuristic_value(h, pg, bindings);
-  }
+  HeuristicValue h;
+  formula.heuristic_value(h, pg, bindings);
   return h;
 }
 
@@ -111,37 +129,37 @@ HeuristicValue::INFINITE = HeuristicValue(INT_MAX, INT_MAX, INT_MAX, INT_MAX);
 
 /* Constructs a zero heuristic value. */
 HeuristicValue::HeuristicValue()
-  : max_cost_(0), max_work_(0), sum_cost_(0), sum_work_(0) {}
+  : max_cost_(0), max_work_(0), add_cost_(0), add_work_(0) {}
 
 
 /* Constructs a heuristic value. */
 HeuristicValue::HeuristicValue(int max_cost, int max_work,
-			       int sum_cost, int sum_work)
+			       int add_cost, int add_work)
   : max_cost_(max_cost), max_work_(max_work),
-    sum_cost_(sum_cost), sum_work_(sum_work) {}
+    add_cost_(add_cost), add_work_(add_work) {}
 
 
-/* Returns the cost according to the MAX heuristic. */
+/* Returns the cost according to the max heuristic. */
 int HeuristicValue::max_cost() const {
   return max_cost_;
 }
 
 
-/* Returns the work according to the MAX heuristic. */
+/* Returns the work according to the max heuristic. */
 int HeuristicValue::max_work() const {
   return max_work_;
 }
 
 
-/* Returns the cost according to the SUM heurisitc. */
-int HeuristicValue::sum_cost() const {
-  return sum_cost_;
+/* Returns the cost according to the additive heurisitc. */
+int HeuristicValue::add_cost() const {
+  return add_cost_;
 }
 
 
-/* Returns the work according to the SUM heuristic. */
-int HeuristicValue::sum_work() const {
-  return sum_work_;
+/* Returns the work according to the additive heuristic. */
+int HeuristicValue::add_work() const {
+  return add_work_;
 }
 
 
@@ -163,8 +181,8 @@ HeuristicValue& HeuristicValue::operator+=(const HeuristicValue& v) {
     max_cost_ = v.max_cost_;
   }
   max_work_ = sum(max_work_, v.max_work_);
-  sum_cost_ = sum(sum_cost_, v.sum_cost_);
-  sum_work_ = sum(sum_work_, v.sum_work_);
+  add_cost_ = sum(add_cost_, v.add_cost_);
+  add_work_ = sum(add_work_, v.add_work_);
   return *this;
 }
 
@@ -172,28 +190,28 @@ HeuristicValue& HeuristicValue::operator+=(const HeuristicValue& v) {
 /* Adds the given cost to this heuristic value. */
 void HeuristicValue::add_cost(int c) {
   max_cost_ = sum(max_cost_, c);
-  sum_cost_ = sum(sum_cost_, c);
+  add_cost_ = sum(add_cost_, c);
 }
 
 
 /* Adds the given work to this heuristic value. */
 void HeuristicValue::add_work(int w) {
   max_work_ = sum(max_work_, w);
-  sum_work_ = sum(sum_work_, w);
+  add_work_ = sum(add_work_, w);
 }
 
 
 /* Prints this object on the given stream. */
 void HeuristicValue::print(ostream& os) const {
   os << "MAX<" << max_cost_ << ',' << max_work_ << '>'
-     << " SUM<" << sum_cost_ << ',' << sum_work_ << '>';
+     << " ADD<" << add_cost_ << ',' << add_work_ << '>';
 }
 
 
 /* Equality operator for heuristic values. */
 bool operator==(const HeuristicValue& v1, const HeuristicValue& v2) {
   return (v1.max_cost() == v2.max_cost() && v1.max_work() == v2.max_work()
-	  && v1.sum_cost() == v2.sum_cost() && v1.sum_work() == v2.sum_work());
+	  && v1.add_cost() == v2.add_cost() && v1.add_work() == v2.add_work());
 }
 
 
@@ -218,21 +236,21 @@ bool operator>(const HeuristicValue& v1, const HeuristicValue& v2) {
 /* Less than or equal to operator for heuristic values. */
 bool operator<=(const HeuristicValue& v1, const HeuristicValue& v2) {
   return (v1.max_cost() <= v2.max_cost() && v1.max_work() <= v2.max_work()
-	  && v1.sum_cost() <= v2.sum_cost() && v1.sum_work() <= v2.sum_work());
+	  && v1.add_cost() <= v2.add_cost() && v1.add_work() <= v2.add_work());
 }
 
 
 /* Greater than or equal to operator for heuristic values. */
 bool operator>=(const HeuristicValue& v1, const HeuristicValue& v2) {
   return (v1.max_cost() >= v2.max_cost() && v1.max_work() >= v2.max_work()
-	  && v1.sum_cost() >= v2.sum_cost() && v1.sum_work() >= v2.sum_work());
+	  && v1.add_cost() >= v2.add_cost() && v1.add_work() >= v2.add_work());
 }
 
 
 /* Returns the componentwise minimum heuristic value, given two
    heuristic values. */
 HeuristicValue min(const HeuristicValue& v1, const HeuristicValue& v2) {
-  int max_cost, max_work, sum_cost, sum_work;
+  int max_cost, max_work, add_cost, add_work;
   if (v1.max_cost() == v2.max_cost()) {
     max_cost = v1.max_cost();
     max_work = min(v1.max_work(), v2.max_work());
@@ -243,17 +261,17 @@ HeuristicValue min(const HeuristicValue& v1, const HeuristicValue& v2) {
     max_cost = v2.max_cost();
     max_work = v2.max_work();
   }
-  if (v1.sum_cost() == v2.sum_cost()) {
-    sum_cost = v1.sum_cost();
-    sum_work = min(v1.sum_work(), v2.sum_work());
-  } else if (v1.sum_cost() < v2.sum_cost()) {
-    sum_cost = v1.sum_cost();
-    sum_work = v1.sum_work();
+  if (v1.add_cost() == v2.add_cost()) {
+    add_cost = v1.add_cost();
+    add_work = min(v1.add_work(), v2.add_work());
+  } else if (v1.add_cost() < v2.add_cost()) {
+    add_cost = v1.add_cost();
+    add_work = v1.add_work();
   } else {
-    sum_cost = v2.sum_cost();
-    sum_work = v2.sum_work();
+    add_cost = v2.add_cost();
+    add_work = v2.add_work();
   }
-  return HeuristicValue(max_cost, max_work, sum_cost, sum_work);
+  return HeuristicValue(max_cost, max_work, add_cost, add_work);
 }
 
 
@@ -711,23 +729,23 @@ Heuristic& Heuristic::operator=(const string& name) {
       h_.push_back(S_PLUS_OC);
     } else if (strcasecmp(n, "UCPOP") == 0) {
       h_.push_back(UCPOP);
-    } else if (strcasecmp(n, "SUM") == 0) {
-      h_.push_back(SUM);
+    } else if (strcasecmp(n, "ADD") == 0) {
+      h_.push_back(ADD);
       needs_pg_ = true;
-    } else if (strcasecmp(n, "SUM_COST") == 0) {
-      h_.push_back(SUM_COST);
+    } else if (strcasecmp(n, "ADD_COST") == 0) {
+      h_.push_back(ADD_COST);
       needs_pg_ = true;
-    } else if (strcasecmp(n, "SUM_WORK") == 0) {
-      h_.push_back(SUM_WORK);
+    } else if (strcasecmp(n, "ADD_WORK") == 0) {
+      h_.push_back(ADD_WORK);
       needs_pg_ = true;
-    } else if (strcasecmp(n, "SUMR") == 0) {
-      h_.push_back(SUMR);
+    } else if (strcasecmp(n, "ADDR") == 0) {
+      h_.push_back(ADDR);
       needs_pg_ = true;
-    } else if (strcasecmp(n, "SUMR_COST") == 0) {
-      h_.push_back(SUMR_COST);
+    } else if (strcasecmp(n, "ADDR_COST") == 0) {
+      h_.push_back(ADDR_COST);
       needs_pg_ = true;
-    } else if (strcasecmp(n, "SUMR_WORK") == 0) {
-      h_.push_back(SUMR_WORK);
+    } else if (strcasecmp(n, "ADDR_WORK") == 0) {
+      h_.push_back(ADDR_WORK);
       needs_pg_ = true;
     } else if (strcasecmp(n, "MAX") == 0) {
       h_.push_back(MAX);
@@ -772,12 +790,12 @@ bool Heuristic::needs_planning_graph() const {
 void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
 			  double weight, const Domain& domain,
 			  const PlanningGraph* planning_graph) const {
-  bool sum_done = false;
-  int sum_cost = 0;
-  int sum_work = 0;
-  bool sumr_done = false;
-  int sumr_cost = 0;
-  int sumr_work = 0;
+  bool add_done = false;
+  int add_cost = 0;
+  int add_work = 0;
+  bool addr_done = false;
+  int addr_cost = 0;
+  int addr_work = 0;
   bool max_done = false;
   int max_cost = 0;
   int max_work = 0;
@@ -810,71 +828,71 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
       rank.push_back(plan.num_steps
 		     + weight*(plan.num_open_conds + plan.num_unsafes));
       break;
-    case SUM:
-    case SUM_COST:
-    case SUM_WORK:
-      if (!sum_done) {
-	sum_done = true;
+    case ADD:
+    case ADD_COST:
+    case ADD_WORK:
+      if (!add_done) {
+	add_done = true;
 	for (const OpenConditionChain* occ = plan.open_conds;
 	     occ != NULL; occ = occ->tail) {
 	  const OpenCondition& open_cond = *occ->head;
 	  HeuristicValue v =
 	    formula_value(open_cond.condition(), open_cond.step_id, plan,
 			  domain, *planning_graph);
-	  sum_cost = sum(sum_cost, v.sum_cost());
-	  sum_work = sum(sum_work, v.sum_work());
+	  add_cost = sum(add_cost, v.add_cost());
+	  add_work = sum(add_work, v.add_work());
 	}
       }
-      if (h == SUM) {
-	if (sum_cost < INT_MAX) {
-	  rank.push_back(plan.num_steps + weight*sum_cost);
+      if (h == ADD) {
+	if (add_cost < INT_MAX) {
+	  rank.push_back(plan.num_steps + weight*add_cost);
 	} else {
 	  rank.push_back(HUGE_VAL);
 	}
-      } else if (h == SUM_COST) {
-	if (sum_cost < INT_MAX) {
-	  rank.push_back(sum_cost);
+      } else if (h == ADD_COST) {
+	if (add_cost < INT_MAX) {
+	  rank.push_back(add_cost);
 	} else {
 	  rank.push_back(HUGE_VAL);
 	}
       } else {
-	if (sum_work < INT_MAX) {
-	  rank.push_back(sum_work);
+	if (add_work < INT_MAX) {
+	  rank.push_back(add_work);
 	} else {
 	  rank.push_back(HUGE_VAL);
 	}
       }
       break;
-    case SUMR:
-    case SUMR_COST:
-    case SUMR_WORK:
-      if (!sumr_done) {
-	sumr_done = true;
+    case ADDR:
+    case ADDR_COST:
+    case ADDR_WORK:
+      if (!addr_done) {
+	addr_done = true;
 	for (const OpenConditionChain* occ = plan.open_conds;
 	     occ != NULL; occ = occ->tail) {
 	  const OpenCondition& open_cond = *occ->head;
 	  HeuristicValue v =
 	    formula_value(open_cond.condition(), open_cond.step_id, plan,
 			  domain, *planning_graph, true);
-	  sumr_cost = sum(sumr_cost, v.sum_cost());
-	  sumr_work = sum(sumr_work, v.sum_work());
+	  addr_cost = sum(addr_cost, v.add_cost());
+	  addr_work = sum(addr_work, v.add_work());
 	}
       }
-      if (h == SUMR) {
-	if (sumr_cost < INT_MAX) {
-	  rank.push_back(plan.num_steps + weight*sumr_cost);
+      if (h == ADDR) {
+	if (addr_cost < INT_MAX) {
+	  rank.push_back(plan.num_steps + weight*addr_cost);
 	} else {
 	  rank.push_back(HUGE_VAL);
 	}
-      } else if (h == SUMR_COST) {
-	if (sumr_cost < INT_MAX) {
-	  rank.push_back(sumr_cost);
+      } else if (h == ADDR_COST) {
+	if (addr_cost < INT_MAX) {
+	  rank.push_back(addr_cost);
 	} else {
 	  rank.push_back(HUGE_VAL);
 	}
       } else {
-	if (sumr_work < INT_MAX) {
-	  rank.push_back(sumr_work);
+	if (addr_work < INT_MAX) {
+	  rank.push_back(addr_work);
 	} else {
 	  rank.push_back(HUGE_VAL);
 	}
@@ -1048,8 +1066,8 @@ ostream& operator<<(ostream& os, const SelectionCriterion& c) {
   case SelectionCriterion::LC:
     os << "LC_";
     switch (c.heuristic) {
-    case SelectionCriterion::SUM:
-      os << "SUM";
+    case SelectionCriterion::ADD:
+      os << "ADD";
       if (c.reuse) {
 	os << 'R';
       }
@@ -1065,8 +1083,8 @@ ostream& operator<<(ostream& os, const SelectionCriterion& c) {
   case SelectionCriterion::MC:
     os << "MC_";
     switch (c.heuristic) {
-    case SelectionCriterion::SUM:
-      os << "SUM";
+    case SelectionCriterion::ADD:
+      os << "ADD";
       if (c.reuse) {
 	os << 'R';
       }
@@ -1082,8 +1100,8 @@ ostream& operator<<(ostream& os, const SelectionCriterion& c) {
   case SelectionCriterion::LW:
     os << "LW_";
     switch (c.heuristic) {
-    case SelectionCriterion::SUM:
-      os << "SUM";
+    case SelectionCriterion::ADD:
+      os << "ADD";
       if (c.reuse) {
 	os << 'R';
       }
@@ -1099,8 +1117,8 @@ ostream& operator<<(ostream& os, const SelectionCriterion& c) {
   case SelectionCriterion::MW:
     os << "MW_";
     switch (c.heuristic) {
-    case SelectionCriterion::SUM:
-      os << "SUM";
+    case SelectionCriterion::ADD:
+      os << "ADD";
       if (c.reuse) {
 	os << 'R';
       }
@@ -1129,12 +1147,66 @@ FlawSelectionOrder& FlawSelectionOrder::operator=(const string& name) {
   const char* n = name.c_str();
   if (strcasecmp(n, "UCPOP") == 0) {
     return *this = "{n,s}LIFO/{o}LIFO";
+  } else if (strcasecmp(n, "UCPOP-LC") == 0) {
+    return *this = "{n,s}LIFO/{o}LR";
+  } else if (strncasecmp(n, "DSep-", 5) == 0) {
+    if (strcasecmp(n + 5, "LIFO") == 0) {
+      return *this = "{n}LIFO/{o}LIFO/{s}LIFO";
+    } else if (strcasecmp(n + 5, "FIFO") == 0) {
+      return *this = "{n}LIFO/{o}FIFO/{s}LIFO";
+    } else if (strcasecmp(n + 5, "LC") == 0) {
+      return *this = "{n}LIFO/{o}LR/{s}LIFO";
+    }
+  } else if (strncasecmp(n, "DUnf-", 5) == 0) {
+    if (strcasecmp(n + 5, "LIFO") == 0) {
+      return *this = "{n,s}0LIFO/{n,s}1LIFO/{o}LIFO/{n,s}LIFO";
+    } else if (strcasecmp(n + 5, "FIFO") == 0) {
+      return *this = "{n,s}0LIFO/{n,s}1LIFO/{o}FIFO/{n,s}LIFO";
+    } else if (strcasecmp(n + 5, "LC") == 0) {
+      return *this = "{n,s}0LIFO/{n,s}1LIFO/{o}LR/{n,s}LIFO";
+    } else if (strcasecmp(n + 5, "Gen") == 0) {
+      return *this = "{n,s,o}0LIFO/{n,s,o}1LIFO/{n,s,o}LIFO";
+    }
+  } else if (strncasecmp(n, "DRes-", 5) == 0) {
+    if (strcasecmp(n + 5, "LIFO") == 0) {
+      return *this = "{n,s}0LIFO/{o}LIFO/{n,s}LIFO";
+    } else if (strcasecmp(n + 5, "FIFO") == 0) {
+      return *this = "{n,s}0LIFO/{o}FIFO/{n,s}LIFO";
+    } else if (strcasecmp(n + 5, "LC") == 0) {
+      return *this = "{n,s}0LIFO/{o}LR/{n,s}LIFO";
+    }
+  } else if (strncasecmp(n, "DEnd-", 5) == 0) {
+    if (strcasecmp(n + 5, "LIFO") == 0) {
+      return *this = "{o}LIFO/{n,s}LIFO";
+    } else if (strcasecmp(n + 5, "FIFO") == 0) {
+      return *this = "{o}FIFO/{n,s}LIFO";
+    } else if (strcasecmp(n + 5, "LC") == 0) {
+      return *this = "{o}LR/{n,s}LIFO";
+    }
   } else if (strcasecmp(n, "LCFR") == 0) {
     return *this = "{n,s,o}LR";
+  } else if (strcasecmp(n, "LCFR-DSep") == 0) {
+    return *this = "{n,o}LR/{s}LR";
   } else if (strcasecmp(n, "ZLIFO") == 0) {
     return *this = "{n}LIFO/{o}0LIFO/{o}1NEW/{o}LIFO/{s}LIFO";
+  } else if (strcasecmp(n, "ZLIFO*") == 0) {
+    return *this = "{o}0LIFO/{n,s}LIFO/{o}1NEW/{o}LIFO";
   } else if (strcasecmp(n, "STATIC") == 0) {
     return *this = "{t}LIFO/{n,s}LIFO/{o}LIFO";
+  } else if (strcasecmp(n, "LCFR-Loc") == 0) {
+    return *this = "{n,s,l}LR";
+  } else if (strcasecmp(n, "LCFR-Conf") == 0) {
+    return *this = "{n,s,u}LR/{o}LR";
+  } else if (strcasecmp(n, "LCFR-Loc-Conf") == 0) {
+    return *this = "{n,s,u}LR/{l}LR";
+  } else if (strcasecmp(n, "MC") == 0) {
+    return *this = "{n,s}LR/{o}MC_add";
+  } else if (strcasecmp(n, "MC-Loc") == 0) {
+    return *this = "{n,s}LR/{l}MC_add";
+  } else if (strcasecmp(n, "MW") == 0) {
+    return *this = "{n,s}LR/{o}MW_add";
+  } else if (strcasecmp(n, "MW-Loc") == 0) {
+    return *this = "{n,s}LR/{l}MW_add";
   }
   selection_criteria_.clear();
   needs_pg_ = false;
@@ -1288,11 +1360,11 @@ FlawSelectionOrder& FlawSelectionOrder::operator=(const string& name) {
       } else if (strncasecmp(n, "LC_", 3) == 0) {
 	criterion.order = SelectionCriterion::LC;
 	needs_pg_ = true;
-	if (strcasecmp(n + 3, "SUM") == 0) {
-	  criterion.heuristic = SelectionCriterion::SUM;
+	if (strcasecmp(n + 3, "ADD") == 0) {
+	  criterion.heuristic = SelectionCriterion::ADD;
 	  criterion.reuse = false;
-	} else if (strcasecmp(n + 3, "SUMR") == 0) {
-	  criterion.heuristic = SelectionCriterion::SUM;
+	} else if (strcasecmp(n + 3, "ADDR") == 0) {
+	  criterion.heuristic = SelectionCriterion::ADD;
 	  criterion.reuse = true;
 	} else if (strcasecmp(n + 3, "MAX") == 0) {
 	  criterion.heuristic = SelectionCriterion::MAX;
@@ -1306,11 +1378,11 @@ FlawSelectionOrder& FlawSelectionOrder::operator=(const string& name) {
       } else if (strncasecmp(n, "MC_", 3) == 0) {
 	criterion.order = SelectionCriterion::MC;
 	needs_pg_ = true;
-	if (strcasecmp(n + 3, "SUM") == 0) {
-	  criterion.heuristic = SelectionCriterion::SUM;
+	if (strcasecmp(n + 3, "ADD") == 0) {
+	  criterion.heuristic = SelectionCriterion::ADD;
 	  criterion.reuse = false;
-	} else if (strcasecmp(n + 3, "SUMR") == 0) {
-	  criterion.heuristic = SelectionCriterion::SUM;
+	} else if (strcasecmp(n + 3, "ADDR") == 0) {
+	  criterion.heuristic = SelectionCriterion::ADD;
 	  criterion.reuse = true;
 	} else if (strcasecmp(n + 3, "MAX") == 0) {
 	  criterion.heuristic = SelectionCriterion::MAX;
@@ -1324,11 +1396,11 @@ FlawSelectionOrder& FlawSelectionOrder::operator=(const string& name) {
       } else if (strncasecmp(n, "LW_", 3) == 0) {
 	criterion.order = SelectionCriterion::LW;
 	needs_pg_ = true;
-	if (strcasecmp(n + 3, "SUM") == 0) {
-	  criterion.heuristic = SelectionCriterion::SUM;
+	if (strcasecmp(n + 3, "ADD") == 0) {
+	  criterion.heuristic = SelectionCriterion::ADD;
 	  criterion.reuse = false;
-	} else if (strcasecmp(n + 3, "SUMR") == 0) {
-	  criterion.heuristic = SelectionCriterion::SUM;
+	} else if (strcasecmp(n + 3, "ADDR") == 0) {
+	  criterion.heuristic = SelectionCriterion::ADD;
 	  criterion.reuse = true;
 	} else if (strcasecmp(n + 3, "MAX") == 0) {
 	  criterion.heuristic = SelectionCriterion::MAX;
@@ -1342,11 +1414,11 @@ FlawSelectionOrder& FlawSelectionOrder::operator=(const string& name) {
       } else if (strncasecmp(n, "MW_", 3) == 0) {
 	criterion.order = SelectionCriterion::MW;
 	needs_pg_ = true;
-	if (strcasecmp(n + 3, "SUM") == 0) {
-	  criterion.heuristic = SelectionCriterion::SUM;
+	if (strcasecmp(n + 3, "ADD") == 0) {
+	  criterion.heuristic = SelectionCriterion::ADD;
 	  criterion.reuse = false;
-	} else if (strcasecmp(n + 3, "SUMR") == 0) {
-	  criterion.heuristic = SelectionCriterion::SUM;
+	} else if (strcasecmp(n + 3, "ADDR") == 0) {
+	  criterion.heuristic = SelectionCriterion::ADD;
 	  criterion.reuse = true;
 	} else if (strcasecmp(n + 3, "MAX") == 0) {
 	  criterion.heuristic = SelectionCriterion::MAX;
@@ -1783,8 +1855,8 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 	      HeuristicValue h =
 		formula_value(open_cond.condition(), open_cond.step_id, plan,
 			      domain, *pg, criterion.reuse);
-	      int rank = ((criterion.heuristic == SelectionCriterion::SUM)
-			  ? h.sum_cost() : h.max_cost());
+	      int rank = ((criterion.heuristic == SelectionCriterion::ADD)
+			  ? h.add_cost() : h.max_cost());
 	      if (c < selection.criterion || rank < selection.rank) {
 		selection.flaw = &open_cond;
 		selection.criterion = c;
@@ -1802,8 +1874,8 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 	      HeuristicValue h =
 		formula_value(open_cond.condition(), open_cond.step_id, plan,
 			      domain, *pg, criterion.reuse);
-	      int rank = ((criterion.heuristic == SelectionCriterion::SUM)
-			  ? h.sum_cost() : h.max_cost());
+	      int rank = ((criterion.heuristic == SelectionCriterion::ADD)
+			  ? h.add_cost() : h.max_cost());
 	      if (c < selection.criterion || rank > selection.rank) {
 		selection.flaw = &open_cond;
 		selection.criterion = c;
@@ -1821,8 +1893,8 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 	      HeuristicValue h =
 		formula_value(open_cond.condition(), open_cond.step_id, plan,
 			      domain, *pg, criterion.reuse);
-	      int rank = ((criterion.heuristic == SelectionCriterion::SUM)
-			  ? h.sum_work() : h.max_work());
+	      int rank = ((criterion.heuristic == SelectionCriterion::ADD)
+			  ? h.add_work() : h.max_work());
 	      if (c < selection.criterion || rank < selection.rank) {
 		selection.flaw = &open_cond;
 		selection.criterion = c;
@@ -1840,8 +1912,8 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 	      HeuristicValue h =
 		formula_value(open_cond.condition(), open_cond.step_id, plan,
 			      domain, *pg, criterion.reuse);
-	      int rank = ((criterion.heuristic == SelectionCriterion::SUM)
-			  ? h.sum_work() : h.max_work());
+	      int rank = ((criterion.heuristic == SelectionCriterion::ADD)
+			  ? h.add_work() : h.max_work());
 	      if (c < selection.criterion || rank > selection.rank) {
 		selection.flaw = &open_cond;
 		selection.criterion = c;
