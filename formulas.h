@@ -2,15 +2,11 @@
 /*
  * Formulas.
  *
- * $Id: formulas.h,v 1.33 2001-12-27 19:13:12 lorens Exp $
+ * $Id: formulas.h,v 1.34 2001-12-29 15:52:15 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
 
-#include <iostream>
-#include <string>
-#include <hash_map>
-#include <hash_set>
 #include "support.h"
 
 struct Type;
@@ -464,7 +460,7 @@ protected:
   virtual void print(ostream& os) const;
 
   /* Returns the negation of this formula. */
-  virtual const Formula& negation() const;
+  virtual const Literal& negation() const;
 
 private:
   /* Predicate of this atom. */
@@ -529,20 +525,29 @@ protected:
   virtual void print(ostream& os) const;
 
   /* Returns the negation of this formula. */
-  virtual const Formula& negation() const;
+  virtual const Literal& negation() const;
+};
+
+
+/*
+ * A binding literal.
+ */
+struct BindingLiteral : public Formula {
+  /* First term of binding literal. */
+  const Term& term1;
+  /* Second term of binding literal. */
+  const Term& term2;
+
+protected:
+  /* Constructs a binding literal. */
+  BindingLiteral(const Term& term1, const Term& term2);
 };
 
 
 /*
  * Equality formula.
- * This represents an atomic formula with an equality predicate.
  */
-struct Equality : public Formula {
-  /* First term of equality. */
-  const Term& term1;
-  /* Second term of equality. */
-  const Term& term2;
-
+struct Equality : public BindingLiteral {
   /* Constructs an equality. */
   Equality(const Term& term1, const Term& term2);
 
@@ -579,20 +584,14 @@ protected:
   virtual void print(ostream& os) const;
 
   /* Returns the negation of this formula. */
-  virtual const Formula& negation() const;
+  virtual const BindingLiteral& negation() const;
 };
 
 
 /*
  * Inequality formula.
- * This represents a negated equality formula.
  */
-struct Inequality : public Formula {
-  /* First term of inequality. */
-  const Term& term1;
-  /* Second term of inequality. */
-  const Term& term2;
-
+struct Inequality : public BindingLiteral {
   /* Constructs an inequality. */
   Inequality(const Term& term1, const Term& term2);
 
@@ -629,7 +628,7 @@ protected:
   virtual void print(ostream& os) const;
 
   /* Returns the negation of this formula. */
-  virtual const Formula& negation() const;
+  virtual const BindingLiteral& negation() const;
 };
 
 
@@ -788,7 +787,7 @@ protected:
   virtual void print(ostream& os) const;
 
   /* Returns the negation of this formula. */
-  virtual const Formula& negation() const;
+  virtual const QuantifiedFormula& negation() const;
 };
 
 
@@ -828,7 +827,7 @@ protected:
   virtual void print(ostream& os) const;
 
   /* Returns the negation of this formula. */
-  virtual const Formula& negation() const;
+  virtual const QuantifiedFormula& negation() const;
 };
 
 
