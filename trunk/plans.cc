@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 4.5 2002-09-22 23:20:48 lorens Exp $
+ * $Id: plans.cc,v 4.6 2002-09-23 18:25:52 lorens Exp $
  */
 #include <queue>
 #include <stack>
@@ -69,6 +69,15 @@ Link::Link(size_t from_id, StepTime effect_time,
     condition_(open_cond.literal()) {
 #ifdef TRANSFORMATIONAL
   reason_ = &open_cond.reason();
+  Collectible::register_use(reason_);
+#endif
+}
+
+
+/* Deletes this causal link. */
+Link::~Link() {
+#ifdef TRANSFORMATIONAL
+  Collectible::unregister_use(reason_);
 #endif
 }
 
@@ -83,12 +92,6 @@ const Reason& Link::reason() const {
 }
 
 
-/* Equality operator for links. */
-bool operator==(const Link& l1, const Link& l2) {
-  return &l1 == &l2;
-}
-
-
 /* ====================================================================== */
 /* Step */
 
@@ -98,6 +101,7 @@ Step::Step(size_t id, const EffectList& effects, const Reason& reason)
     action_(new GroundAction("", NameList::EMPTY, Formula::TRUE, effects)) {
 #ifdef TRANSFORMATIONAL
   reason_ = &reason;
+  Collectible::register_use(reason_);
 #endif
 }
 
@@ -107,6 +111,15 @@ Step::Step(size_t id, const Action& action, const Reason& reason)
   : id_(id), action_(&action) {
 #ifdef TRANSFORMATIONAL
   reason_ = &reason;
+  Collectible::register_use(reason_);
+#endif
+}
+
+
+/* Deletes this step. */
+Step::~Step() {
+#ifdef TRANSFORMATIONAL
+  Collectible::unregister_use(reason_);
 #endif
 }
 
@@ -130,7 +143,9 @@ const Reason& Step::reason() const {
 /* Sets the reason for this step. */
 void Step::set_reason(const Reason& reason) {
 #ifdef TRANSFORMATIONAL
+  Collectible::unregister_use(reason_);
   reason_ = &reason;
+  Collectible::register_use(reason_);
 #endif
 }
 
@@ -736,16 +751,23 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
     }
     cerr << endl << "Dead ends encountered: " << num_dead_ends << endl;
   }
-  if (current_plan != initial_plan) {
-    delete initial_plan;
-  }
-  /* Discard the rest of the plan queue. */
+  /*
+   * Discard the rest of the plan queue and some other things, unless
+   * this is the last problem in which case we can save time by just
+   * letting the operating system reclaim the memory for us.
+   */
   if (!last_problem) {
+    if (current_plan != initial_plan) {
+      delete initial_plan;
+    }
     for (size_t i = 0; i < plans.size(); i++) {
       while (!plans[i].empty()) {
 	delete plans[i].top();
 	plans[i].pop();
       }
+    }
+    if (planning_graph != NULL) {
+      delete planning_graph;
     }
   }
   /* Return last plan, or NULL if problem does not have a solution. */
@@ -768,7 +790,7 @@ Plan::Plan(const StepChain* steps, size_t num_steps,
   StepChain::register_use(steps);
   LinkChain::register_use(links);
   Orderings::register_use(&orderings);
-  Collectible::register_use(&bindings);
+  Bindings::register_use(&bindings);
   UnsafeChain::register_use(unsafes);
   OpenConditionChain::register_use(open_conds);
 #ifdef DEBUG_MEMORY
@@ -807,7 +829,7 @@ Plan::~Plan() {
   StepChain::unregister_use(steps_);
   LinkChain::unregister_use(links_);
   Orderings::unregister_use(orderings_);
-  Collectible::unregister_use(bindings_);
+  Bindings::unregister_use(bindings_);
   UnsafeChain::unregister_use(unsafes_);
   OpenConditionChain::unregister_use(open_conds_);
 }
@@ -891,20 +913,6 @@ void Plan::handle_unsafe(PlanList& plans, const Unsafe& unsafe) const {
     separate(plans, unsafe);
     promote(plans, unsafe);
     demote(plans, unsafe);
-    if (num_prev_plans == plans.size()) {
-      if (params->transformational) {
-	if (verbosity > 2) {
-	  cerr << endl << "++++DEAD END:" << endl << *this << endl;
-	}
-	relink(plans, unsafe.link());
-	if (verbosity > 2) {
-	  for (size_t i = num_prev_plans; i < plans.size(); i++) {
-	    cerr << "^^^^Transformed plan" << endl << *plans[i] << endl;
-	    plans[i]->duplicate();
-	  }
-	}
-      }
-    }
   } else {
     /* bogus flaw */
     plans.push_back(new Plan(steps(), num_steps(), links(), num_links(),
@@ -1788,353 +1796,8 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
 }
 
 
-/* Adds plans to the given plan list with the given link removed and
-   the resulting open condition relinked. */
-void Plan::relink(PlanList& new_plans, const Link& link) const {
-  pair<const Plan*, const OpenCondition*> p = unlink(link);
-  if (verbosity > 2) {
-    cerr << "!!!!!!!!!!!!!!!!! Unlinked plan !!!!!!!!!!!!!!!!" << endl;
-    cerr << *p.first << endl;
-  }
-  p.first->handle_open_condition(new_plans, *p.second);
-}
-
-
-/*
- * A stack of causal links.
- */
-typedef stack<const Link*> LinkStack;
-
-/*
- * A stack of steps.
- */
-typedef stack<const Step*> StepStack;
-
-
-/* Returns the first occurance of the step with the given id, or NULL
-   if no such step exists. */
-static const Step* find_step(const StepChain* steps, size_t id) {
-  if (steps == NULL) {
-    return NULL;
-  } else if (steps->head.id() == id) {
-    return &steps->head;
-  } else {
-    return find_step(steps->tail, id);
-  }
-}
-
-
-/* Checks if the given open condition is valid. */
-static bool
-valid_open_condition(const OpenCondition& open_cond,
-		     const StepChain* steps, const LinkChain* links) {
-  if (find_step(steps, open_cond.step_id()) == NULL) {
-    return false;
-  } else {
-    const EstablishReason* er =
-      dynamic_cast<const EstablishReason*>(&open_cond.reason());
-    return (er != NULL) ? links->contains(er->link) : false;
-  }
-}
-
-
-/* Returns a chain of unsafes with all unsafes in the given chain
-   involving the given link removed. */
-static const UnsafeChain*
-remove_unsafes(const UnsafeChain* unsafes,
-	       size_t& num_unsafes, const Link& link) {
-  if (unsafes == NULL) {
-    return NULL;
-  } else {
-    const UnsafeChain* tail = remove_unsafes(unsafes->tail, num_unsafes, link);
-    if (unsafes->head.link() == link) {
-      num_unsafes--;
-      return tail;
-    } else {
-      return new UnsafeChain(unsafes->head, tail);
-    }
-  }
-}
-
-
-/* Returns a chain of unsafes with all unsafes in the given chain
-   involving the given step removed. */
-static const UnsafeChain*
-remove_unsafes(const UnsafeChain* unsafes,
-	       size_t& num_unsafes, const Step& step) {
-  if (unsafes == NULL) {
-    return NULL;
-  } else {
-    const UnsafeChain* tail = remove_unsafes(unsafes->tail, num_unsafes, step);
-    if (unsafes->head.step_id() == step.id()) {
-      num_unsafes--;
-      return tail;
-    } else {
-      return new UnsafeChain(unsafes->head, tail);
-    }
-  }
-}
-
-
-/* Returns a chain of open conditions with all open condition in the
-   given chain involving the given link removed. */
-static const OpenConditionChain*
-remove_open_conditions(const OpenConditionChain* open_conds,
-		       size_t& num_open_conds, const Link& link) {
-  if (open_conds == NULL) {
-    return NULL;
-  } else {
-    const OpenConditionChain* tail =
-      remove_open_conditions(open_conds->tail, num_open_conds, link);
-    const OpenCondition& open_cond = open_conds->head;
-    if (open_cond.reason().involves(link)) {
-      num_open_conds--;
-      return tail;
-    } else {
-      return new OpenConditionChain(open_cond, tail);
-    }
-  }
-}
-
-
-/* Returns a chain of open conditions with all open condition in the
-   given chain involving the given step removed. */
-static const OpenConditionChain*
-remove_open_conditions(const OpenConditionChain* open_conds,
-		       size_t& num_open_conds, const Step& step) {
-  if (open_conds == NULL) {
-    return NULL;
-  } else {
-    const OpenConditionChain* tail =
-      remove_open_conditions(open_conds->tail, num_open_conds, step);
-    const OpenCondition& open_cond = open_conds->head;
-    if (open_cond.step_id() == step.id()) {
-      num_open_conds--;
-      return tail;
-    } else {
-      return new OpenConditionChain(open_cond, tail);
-    }
-  }
-}
-
-
-/* Returns a chain of steps with all steps in the given chain
-   involving the given link removed, and adds exposed steps to the
-   provided stack. */
-static const StepChain*
-remove_steps(StepStack& exposed_steps, const StepChain* steps,
-	     const Link& link) {
-  if (steps == NULL) {
-    return NULL;
-  } else {
-    const StepChain* tail =
-      remove_steps(exposed_steps, steps->tail, link);
-    if (steps->head.reason().involves(link)) {
-      if (find_step(steps->tail, steps->head.id()) == NULL) {
-	exposed_steps.push(&steps->head);
-      }
-      return tail;
-    } else {
-      return new StepChain(steps->head, tail);
-    }
-  }
-}
-
-
-/* Returns a chain of links with all links in the given chain
-   involving the given step removed, and adds exposed links to the
-   provided stack. */
-static const LinkChain*
-remove_links(LinkStack& exposed_links, const LinkChain* links,
-	     const Step& step) {
-  if (links == NULL) {
-    return NULL;
-  } else {
-    const LinkChain* tail =
-      remove_links(exposed_links, links->tail, step);
-    if (links->head.from_id() == step.id()
-	|| links->head.to_id() == step.id()) {
-      exposed_links.push(&links->head);
-      return tail;
-    } else {
-      return new LinkChain(links->head, tail);
-    }
-  }
-}
-
-
-/* Returns a chain of ordering constraints with all ordering
-   constraints in the given chain involving the given link removed. */
-static const OrderingChain*
-remove_orderings(const OrderingChain* orderings, const Link& link) {
-  if (orderings == NULL) {
-    return NULL;
-  } else {
-    const OrderingChain* tail = remove_orderings(orderings->tail, link);
-    if (orderings->head.reason().involves(link)) {
-      return tail;
-    } else {
-      return new OrderingChain(orderings->head, tail);
-    }
-  }
-}
-
-
-/* Returns a chain of ordering constraints with all ordering
-   constraints in the given chain involving the given step removed. */
-static const OrderingChain*
-remove_orderings(const OrderingChain* orderings, const Step& step) {
-  if (orderings == NULL) {
-    return NULL;
-  } else {
-    const OrderingChain* tail = remove_orderings(orderings->tail, step);
-    if (orderings->head.reason().involves(step)) {
-      return tail;
-    } else {
-      return new OrderingChain(orderings->head, tail);
-    }
-  }
-}
-
-
-/* Returns a chain of binding constraints with all binding constraints
-   in the given chain involving the given link removed. */
-static const BindingChain*
-remove_bindings(const BindingChain* bindings, const Link& link) {
-  if (bindings == NULL) {
-    return NULL;
-  } else {
-    const BindingChain* tail = remove_bindings(bindings->tail, link);
-    if (bindings->head.reason().involves(link)) {
-      return tail;
-    } else {
-      return new BindingChain(bindings->head, tail);
-    }
-  }
-}
-
-
-/* Returns a chain of binding constraints with all binding constraints
-   in the given chain involving the given step removed. */
-static const BindingChain*
-remove_bindings(const BindingChain* bindings, const Step& step) {
-  if (bindings == NULL) {
-    return NULL;
-  } else {
-    const BindingChain* tail = remove_bindings(bindings->tail, step);
-    if (bindings->head.reason().involves(step)) {
-      return tail;
-    } else {
-      return new BindingChain(bindings->head, tail);
-    }
-  }
-}
-
-
-/* Returns a plan with the given link removed, and also returns the
-   resulting open condition. */
-pair<const Plan*, const OpenCondition*> Plan::unlink(const Link& link) const {
-  const OpenCondition* link_cond = NULL;
-  const StepChain* new_steps = steps();
-  size_t new_num_steps = num_steps();
-  const UnsafeChain* new_unsafes = unsafes();
-  size_t new_num_unsafes = num_unsafes();
-  const OpenConditionChain* new_open_conds = open_conds();
-  size_t new_num_open_conds = num_open_conds();
-  const BindingChain* equalities = bindings_->equalities();
-  const BindingChain* inequalities = bindings_->inequalities();
-  const OrderingChain* new_orderings = orderings().orderings();
-  const LinkChain* new_links = links();
-  size_t new_num_links = num_links();
-  LinkStack exposed_links;
-  StepStack exposed_steps;
-  exposed_links.push(&link);
-  while (!(exposed_links.empty() && exposed_steps.empty())) {
-    if (!exposed_links.empty() && new_links != NULL) {
-      const Link& l = *exposed_links.top();
-      exposed_links.pop();
-      /* remove exposed link */
-      new_links = new_links->remove(l);
-      new_num_links--;
-      /* remove flaws involving link */
-      new_unsafes = remove_unsafes(new_unsafes, new_num_unsafes, l);
-      new_open_conds =
-	remove_open_conditions(new_open_conds, new_num_open_conds, l);
-      /* add open condition, if still valid */
-      const OpenCondition open_cond =
-	OpenCondition(l.to_id(), l.condition(), l.reason());
-      if (l == link) {
-	link_cond = &open_cond;
-      }
-      if (valid_open_condition(open_cond, new_steps, new_links)) {
-	new_open_conds = new OpenConditionChain(open_cond, new_open_conds);
-	new_num_open_conds++;
-      }
-      /* remove any reason involving link for steps */
-      new_steps = remove_steps(exposed_steps, new_steps, l);
-      /* remove any reason involving link for orderings */
-      new_orderings = remove_orderings(new_orderings, l);
-      /* remove any reason involving link for bindings */
-      equalities = remove_bindings(equalities, l);
-      inequalities = remove_bindings(inequalities, l);
-      /* remove links to conditions that were threatened by this link */
-      for (const LinkChain* lc = new_links; lc != NULL; lc = lc->tail) {
-	if (lc->head.reason().involves(link)) {
-	  exposed_links.push(&lc->head);
-	}
-      }
-    } else if (!exposed_steps.empty() && new_steps != NULL) {
-      const Step& s = *exposed_steps.top();
-      exposed_steps.pop();
-      /* decrease number of steps */
-      new_num_steps--;
-      /* remove links involving step */
-      new_links = remove_links(exposed_links, new_links, s);
-      /* remove flaws involving step */
-      new_unsafes = remove_unsafes(new_unsafes, new_num_unsafes, s);
-      new_open_conds =
-	remove_open_conditions(new_open_conds, new_num_open_conds, s);
-      /* remove any reason involving step for orderings */
-      new_orderings = remove_orderings(new_orderings, s);
-      /* remove any reason involving step for bindings */
-      equalities = remove_bindings(equalities, s);
-      inequalities = remove_bindings(inequalities, s);
-    }
-  }
-  const Orderings* ords;
-  if (domain->requirements.durative_actions) {
-    ords = new TemporalOrderings(new_steps, new_orderings);
-  } else {
-    ords = new BinaryOrderings(new_steps, new_orderings);
-  }
-  const Plan* plan =
-    new Plan(new_steps, new_num_steps, new_links, new_num_links,
-	     *ords,
-	     *(Bindings::make_bindings(new_steps, planning_graph,
-				       equalities, inequalities)),
-	     new_unsafes, new_num_unsafes, new_open_conds, new_num_open_conds,
-	     this, INTERMEDIATE_PLAN);
-  return pair<const Plan*, const OpenCondition*>(plan, link_cond);
-}
-
-
 /* Checks if this plan is a duplicate of a previous plan. */
 bool Plan::duplicate() const {
-#ifdef TRANSFORMATIONAL
-  if (type_ == TRANSFORMED_PLAN) {
-    if (verbosity > 2) {
-      cerr << "searching for duplicate..." << endl;
-    }
-    for (const Plan* p = parent_; p != NULL; p = p->parent_) {
-      if (equivalent(*p)) {
-	if (verbosity > 2) {
-	  cerr << "matching steps!" << endl;
-	}
-	return true;
-      }
-    }
-  }
-#endif
   return false;
 }
 
@@ -2149,6 +1812,9 @@ bool operator<(const Plan& p1, const Plan& p2) {
 }
 
 
+/*
+ * Sorting of steps based on distance from initial conditions.
+ */
 struct StepSorter {
   StepSorter(hash_map<size_t, float>& dist)
     : dist(dist) {}
