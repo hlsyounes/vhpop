@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: terms.h,v 6.1 2003-07-13 16:17:02 lorens Exp $
+ * $Id: terms.h,v 6.2 2003-07-21 02:19:08 lorens Exp $
  */
 #ifndef TERMS_H
 #define TERMS_H
@@ -137,6 +137,9 @@ struct TermTable {
 
   /* Returns the type of the given term. */
   Type type(Term term) const;
+
+  /* Prints the given term on the given stream. */
+  void print_term(std::ostream& os, Term term) const;
 
   /* Prints the given term on the given stream subject to the given
      bindings. */
