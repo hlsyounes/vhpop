@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 2.2 2002-02-01 00:32:19 lorens Exp $
+ * $Id: vhpop.cc,v 2.3 2002-02-08 05:16:13 lorens Exp $
  */
 #include <iostream>
 #include <cstdio>
@@ -296,6 +296,10 @@ int main(int argc, char* argv[]) {
     for (Problem::ProblemMapIter pi = Problem::begin();
 	 pi != Problem::end(); pi++) {
       const Problem& problem = *(*pi).second;
+      if (pi != Problem::begin()) {
+	cout << endl;
+      }
+      cout << problem.name << endl;
       struct itimerval timer = { { 1000000, 900000 }, { 1000000, 900000 } };
       setitimer(ITIMER_PROF, &timer, NULL);
       const Plan* plan = Plan::plan(problem, params);
@@ -306,21 +310,21 @@ int main(int argc, char* argv[]) {
       if (t < 1e-3) {
 	t = 0.0;
       }
+      if (verbosity > 0) {
+	cout << "Planning time: " << t << endl;
+      }
       if (plan != NULL) {
 	if (plan->complete()) {
 	  if (verbosity > 0) {
 	    cout << "Depth of solution: " << plan->depth << endl;
 	    cout << "Flexibility: " << plan->orderings.flexibility() << endl;
 	  }
-	  cout << problem.name << ' ' << t << ' ' << *plan << endl;
+	  cout << *plan << endl;
 	} else {
-	  if (verbosity > 0) {
-	    cout << endl << *plan;
-	    cout << endl << "Search limit reached." << endl;
-	  }
+	  cout << "Search limit reached." << endl;
 	}
-      } else if (verbosity > 0) {
-	cout << endl << "Problem has no solution." << endl;
+      } else {
+	cout << "Problem has no solution." << endl;
       }
     }
   } catch (const Exception& e) {
