@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 6.11 2003-09-10 18:14:06 lorens Exp $
+ * $Id: plans.cc,v 6.12 2003-09-10 22:25:34 lorens Exp $
  */
 #include "mathport.h"
 #include "plans.h"
@@ -1824,10 +1824,8 @@ std::ostream& operator<<(std::ostream& os, const Plan& p) {
       Orderings::unregister_use(&new_orderings);
     }
   }
-  if (verbosity > 0) {
-    std::cerr << "Makespan: " << makespan << std::endl;
-  }
   if (verbosity < 2) {
+    std::cerr << "Makespan: " << makespan << std::endl;
     for (std::vector<const Step*>::const_iterator si = ordered_steps.begin();
 	 si != ordered_steps.end(); si++) {
       if (verbosity > 0 || si != ordered_steps.begin()) {
@@ -1876,9 +1874,21 @@ std::ostream& operator<<(std::ostream& os, const Plan& p) {
 	    }
 	    os << ' ';
 	  }
-	  os << " -> ";
+	  os << " -> (";
+	  switch (link.condition_time()) {
+	  case AT_START:
+	    os << "at start ";
+	    break;
+	  case OVER_ALL:
+	    os << "over all ";
+	    break;
+	  case AT_END:
+	    os << "at end ";
+	    break;
+	  }
 	  link.condition().print(os, problem->domain().predicates(),
 				 problem->terms(), link.to_id(), *bindings);
+	  os << ")";
 	  for (const Chain<Unsafe>* uc = p.unsafes();
 	       uc != NULL; uc = uc->tail) {
 	    const Unsafe& unsafe = uc->head;
@@ -1892,10 +1902,22 @@ std::ostream& operator<<(std::ostream& os, const Plan& p) {
 	   occ != NULL; occ = occ->tail) {
 	const OpenCondition& open_cond = occ->head;
 	if (open_cond.step_id() == step.id()) {
-	  os << std::endl << "           ?? -> ";
+	  os << std::endl << "           ?? -> (";
+	  switch (open_cond.when()) {
+	  case AT_START:
+	    os << "at start ";
+	    break;
+	  case OVER_ALL:
+	    os << "over all ";
+	    break;
+	  case AT_END:
+	    os << "at end ";
+	    break;
+	  }
 	  open_cond.condition().print(os, problem->domain().predicates(),
 				      problem->terms(), open_cond.step_id(),
 				      *bindings);
+	  os << ")";
 	}
       }
     }
