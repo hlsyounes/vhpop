@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.cc,v 3.10 2002-03-29 19:42:28 lorens Exp $
+ * $Id: orderings.cc,v 3.11 2002-04-06 14:12:22 lorens Exp $
  */
 #include "orderings.h"
 #include "plans.h"
@@ -548,11 +548,15 @@ void BinaryOrderings::fill_transitive(hash_map<size_t, BoolVector*>& own_data,
 #if 0
 static void print_distance_matrix(const vector<const FloatVector*>& d) {
   size_t n = d.size();
-  for (size_t r = 0; r < n; r++) {
-    for (size_t c = 0; c < n; c++) {
-      size_t i = max(r, c);
-      size_t j = (r <= c) ? r : 2*i - c;
-      cout << '\t' << (*d[i])[j];
+  for (size_t r = 0; r < n + 1; r++) {
+    for (size_t c = 0; c < n + 1; c++) {
+      if (r == c) {
+	cout << '\t' << 0;
+      } else {
+	size_t i = max(r, c) - 1;
+	size_t j = (r <= c) ? r : 2*i - c + 1;
+	cout << '\t' << (*d[i])[j];
+      }
     }
     cout << endl;
   }
@@ -588,7 +592,11 @@ TemporalOrderings::TemporalOrderings(const StepChain* steps,
   }
   hash_map<size_t, FloatVector*> own_data2;
   for (size_t i = 0; i < 2*n; i++) {
-    FloatVector* fv = new FloatVector(2*i, INFINITY);
+    FloatVector* fv = new FloatVector(2*i + 2, INFINITY);
+    // N.B. THIS IS NOT CORRECT!!!
+    // NEED TO SET DISTANCE BASED ON MINIMUM DISTANCE TO END OF A STEP!!!
+    (*fv)[0] = -1.0f;
+    // ALSO, NEVER SET DISTANCES BETWEEN START AND END!!!
     own_data2.insert(make_pair(distance_.size(), fv));
     distance_.push_back(fv);
     FloatVector::register_use(fv);
@@ -634,7 +642,7 @@ bool TemporalOrderings::possibly_before(size_t id1, StepTime t1,
   } else {
     size_t i = time_node(id1, t1);
     size_t j = time_node(id2, t2);
-    return distance(i, j) > 0.0f;
+    return distance(i + 1, j + 1) > 0.0f;
   }
 }
 
@@ -651,7 +659,7 @@ bool TemporalOrderings::possibly_after(size_t id1, StepTime t1,
   } else {
     size_t i = time_node(id1, t1);
     size_t j = time_node(id2, t2);
-    return distance(j, i) > 0.0f;
+    return distance(j + 1, i + 1) > 0.0f;
   }
 }
 
@@ -703,18 +711,20 @@ const Orderings* TemporalOrderings::refine(const Ordering& new_ordering,
 	own_data1.insert(make_pair(orderings.order_.size(), bv));
 	orderings.order_.push_back(bv);
 	BoolVector::register_use(bv);
-	FloatVector* fv = new FloatVector(4*n, INFINITY);
-	own_data2.insert(make_pair(orderings.distance_.size(), fv));
-	orderings.distance_.push_back(fv);
-	FloatVector::register_use(fv);
       }
+      FloatVector* fv = new FloatVector(4*n + 2, INFINITY);
+      (*fv)[0] = -(1.0f + new_step.action()->min_duration);
+      own_data2.insert(make_pair(orderings.distance_.size(), fv));
+      orderings.distance_.push_back(fv);
+      FloatVector::register_use(fv);
       BoolVector* bv = new BoolVector(4*n + 2, false);
       own_data1.insert(make_pair(orderings.order_.size(), bv));
       orderings.order_.push_back(bv);
       BoolVector::register_use(bv);
-      FloatVector* fv = new FloatVector(4*n + 2, INFINITY);
-      (*fv)[2*n] = new_step.action()->max_duration;
-      (*fv)[2*n + 1] = -new_step.action()->min_duration;
+      fv = new FloatVector(4*n + 4, INFINITY);
+      (*fv)[0] = -1.0f;
+      (*fv)[2*n + 1] = new_step.action()->max_duration;
+      (*fv)[2*n + 2] = -new_step.action()->min_duration;
       own_data2.insert(make_pair(orderings.distance_.size(), fv));
       orderings.distance_.push_back(fv);
       FloatVector::register_use(fv);
@@ -780,16 +790,16 @@ float TemporalOrderings::goal_distance(hash_map<size_t, float>& start_dist,
     }
   }
 
-  float sd = 1.0f;
   size_t i = time_node(step_id, t);
+  float sd = -distance(0, i + 1);
   size_t n = size();
   for (size_t j = 0; j < 2*n; j++) {
     if (i != j) {
       if (t == STEP_START && i + 1 == j && !order(i, j)) {
-	sd = max(sd, (-distance(j, i) + goal_distance(start_dist, end_dist,
-						      step_id, STEP_END)));
+	sd = max(sd, (-distance(j+1, i+1) + goal_distance(start_dist, end_dist,
+							  step_id, STEP_END)));
       } else if (order(i, j)) {
-	sd = max(sd, (min(max(1.0f, -distance(j, i)), distance(i, j))
+	sd = max(sd, (min(max(1.0f, -distance(j+1, i+1)), distance(i+1, j+1))
 		      + goal_distance(start_dist, end_dist, id_map2_[j / 2],
 				      ((j % 2 == 0)
 				       ? STEP_START : STEP_END))));
@@ -894,7 +904,7 @@ TemporalOrderings::fill_transitive(hash_map<size_t, BoolVector*>& own_data1,
 	for (size_t l = 0; l < 2*n; l++) {
 	  if ((j == l || order(j, l)) && !order(k, l)) {
 	    set_order(own_data1, k, l);
-	    if (distance(k, l) <= 0.0f) {
+	    if (distance(k + 1, l + 1) <= 0.0f) {
 	      return false;
 	    }
 	  }
@@ -902,18 +912,23 @@ TemporalOrderings::fill_transitive(hash_map<size_t, BoolVector*>& own_data1,
       }
     }
   }
-  if (distance(j, i) > 0.0f) {
+#if 0
+  cout << "order " << (i + 1) << " before " << (j + 1) << endl;
+  cout << "before:" << endl;
+  print_distance_matrix(distance_);
+#endif
+  if (distance(j + 1, i + 1) > 0.0f) {
     /*
      * Now update the temporal constraints in a similar way.
      *
      * Make sure that -d_ij <= d_ji always holds.
      */
     size_t n = size();
-    for (size_t k = 0; k < 2*n; k++) {
-      float d_ik = distance(i, k);
-      if (!isinf(d_ik) && distance(j, k) > d_ik) {
-	for (size_t l = 0; l < 2*n; l++) {
-	  float d_lj = distance(l, j);
+    for (size_t k = 0; k < 2*n + 1; k++) {
+      float d_ik = distance(i + 1, k);
+      if (!isinf(d_ik) && distance(j + 1, k) > d_ik) {
+	for (size_t l = 0; l < 2*n + 1; l++) {
+	  float d_lj = distance(l, j + 1);
 	  if (!isinf(d_lj) && distance(l, k) > d_ik + d_lj) {
 	    set_distance(own_data2, l, k, d_ik + d_lj);
 	    if (-distance(k, l) > d_ik + d_lj) {
@@ -924,5 +939,9 @@ TemporalOrderings::fill_transitive(hash_map<size_t, BoolVector*>& own_data1,
       }
     }
   }
+#if 0
+  cout << "after:" << endl;
+  print_distance_matrix(distance_);
+#endif
   return true;
 }
