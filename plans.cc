@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 3.26 2002-07-07 09:02:03 lorens Exp $
+ * $Id: plans.cc,v 3.27 2002-07-09 23:59:20 lorens Exp $
  */
 #include <queue>
 #include <stack>
@@ -618,7 +618,9 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
 	const Plan& new_plan = **pi;
 	/* N.B. Must set id before computing rank, because it may be used. */
 	new_plan.id_ = num_generated_plans;
-	if (!isinf(new_plan.primary_rank())) {
+	if (!isinf(new_plan.primary_rank())
+	    && (generated_plans[current_flaw_order]
+		< params->search_limits[current_flaw_order])) {
 	  if (params->search_algorithm == Parameters::IDA_STAR
 	      && new_plan.primary_rank() > f_limit) {
 	    next_f_limit = min(next_f_limit, new_plan.primary_rank());
