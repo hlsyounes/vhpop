@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.17 2001-09-28 16:27:27 lorens Exp $
+ * $Id: plans.cc,v 1.18 2001-09-28 17:54:35 lorens Exp $
  */
 #include <queue>
 #include <hash_set>
@@ -42,11 +42,7 @@ static hash_map<const Formula*, Cost> atom_cost;
 /*
  * Abstract reason.
  */
-struct Reason : public gc {
-  /* Deletes this reason. */
-  virtual ~Reason() {
-  }
-
+struct Reason : public Printable {
   /* Checks if this reason involves the given link. */
   virtual bool involves(const Link& link) const {
     return false;
@@ -56,19 +52,7 @@ struct Reason : public gc {
   virtual bool involves(const Step& step) const {
     return false;
   }
-
-protected:
-  /* Prints this reason on the given stream. */
-  virtual void print(ostream& os) const = 0;
-
-  friend ostream& operator<<(ostream& os, const Reason& r);
 };
-
-/* Output operator for reasons. */
-inline ostream& operator<<(ostream& os, const Reason& r) {
-  r.print(os);
-  return os;
-}
 
 
 /*

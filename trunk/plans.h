@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.15 2001-09-28 16:28:01 lorens Exp $
+ * $Id: plans.h,v 1.16 2001-09-28 17:54:46 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -24,23 +24,8 @@ struct Reason;
 /*
  * Abstract flaw.
  */
-struct Flaw : public gc {
-  /* Deletes this flaw. */
-  virtual ~Flaw() {
-  }
-
-protected:
-  /* Prints this flaw on the given stream. */
-  virtual void print(ostream& os) const = 0;
-
-  friend ostream& operator<<(ostream& os, const Flaw& f);
+struct Flaw : public Printable {
 };
-
-/* Output operator for flaws. */
-inline ostream& operator<<(ostream& os, const Flaw& f) {
-  f.print(os);
-  return os;
-}
 
 
 /*
@@ -61,7 +46,7 @@ struct OpenCondition : public Flaw {
 
 protected:
   /* Prints this open condition on the given stream. */
-  void print(ostream& os) const;
+  virtual void print(ostream& os) const;
 };
 
 
@@ -126,7 +111,7 @@ typedef Chain<const Unsafe*> UnsafeChain;
 /*
  * Causal link.
  */
-struct Link : public gc {
+struct Link : public Printable {
   /* Id of step that link goes from. */
   const size_t from_id;
   /* Id of step that link goes to. */
@@ -142,18 +127,10 @@ struct Link : public gc {
       condition(open_cond.condition), reason(open_cond.reason) {
   }
 
-private:
+protected:
   /* Prints this causal link. */
-  void print(ostream& os) const;
-
-  friend ostream& operator<<(ostream& os, const Link& l);
+  virtual void print(ostream& os) const;
 };
-
-/* Output operator for causal links. */
-inline ostream& operator<<(ostream& os, const Link& l) {
-  l.print(os);
-  return os;
-}
 
 
 /*
@@ -221,7 +198,7 @@ typedef Chain<const Step*> StepChain;
 /*
  * Ordering constraint between plan steps.
  */
-struct Ordering : public gc {
+struct Ordering : public Printable {
   /* Preceeding step. */
   const size_t before_id;
   /* Succeeding step. */
@@ -234,18 +211,10 @@ struct Ordering : public gc {
     : before_id(before_id), after_id(after_id), reason(reason) {
   }
 
-private:
+protected:
   /* Prints this ordering constraint on the given stream. */
-  void print(ostream& os) const;
-
-  friend ostream& operator<<(ostream& os, const Ordering& o);
+  virtual void print(ostream& os) const;
 };
-
-/* Output operator for ordering constraints. */
-inline ostream& operator<<(ostream& os, const Ordering& o) {
-  o.print(os);
-  return os;
-}
 
 
 /*
@@ -257,7 +226,7 @@ typedef Chain<const Ordering*> OrderingChain;
 /*
  * Collection of ordering constraints.
  */
-struct Orderings : public gc {
+struct Orderings : public Printable {
   /* Constructs an empty ordering collection. */
   Orderings()
     : orderings_(NULL), size_(0) {
@@ -287,6 +256,10 @@ struct Orderings : public gc {
     return orderings_;
   }
 
+protected:
+  /* Prints this ordering collection on the given stream. */
+  virtual void print(ostream& os) const;
+
 private:
   /* A step id map. */
   typedef hash_map<size_t, size_t> IdMap;
@@ -307,18 +280,7 @@ private:
 
   /* Updates the transitive closure given a new ordering constraint. */
   void fill_transitive(const Ordering& ordering);
-
-  /* Prints this ordering collection on the given stream. */
-  void print(ostream& os) const;
-
-  friend ostream& operator<<(ostream& os, const Orderings& o);
 };
-
-/* Output operator for ordering collections. */
-inline ostream& operator<<(ostream& os, const Orderings& o) {
-  o.print(os);
-  return os;
-}
 
 
 /*
@@ -339,7 +301,7 @@ struct CostGraph;
 /*
  * Plan.
  */
-struct Plan : public gc {
+struct Plan : public Printable {
   /* Id of goal step. */
   static const size_t GOAL_ID;
 
@@ -367,6 +329,10 @@ struct Plan : public gc {
   size_t num_open_conds() const {
     return num_open_conds_;
   }
+
+protected:
+  /* Prints this object on the given stream */
+  virtual void print(ostream& os) const;
 
 private:
   /* List of plans. */
@@ -495,8 +461,6 @@ private:
 			const Reason& establish_reason,
 			const SubstitutionList& unifier) const;
 
-  void print(ostream& os) const;
-
   bool duplicate() const;
 
   bool equivalent(const Plan& p) const;
@@ -510,14 +474,6 @@ private:
   size_t make_node(CostGraph& cg, hash_map<size_t, size_t>& step_nodes,
 		   hash_map<const Formula*, size_t>& f_nodes,
 		   const Formula& condition, size_t step_id) const;
-
-  friend ostream& operator<<(ostream& os, const Plan& p);
 };
-
-/* Output operator for plans. */
-inline ostream& operator<<(ostream& os, const Plan& p) {
-  p.print(os);
-  return os;
-}
 
 #endif /* PLANS_H */
