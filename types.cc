@@ -1,12 +1,8 @@
 /*
- * $Id: types.cc,v 1.2 2001-08-10 04:40:32 lorens Exp $
+ * $Id: types.cc,v 1.3 2001-08-11 01:12:03 lorens Exp $
  */
 #include <algorithm>
 #include "types.h"
-
-
-/* The object type. */
-const SimpleType& SimpleType::OBJECT = *(new SimpleType("object"));
 
 
 /*
@@ -34,6 +30,10 @@ struct less<const SimpleType*> {
 bool Type::object() const {
   return this == &SimpleType::OBJECT;
 }
+
+
+/* The object type. */
+const SimpleType& SimpleType::OBJECT = *(new SimpleType("object"));
 
 
 /* Checks if this type is a subtype of the given type. */
