@@ -2,7 +2,7 @@
 /*
  * Auxiliary types and functions.
  *
- * $Id: support.h,v 1.7 2001-10-11 21:14:11 lorens Exp $
+ * $Id: support.h,v 1.8 2001-10-16 19:31:51 lorens Exp $
  */
 #ifndef SUPPORT_H
 #define SUPPORT_H
@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 #include <hash_map>
+#include <hash_set>
 #include <gc/gc_cpp.h>
 #include <gc/new_gc_alloc.h>
 
@@ -30,11 +31,42 @@ struct Vector : public vector<T, container_alloc>, public gc {
 
 
 /*
+ * A hash set using a traceable allocator.
+ */
+template<typename T, typename H = hash<T>, typename E = equal_to<T> >
+struct HashSet : public hash_set<T, H, E, container_alloc>, public gc {
+};
+
+
+/*
  * A hash map using a traceable allocator.
  */
 template<typename K, typename T,
 	 typename H = hash<K>, typename E = equal_to<K> >
 struct HashMap : public hash_map<K, T, H, E, container_alloc>, public gc {
+};
+
+
+/*
+ * A hash multimap using a traceable allocator.
+ */
+template<typename K, typename T,
+	 typename H = hash<K>, typename E = equal_to<K> >
+struct HashMultimap : public hash_multimap<K, T, H, E, container_alloc>,
+		      public gc {
+  typedef typename hash_multimap<K, T, H, E, container_alloc>::const_iterator
+  const_iterator;
+
+  /* Finds the given element. */
+  const_iterator find(const pair<K, T>& x) const {
+    pair<const_iterator, const_iterator> bounds = equal_range(x.first);
+    for (const_iterator i = bounds.first; i != bounds.second; i++) {
+      if ((*i).second == x.second) {
+	return i;
+      }
+    }
+    return end();
+  }
 };
 
 

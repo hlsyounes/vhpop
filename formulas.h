@@ -2,7 +2,7 @@
 /*
  * Formulas.
  *
- * $Id: formulas.h,v 1.24 2001-10-08 01:57:35 lorens Exp $
+ * $Id: formulas.h,v 1.25 2001-10-16 19:31:22 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -233,11 +233,9 @@ struct Formula : public Hashable, public Printable, public gc {
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const = 0;
 
-  /* Returns the heuristic cost of this formula. */
-  virtual Cost cost(const hash_map<const Formula*, Cost>& atom_cost,
-		    Heuristic h) const {
-    return Cost(0, 0);
-  }
+  /* Returns the heuristic value of this formula. */
+  virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
+					 const Bindings* b = NULL) const = 0;
 
   /* Checks if this formula is equivalent to the given formula.  Two
      formulas are equivalent if they only differ in the choice of
@@ -326,9 +324,9 @@ struct Atom : public Formula {
   /* Returns this formula subject to the given substitutions. */
   virtual const Atom& substitution(const SubstitutionList& subst) const;
 
-  /* Returns the heuristic cost of this formula. */
-  virtual Cost cost(const hash_map<const Formula*, Cost>& atom_cost,
-		    Heuristic h) const;
+  /* Returns the heuristic value of this formula. */
+  virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
+					 const Bindings* b = NULL) const;
 
   /* Checks if this formula is equivalent to the given formula.  Two
      formulas is equivalent if they only differ in the choice of
@@ -394,6 +392,10 @@ struct Negation : public Formula {
 
   /* Returns this formula subject to the given substitutions. */
   virtual const Negation& substitution(const SubstitutionList& subst) const;
+
+  /* Returns the heuristic value of this formula. */
+  virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
+					 const Bindings* b = NULL) const;
 
   /* Checks if this formula is equivalent to the given formula.  Two
      formulas is equivalent if they only differ in the choice of
@@ -463,6 +465,10 @@ struct Equality : public Formula {
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
 
+  /* Returns the heuristic value of this formula. */
+  virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
+					 const Bindings* b = NULL) const;
+
   /* Checks if this formula is equivalent to the given formula.  Two
      formulas is equivalent if they only differ in the choice of
      variable names. */
@@ -505,6 +511,10 @@ struct Inequality : public Formula {
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
 
+  /* Returns the heuristic value of this formula. */
+  virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
+					 const Bindings* b = NULL) const;
+
   /* Checks if this formula is equivalent to the given formula.  Two
      formulas is equivalent if they only differ in the choice of
      variable names. */
@@ -539,9 +549,9 @@ struct Conjunction : public Formula {
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
 
-  /* Returns the heuristic cost of this formula. */
-  virtual Cost cost(const hash_map<const Formula*, Cost>& atom_cost,
-		    Heuristic h) const;
+  /* Returns the heuristic value of this formula. */
+  virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
+					 const Bindings* b = NULL) const;
 
   /* Checks if this formula is equivalent to the given formula.  Two
      formulas is equivalent if they only differ in the choice of
@@ -585,9 +595,9 @@ struct Disjunction : public Formula {
   /* Returns this formula subject to the given substitution. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
 
-  /* Returns the heuristic cost of this formula. */
-  virtual Cost cost(const hash_map<const Formula*, Cost>& atom_cost,
-		    Heuristic h) const;
+  /* Returns the heuristic value of this formula. */
+  virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
+					 const Bindings* b = NULL) const;
 
   /* Checks if this formula is equivalent to the given formula.  Two
      formulas is equivalent if they only differ in the choice of
@@ -622,6 +632,10 @@ struct QuantifiedFormula : public Formula {
   const VariableList& parameters;
   /* The quantified formula. */
   const Formula& body;
+
+  /* Returns the heuristic value of this formula. */
+  virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
+					 const Bindings* b = NULL) const;
 
 protected:
   QuantifiedFormula(const VariableList& parameters, const Formula& body)

@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.20 2001-10-06 23:44:03 lorens Exp $
+ * $Id: plans.h,v 1.21 2001-10-16 19:31:46 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -306,8 +306,7 @@ struct Plan : public Printable, public gc {
   static const size_t GOAL_ID;
 
   /* Returns plan for given problem. */
-  static const Plan* plan(const Problem& problem, const Parameters& params,
-			  int verbosity);
+  static const Plan* plan(const Problem& problem, const Parameters& params);
 
   /* Checks if this plan is complete. */
   bool complete() const;
@@ -358,8 +357,6 @@ private:
   const OpenConditionChain* const open_conds_;
   /* Number of open conditions. */
   const size_t num_open_conds_;
-  /* Start of old open conditions. */
-  const OpenConditionChain* const old_open_conds_;
   /* Binding constraints of this plan. */
   const Bindings& bindings_;
   /* Ordering constraints of this plan. */
@@ -371,18 +368,8 @@ private:
   /* Rank of this plan. */
   mutable int rank1_;
   mutable int rank2_;
-  /* The most costly open condition. */
-  mutable const OpenCondition* most_cost_open_cond_;
-  /* The least costly open condition. */
-  mutable const OpenCondition* least_cost_open_cond_;
-  /* The open condition requiring most work. */
-  mutable const OpenCondition* most_work_open_cond_;
-  /* The open condition requiring least work. */
-  mutable const OpenCondition* least_work_open_cond_;
-  /* The most linkable open condition. */
-  mutable const OpenCondition* most_linkable_open_cond_;
-  /* The least linkable open condition. */
-  mutable const OpenCondition* least_linkable_open_cond_;
+  /* The best open condition. */
+  mutable const OpenCondition* best_open_cond_;
   /* Plan id (for debugging). */
   mutable size_t id;
 
@@ -395,23 +382,18 @@ private:
        const LinkChain* links, size_t num_links,
        const UnsafeChain* unsafes, size_t num_unsafes,
        const OpenConditionChain* open_conds, size_t num_open_conds,
-       const OpenConditionChain* old_open_conds,
        const Bindings& bindings, const Orderings& orderings,
        const Plan* parent, PlanType type = NORMAL_PLAN)
     : steps_(steps), num_steps_(num_steps), high_step_id_(high_id),
       links_(links), num_links_(num_links),
       unsafes_(unsafes), num_unsafes_(num_unsafes),
       open_conds_(open_conds), num_open_conds_(num_open_conds),
-      old_open_conds_(old_open_conds),
       bindings_(bindings), orderings_(orderings),
       parent_((parent != NULL && parent->type_ == INTERMEDIATE_PLAN) ?
 	      parent->parent_ : parent),
       type_((parent != NULL && parent->type_ == INTERMEDIATE_PLAN) ?
 	    TRANSFORMED_PLAN : type),
-      rank1_(-1), rank2_(-1),
-      most_cost_open_cond_(NULL), least_cost_open_cond_(NULL),
-      most_work_open_cond_(NULL), least_work_open_cond_(NULL),
-      most_linkable_open_cond_(NULL), least_linkable_open_cond_(NULL) {
+      rank1_(-1), rank2_(-1), best_open_cond_(NULL) {
   }
 
   const Flaw& get_flaw() const;

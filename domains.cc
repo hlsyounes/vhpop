@@ -1,5 +1,5 @@
 /*
- * $Id: domains.cc,v 1.21 2001-10-08 02:34:38 lorens Exp $
+ * $Id: domains.cc,v 1.22 2001-10-16 19:31:14 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -141,13 +141,6 @@ const Effect& Effect::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Fills the provided lists with goals achievable by this effect. */
-void Effect::achievable_goals(AtomList& goals, NegationList& neg_goals) const {
-  copy(add_list.begin(), add_list.end(), back_inserter(goals));
-  copy(del_list.begin(), del_list.end(), back_inserter(neg_goals));
-}
-
-
 /* Fills the provided sets with predicates achievable by the
    effect. */
 void Effect::achievable_predicates(hash_set<string>& preds,
@@ -205,16 +198,25 @@ const EffectList& EffectList::instantiation(const SubstitutionList& subst,
   for (const_iterator ei = begin(); ei != end(); ei++) {
     (*ei)->instantiations(effects, subst, problem);
   }
-  AtomList adds;
-  NegationList dels;
-  effects.achievable_goals(adds, dels);
-  for (NegationListIter gi = dels.begin(); gi != dels.end(); gi++) {
-    if (find_if(adds.begin(), adds.end(),
-		bind1st(equal_to<const Formula*>(), &(*gi)->atom))
-	!= adds.end()) {
-      /* conflicting effects */
-      effects.clear();
-      break;
+  for (const_iterator ei = effects.begin(); ei != effects.end(); ei++) {
+    if ((*ei)->condition == Formula::TRUE) {
+      AtomList add_list = (*ei)->add_list;
+      for (const_iterator ej = effects.begin(); ej != effects.end(); ej++) {
+	if ((*ej)->condition == Formula::TRUE) {
+	  NegationList del_list = (*ej)->del_list;
+	  for (NegationListIter gi = del_list.begin();
+	       gi != del_list.end(); gi++) {
+	    if (find_if(add_list.begin(), add_list.end(),
+			bind1st(equal_to<const EqualityComparable*>(),
+				&(*gi)->atom))
+		!= add_list.end()) {
+	      /* conflicting effects */
+	      effects.clear();
+	      return effects;
+	    }
+	  }
+	}
+      }
     }
   }
   return effects;
@@ -232,16 +234,6 @@ EffectList::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Fills the provided lists with goals achievable by the effect in
-   this list. */
-void EffectList::achievable_goals(AtomList& goals,
-				  NegationList& neg_goals) const {
-  for (const_iterator i = begin(); i != end(); i++) {
-    (*i)->achievable_goals(goals, neg_goals);
-  }
-}
-
-
 /* Fills the provided sets with predicates achievable by the effects
    in this list. */
 void EffectList::achievable_predicates(hash_set<string>& preds,
@@ -255,12 +247,6 @@ void EffectList::achievable_predicates(hash_set<string>& preds,
 /* Constructs an action. */
 Action::Action(const Formula& precondition, const EffectList& effects)
   : precondition(precondition), effects(effects) {
-}
-
-
-/* Fills the provided lists with goals achievable by this action. */
-void Action::achievable_goals(AtomList& goals, NegationList& neg_goals) const {
-  effects.achievable_goals(goals, neg_goals);
 }
 
 

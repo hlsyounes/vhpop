@@ -1,5 +1,5 @@
 /*
- * $Id: formulas.cc,v 1.21 2001-10-08 03:08:57 lorens Exp $
+ * $Id: formulas.cc,v 1.22 2001-10-16 19:31:26 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -69,6 +69,12 @@ struct TrueFormula : public Formula {
     return *this;
   }
 
+  /* Returns the heuristic value of this formula. */
+  virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
+					 const Bindings* b) const {
+    return HeuristicValue::ZERO;
+  }
+
   /* Checks if this formula is equivalent to the given formula.  Two
      formulas is equivalent if they only differ in the choice of
      variable names. */
@@ -118,6 +124,12 @@ struct FalseFormula : public Formula {
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const {
     return *this;
+  }
+
+  /* Returns the heuristic value of this formula. */
+  virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
+					 const Bindings* b) const {
+    return HeuristicValue::INFINITE;
   }
 
   /* Checks if this formula is equivalent to the given formula.  Two
@@ -456,14 +468,6 @@ const Atom& Atom::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Returns the heuristic cost of this formula. */
-Cost Atom::cost(const hash_map<const Formula*, Cost>& atom_cost,
-		Heuristic h) const {
-  hash_map<const Formula*, Cost>::const_iterator ci = atom_cost.find(this);
-  return (ci != atom_cost.end()) ? (*ci).second : Cost::INFINITE;
-}
-
-
 /* Checks if this formula is equivalent to the given formula.  Two
    formulas is equivalent if they only differ in the choice of
    variable names. */
@@ -733,7 +737,7 @@ const Formula& Conjunction::instantiation(const SubstitutionList& subst,
     const Conjunction* conj = dynamic_cast<const Conjunction*>(c);
     if (conj != NULL
 	&& find_if(conj->conjuncts.begin(), conj->conjuncts.end(),
-		   bind1st(equal_to<const Formula*>(), &!ci))
+		   bind1st(equal_to<const EqualityComparable*>(), &!ci))
 	!= conj->conjuncts.end()) {
       return FALSE;
     }
@@ -753,27 +757,6 @@ const Formula& Conjunction::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Returns the heuristic cost of this formula. */
-Cost Conjunction::cost(const hash_map<const Formula*, Cost>& atom_cost,
-		       Heuristic h) const {
-  Cost total_cost;
-  for (FormulaListIter fi = conjuncts.begin(); fi != conjuncts.end(); fi++) {
-    Cost c = (*fi)->cost(atom_cost, h);
-    if (c.infinite()) {
-      return c;
-    } else {
-      if (h.sum()) {
-	total_cost += c;
-      } else if (h.max()) {
-	total_cost.cost = max(total_cost.cost, c.cost);
-	total_cost.work += c.work;
-      }
-    }
-  }
-  return total_cost;
-}
-
-
 /* Checks if this formula is equivalent to the given formula.  Two
    formulas is equivalent if they only differ in the choice of
    variable names. */
@@ -788,7 +771,7 @@ bool Conjunction::equals(const EqualityComparable& o) const {
   const Conjunction* conj = dynamic_cast<const Conjunction*>(&o);
   return (conj != NULL && conjuncts.size() == conj->conjuncts.size()
 	  && equal(conjuncts.begin(), conjuncts.end(), conj->conjuncts.begin(),
-		   equal_to<const Formula*>()));
+		   equal_to<const EqualityComparable*>()));
 }
 
 
@@ -839,18 +822,6 @@ const Formula& Disjunction::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Returns the heuristic cost of this formula. */
-Cost Disjunction::cost(const hash_map<const Formula*, Cost>& atom_cost,
-		       Heuristic h) const {
-  Cost total_cost = Cost::INFINITE;
-  for (FormulaListIter fi = disjuncts.begin(); fi != disjuncts.end(); fi++) {
-    Cost c = (*fi)->cost(atom_cost, h);
-    total_cost = min(total_cost, c);
-  }
-  return total_cost;
-}
-
-
 /* Checks if this formula is equivalent to the given formula.  Two
    formulas is equivalent if they only differ in the choice of
    variable names. */
@@ -865,7 +836,7 @@ bool Disjunction::equals(const EqualityComparable& o) const {
   const Disjunction* disj = dynamic_cast<const Disjunction*>(&o);
   return (disj != NULL && disjuncts.size() == disj->disjuncts.size()
 	  && equal(disjuncts.begin(), disjuncts.end(), disj->disjuncts.begin(),
-		   equal_to<const Formula*>()));
+		   equal_to<const EqualityComparable*>()));
 }
 
 
