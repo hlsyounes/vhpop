@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.cc,v 6.7 2003-09-18 21:48:45 lorens Exp $
+ * $Id: orderings.cc,v 6.8 2003-12-05 23:16:26 lorens Exp $
  */
 #include "orderings.h"
 #include "plans.h"
@@ -21,7 +21,6 @@
 #include "domains.h"
 #include "expressions.h"
 #include "debug.h"
-#include "exceptions.h"
 #include "mathport.h"
 
 
@@ -658,12 +657,12 @@ TemporalOrderings::refine(const Ordering& new_ordering,
       const Value* min_v =
 	dynamic_cast<const Value*>(&new_step.action().min_duration());
       if (min_v == NULL) {
-	throw Exception("non-constant minimum duration");
+	throw std::runtime_error("non-constant minimum duration");
       }
       const Value* max_v =
 	dynamic_cast<const Value*>(&new_step.action().max_duration());
       if (max_v == NULL) {
-	throw Exception("non-constant maximum duration");
+	throw std::runtime_error("non-constant maximum duration");
       }
       float start_time = threshold;
       float end_time;

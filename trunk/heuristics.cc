@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 6.12 2003-12-05 21:45:43 lorens Exp $
+ * $Id: heuristics.cc,v 6.13 2003-12-05 23:15:35 lorens Exp $
  */
 #include "heuristics.h"
 #include "plans.h"
@@ -393,7 +393,7 @@ PlanningGraph::PlanningGraph(const Problem& problem, const Parameters& params)
       const GroundAction& action = **ai;
       const Value* min_v = dynamic_cast<const Value*>(&action.min_duration());
       if (min_v == NULL) {
-	throw Exception("non-constant minimum duration");
+	throw std::runtime_error("non-constant minimum duration");
       }
       float d = std::max(Orderings::threshold, min_v->value());
       for (EffectList::const_iterator ei = action.effects().begin();
@@ -559,7 +559,7 @@ PlanningGraph::PlanningGraph(const Problem& problem, const Parameters& params)
 	    const Value* min_v =
 	      dynamic_cast<const Value*>(&action.min_duration());
 	    if (min_v == NULL) {
-	      throw Exception("non-constant minimum duration");
+	      throw std::runtime_error("non-constant minimum duration");
 	    }
 	    cond_value.increase_makespan(Orderings::threshold
 					 + min_v->value());
@@ -904,7 +904,7 @@ bool PlanningGraph::find(const PlanningGraph::LiteralAchieverMap& m,
 
 /* Constructs an invalid heuristic exception. */
 InvalidHeuristic::InvalidHeuristic(const std::string& name)
-  : Exception("invalid heuristic `" + name + "'") {}
+  : std::runtime_error("invalid heuristic `" + name + "'") {}
 
 
 /* ====================================================================== */
@@ -1122,7 +1122,7 @@ void Heuristic::plan_rank(std::vector<float>& rank, const Plan& plan,
 
 /* Constructs an invalid flaw selection order exception. */
 InvalidFlawSelectionOrder::InvalidFlawSelectionOrder(const std::string& name)
-  : Exception("invalid flaw selection order `" + name + "'") {}
+  : std::runtime_error("invalid flaw selection order `" + name + "'") {}
 
 
 /* ====================================================================== */

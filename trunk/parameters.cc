@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: parameters.cc,v 6.2 2003-12-05 21:44:36 lorens Exp $
+ * $Id: parameters.cc,v 6.3 2003-12-05 23:16:43 lorens Exp $
  */
 #include "parameters.h"
 
@@ -23,7 +23,7 @@
 
 /* Constructs an invalid search algorithm exception. */
 InvalidSearchAlgorithm::InvalidSearchAlgorithm(const std::string& name)
-  : Exception("invalid search algorithm `" + name + "'") {}
+  : std::runtime_error("invalid search algorithm `" + name + "'") {}
 
 
 /* ====================================================================== */
@@ -31,7 +31,7 @@ InvalidSearchAlgorithm::InvalidSearchAlgorithm(const std::string& name)
 
 /* Constructs an invalid action cost exception. */
 InvalidActionCost::InvalidActionCost(const std::string& name)
-  : Exception("invalid action cost `" + name + "'") {}
+  : std::runtime_error("invalid action cost `" + name + "'") {}
 
 
 /* ====================================================================== */

@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 6.6 2003-12-05 22:30:21 lorens Exp $
+ * $Id: vhpop.cc,v 6.7 2003-12-05 23:19:40 lorens Exp $
  */
 #include "plans.h"
 #include "parameters.h"
@@ -255,7 +255,7 @@ int main(int argc, char* argv[]) {
       try {
 	params.set_action_cost(optarg);
       } catch (const InvalidActionCost& e) {
-	std::cerr << PACKAGE ": " << e << std::endl
+	std::cerr << PACKAGE ": " << e.what() << std::endl
 		  << "Try `" PACKAGE " --help' for more information."
 		  << std::endl;
 	return -1;
@@ -273,7 +273,7 @@ int main(int argc, char* argv[]) {
 	}
 	params.flaw_orders.push_back(FlawSelectionOrder(optarg));
       } catch (const InvalidFlawSelectionOrder& e) {
-	std::cerr << PACKAGE << ": " << e << std::endl
+	std::cerr << PACKAGE << ": " << e.what() << std::endl
 	     << "Try `" << PACKAGE << " --help' for more information."
 	     << std::endl;
 	return -1;
@@ -286,7 +286,7 @@ int main(int argc, char* argv[]) {
       try {
 	params.heuristic = optarg;
       } catch (const InvalidHeuristic& e) {
-	std::cerr << PACKAGE ": " << e << std::endl
+	std::cerr << PACKAGE ": " << e.what() << std::endl
 		  << "Try `" PACKAGE " --help' for more information."
 		  << std::endl;
 	return -1;
@@ -310,7 +310,7 @@ int main(int argc, char* argv[]) {
       try {
 	params.set_search_algorithm(optarg);
       } catch (const InvalidSearchAlgorithm& e) {
-	std::cerr << PACKAGE ": " << e << std::endl
+	std::cerr << PACKAGE ": " << e.what() << std::endl
 		  << "Try `" PACKAGE " --help' for more information."
 		  << std::endl;
 	return -1;
@@ -452,8 +452,8 @@ int main(int argc, char* argv[]) {
 	- (timer.it_value.tv_sec + timer.it_value.tv_usec*1e-6);
       std::cout << "Time: " << std::max(0, int(1000.0*t + 0.5)) << std::endl;
     }
-  } catch (const Exception& e) {
-    std::cerr << PACKAGE ": " << e << std::endl;
+  } catch (const std::exception& e) {
+    std::cerr << PACKAGE ": " << e.what() << std::endl;
     return -1;
   } catch (...) {
     std::cerr << PACKAGE ": fatal error" << std::endl;
