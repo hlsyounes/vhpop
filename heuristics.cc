@@ -1,5 +1,5 @@
 /*
- * $Id: heuristics.cc,v 1.19 2002-01-04 20:25:16 lorens Exp $
+ * $Id: heuristics.cc,v 1.20 2002-01-04 21:08:34 lorens Exp $
  */
 #include <set>
 #include <typeinfo>
@@ -1399,12 +1399,16 @@ static bool open_cond_refinements(int& refinements,
     if (loc != NULL) {
       int ref = 0;
       if (addable < 0) {
-	addable = plan.addable_steps(*loc);
+	if (!plan.addable_steps(addable, *loc, limit)) {
+	  return false;
+	}
       }
       ref += addable;
       if (ref <= limit) {
 	if (reusable < 0) {
-	  reusable = plan.reusable_steps(*loc);
+	  if (!plan.reusable_steps(reusable, *loc, limit)) {
+	    return false;
+	  }
 	}
 	refinements = ref + reusable;
 	return refinements <= limit;
@@ -1550,43 +1554,53 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 	    }
 	    break;
 	  case SelectionCriterion::NEW:
-	    if (addable < 0) {
-	      const LiteralOpenCondition* loc =
-		dynamic_cast<const LiteralOpenCondition*>(&open_cond);
-	      if (loc != NULL) {
-		addable = plan.addable_steps(*loc);
+	    {
+	      bool has_new = false;
+	      if (addable < 0) {
+		const LiteralOpenCondition* loc =
+		  dynamic_cast<const LiteralOpenCondition*>(&open_cond);
+		if (loc != NULL) {
+		  has_new = !plan.addable_steps(addable, *loc, 0);
+		}
+	      } else {
+		has_new = (addable > 0);
 	      }
-	    }
-	    selection.flaw = &open_cond;
-	    selection.criterion = c;
-	    last_criterion = (addable > 0) ? c - 1 : c;
-	    if (verbosity > 1) {
-	      cout << "selecting " << open_cond << " by criterion "
-		   << criterion;
-	      if (addable > 0) {
-		cout << " with new";
+	      selection.flaw = &open_cond;
+	      selection.criterion = c;
+	      last_criterion = has_new ? c - 1 : c;
+	      if (verbosity > 1) {
+		cout << "selecting " << open_cond << " by criterion "
+		     << criterion;
+		if (has_new) {
+		  cout << " with new";
+		}
+		cout << endl;
 	      }
-	      cout << endl;
 	    }
 	    break;
 	  case SelectionCriterion::REUSE:
-	    if (reusable < 0) {
-	      const LiteralOpenCondition* loc =
-		dynamic_cast<const LiteralOpenCondition*>(&open_cond);
-	      if (loc != NULL) {
-		reusable = plan.reusable_steps(*loc);
+	    {
+	      bool has_reuse = false;
+	      if (reusable < 0) {
+		const LiteralOpenCondition* loc =
+		  dynamic_cast<const LiteralOpenCondition*>(&open_cond);
+		if (loc != NULL) {
+		  has_reuse = !plan.reusable_steps(reusable, *loc, 0);
+		}
+	      } else {
+		has_reuse = (reusable > 0);
 	      }
-	    }
-	    selection.flaw = &open_cond;
-	    selection.criterion = c;
-	    last_criterion = (reusable > 0) ? c - 1 : c;
-	    if (verbosity > 1) {
-	      cout << "selecting " << open_cond << " by criterion "
-		   << criterion;
-	      if (reusable > 0) {
-		cout << " with reuse";
+	      selection.flaw = &open_cond;
+	      selection.criterion = c;
+	      last_criterion = has_reuse ? c - 1 : c;
+	      if (verbosity > 1) {
+		cout << "selecting " << open_cond << " by criterion "
+		     << criterion;
+		if (has_reuse) {
+		  cout << " with reuse";
+		}
+		cout << endl;
 	      }
-	      cout << endl;
 	    }
 	    break;
 	  }

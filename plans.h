@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.37 2002-01-04 20:25:55 lorens Exp $
+ * $Id: plans.h,v 1.38 2002-01-04 21:08:43 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -191,12 +191,16 @@ struct Plan : public LessThanComparable, public Printable, public gc {
   int inequality_refinements(const InequalityOpenCondition& open_cond) const;
 
   /* Counts the number of add-step refinements for the given literal
-     open condition. */
-  int addable_steps(const LiteralOpenCondition& open_cond) const;
+     open condition, and returns true iff the number of refinements
+     does not exceed the given limit. */
+  bool addable_steps(int& refinements,
+		     const LiteralOpenCondition& open_cond, int limit) const;
 
   /* Counts the number of reuse-step refinements for the given literal
-     open condition. */
-  int reusable_steps(const LiteralOpenCondition& open_cond) const;
+     open condition, and returns true iff the number of refinements
+     does not exceed the given limit. */
+  bool reusable_steps(int& refinements,
+		      const LiteralOpenCondition& open_cond, int limit) const;
 
 protected:
   /* Checks if this object is less than the given object. */
@@ -276,12 +280,13 @@ private:
   void reuse_step(PlanList& plans,
 		  const LiteralOpenCondition& open_cond) const;
 
-  /* Counts the number of new links that can be established between the
-     given effects and the open condition. */
-  int count_new_links(const Formula& precondition,
-		      const EffectList& effects, size_t step_id,
-		      const Action* action,
-		      const LiteralOpenCondition& open_cond) const;
+  /* Counts the number of new links that can be established between
+     the given effects and the open condition, and returns true iff
+     the number of refinements does not exceed the given limit. */
+  bool count_new_links(int& count, const Formula& precondition,
+		       const EffectList& effects, size_t step_id,
+		       const Action* action,
+		       const LiteralOpenCondition& open_cond, int limit) const;
 
   /* Adds plans to the given plan list with a link from the given step
      to the given open condition added. */
