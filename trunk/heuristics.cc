@@ -1,5 +1,5 @@
 /*
- * $Id: heuristics.cc,v 1.16 2002-01-02 19:28:25 lorens Exp $
+ * $Id: heuristics.cc,v 1.17 2002-01-02 20:58:47 lorens Exp $
  */
 #include <set>
 #include <typeinfo>
@@ -637,6 +637,15 @@ Heuristic& Heuristic::operator=(const string& name) {
     } else if (strcasecmp(n, "SUMR_WORK") == 0) {
       h_.push_back(SUMR_WORK);
       needs_pg_ = true;
+    } else if (strcasecmp(n, "MAX") == 0) {
+      h_.push_back(MAX);
+      needs_pg_ = true;
+    } else if (strcasecmp(n, "MAX_COST") == 0) {
+      h_.push_back(MAX_COST);
+      needs_pg_ = true;
+    } else if (strcasecmp(n, "MAX_WORK") == 0) {
+      h_.push_back(MAX_WORK);
+      needs_pg_ = true;
     } else {
       throw InvalidHeuristic(name);
     }
@@ -662,11 +671,15 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
   bool sumr_done = false;
   int sumr_cost = 0;
   int sumr_work = 0;
+  bool max_done = false;
+  int max_steps = 0;
+  int max_cost = 0;
+  int max_work = 0;
   for (vector<HVal>::const_iterator hi = h_.begin(); hi != h_.end(); hi++) {
     HVal h = *hi;
     switch (h) {
     case LIFO:
-      rank.push_back(-plan.serial_no());
+      rank.push_back(-1.0*plan.serial_no());
       break;
     case FIFO:
       rank.push_back(plan.serial_no());
@@ -772,6 +785,38 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
       if (h != SUMR_COST) {
 	if (sumr_work < INT_MAX) {
 	  rank.push_back(sumr_work);
+	} else {
+	  rank.push_back(HUGE_VAL);
+	}
+      }
+      break;
+    case MAX:
+    case MAX_COST:
+    case MAX_WORK:
+      if (!max_done) {
+	hash_map<size_t, size_t> dist;
+	max_cost = max_steps = plan.orderings.goal_distances(dist);
+	const Bindings* bindings = plan.bindings();
+	for (const OpenConditionChain* occ = plan.open_conds;
+	     occ != NULL; occ = occ->tail) {
+	  const OpenCondition& open_cond = *occ->head;
+	  HeuristicValue v;
+	  open_cond.condition().heuristic_value(v, *planning_graph, bindings);
+	  max_cost = max(max_cost,
+			 int(dist[open_cond.step_id]) + v.max_cost());
+	  max_work = sum(max_work, v.max_work());
+	}
+      }
+      if (h != MAX_WORK) {
+	if (max_cost < INT_MAX) {
+	  rank.push_back(max_steps + weight*(max_cost - max_steps));
+	} else {
+	  rank.push_back(HUGE_VAL);
+	}
+      }
+      if (h != MAX_COST) {
+	if (max_work < INT_MAX) {
+	  rank.push_back(max_work);
 	} else {
 	  rank.push_back(HUGE_VAL);
 	}

@@ -2,7 +2,7 @@
 /*
  * Heuristics.
  *
- * $Id: heuristics.h,v 1.13 2002-01-02 19:28:29 lorens Exp $
+ * $Id: heuristics.h,v 1.14 2002-01-02 20:58:32 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
@@ -199,12 +199,14 @@ struct InvalidHeuristic : public Exception {
  * SUM_WORK uses the additive work heuristic.
  * SUM = SUM_COST:SUM_WORK.
  * SUMR is like SUM, but tries to take reuse into account.
+ * MAX is an admissible heuristic counting parallel cost.
  */
 struct Heuristic {
 private:
   typedef enum { LIFO, FIFO, OC, UC, BUC, S_PLUS_OC, UCPOP,
 		 SUM, SUM_COST, SUM_WORK,
-		 SUMR, SUMR_COST, SUMR_WORK } HVal;
+		 SUMR, SUMR_COST, SUMR_WORK,
+		 MAX, MAX_COST, MAX_WORK } HVal;
 
 public:
   /* Constructs a heuristic from a name. */
