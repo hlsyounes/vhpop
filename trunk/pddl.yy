@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 1.30 2002-01-25 18:22:53 lorens Exp $
+ * $Id: pddl.yy,v 2.1 2002-01-30 22:39:38 lorens Exp $
  */
 %{
 #include <typeinfo>
@@ -113,7 +113,7 @@ static string context;
 static string name_map_type;
 static NameMap* name_map;
 static const Formula* action_precond; 
-static const EffectList* action_adds;
+static const EffectList* action_effs;
 static VariableList* variables;
 static Context free_variables;
 static const VariableList* eff_forall;
@@ -123,10 +123,13 @@ static bool unique_variables = true;
 %}
 
 %token DEFINE DOMAIN PROBLEM
-%token REQUIREMENTS STRIPS TYPING DISJUNCTIVE_PRECONDITIONS EQUALITY
+%token REQUIREMENTS
+%token STRIPS TYPING NEGATIVE_PRECONDITIONS DISJUNCTIVE_PRECONDITIONS EQUALITY
 %token EXISTENTIAL_PRECONDITIONS UNIVERSAL_PRECONDITIONS
-%token QUANTIFIED_PRECONDITIONS CONDITIONAL_EFFECTS ADL
-%token TYPES CONSTANTS PREDICATES ACTION PARAMETERS PRECONDITION EFFECT
+%token QUANTIFIED_PRECONDITIONS CONDITIONAL_EFFECTS FLUENTS ADL
+%token DURATIVE_ACTIONS DURATION_INEQUALITIES CONTINUOUS_EFFECTS
+%token TYPES CONSTANTS PREDICATES
+%token ACTION PARAMETERS PRECONDITION EFFECT
 %token PDOMAIN OBJECTS INIT GOAL
 %token WHEN NOT AND OR IMPLY EXISTS FORALL
 %token EITHER
@@ -170,7 +173,9 @@ static bool unique_variables = true;
 %type <strings> name_seq variable_seq
 %type <type> types
 %type <type> type_spec type
-%type <str> NAME VARIABLE
+%type <str> name NAME VARIABLE
+%type <str> DEFINE DOMAIN PROBLEM
+%type <str> WHEN NOT AND OR IMPLY EXISTS FORALL EITHER
 
 %%
 
@@ -190,7 +195,7 @@ domain_or_problem : domain  { context = ""; }
  * Domains
  */
 
-domain : '(' DEFINE '(' DOMAIN NAME ')'
+domain : '(' DEFINE '(' DOMAIN name ')'
            {
 	     pdomain = NULL;
 	     domain_name = *$5;
@@ -221,12 +226,17 @@ domain_body2 : '(' types_def
              | domain_body3
              ;
 
-domain_body3 : '(' constants_def
-             | '(' constants_def domain_body4
+domain_body3 : '(' predicates_def '(' constants_def
+             | '(' predicates_def '(' constants_def action_defs
              | domain_body4
              ;
 
-domain_body4 : '(' predicates_def
+domain_body4 : '(' constants_def
+             | '(' constants_def domain_body5
+             | domain_body5
+             ;
+
+domain_body5 : '(' predicates_def
              | '(' predicates_def action_defs
              | action_defs
              ;
@@ -250,6 +260,8 @@ require_key : STRIPS
 		  domain_types->insert(make_pair(SimpleType::OBJECT.name,
 						 &SimpleType::OBJECT));
 		}
+            | NEGATIVE_PRECONDITIONS
+                { requirements->negative_preconditions = true; }
             | DISJUNCTIVE_PRECONDITIONS
                 { requirements->disjunctive_preconditions = true; }
 	    | EQUALITY
@@ -262,8 +274,18 @@ require_key : STRIPS
                 { requirements->quantified_preconditions(); }
             | CONDITIONAL_EFFECTS
                 { requirements->conditional_effects = true; }
+            | FLUENTS
+                { throw Unimplemented("`:fluents' requirement"); }
             | ADL
                 { requirements->adl(); }
+            | DURATIVE_ACTIONS
+                { throw Unimplemented("`:durative-actions' requirement"); }
+            | DURATION_INEQUALITIES
+                {
+		  throw Unimplemented("`:duration-inequalities' requirement");
+		}
+            | CONTINUOUS_EFFECTS
+                { throw Unimplemented("`:continuous-effects' requirement"); }
             ;
 
 types_def : TYPES
@@ -307,7 +329,7 @@ atomic_formula_skeleton : '(' predicate
  * Actions
  */
 
-action_def : '(' ACTION NAME
+action_def : '(' ACTION name
                {
 		 context = (" in action `" + *$3 + "' of domain `"
 			    + domain_name + "'");
@@ -319,14 +341,16 @@ action_def : '(' ACTION NAME
                {
 		 free_variables.pop_frame();
 		 $$ = new ActionSchema(*$3, *$8, *action_precond,
-				       *action_adds);
+				       *action_effs);
 	       }
            ;
 
-action_body : precondition effect
-                { action_precond = $1; action_adds = $2; }
-            | effect
-                { action_precond = &Formula::TRUE; action_adds = $1; }
+action_body : precondition action_body2 { action_precond = $1; }
+            | action_body2              {action_precond = &Formula::TRUE; }
+            ;
+
+action_body2 : /* empty */ { action_effs = &EffectList::EMPTY; }
+             | effect      { action_effs = $1; }
             ;
 
 precondition : PRECONDITION formula { $$ = $2; }
@@ -335,10 +359,8 @@ precondition : PRECONDITION formula { $$ = $2; }
 effect : EFFECT eff_formula { $$ = $2; }
        ;
 
-eff_formula : one_eff_formula
-                { $$ = new EffectList($1); }
-            | '(' AND one_eff_formulas one_eff_formula ')'
-                { $3->push_back($4); $$ = $3; }
+eff_formula : one_eff_formula              { $$ = new EffectList($1); }
+            | '(' AND one_eff_formulas ')' { $$ = $3; }
             ;
 
 one_eff_formulas : one_eff_formula
@@ -387,14 +409,7 @@ atomic_effs_forall_body : atomic_effs
                         ;
 
 atomic_effs : term_literal
-            | '(' AND term_literals term_literal ')'
-                {
-		  copy($4->first->begin(), $4->first->end(),
-		       back_inserter(*$3->first));
-		  copy($4->second->begin(), $4->second->end(),
-		       back_inserter(*$3->second));
-		  $$ = $3;
-		}
+            | '(' AND term_literals ')' { $$ = $3; }
             ;
 
 term_literals : term_literal
@@ -419,12 +434,12 @@ term_literal : atomic_term_formula
  * Problems
  */
 
-problem : '(' DEFINE '(' PROBLEM NAME ')' 
+problem : '(' DEFINE '(' PROBLEM name ')' 
             {
 	      problem_name = *$5;
 	      context = " in problem `" + problem_name + "'";
 	    }
-          '(' PDOMAIN NAME ')'
+          '(' PDOMAIN name ')'
             {
 	      pdomain = Domain::find(*$10);
 	      if (pdomain != NULL) {
@@ -500,7 +515,7 @@ atomic_name_formula : '(' predicate
 
 names : /* empty */
           { $$ = new TermList(); }
-      | names NAME
+      | names name
           { $$ = &add_name(*$1, *$2); }
       ;
 
@@ -528,7 +543,7 @@ goal : '(' GOAL
  * Formulas
  */
 
-formulas : formula          { $$ = new FormulaList($1); }
+formulas : /* empty */      { $$ = new FormulaList(); }
          | formulas formula { $1->push_back($2); $$ = $1; }
          ;
 
@@ -554,22 +569,25 @@ formula : atomic_term_formula
 	    }
         | '(' NOT formula ')'
             {
-	      if (!requirements->disjunctive_preconditions
-		  && typeid(*$3) != typeid(Equality)) {
+	      if (!requirements->negative_preconditions
+		  && typeid(*$3) == typeid(Atom)) {
+		yywarning("assuming `:negative-preconditions' "
+			  "requirement.");
+	      } else if (!requirements->disjunctive_preconditions
+			 && typeid(*$3) != typeid(Equality)) {
 		yywarning("assuming `:disjunctive-preconditions' "
 			  "requirement.");
 	      }
 	      $$ = &!*$3;
 	    }
-        | '(' AND formulas formula ')'
+        | '(' AND formulas ')'
             {
 	      $$ = &Formula::TRUE;
 	      for (FormulaListIter fi = $3->begin(); fi != $3->end(); fi++) {
 		$$ = &(*$$ && **fi);
 	      }
-	      $$ = &(*$$ && *$4);
 	    }
-        | '(' OR formulas formula ')'
+        | '(' OR formulas ')'
             {
 	      if (!requirements->disjunctive_preconditions) {
 		yywarning("assuming `:disjunctive-preconditions' "
@@ -579,7 +597,6 @@ formula : atomic_term_formula
 	      for (FormulaListIter fi = $3->begin(); fi != $3->end(); fi++) {
 		$$ = &(*$$ || **fi);
 	      }
-	      $$ = &(*$$ || *$4);
 	    }
         | '(' IMPLY formula formula ')'
             {
@@ -623,11 +640,14 @@ atomic_term_formula : '(' predicate
                     ;
 
 predicate : NAME
+          | DEFINE
+          | DOMAIN
+          | PROBLEM
           ;
 
 terms : /* empty */
           { $$ = new TermList(); }
-      | terms NAME
+      | terms name
           { $$ = &add_name(*$1, *$2); }
       | terms VARIABLE
           {
@@ -653,8 +673,8 @@ opt_typed_names : /* empty */
                 | typed_names
                 ;
 
-name_seq : NAME          { $$ = new vector<string>(1, *$1); }
-         | name_seq NAME { $1->push_back(*$2); $$ = $1; }
+name_seq : name          { $$ = new vector<string>(1, *$1); }
+         | name_seq name { $1->push_back(*$2); $$ = $1; }
          ;
 
 opt_variables : /* empty */ { $$ = new VariableList(); }
@@ -696,8 +716,22 @@ types : type
 type_spec : '-' type { $$ = $2; }
           ;
 
-type : NAME                 { $$ = &make_type(*$1); }
+type : predicate            { $$ = &make_type(*$1); }
      | '(' EITHER types ')' { $$ = $3; }
+     ;
+
+name : NAME
+     | DEFINE
+     | DOMAIN
+     | PROBLEM
+     | WHEN
+     | NOT
+     | AND
+     | OR
+     | IMPLY
+     | EXISTS
+     | FORALL
+     | EITHER
      ;
 
 %%

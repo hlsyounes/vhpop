@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: requirements.cc,v 1.2 2002-01-25 18:23:22 lorens Exp $
+ * $Id: requirements.cc,v 2.1 2002-01-30 22:43:17 lorens Exp $
  */
 #include "requirements.h"
 
@@ -23,9 +23,10 @@
 
 /* Constructs a default requirements object. */
 Requirements::Requirements()
-  : strips(true), typing(false), disjunctive_preconditions(false),
-    equality(false), existential_preconditions(false),
-    universal_preconditions(false), conditional_effects(false) {}
+  : strips(true), typing(false), negative_preconditions(false),
+    disjunctive_preconditions(false), equality(false),
+    existential_preconditions(false), universal_preconditions(false),
+    conditional_effects(false) {}
 
 
 /* Enables quantified preconditions. */
@@ -39,6 +40,7 @@ void Requirements::quantified_preconditions() {
 void Requirements::adl() {
   strips = true;
   typing = true;
+  negative_preconditions = true;
   disjunctive_preconditions = true;
   equality = true;
   quantified_preconditions();

@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: requirements.h,v 1.3 2002-01-25 18:23:55 lorens Exp $
+ * $Id: requirements.h,v 2.1 2002-01-30 22:43:21 lorens Exp $
  */
 #ifndef REQUIREMENTS_H
 #define REQUIREMENTS_H
@@ -32,6 +32,8 @@ struct Requirements : public gc {
   bool strips;
   /* Whether support for types is required. */
   bool typing;
+  /* Whether support for negative preconditions is required. */
+  bool negative_preconditions;
   /* Whether support for disjunctive preconditions is required. */
   bool disjunctive_preconditions;
   /* Whether support for equality predicate is required. */
