@@ -1,5 +1,5 @@
 /*
- * $Id: formulas.cc,v 1.34 2002-01-12 18:31:36 lorens Exp $
+ * $Id: formulas.cc,v 1.35 2002-01-17 21:11:52 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -800,7 +800,7 @@ const Formula& Inequality::strip_static(const Domain& domain) const {
 
 /* Returns this formula with equalities/inequalities assumed true. */
 const Formula& Inequality::strip_equality() const {
-  return TRUE;
+  return *this;
 }
 
 
