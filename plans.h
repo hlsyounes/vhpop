@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.h,v 4.5 2003-03-01 18:50:52 lorens Exp $
+ * $Id: plans.h,v 6.1 2003-07-13 16:07:00 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -27,7 +27,7 @@
 #include "orderings.h"
 
 struct Parameters;
-struct SubstitutionList;
+struct BindingList;
 struct Literal;
 struct Atom;
 struct Negation;
@@ -35,7 +35,6 @@ struct Effect;
 struct EffectList;
 struct Action;
 struct Problem;
-struct Reason;
 struct Bindings;
 struct FlawSelectionOrder;
 
@@ -68,9 +67,6 @@ struct Link {
   /* Returns the condition satisfied by link. */
   const Literal& condition() const { return *condition_; }
 
-  /* Returns the reason for the link. */
-  const Reason& reason() const;
-
 private:
   /* Id of step that link goes from. */
   size_t from_id_;
@@ -80,10 +76,6 @@ private:
   size_t to_id_;
   /* Condition satisfied by link. */
   const Literal* condition_;
-#ifdef TRANSFORMATIONAL
-  /* Reason for link. */
-  const Reason* reason_;
-#endif
 };
 
 /* Equality operator for links. */
@@ -109,13 +101,12 @@ typedef CollectibleChain<Link> LinkChain;
  */
 struct Step {
   /* Constructs a step instantiated from an action. */
-  Step(size_t id, const Action& action, const Reason& reason);
+  Step(size_t id, const Action& action)
+    : id_(id), action_(&action) {}
 
   /* Constructs a step. */
-  Step(const Step& s);
-
-  /* Deletes this step. */
-  ~Step();
+  Step(const Step& s)
+    : id_(s.id_), action_(s.action_) {}
 
   /* Returns the step id. */
   size_t id() const { return id_; }
@@ -126,21 +117,11 @@ struct Step {
   /* Returns the action that this step is instantiated from. */
   const Action& action() const { return *action_; }
 
-  /* Returns the reasons. */
-  const Reason& reason() const;
-
-  /* Sets the reason for this step. */
-  void set_reason(const Reason& reason);
-
 private:
   /* Step id. */
   size_t id_;
   /* Action that this step is instantiated from. */
   const Action* action_;
-#ifdef TRANSFORMATIONAL
-  /* Reason for step. */
-  const Reason* reason_;
-#endif
 };
 
 
@@ -258,11 +239,7 @@ private:
   /* Iterator for plan lists. */
   typedef PlanList::const_iterator PlanListIter;
 
-  /* Type of plan. */
-  typedef enum { NORMAL_PLAN, INTERMEDIATE_PLAN, TRANSFORMED_PLAN } PlanType;
-
-  /* Chain of steps (could contain same step several times, if it is
-     in plan for more than one reason). */
+  /* Chain of steps. */
   const StepChain* steps_;
   /* Number of unique steps in plan. */
   size_t num_steps_;
@@ -292,12 +269,6 @@ private:
   /* Depth of this plan in the search space. */
   size_t depth_;
 #endif
-#ifdef TRANSFORMATIONAL
-  /* Parent plan. */
-  const Plan* const parent_;
-  /* Plan type. */
-  const PlanType type_;
-#endif
 
   /* Returns the initial plan representing the given problem, or NULL
      if goals of problem are inconsistent. */
@@ -309,7 +280,7 @@ private:
        const Orderings& orderings, const Bindings& bindings,
        const UnsafeChain* unsafes, size_t num_unsafes,
        const OpenConditionChain* open_conds, size_t num_open_conds,
-       const Plan* parent, PlanType type = NORMAL_PLAN);
+       const Plan* parent);
 
   /* Returns the next flaw to work on. */
   const Flaw& get_flaw(const FlawSelectionOrder& flaw_order) const;
@@ -381,15 +352,14 @@ private:
   /* Checks if a new link can be established between the given effect
      and the open condition. */
   int link_possible(size_t step_id, const Action& action,
-		    const Effect& effect,
-		    const SubstitutionList& unifier) const;
+		    const Effect& effect, const BindingList& unifier) const;
 
   /* Returns a plan with a link added from the given effect to the
      given open condition. */
   const Plan* make_link(const Step& step, const Effect& effect,
 			const Literal& literal, const OpenCondition& open_cond,
-			const LinkChain* new_links, const Reason& reason,
-			const SubstitutionList& unifier) const;
+			const LinkChain* new_links,
+			const BindingList& unifier) const;
 
   /* Checks if this plan is a duplicate of a previous plan. */
   bool duplicate() const;
