@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.cc,v 3.9 2002-03-24 22:03:21 lorens Exp $
+ * $Id: bindings.cc,v 3.10 2002-03-25 00:44:26 lorens Exp $
  */
 #include <typeinfo>
 #include "bindings.h"
@@ -1232,7 +1232,7 @@ const Bindings* Bindings::add(size_t step_id, const Action* step_action,
 
 /* Prints this binding collection on the given stream. */
 void Bindings::print(ostream& os) const {
-  Vector<const Term*> seen_terms;
+  vector<const Term*> seen_terms;
   for (const VarsetChain* vsc = varsets_; vsc != NULL; vsc = vsc->tail) {
     const Varset& vs = *vsc->head;
     if (vs.cd_set != NULL) {

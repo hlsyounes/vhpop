@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.h,v 3.3 2002-03-24 23:56:02 lorens Exp $
+ * $Id: heuristics.h,v 3.4 2002-03-25 00:44:58 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
@@ -173,7 +173,7 @@ private:
   typedef PredicateAtomsMap::const_iterator PredicateAtomsMapIter;
 
   /* Mapping of action name to parameter domain. */
-  struct ActionDomainMap : public HashMap<string, ActionDomain*> {
+  struct ActionDomainMap : public hash_map<string, ActionDomain*> {
   };
 
   /* Iterator for ActionDomainMap. */

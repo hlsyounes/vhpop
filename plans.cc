@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 3.11 2002-03-23 19:10:43 lorens Exp $
+ * $Id: plans.cc,v 3.12 2002-03-25 00:45:05 lorens Exp $
  */
 #include "plans.h"
 #include "heuristics.h"
@@ -26,6 +26,7 @@
 #include "parameters.h"
 #include "debug.h"
 #include <queue>
+#include <stack>
 #include <algorithm>
 #include <typeinfo>
 #include <climits>
@@ -184,7 +185,7 @@ static bool add_goal(const OpenConditionChain*& open_conds,
   } else if (goal.contradiction()) {
     return false;
   }
-  Deque<const Formula*> goals(1, &goal);
+  deque<const Formula*> goals(1, &goal);
   while (!goals.empty()) {
     const Formula* goal = goals.back();
     goals.pop_back();
@@ -2035,7 +2036,8 @@ bool Plan::duplicate() const {
 
 
 /* Maps step ids to formulas. */
-typedef HashMap<size_t, const Formula*> FormulaMap;
+struct FormulaMap : public hash_map<size_t, const Formula*> {
+};
 
 
 /* Checks if the steps match for two plans. */
