@@ -15,11 +15,12 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 1.28 2002-01-26 01:00:02 lorens Exp $
+ * $Id: vhpop.cc,v 2.1 2002-02-01 00:15:33 lorens Exp $
  */
 #include <iostream>
 #include <cstdio>
 #include <cstdlib>
+#include <cerrno>
 #include <sys/time.h>
 #ifdef HAVE_GETOPT_LONG
 #define _GNU_SOURCE
@@ -133,7 +134,7 @@ static bool read_file(const char* name) {
   current_file = name;
   yyin = fopen(name, "r");
   if (yyin == NULL) {
-    perror(PROGRAM_NAME);
+    cerr << PROGRAM_NAME << ':' << name << ": " << sys_errlist[errno] << endl;
     return false;
   } else {
     bool success = (yyparse() == 0);
