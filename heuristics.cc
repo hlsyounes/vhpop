@@ -1,8 +1,9 @@
 /*
- * $Id: heuristics.cc,v 1.18 2002-01-03 12:54:04 lorens Exp $
+ * $Id: heuristics.cc,v 1.19 2002-01-04 20:25:16 lorens Exp $
  */
 #include <set>
 #include <typeinfo>
+#include <climits>
 #include <cmath>
 #include "heuristics.h"
 #include "plans.h"
@@ -710,6 +711,7 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
     case SUM_COST:
     case SUM_WORK:
       if (!sum_done) {
+	sum_done = true;
 	const Bindings* bindings = plan.bindings();
 	for (const OpenConditionChain* occ = plan.open_conds;
 	     occ != NULL; occ = occ->tail) {
@@ -743,6 +745,7 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
     case SUMR_COST:
     case SUMR_WORK:
       if (!sumr_done) {
+	sumr_done = true;
 	const Bindings* bindings = plan.bindings();
 	for (const OpenConditionChain* occ = plan.open_conds;
 	     occ != NULL; occ = occ->tail) {
@@ -810,6 +813,7 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
     case MAX_COST:
     case MAX_WORK:
       if (!max_done) {
+	max_done = true;
 	hash_map<size_t, size_t> dist;
 	max_cost = max_steps = plan.orderings.goal_distances(dist);
 	const Bindings* bindings = plan.bindings();
@@ -859,34 +863,249 @@ InvalidFlawSelectionOrder::InvalidFlawSelectionOrder(const string& name)
 /* ====================================================================== */
 /* FlawSelectionOrder */
 
+
+/* Output operator for selection criterion. */
+ostream& operator<<(ostream& os, const SelectionCriterion& c) {
+  os << '{';
+  bool first = true;
+  if (c.non_separable) {
+    if (!first) {
+      os << ',';
+    }
+    os << 'n';
+    first = false;
+  }
+  if (c.separable) {
+    if (!first) {
+      os << ',';
+    }
+    os << 's';
+    first = false;
+  }
+  if (c.open_cond) {
+    if (!first) {
+      os << ',';
+    }
+    os << 'o';
+    first = false;
+  }
+  if (c.local_open_cond) {
+    if (!first) {
+      os << ',';
+    }
+    os << 'l';
+    first = false;
+  }
+  if (c.static_open_cond) {
+    if (!first) {
+      os << ',';
+    }
+    os << 't';
+    first = false;
+  }
+  os << '}';
+  if (c.max_refinements < INT_MAX) {
+    os << c.max_refinements;
+  }
+  switch (c.order) {
+  case SelectionCriterion::LIFO:
+    os << "LIFO";
+    break;
+  case SelectionCriterion::FIFO:
+    os << "FIFO";
+    break;
+  case SelectionCriterion::RANDOM:
+    os << "R";
+    break;
+  case SelectionCriterion::LR:
+    os << "LR";
+    break;
+  case SelectionCriterion::MR:
+    os << "MR";
+    break;
+  case SelectionCriterion::NEW:
+    os << "NEW";
+    break;
+  case SelectionCriterion::REUSE:
+    os << "REUSE";
+    break;
+  }
+  return os;
+}
+
+
+/* Constructs a default flaw selection order. */
+FlawSelectionOrder::FlawSelectionOrder(const string& name) {
+  *this = name;
+}
+
+
 /* Selects a flaw selection order from a name. */
 FlawSelectionOrder& FlawSelectionOrder::operator=(const string& name) {
   const char* n = name.c_str();
-  if (strcasecmp(n, "MC_SUM") == 0) {
-    primary_ = COST;
-    extreme_ = MOST;
-    heuristic_ = SUM;
-  } else if (strcasecmp(n, "LC_SUM") == 0) {
-    primary_ = COST;
-    extreme_ = LEAST;
-    heuristic_ = SUM;
-  } else if (strcasecmp(n, "MW_SUM") == 0) {
-    primary_ = WORK;
-    extreme_ = MOST;
-    heuristic_ = SUM;
-  } else if (strcasecmp(n, "LW_SUM") == 0) {
-    primary_ = WORK;
-    extreme_ = LEAST;
-    heuristic_ = SUM;
-  } else if (strcasecmp(n, "LIFO") == 0) {
-    secondary_ = LIFO;
-  } else if (strcasecmp(n, "FIFO") == 0) {
-    secondary_ = FIFO;
-  } else if (strcasecmp(n, "RANDOM") == 0) {
-    secondary_ = RANDOM;
-  } else if (strcasecmp(n, "STATIC") == 0) {
-    static_first_ = true;
-  } else {
+  if (strcasecmp(n, "UCPOP") == 0) {
+    return *this = "{n,s}LIFO{o}LIFO";
+  } else if (strcasecmp(n, "LCFR") == 0) {
+    return *this = "{n,s,o}LR";
+  } else if (strcasecmp(n, "ZLIFO") == 0) {
+    return *this = "{n}LIFO{o}0LIFO{o}1NEW{o}LIFO{s}LIFO";
+  }
+  selection_criteria_.clear();
+  needs_pg_ = false;
+  first_unsafe_criterion_ = INT_MAX;
+  last_unsafe_criterion_ = 0;
+  first_open_cond_criterion_ = INT_MAX;
+  last_open_cond_criterion_ = 0;
+  int non_separable_max_refinements = -1;
+  int separable_max_refinements = -1;
+  int open_cond_max_refinements = -1;
+  size_t pos = 0;
+  while (pos < name.length()) {
+    if (name[pos] != '{') {
+      throw InvalidFlawSelectionOrder(name);
+    }
+    pos++;
+    SelectionCriterion criterion;
+    criterion.non_separable = false;
+    criterion.separable = false;
+    criterion.open_cond = false;
+    criterion.local_open_cond = false;
+    criterion.static_open_cond = false;
+    do {
+      switch (name[pos]) {
+      case 'n':
+	pos++;
+	if (name[pos] == ',' || name[pos] == '}') {
+	  criterion.non_separable = true;
+	  if (first_unsafe_criterion_ > last_unsafe_criterion_) {
+	    first_unsafe_criterion_ = selection_criteria_.size();
+	  }
+	  last_unsafe_criterion_ = selection_criteria_.size();
+	} else {
+	  throw InvalidFlawSelectionOrder(name);
+	}
+	break;
+      case 's':
+	pos++;
+	if (name[pos] == ',' || name[pos] == '}') {
+	  criterion.separable = true;
+	  if (first_unsafe_criterion_ > last_unsafe_criterion_) {
+	    first_unsafe_criterion_ = selection_criteria_.size();
+	  }
+	  last_unsafe_criterion_ = selection_criteria_.size();
+	} else {
+	  throw InvalidFlawSelectionOrder(name);
+	}
+	break;
+      case 'o':
+	pos++;
+	if (name[pos] == ',' || name[pos] == '}') {
+	  criterion.open_cond = true;
+	  criterion.local_open_cond = false;
+	  criterion.static_open_cond = false;
+	  if (first_open_cond_criterion_ > last_open_cond_criterion_) {
+	    first_open_cond_criterion_ = selection_criteria_.size();
+	  }
+	  last_open_cond_criterion_ = selection_criteria_.size();
+	} else {
+	  throw InvalidFlawSelectionOrder(name);
+	}
+	break;
+      case 't':
+	pos++;
+	if (name[pos] == ',' || name[pos] == '}') {
+	  if (!criterion.open_cond) {
+	    criterion.static_open_cond = true;
+	    if (first_open_cond_criterion_ > last_open_cond_criterion_) {
+	      first_open_cond_criterion_ = selection_criteria_.size();
+	    }
+	    last_open_cond_criterion_ = selection_criteria_.size();
+	  }
+	} else {
+	  throw InvalidFlawSelectionOrder(name);
+	}
+	break;
+      case 'l':
+	pos++;
+	if (name[pos] == ',' || name[pos] == '}') {
+	  if (!criterion.open_cond) {
+	    criterion.local_open_cond = true;
+	    if (first_open_cond_criterion_ > last_open_cond_criterion_) {
+	      first_open_cond_criterion_ = selection_criteria_.size();
+	    }
+	    last_open_cond_criterion_ = selection_criteria_.size();
+	  }
+	} else {
+	  throw InvalidFlawSelectionOrder(name);
+	}
+	break;
+      default:
+	throw InvalidFlawSelectionOrder(name);
+      }
+      if (name[pos] == ',') {
+	pos++;
+	if (name[pos] == '}') {
+	  throw InvalidFlawSelectionOrder(name);
+	}
+      }
+    } while (name[pos] != '}');
+    pos++;
+    size_t next_pos = pos;
+    while (name[next_pos] >= '0' && name[next_pos] <= '9') {
+      next_pos++;
+    }
+    if (next_pos > pos) {
+      string number = name.substr(pos, next_pos - pos);
+      criterion.max_refinements = atoi(number.c_str());
+      pos = next_pos;
+    } else {
+      criterion.max_refinements = INT_MAX;
+    }
+    next_pos = name.find('{', pos);
+    string key = name.substr(pos, next_pos - pos);
+    n = key.c_str();
+    if (strcasecmp(n, "LIFO") == 0) {
+      criterion.order = SelectionCriterion::LIFO;
+    } else if (strcasecmp(n, "FIFO") == 0) {
+      criterion.order = SelectionCriterion::FIFO;
+    } else if (strcasecmp(n, "R") == 0) {
+      criterion.order = SelectionCriterion::RANDOM;
+    } else if (strcasecmp(n, "LR") == 0) {
+      criterion.order = SelectionCriterion::LR;
+    } else if (strcasecmp(n, "MR") == 0) {
+      criterion.order = SelectionCriterion::MR;
+    } else {
+      if (criterion.non_separable || criterion.separable) {
+	/* No other orders that the above can be used with threats. */
+	throw InvalidFlawSelectionOrder(name);
+      }
+      if (strcasecmp(n, "NEW") == 0) {
+	criterion.order = SelectionCriterion::NEW;
+      } else if (strcasecmp(n, "REUSE") == 0) {
+	criterion.order = SelectionCriterion::REUSE;
+      } else {
+	throw InvalidFlawSelectionOrder(name);
+      }
+    }
+    if (criterion.non_separable) {
+      non_separable_max_refinements = max(criterion.max_refinements,
+					  non_separable_max_refinements);
+    }
+    if (criterion.separable) {
+      separable_max_refinements = max(criterion.max_refinements,
+				      separable_max_refinements);
+    }
+    if (criterion.open_cond || criterion.local_open_cond) {
+      open_cond_max_refinements = max(criterion.max_refinements,
+				      open_cond_max_refinements);
+    }
+    selection_criteria_.push_back(criterion);
+    pos = next_pos;
+  }
+  if (non_separable_max_refinements < INT_MAX
+      || separable_max_refinements < INT_MAX
+      || open_cond_max_refinements < INT_MAX) {
+    /* Incomplete flaw selection order. */
     throw InvalidFlawSelectionOrder(name);
   }
   return *this;
@@ -895,10 +1114,11 @@ FlawSelectionOrder& FlawSelectionOrder::operator=(const string& name) {
 
 /* Checks if this flaw order needs a planning graph. */
 bool FlawSelectionOrder::needs_planning_graph() const {
-  return heuristic_ == SUM || heuristic_ == MAX;
+  return needs_pg_;
 }
 
 
+#if 0
 /* Selects an open condition from the given list. */
 const Flaw&
 FlawSelectionOrder::select(const Plan& plan, const Domain& domain,
@@ -911,7 +1131,7 @@ FlawSelectionOrder::select(const Plan& plan, const Domain& domain,
   }
   const OpenCondition* best_oc = open_conds->head;
   bool best_is_static = best_oc->is_static(domain);
-  if (primary_ == NONE && secondary_ == LIFO
+  if (primary_ == NONE && secondary_ == SEC_LIFO
       && (!static_first_ || best_is_static)) {
     return *best_oc;
   }
@@ -987,8 +1207,9 @@ FlawSelectionOrder::select(const Plan& plan, const Domain& domain,
       streak = 1;
     }
     if (better
-	|| (equal && (secondary_ == FIFO
-		      || (secondary_ == RANDOM && rand01ex() < 1.0/streak)))) {
+	|| (equal && (secondary_ == SEC_FIFO
+		      || (secondary_ == SEC_RANDOM
+			  && rand01ex() < 1.0/streak)))) {
       if (verbosity > 2) {
 	cout << " (best)" << endl;
       }
@@ -1004,4 +1225,387 @@ FlawSelectionOrder::select(const Plan& plan, const Domain& domain,
   } else {
     return *best_oc;
   }
+}
+#endif
+
+
+/* Counts the number of refinements for the given threat, and returns
+   true iff the number of refinements does not exceed the given
+   limit. */
+static bool unsafe_refinements(int& refinements, int& separable,
+			       int& promotable, int& demotable,
+			       const Unsafe& unsafe, const Plan& plan,
+			       int limit) {
+  if (refinements >= 0) {
+    return refinements <= limit;
+  } else {
+    int ref = 0;
+    if (separable < 0) {
+      separable = plan.separable(unsafe);
+      if (separable < 0) {
+	refinements = separable = 0;
+	return true;
+      }
+    }
+    ref += separable;
+    if (ref <= limit) {
+      if (promotable < 0) {
+	promotable = plan.promotable(unsafe);
+      }
+      ref += promotable;
+      if (ref <= limit) {
+	if (demotable < 0) {
+	  demotable = plan.demotable(unsafe);
+	}
+	refinements = ref + demotable;
+	return refinements <= limit;
+      }
+    }
+  }
+  return false;
+}
+
+
+/* Seaches threats for a flaw to select. */
+int FlawSelectionOrder::select_unsafe(FlawSelection& selection,
+				      const Plan& plan, int first_criterion,
+				      int last_criterion) const {
+  if (first_criterion > last_criterion || plan.unsafes == NULL) {
+    return INT_MAX;
+  }
+  /* Loop through usafes. */
+  for (const UnsafeChain* uc = plan.unsafes;
+       uc != NULL && first_criterion <= last_criterion; uc = uc->tail) {
+    const Unsafe& unsafe = *uc->head;
+    if (verbosity > 1) {
+      cout << "(considering " << unsafe << ")" << endl;
+    }
+    int refinements = -1;
+    int separable = -1;
+    int promotable = -1;
+    int demotable = -1;
+    /* Loop through selection criteria that are within limits. */
+    for (int c = first_criterion; c <= last_criterion; c++) {
+      const SelectionCriterion& criterion = selection_criteria_[c];
+      /* If criterion applies only to one type of threats, make sure
+         we know which type of threat this is. */
+      if (criterion.non_separable != criterion.separable && separable < 0) {
+	separable = plan.separable(unsafe);
+	if (separable < 0) {
+	  refinements = separable = 0;
+	}
+      }
+      /* Test if criterion applies. */
+      if ((criterion.non_separable && criterion.separable)
+	  || (criterion.separable && separable > 0)
+	  || (criterion.non_separable && separable == 0)) {
+	/* Right type of threat, so now check if the refinement
+           constraint is satisfied. */
+	if (criterion.max_refinements >= 3
+	    || unsafe_refinements(refinements, separable, promotable,
+				  demotable, unsafe, plan,
+				  criterion.max_refinements)) {
+	  /* Refinement constraint is satisfied, so criterion applies. */
+	  switch (criterion.order) {
+	  case SelectionCriterion::LIFO:
+	    selection.flaw = &unsafe;
+	    selection.criterion = c;
+	    last_criterion = c - 1;
+	    if (verbosity > 1) {
+	      cout << "selecting " << unsafe << " by criterion "
+		   << criterion << endl;
+	    }
+	    break;
+	  case SelectionCriterion::FIFO:
+	    selection.flaw = &unsafe;
+	    selection.criterion = c;
+	    last_criterion = c;
+	    if (verbosity > 1) {
+	      cout << "selecting " << unsafe << " by criterion "
+		   << criterion << endl;
+	    }
+	    break;
+	  case SelectionCriterion::RANDOM:
+	    if (c == selection.criterion) {
+	      selection.streak++;
+	    } else {
+	      selection.streak = 1;
+	    }
+	    if (rand01ex() < 1.0/selection.streak) {
+	      selection.flaw = &unsafe;
+	      selection.criterion = c;
+	      last_criterion = c;
+	      if (verbosity > 1) {
+		cout << "selecting " << unsafe << " by criterion "
+		     << criterion << endl;
+	      }
+	    }
+	    break;
+	  case SelectionCriterion::LR:
+	    if (c < selection.criterion
+		|| unsafe_refinements(refinements, separable, promotable,
+				      demotable, unsafe, plan,
+				      selection.refinements - 1)) {
+	      selection.flaw = &unsafe;
+	      selection.criterion = c;
+	      unsafe_refinements(refinements, separable, promotable,
+				 demotable, unsafe, plan, INT_MAX);
+	      selection.refinements = refinements;
+	      last_criterion = (refinements == 0) ? c - 1 : c;
+	      if (verbosity > 1) {
+		cout << "selecting " << unsafe << " by criterion "
+		     << criterion << " with " << refinements << " refinements"
+		     << endl;
+	      }
+	    }
+	    break;
+	  case SelectionCriterion::MR:
+	    unsafe_refinements(refinements, separable, promotable,
+			       demotable, unsafe, plan, INT_MAX);
+	    if (c < selection.criterion
+		|| refinements > selection.refinements) {
+	      selection.flaw = &unsafe;
+	      selection.criterion = c;
+	      selection.refinements = refinements;
+	      last_criterion = (refinements == 3) ? c - 1 : c;
+	      if (verbosity > 1) {
+		cout << "selecting " << unsafe << " by criterion "
+		     << criterion << " with " << refinements << " refinements"
+		     << endl;
+	      }
+	    }
+	    break;
+	  }
+	}
+      }
+    }
+  }
+  return last_criterion;
+}
+
+
+/* Counts the number of refinements for the given open condition, and
+   returns true iff the number of refinements does not exceed the
+   given limit. */
+static bool open_cond_refinements(int& refinements,
+				  int& addable, int& reusable,
+				  const OpenCondition& open_cond,
+				  const Plan& plan, int limit) {
+  if (refinements >= 0) {
+    return refinements <= limit;
+  } else {
+    const LiteralOpenCondition* loc =
+      dynamic_cast<const LiteralOpenCondition*>(&open_cond);
+    if (loc != NULL) {
+      int ref = 0;
+      if (addable < 0) {
+	addable = plan.addable_steps(*loc);
+      }
+      ref += addable;
+      if (ref <= limit) {
+	if (reusable < 0) {
+	  reusable = plan.reusable_steps(*loc);
+	}
+	refinements = ref + reusable;
+	return refinements <= limit;
+      }
+    } else {
+      const DisjunctiveOpenCondition* disjoc =
+	dynamic_cast<const DisjunctiveOpenCondition*>(&open_cond);
+      if (disjoc != NULL) {
+	refinements = plan.disjunction_refinements(*disjoc);
+	return refinements <= limit;
+      } else {
+	const InequalityOpenCondition* neqoc =
+	  dynamic_cast<const InequalityOpenCondition*>(&open_cond);
+	if (neqoc != NULL) {
+	  refinements = plan.inequality_refinements(*neqoc);
+	} else {
+	  throw Unimplemented("unknown kind of open condition");
+	}
+      }
+    }
+  }
+  return false;
+}
+
+
+/* Seaches open conditions for a flaw to select. */
+int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
+					 const Plan& plan,
+					 const Domain& domain,
+					 const PlanningGraph* pg,
+					 int first_criterion,
+					 int last_criterion) const {
+  if (first_criterion > last_criterion || plan.open_conds == NULL) {
+    return INT_MAX;
+  }
+  size_t local_id = 0;
+  /* Loop through open conditions. */
+  for (const OpenConditionChain* occ = plan.open_conds;
+       occ != NULL && first_criterion <= last_criterion; occ = occ->tail) {
+    const OpenCondition& open_cond = *occ->head;
+    if (verbosity > 1) {
+      cout << "(considering " << open_cond << ")" << endl;
+    }
+    if (local_id == 0) {
+      local_id = open_cond.step_id;
+    }
+    bool local = (open_cond.step_id == local_id);
+    int is_static = -1;
+    int refinements = -1;
+    int addable = -1;
+    int reusable = -1;
+    /* Loop through selection criteria that are within limits. */
+    for (int c = first_criterion; c <= last_criterion; c++) {
+      const SelectionCriterion& criterion = selection_criteria_[c];
+      if (criterion.local_open_cond && !criterion.static_open_cond && !local) {
+	if (c == last_criterion) {
+	  last_criterion--;
+	}
+	continue;
+      }
+      /* If criterion applies only to one type of open condition, make
+         sure we know which type of open condition this is. */
+      if (criterion.static_open_cond && is_static < 0) {
+	is_static = open_cond.is_static(domain) ? 1 : 0;
+      }
+      /* Test if criterion applies. */
+      if (criterion.open_cond
+	  || (criterion.local_open_cond && local)
+	  || (criterion.static_open_cond && is_static > 0)) {
+	/* Right type of open condition, so now check if the
+           refinement constraint is satisfied. */
+	if (criterion.max_refinements == INT_MAX
+	    || open_cond_refinements(refinements, addable, reusable, open_cond,
+				     plan, criterion.max_refinements)) {
+	  /* Refinement constraint is satisfied, so criterion applies. */
+	  switch (criterion.order) {
+	  case SelectionCriterion::LIFO:
+	    selection.flaw = &open_cond;
+	    selection.criterion = c;
+	    last_criterion = c - 1;
+	    if (verbosity > 1) {
+	      cout << "selecting " << open_cond << " by criterion "
+		   << criterion << endl;
+	    }
+	    break;
+	  case SelectionCriterion::FIFO:
+	    selection.flaw = &open_cond;
+	    selection.criterion = c;
+	    last_criterion = c;
+	    if (verbosity > 1) {
+	      cout << "selecting " << open_cond << " by criterion "
+		   << criterion << endl;
+	    }
+	    break;
+	  case SelectionCriterion::RANDOM:
+	    if (c == selection.criterion) {
+	      selection.streak++;
+	    } else {
+	      selection.streak = 1;
+	    }
+	    if (rand01ex() < 1.0/selection.streak) {
+	      selection.flaw = &open_cond;
+	      selection.criterion = c;
+	      last_criterion = c;
+	      if (verbosity > 1) {
+		cout << "selecting " << open_cond << " by criterion "
+		     << criterion << endl;
+	      }
+	    }
+	    break;
+	  case SelectionCriterion::LR:
+	    if (c < selection.criterion
+		|| open_cond_refinements(refinements, addable, reusable,
+					 open_cond, plan,
+					 selection.refinements - 1)) {
+	      selection.flaw = &open_cond;
+	      selection.criterion = c;
+	      open_cond_refinements(refinements, addable, reusable, open_cond,
+				    plan, INT_MAX);
+	      selection.refinements = refinements;
+	      last_criterion = (refinements == 0) ? c - 1 : c;
+	      if (verbosity > 1) {
+		cout << "selecting " << open_cond << " by criterion "
+		     << criterion << " with " << refinements << " refinements"
+		     << endl;
+	      }
+	    }
+	    break;
+	  case SelectionCriterion::MR:
+	    open_cond_refinements(refinements, addable, reusable, open_cond,
+				  plan, INT_MAX);
+	    if (c < selection.criterion
+		|| refinements > selection.refinements) {
+	      selection.flaw = &open_cond;
+	      selection.criterion = c;
+	      selection.refinements = refinements;
+	      last_criterion = c;
+	      if (verbosity > 1) {
+		cout << "selecting " << open_cond << " by criterion "
+		     << criterion << " with " << refinements << " refinements"
+		     << endl;
+	      }
+	    }
+	    break;
+	  case SelectionCriterion::NEW:
+	    if (addable < 0) {
+	      const LiteralOpenCondition* loc =
+		dynamic_cast<const LiteralOpenCondition*>(&open_cond);
+	      if (loc != NULL) {
+		addable = plan.addable_steps(*loc);
+	      }
+	    }
+	    selection.flaw = &open_cond;
+	    selection.criterion = c;
+	    last_criterion = (addable > 0) ? c - 1 : c;
+	    if (verbosity > 1) {
+	      cout << "selecting " << open_cond << " by criterion "
+		   << criterion;
+	      if (addable > 0) {
+		cout << " with new";
+	      }
+	      cout << endl;
+	    }
+	    break;
+	  case SelectionCriterion::REUSE:
+	    if (reusable < 0) {
+	      const LiteralOpenCondition* loc =
+		dynamic_cast<const LiteralOpenCondition*>(&open_cond);
+	      if (loc != NULL) {
+		reusable = plan.reusable_steps(*loc);
+	      }
+	    }
+	    selection.flaw = &open_cond;
+	    selection.criterion = c;
+	    last_criterion = (reusable > 0) ? c - 1 : c;
+	    if (verbosity > 1) {
+	      cout << "selecting " << open_cond << " by criterion "
+		   << criterion;
+	      if (reusable > 0) {
+		cout << " with reuse";
+	      }
+	      cout << endl;
+	    }
+	    break;
+	  }
+	}
+      }
+    }
+  }
+  return last_criterion;
+}
+
+
+/* Selects a flaw from the flaws of the given plan. */
+const Flaw& FlawSelectionOrder::select(const Plan& plan, const Domain& domain,
+				       const PlanningGraph* pg) const {
+  FlawSelection selection;
+  selection.criterion = INT_MAX;
+  int last_criterion = select_unsafe(selection, plan, first_unsafe_criterion_,
+				     last_unsafe_criterion_);
+  select_open_cond(selection, plan, domain, pg, first_open_cond_criterion_,
+		   min(last_open_cond_criterion_, last_criterion));
+  return *selection.flaw;
 }

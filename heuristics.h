@@ -2,7 +2,7 @@
 /*
  * Heuristics.
  *
- * $Id: heuristics.h,v 1.15 2002-01-03 12:54:01 lorens Exp $
+ * $Id: heuristics.h,v 1.16 2002-01-04 20:25:23 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
@@ -239,26 +239,28 @@ struct InvalidFlawSelectionOrder : public Exception {
 
 
 /*
+ * A selection criterion.
+ */
+struct SelectionCriterion {
+  /* A selection order. */
+  typedef enum { LIFO, FIFO, RANDOM, LR, MR, NEW, REUSE } OrderType;
+
+  bool non_separable;
+  bool separable;
+  bool open_cond;
+  bool local_open_cond;
+  bool static_open_cond;
+  int max_refinements;
+  OrderType order;
+};
+
+
+/*
  * Flaw selection order.
- *
- * LIFO/FIFO/RANDOM order works with all heuristics.  Other orders can
- * be combined with LIFO/FIFO/RANDOM order, but work only with
- * heuristics that can estimate cost for open conditions.
  */
 struct FlawSelectionOrder : public gc {
-private:
-  typedef enum { UNSPEC, MAX, SUM } FlawHeuristic;
-  typedef enum { NONE, COST, WORK } PrimaryOrder;
-  typedef enum { MOST, LEAST } PrimaryExtreme;
-  typedef enum { LIFO, FIFO, RANDOM } SecondaryOrder;
-
-public:
   /* Constructs a default flaw selection order. */
-  FlawSelectionOrder(const string& name = "LIFO")
-    : heuristic_(UNSPEC), primary_(NONE), extreme_(MOST), secondary_(LIFO),
-      static_first_(false) {
-    *this = name;
-  }
+  FlawSelectionOrder(const string& name = "UCPOP");
 
   /* Selects a flaw selection order from a name. */
   FlawSelectionOrder& operator=(const string& name);
@@ -271,16 +273,35 @@ public:
 		     const PlanningGraph* pg) const;
 
 private:
-  /* Heuristic used for computing flaw value. */
-  FlawHeuristic heuristic_;
-  /* Primary flaw selection order. */
-  PrimaryOrder primary_;
-  /* Extreme for primary order. */
-  PrimaryExtreme extreme_;
-  /* Secondary order. */
-  SecondaryOrder secondary_;
-  /* Whether to select static preconditions before other flaws. */
-  bool static_first_;
+  /* A flaw selection. */
+  struct FlawSelection {
+    const Flaw* flaw;
+    int criterion;
+    int refinements;
+    int streak;
+  };
+
+  /* Selection criteria. */
+  vector<SelectionCriterion> selection_criteria_;
+  /* Whether a planning graph is needed by this flaw selection order. */
+  bool needs_pg_;
+  /* Index of the first selection criterion involving threats. */
+  int first_unsafe_criterion_;
+  /* Index of the last selection criterion involving threats. */
+  int last_unsafe_criterion_;
+  /* Index of the first selection criterion involving open conditions. */
+  int first_open_cond_criterion_;
+  /* Index of the last selection criterion involving open conditions. */
+  int last_open_cond_criterion_;
+
+  /* Seaches threats for a flaw to select. */
+  int select_unsafe(FlawSelection& selection, const Plan& plan,
+		    int first_criterion, int last_criterion) const;
+
+  /* Seaches open conditions for a flaw to select. */
+  int select_open_cond(FlawSelection& selection, const Plan& plan,
+		       const Domain& domain, const PlanningGraph* pg,
+		       int first_criterion, int last_criterion) const;
 };
 
 

@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.36 2002-01-02 19:28:17 lorens Exp $
+ * $Id: plans.h,v 1.37 2002-01-04 20:25:55 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -15,6 +15,7 @@ struct SubstitutionList;
 struct Formula;
 struct Literal;
 struct Atom;
+struct Negation;
 struct Effect;
 struct EffectList;
 struct Action;
@@ -172,9 +173,30 @@ struct Plan : public LessThanComparable, public Printable, public gc {
   /* Returns the serial number of this plan. */
   size_t serial_no() const;
 
-  /* Fills the provided list with possible refinements that repair the
-     given flaw. */
-  void refinements(PlanList& plans, const Flaw& flaw) const;
+  /* Checks if the given threat is separable. */
+  int separable(const Unsafe& unsafe) const;
+
+  /* Checsk if the given threat is demotable. */
+  int demotable(const Unsafe& unsafe) const;
+
+  /* Checks if the given threat is promotable. */
+  int promotable(const Unsafe& unsafe) const;
+
+  /* Counts the number of refinements for the given disjunctive open
+     condition. */
+  int disjunction_refinements(const DisjunctiveOpenCondition& open_cond) const;
+
+  /* Counts the number of refinements for the given inequality open
+     condition. */
+  int inequality_refinements(const InequalityOpenCondition& open_cond) const;
+
+  /* Counts the number of add-step refinements for the given literal
+     open condition. */
+  int addable_steps(const LiteralOpenCondition& open_cond) const;
+
+  /* Counts the number of reuse-step refinements for the given literal
+     open condition. */
+  int reusable_steps(const LiteralOpenCondition& open_cond) const;
 
 protected:
   /* Checks if this object is less than the given object. */
@@ -254,11 +276,23 @@ private:
   void reuse_step(PlanList& plans,
 		  const LiteralOpenCondition& open_cond) const;
 
+  /* Counts the number of new links that can be established between the
+     given effects and the open condition. */
+  int count_new_links(const Formula& precondition,
+		      const EffectList& effects, size_t step_id,
+		      const Action* action,
+		      const LiteralOpenCondition& open_cond) const;
+
   /* Adds plans to the given plan list with a link from the given step
      to the given open condition added. */
   void new_link(PlanList& plans, const Step& step,
 		const LiteralOpenCondition& open_cond, const Link& link,
 		const Reason& reason) const;
+
+  /* Checks if a new link be established between the given effects and
+     the open condition using the closed world assumption. */
+  int cw_link_possible(const EffectList& effects,
+		       const Negation& negation) const;
 
   /* Adds plans to the given plan list with a link from the given step
      to the given open condition added using the closed world
@@ -266,6 +300,13 @@ private:
   void new_cw_link(PlanList& plans, const Step& step,
 		   const LiteralOpenCondition& open_cond, const Link& link,
 		   const Reason& reason) const;
+
+  /* Checks if a new link can be established between the given effect
+     and the open condition. */
+  int link_possible(const Formula& precondition, const Effect& effect,
+		    size_t step_id, const Action* action,
+		    const LiteralOpenCondition& open_cond,
+		    const SubstitutionList& unifier) const;
 
   /* Returns a plan with a link added from the given effect to the
      given open condition. */
