@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.h,v 3.1 2002-03-10 14:31:48 lorens Exp $
+ * $Id: domains.h,v 3.2 2002-03-10 19:45:47 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -297,9 +297,9 @@ struct Requirements;
 /*
  * Domain definition.
  */
-struct Domain : public Printable, public gc {
+struct Domain : public Printable {
   /* Table of domain definitions. */
-  struct DomainMap : public HashMap<string, const Domain*> {
+  struct DomainMap : public hash_map<string, const Domain*> {
   };
 
   /* Iterator for domain tables. */
