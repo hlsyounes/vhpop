@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.5 2001-05-04 19:50:35 lorens Exp $
+ * $Id: plans.h,v 1.5.1.1 2001-05-11 22:18:47 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -149,9 +149,11 @@ typedef Chain<const Link*> LinkChain;
  */
 struct Step : public gc {
   /* Step id. */
-  const unsigned int id;
-  /* Action formula, or NULL if step is not instantiated from an action. */
-  const AtomicFormula* const action;
+  const size_t id;
+  /* Action name, or NULL if step is not instantiated from an action. */
+  const string* action;
+  /* Action parameters, or NULL if step is not instantiated from an action. */
+  const VariableList* parameters;
   /* Precondition of step, or NULL if step has no precondition. */
   const Formula* const precondition;
   /* List of effects. */
@@ -160,17 +162,18 @@ struct Step : public gc {
   const Reason& reason;
 
   /* Constructs a step. */
-  Step(unsigned int id, const Formula* precondition, const EffectList& effects,
+  Step(size_t id, const Formula* precondition, const EffectList& effects,
        const Reason& reason)
-    : id(id), action(NULL),
+    : id(id), action(NULL), parameters(NULL),
       precondition((precondition != NULL) ?
 		   &precondition->instantiation(id) : NULL),
       effects(effects.instantiation(id)), reason(reason) {
   }
 
   /* Constructs a step instantiated from an action. */
-  Step(unsigned int id, const Action& action, const Reason& reason)
-    : id(id), action(&action_formula(id, action)),
+  Step(size_t id, const Action& action, const Reason& reason)
+    : id(id), action(&action.name),
+      parameters(&action.parameters.instantiation(id)),
       precondition((action.precondition != NULL) ?
 		   &action.precondition->instantiation(id) : NULL),
       effects(action.effects.instantiation(id)), reason(reason) {
@@ -178,30 +181,39 @@ struct Step : public gc {
 
   /* Returns a copy of this step with a new reason. */
   const Step& new_reason(const Reason& reason) const {
-    return *(new Step(id, action, precondition, effects, reason));
+    return *(new Step(id, action, parameters, precondition, effects, reason));
   }
+
+  /* Returns an action formula for this step. */
+  const AtomicFormula& action_formula() const {
+    TermList& terms = *(new TermList());
+    if (parameters != NULL) {
+      for (VariableList::const_iterator i = parameters->begin();
+	   i != parameters->end(); i++) {
+	terms.push_back(*i);
+      }
+    }
+    return *(new AtomicFormula(*action, terms));
+  }
+
+  /* Returns a ground step, or NULL if the substitutions fail. */
+  const Step* ground_step(SubstitutionList& subst) const;
 
 private:
-  /* Returns an action formula for the given action. */
-  static const AtomicFormula& action_formula(unsigned int id,
-					     const Action& action) {
-    TermList& terms = *(new TermList());
-    const VariableList& parameters = action.parameters;
-    for (VariableList::const_iterator i = parameters.begin();
-	 i != parameters.end(); i++) {
-      terms.push_back(&(*i)->instantiation(id));
-    }
-    return *(new AtomicFormula(action.name, terms));
-  }
-
   /* Constructs a step. */
-  Step(unsigned int id, const AtomicFormula* action,
+  Step(size_t id, const string* action, const VariableList* parameters,
        const Formula* precondition, const EffectList& effects,
        const Reason& reason)
     : id(id), action(action), precondition(precondition), effects(effects),
       reason(reason) {
   }
 };
+
+
+/*
+ * List of steps.
+ */
+typedef vector<const Step*, container_alloc> StepList;
 
 
 /*
