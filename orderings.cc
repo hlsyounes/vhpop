@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.cc,v 3.15 2002-05-28 22:18:04 lorens Exp $
+ * $Id: orderings.cc,v 3.16 2002-06-12 18:23:08 lorens Exp $
  */
 #include "orderings.h"
 #include "plans.h"
@@ -71,6 +71,17 @@ Ordering::Ordering(size_t before_id, StepTime before_time,
     after_id_(after_id), after_time_(after_time) {
 #ifdef TRANSFORMATIONAL
   reason_ = &reason;
+  Collectible::register_use(reason_);
+#endif
+}
+
+
+/* Constructs an ordering constraint. */
+Ordering::Ordering(const Ordering& o)
+  : before_id_(o.before_id_), before_time_(o.before_time_),
+    after_id_(o.after_id_), after_time_(o.after_time_) {
+#ifdef TRANSFORMATIONAL
+  reason_ = o.reason_;
   Collectible::register_use(reason_);
 #endif
 }
