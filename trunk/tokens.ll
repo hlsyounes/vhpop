@@ -16,12 +16,14 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: tokens.ll,v 6.2 2003-07-21 02:26:45 lorens Exp $
+ * $Id: tokens.ll,v 6.3 2003-09-05 16:34:09 lorens Exp $
  */
 %{
 struct Condition;
 struct Formula;
 struct Atom;
+struct Expression;
+struct Application;
 
 #include "terms.h"
 #include "types.h"
@@ -34,8 +36,12 @@ struct Atom;
 /* Current line number. */
 size_t line_number;
 
+/* Allocates a string containing the lowercase characters of the given
+   C string, and returns the given token. */
 static int make_string(const char* s, int token);
+/* Makes a number of the given string, and return the NUMBER token. */
 static int make_number(const char* s);
+
 %}
 
 %option case-insensitive never-interactive nounput noyywrap
@@ -48,6 +54,10 @@ define				return make_string(yytext, DEFINE);
 domain				return make_string(yytext, DOMAIN_TOKEN);
 problem				return make_string(yytext, PROBLEM);
 :requirements			return REQUIREMENTS;
+:types				return TYPES;
+:constants			return CONSTANTS;
+:predicates			return PREDICATES;
+:functions			return FUNCTIONS;
 :strips				return STRIPS;
 :typing				return TYPING;
 :negative-preconditions		return NEGATIVE_PRECONDITIONS;
@@ -62,9 +72,6 @@ problem				return make_string(yytext, PROBLEM);
 :durative-actions		return DURATIVE_ACTIONS;
 :duration-inequalities		return DURATION_INEQUALITIES;
 :continuous-effects		return CONTINUOUS_EFFECTS;
-:types				return TYPES;
-:constants			return CONSTANTS;
-:predicates			return PREDICATES;
 :action				return ACTION;
 :durative-action		return DURATIVE_ACTION;
 :parameters			return PARAMETERS;
@@ -77,6 +84,7 @@ problem				return make_string(yytext, PROBLEM);
 :init				return INIT;
 :goal				return GOAL;
 :metric				return METRIC;
+number				return make_string(yytext, NUMBER_TOKEN);
 object				return make_string(yytext, OBJECT_TOKEN);
 either				return make_string(yytext, EITHER);
 when				return make_string(yytext, WHEN);
@@ -118,6 +126,7 @@ static int make_string(const char* s, int token) {
   yylval.str = result;
   return token;
 }
+
 
 /* Makes a number of the given string, and return the NUMBER token. */
 static int make_number(const char* s) {
