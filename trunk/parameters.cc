@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: parameters.cc,v 6.1 2003-03-23 11:31:41 lorens Exp $
+ * $Id: parameters.cc,v 6.2 2003-12-05 21:44:36 lorens Exp $
  */
 #include "parameters.h"
 
@@ -27,12 +27,20 @@ InvalidSearchAlgorithm::InvalidSearchAlgorithm(const std::string& name)
 
 
 /* ====================================================================== */
+/* InvalidActionCost */
+
+/* Constructs an invalid action cost exception. */
+InvalidActionCost::InvalidActionCost(const std::string& name)
+  : Exception("invalid action cost `" + name + "'") {}
+
+
+/* ====================================================================== */
 /* Parameters */
 
 /* Constructs default planning parameters. */
 Parameters::Parameters()
   : time_limit(UINT_MAX), search_algorithm(A_STAR),
-    heuristic("UCPOP"), weight(1.0),
+    heuristic("UCPOP"), action_cost(UNIT_COST), weight(1.0),
     random_open_conditions(false), ground_actions(false),
     domain_constraints(false), keep_static_preconditions(true) {
   flaw_orders.push_back(FlawSelectionOrder("UCPOP")),
@@ -57,5 +65,20 @@ void Parameters::set_search_algorithm(const std::string& name) {
     search_algorithm = HILL_CLIMBING;
   } else {
     throw InvalidSearchAlgorithm(name);
+  }
+}
+
+
+/* Selects an action cost from a name. */
+void Parameters::set_action_cost(const std::string& name) {
+  const char* n = name.c_str();
+  if (strcasecmp(n, "UNIT") == 0) {
+    action_cost = UNIT_COST;
+  } else if (strcasecmp(n, "DURATION") == 0) {
+    action_cost = DURATION;
+  } else if (strcasecmp(n, "RELATIVE") == 0) {
+    action_cost = RELATIVE;
+  } else {
+    throw InvalidActionCost(name);
   }
 }

@@ -13,10 +13,11 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 6.11 2003-09-18 21:47:32 lorens Exp $
+ * $Id: heuristics.cc,v 6.12 2003-12-05 21:45:43 lorens Exp $
  */
 #include "heuristics.h"
 #include "plans.h"
+#include "parameters.h"
 #include "bindings.h"
 #include "orderings.h"
 #include "flaws.h"
@@ -69,7 +70,8 @@ formula_value(const Formula& formula, FormulaTime when, size_t step_id,
 		  if ((bindings != NULL
 		       && bindings->unify(*literal, step_id,
 					  e.literal(), step.id(),
-					  &pg.problem()))
+					  pg.problem().domain().types(),
+					  pg.problem().terms()))
 		      || (bindings == NULL && literal == &e.literal())) {
 		    return HeuristicValue::ZERO_COST_UNIT_WORK;
 		  }
@@ -136,18 +138,18 @@ struct GroundActionSet : public std::set<const GroundAction*> {
 
 /* A zero heuristic value. */
 const HeuristicValue HeuristicValue::ZERO =
-HeuristicValue(0, 0, Orderings::threshold);
+HeuristicValue(0.0f, 0, Orderings::threshold);
 /* A zero cost, unit work, heuristic value. */
 const HeuristicValue HeuristicValue::ZERO_COST_UNIT_WORK =
-HeuristicValue(0, 1, Orderings::threshold);
+HeuristicValue(0.0f, 1, Orderings::threshold);
 /* An infinite heuristic value. */
 const HeuristicValue
-HeuristicValue::INFINITE = HeuristicValue(INT_MAX, INT_MAX, INFINITY);
+HeuristicValue::INFINITE = HeuristicValue(INFINITY, INT_MAX, INFINITY);
 
 
 /* Checks if this heuristic value is zero. */
 bool HeuristicValue::zero() const {
-  return add_cost() == 0;
+  return add_cost() == 0.0f;
 }
 
 
@@ -159,7 +161,7 @@ bool HeuristicValue::infinite() const {
 
 /* Adds the given heuristic value to this heuristic value. */
 HeuristicValue& HeuristicValue::operator+=(const HeuristicValue& v) {
-  add_cost_ = sum(add_cost(), v.add_cost());
+  add_cost_ += v.add_cost();
   add_work_ = sum(add_work(), v.add_work());
   if (makespan() < v.makespan()) {
     makespan_ = v.makespan();
@@ -168,9 +170,9 @@ HeuristicValue& HeuristicValue::operator+=(const HeuristicValue& v) {
 }
 
 
-/* Increments the cost of this heuristic value. */
-void HeuristicValue::increment_cost() {
-  add_cost_ = sum(add_cost(), 1);
+/* Increases the cost of this heuristic value. */
+void HeuristicValue::increase_cost(float x) {
+  add_cost_ += x;
 }
 
 
@@ -185,20 +187,21 @@ void HeuristicValue::increase_makespan(float x) {
   makespan_ += x;
 }
 
-
+#if 0
 /* Equality operator for heuristic values. */
 bool operator==(const HeuristicValue& v1, const HeuristicValue& v2) {
   return (v1.add_cost() == v2.add_cost() && v1.add_work() == v2.add_work()
 	  && v1.makespan() == v2.makespan());
 }
-
+#endif
 
 /* Inequality operator for heuristic values. */
 bool operator!=(const HeuristicValue& v1, const HeuristicValue& v2) {
-  return !(v1 == v2);
+  return (v1.add_cost() != v2.add_cost() || v1.add_work() != v2.add_work()
+	  || v1.makespan() != v2.makespan());
 }
 
-
+#if 0
 /* Less than operator for heuristic values. */
 bool operator<(const HeuristicValue& v1, const HeuristicValue& v2) {
   return (v1 <= v2 && v1 != v2);
@@ -223,12 +226,13 @@ bool operator>=(const HeuristicValue& v1, const HeuristicValue& v2) {
   return (v1.add_cost() >= v2.add_cost() && v1.add_work() >= v2.add_work()
 	  && v1.makespan() >= v2.makespan());
 }
-
+#endif
 
 /* Returns the componentwise minimum heuristic value, given two
    heuristic values. */
 HeuristicValue min(const HeuristicValue& v1, const HeuristicValue& v2) {
-  int add_cost, add_work;
+  float add_cost;
+  int add_work;
   if (v1.add_cost() == v2.add_cost()) {
     add_cost = v1.add_cost();
     add_work = std::min(v1.add_work(), v2.add_work());
@@ -368,7 +372,7 @@ void Condition::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
 /* PlanningGraph */
 
 /* Constructs a planning graph. */
-PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
+PlanningGraph::PlanningGraph(const Problem& problem, const Parameters& params)
   : problem_(&problem) {
   /*
    * Find all consistent action instantiations.
@@ -378,6 +382,58 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
   if (verbosity > 0) {
     std::cerr << std::endl << "Instantiated actions: " << actions.size()
 	      << std::endl;
+  }
+  /*
+   * Find duration scaling factors for literals.
+   */
+  std::map<const Literal*, float> duration_factor;
+  if (params.action_cost == Parameters::RELATIVE) {
+    for (GroundActionList::const_iterator ai = actions.begin();
+	 ai != actions.end(); ai++) {
+      const GroundAction& action = **ai;
+      const Value* min_v = dynamic_cast<const Value*>(&action.min_duration());
+      if (min_v == NULL) {
+	throw Exception("non-constant minimum duration");
+      }
+      float d = std::max(Orderings::threshold, min_v->value());
+      for (EffectList::const_iterator ei = action.effects().begin();
+	   ei != action.effects().end(); ei++) {
+	const Literal& literal = (*ei)->literal();
+	std::map<const Literal*, float>::const_iterator di =
+	  duration_factor.find(&literal);
+	if (di == duration_factor.end()) {
+	  duration_factor.insert(std::make_pair(&literal, d));
+	} else if (d < (*di).second) {
+	  duration_factor[&literal] = d;
+	}
+      }
+    }
+    for (TimedActionTable::const_iterator ai = problem.timed_actions().begin();
+	 ai != problem.timed_actions().end(); ai++) {
+      float d = (*ai).first;
+      const GroundAction& action = *(*ai).second;
+      for (EffectList::const_iterator ei = action.effects().begin();
+	   ei != action.effects().end(); ei++) {
+	const Literal& literal = (*ei)->literal();
+	std::map<const Literal*, float>::const_iterator di =
+	  duration_factor.find(&literal);
+	if (di == duration_factor.end()) {
+	  duration_factor.insert(std::make_pair(&literal, d));
+	} else if (d < (*di).second) {
+	  duration_factor[&literal] = d;
+	}
+      }
+    }
+  }
+  if (verbosity > 2) {
+    std::cerr << "Duration factors:" << std::endl;
+    for (std::map<const Literal*, float>::const_iterator di =
+	   duration_factor.begin(); di != duration_factor.end(); di++) {
+      std::cerr << "  ";
+      (*di).first->print(std::cerr, problem.domain().predicates(),
+			 problem.terms(), 0, Bindings::EMPTY);
+      std::cerr << ": " << (*di).second << std::endl;
+    }
   }
 
   /*
@@ -403,18 +459,24 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
 	 ei != action.effects().end(); ei++) {
       const Literal& literal = (*ei)->literal();
       achievers_[&literal].insert(std::make_pair(&action, *ei));
+      float d = (params.action_cost == Parameters::UNIT_COST) ? 1.0f : time;
+      std::map<const Literal*, float>::const_iterator di =
+	duration_factor.find(&literal);
+      if (di != duration_factor.end()) {
+	d /= (*di).second;
+      }
       const Atom* atom = dynamic_cast<const Atom*>(&literal);
       if (atom != NULL) {
 	if (atom_values_.find(atom) == atom_values_.end()) {
 	  atom_values_.insert(std::make_pair(atom,
-					     HeuristicValue(1, 1, time)));
+					     HeuristicValue(d, 1, time)));
 	}
       } else {
 	const Negation& negation = dynamic_cast<const Negation&>(literal);
 	if (negation_values_.find(&negation.atom()) == negation_values_.end()
 	    && heuristic_value(negation.atom(), 0).zero()) {
 	  negation_values_.insert(std::make_pair(&negation.atom(),
-						 HeuristicValue(1, 1, time)));
+						 HeuristicValue(d, 1, time)));
 	}
       }
     }
@@ -494,7 +556,6 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
 	    } else {
 	      cond_value += pre_value;
 	    }
-	    cond_value.increment_cost();
 	    const Value* min_v =
 	      dynamic_cast<const Value*>(&action.min_duration());
 	    if (min_v == NULL) {
@@ -507,6 +568,14 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
 	     * Update heuristic values of literal added by effect.
 	     */
 	    const Literal& literal = effect.literal();
+	    float d = ((params.action_cost == Parameters::UNIT_COST)
+		       ? 1.0f : Orderings::threshold + min_v->value());
+	    std::map<const Literal*, float>::const_iterator di =
+	      duration_factor.find(&literal);
+	    if (di != duration_factor.end()) {
+	      d /= (*di).second;
+	    }
+	    cond_value.increase_cost(d);
 	    if (!find(achievers_, literal, action, effect)) {
 	      if (!pre_value.infinite()) {
 		achievers_[&literal].insert(std::make_pair(&action, &effect));
@@ -523,7 +592,7 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
 		std::cerr << " with ";
 		effect.print(std::cerr, problem.domain().predicates(),
 			     problem.terms());
-		std::cerr << std::endl;
+		std::cerr << ' ' << cond_value << std::endl;
 	      }
 	    }
 	    const Atom* atom = dynamic_cast<const Atom*>(&literal);
@@ -545,7 +614,7 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
 	      HeuristicValue new_value = cond_value;
 	      new_value.increment_work();
 	      new_value = min(new_value, old_value);
-	      if (new_value < old_value) {
+	      if (new_value != old_value) {
 		new_atom_values[atom] = new_value;
 		changed = true;
 	      }
@@ -576,7 +645,7 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
 	      HeuristicValue new_value = cond_value;
 	      new_value.increment_work();
 	      new_value = min(new_value, old_value);
-	      if (new_value < old_value) {
+	      if (new_value != old_value) {
 		new_negation_values[&negation.atom()] = new_value;
 		changed = true;
 	      }
@@ -625,13 +694,13 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
    * actions domains constraints for these actions, if called for.
    */
   GroundActionSet good_actions;
-  if (verbosity > 1 || domain_constraints) {
+  if (verbosity > 1 || params.domain_constraints) {
     for (GroundActionSet::const_iterator ai = applicable_actions.begin();
 	 ai != applicable_actions.end(); ai++) {
       const GroundAction& action = **ai;
       if (useful_actions.find(&action) != useful_actions.end()) {
 	good_actions.insert(&action);
-	if (domain_constraints && !action.arguments().empty()) {
+	if (params.domain_constraints && !action.arguments().empty()) {
 	  ActionDomainMap::const_iterator di =
 	    action_domains_.find(action.name());
 	  if (di == action_domains_.end()) {
@@ -738,7 +807,8 @@ HeuristicValue PlanningGraph::heuristic_value(const Atom& atom, size_t step_id,
     for (PredicateAtomsMap::const_iterator gi = bounds.first;
 	 gi != bounds.second; gi++) {
       const Atom& a = *(*gi).second;
-      if (bindings->unify(atom, step_id, a, 0, &problem())) {
+      if (bindings->unify(atom, step_id, a, 0,
+			  problem().domain().types(), problem().terms())) {
 	HeuristicValue v = heuristic_value(a, 0);
 	value = min(value, v);
 	if (value.zero()) {
@@ -779,7 +849,8 @@ HeuristicValue PlanningGraph::heuristic_value(const Negation& negation,
     for (PredicateAtomsMap::const_iterator gi = bounds.first;
 	 gi != bounds.second; gi++) {
       const Atom& a = *(*gi).second;
-      if (bindings->unify(atom, step_id, a, 0, &problem())) {
+      if (bindings->unify(atom, step_id, a, 0,
+			  problem().domain().types(), problem().terms())) {
 	HeuristicValue v = heuristic_value(a, 0);
 	value = min(value, v);
 	if (value.zero()) {
@@ -915,10 +986,10 @@ void Heuristic::plan_rank(std::vector<float>& rank, const Plan& plan,
 			  float weight, const Domain& domain,
 			  const PlanningGraph* planning_graph) const {
   bool add_done = false;
-  int add_cost = 0;
+  float add_cost = 0.0f;
   int add_work = 0;
   bool addr_done = false;
-  int addr_cost = 0;
+  float addr_cost = 0.0f;
   int addr_work = 0;
   for (std::vector<HVal>::const_iterator hi = h_.begin();
        hi != h_.end(); hi++) {
@@ -957,7 +1028,7 @@ void Heuristic::plan_rank(std::vector<float>& rank, const Plan& plan,
 	  HeuristicValue v =
 	    formula_value(open_cond.condition(), open_cond.when(),
 			  open_cond.step_id(), plan, domain, *planning_graph);
-	  add_cost = sum(add_cost, v.add_cost());
+	  add_cost += v.add_cost();
 	  add_work = sum(add_work, v.add_work());
 	}
       }
@@ -993,7 +1064,7 @@ void Heuristic::plan_rank(std::vector<float>& rank, const Plan& plan,
 	    formula_value(open_cond.condition(), open_cond.when(),
 			  open_cond.step_id(), plan,
 			  domain, *planning_graph, true);
-	  addr_cost = sum(addr_cost, v.add_cost());
+	  addr_cost += v.add_cost();
 	  addr_work = sum(addr_work, v.add_work());
 	}
       }
@@ -1602,7 +1673,7 @@ int FlawSelectionOrder::select_unsafe(FlawSelection& selection,
 	    if (c < selection.criterion
 		|| plan.unsafe_refinements(refinements, separable, promotable,
 					   demotable, unsafe,
-					   selection.rank - 1)) {
+					   int(selection.rank + 0.5) - 1)) {
 	      selection.flaw = &unsafe;
 	      selection.criterion = c;
 	      plan.unsafe_refinements(refinements, separable, promotable,
@@ -1752,7 +1823,8 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 	  case SelectionCriterion::LR:
 	    if (c < selection.criterion
 		|| plan.open_cond_refinements(refinements, addable, reusable,
-					      open_cond, selection.rank - 1)) {
+					      open_cond,
+					      int(selection.rank + 0.5) - 1)) {
 	      selection.flaw = &open_cond;
 	      selection.criterion = c;
 	      plan.open_cond_refinements(refinements, addable, reusable,
@@ -1850,13 +1922,13 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 		formula_value(open_cond.condition(), open_cond.when(),
 			      open_cond.step_id(), plan,
 			      problem.domain(), *pg, criterion.reuse);
-	      int rank = ((criterion.heuristic == SelectionCriterion::ADD)
-			  ? h.add_cost() : int(h.makespan() + 0.5));
+	      float rank = ((criterion.heuristic == SelectionCriterion::ADD)
+			    ? h.add_cost() : h.makespan());
 	      if (c < selection.criterion || rank < selection.rank) {
 		selection.flaw = &open_cond;
 		selection.criterion = c;
 		selection.rank = rank;
-		last_criterion = (rank == 0) ? c - 1 : c;
+		last_criterion = (rank == 0.0f) ? c - 1 : c;
 		if (verbosity > 1) {
 		  std::cerr << "selecting ";
 		  open_cond.print(std::cerr, problem.domain().predicates(),
@@ -1873,8 +1945,8 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 		formula_value(open_cond.condition(), open_cond.when(),
 			      open_cond.step_id(), plan,
 			      problem.domain(), *pg, criterion.reuse);
-	      int rank = ((criterion.heuristic == SelectionCriterion::ADD)
-			  ? h.add_cost() : int(h.makespan() + 0.5));
+	      float rank = ((criterion.heuristic == SelectionCriterion::ADD)
+			    ? h.add_cost() : h.makespan() + 0.5);
 	      if (c < selection.criterion || rank > selection.rank) {
 		selection.flaw = &open_cond;
 		selection.criterion = c;

@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: parameters.h,v 6.2 2003-03-23 11:32:12 lorens Exp $
+ * $Id: parameters.h,v 6.3 2003-12-05 21:43:49 lorens Exp $
  */
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
@@ -41,6 +41,18 @@ struct InvalidSearchAlgorithm : public Exception {
 
 
 /* ====================================================================== */
+/* InvalidActionCost */
+
+/*
+ * An invalid action cost exception.
+ */
+struct InvalidActionCost : public Exception {
+  /* Constructs an invalid action cost exception. */
+  InvalidActionCost(const std::string& name);
+};
+
+
+/* ====================================================================== */
 /* Parameters */
 
 /*
@@ -49,6 +61,8 @@ struct InvalidSearchAlgorithm : public Exception {
 struct Parameters {
   /* Valid search algorithms. */
   typedef enum { A_STAR, IDA_STAR, HILL_CLIMBING } SearchAlgorithm;
+  /* Valid action costs. */
+  typedef enum { UNIT_COST, DURATION, RELATIVE } ActionCost;
 
   /* Time limit, in minutes. */
   size_t time_limit;
@@ -56,6 +70,8 @@ struct Parameters {
   SearchAlgorithm search_algorithm;
   /* Plan selection heuristic. */
   Heuristic heuristic;
+  /* Action cost. */
+  ActionCost action_cost;
   /* Weight to use with heuristic. */
   float weight;
   /* Flaw selecion orders. */
@@ -79,6 +95,9 @@ struct Parameters {
 
   /* Selects a search algorithm from a name. */
   void set_search_algorithm(const std::string& name);
+
+  /* Selects an action cost from a name. */
+  void set_action_cost(const std::string& name);
 };
 
 
