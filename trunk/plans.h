@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.10 2001-08-18 16:49:07 lorens Exp $
+ * $Id: plans.h,v 1.11 2001-08-20 04:12:00 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -14,7 +14,6 @@
 #include "domains.h"
 #include "problems.h"
 #include "bindings.h"
-#include "costgraph.h"
 #include "heuristics.h"
 
 
@@ -328,6 +327,8 @@ private:
 };
 
 
+struct CostGraph;
+
 /*
  * Plan.
  */
@@ -336,8 +337,9 @@ struct Plan : public gc {
   static const size_t GOAL_ID;
 
   /* Returns plan for given problem. */
-  static const Plan* plan(const Problem& problem, Heuristic h, bool g,
-			  bool t, size_t limit, int v);
+  static const Plan* plan(const Problem& problem, const FlawSelectionOrder& f,
+			  const Heuristic& h, bool g, bool t, size_t limit,
+			  int v);
 
   /* Checks if this plan is complete. */
   bool complete() const;
@@ -364,9 +366,6 @@ private:
   typedef vector<const Plan*, container_alloc> PlanList;
   /* Type of plan. */
   typedef enum { NORMAL_PLAN, INTERMEDIATE_PLAN, TRANSFORMED_PLAN } PlanType;
-
-  /* Number of generated plans. */
-  static size_t num_generated_plans;
 
   /* Chain of steps (could contain same step several times, if it is
      in plan for more than one reason). */
@@ -400,8 +399,10 @@ private:
   /* Rank of this plan. */
   mutable int rank1_;
   mutable int rank2_;
+  /* The hardest open condition. */
   mutable const OpenCondition* hardest_open_cond_;
-  mutable size_t early_cost_;
+  /* The easiest open condition. */
+  mutable const OpenCondition* easiest_open_cond_;
 
   /* Returns the initial plan representing the given problem, or NULL
      if goals of problem are inconsistent. */
@@ -425,9 +426,9 @@ private:
 	      parent->parent_ : parent),
       type_((parent != NULL && parent->type_ == INTERMEDIATE_PLAN) ?
 	    TRANSFORMED_PLAN : type),
-      rank1_(-1), rank2_(-1), hardest_open_cond_(NULL), early_cost_(0) {
+      rank1_(-1), rank2_(-1),
+      hardest_open_cond_(NULL), easiest_open_cond_(NULL) {
     if (type_ != INTERMEDIATE_PLAN) {
-      num_generated_plans++;
     }
   }
 
@@ -485,20 +486,12 @@ private:
 
   void h_rank() const;
 
-  size_t make_node(CostGraph& cg,
-		   hash_map<const OpenCondition*, size_t>& oc_nodes,
-		   hash_map<size_t, size_t>& step_nodes,
-		   hash_map<const Action*, size_t>& pred_nodes,
+  size_t make_node(CostGraph& cg, hash_map<size_t, size_t>& step_nodes,
+		   hash_map<const Formula*, size_t>& f_nodes,
 		   size_t step_id) const;
 
-  size_t make_node(CostGraph& cg,
-		   hash_map<size_t, size_t>& step_nodes,
-		   hash_map<const Action*, size_t>& pred_nodes,
-		   const Action& pred, size_t step_id) const;
-
-  size_t make_node(CostGraph& cg,
-		   hash_map<size_t, size_t>& step_nodes,
-		   hash_map<const Action*, size_t>& pred_nodes,
+  size_t make_node(CostGraph& cg, hash_map<size_t, size_t>& step_nodes,
+		   hash_map<const Formula*, size_t>& f_nodes,
 		   const Formula& condition, size_t step_id) const;
 
   friend ostream& operator<<(ostream& os, const Plan& p);
