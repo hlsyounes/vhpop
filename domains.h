@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.h,v 3.4 2002-03-15 19:01:39 lorens Exp $
+ * $Id: domains.h,v 3.5 2002-03-17 23:47:02 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -28,6 +28,9 @@
 
 struct Problem;
 
+
+/* ====================================================================== */
+/* Predicate */
 /*
  * Predicate declaration.
  */
@@ -41,33 +44,30 @@ struct Predicate : public Printable {
   /* Deletes this predicate. */
   virtual ~Predicate();
 
-  /* Predicate parameters. */
-  const VariableList& parameters() const;
-
-  /* Adds a parameter to this predicate. */
-  void add(const Variable& param);
-
   /* Returns the arity of this predicate. */
   size_t arity() const;
+
+  /* Returns the type of the ith parameter of this predicate. */
+  const Type& type(size_t i) const;
+
+  /* Adds a parameter to this predicate. */
+  void add_parameter(const Type& type);
 
 protected:
   /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
 
 private:
-  /* Predicate parameters. */
-  VariableList parameters_;
+  /* List of types. */
+  struct TypeList : vector<const Type*> {
+  };
+
+  /* Iterator for type list. */
+  typedef TypeList::const_iterator TypeListIter;
+
+  /* Parameter types. */
+  TypeList parameters_;
 };
-
-
-/*
- * Table of predicate declarations.
- */
-struct PredicateMap : public hash_map<string, const Predicate*> {
-};
-
-/* Iterator for predicate table. */
-typedef PredicateMap::const_iterator PredicateMapIter;
 
 
 struct EffectList;
@@ -345,16 +345,16 @@ struct Domain : public Printable {
   const ActionSchemaMap& actions() const;
 
   /* Adds a type to this domain. */
-  void add(const SimpleType& type);
+  void add_type(const SimpleType& type);
 
   /* Adds a constant to this domain. */
-  void add(const Name& constant);
+  void add_constant(const Name& constant);
 
   /* Adds a predicate to this domain. */
-  void add(const Predicate& predicate);
+  void add_predicate(const Predicate& predicate);
 
   /* Adds an action to this domain. */
-  void add(const ActionSchema& action);
+  void add_action(const ActionSchema& action);
 
   /* Returns the type with the given name, or NULL if it is
      undefined. */
@@ -384,6 +384,13 @@ protected:
   virtual void print(ostream& os) const;
 
 private:
+  /* Table of predicate declarations. */
+  struct PredicateMap : public hash_map<string, const Predicate*> {
+  };
+
+  /* Iterator for predicate table. */
+  typedef PredicateMap::const_iterator PredicateMapIter;
+
   /* Table of all defined domains. */
   static DomainMap domains;
 

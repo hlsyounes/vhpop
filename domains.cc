@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.cc,v 3.7 2002-03-15 19:01:33 lorens Exp $
+ * $Id: domains.cc,v 3.8 2002-03-17 23:47:05 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -29,15 +29,12 @@ Predicate::Predicate(const string& name)
 
 /* Deletes this predicate. */
 Predicate::~Predicate() {
-  for (VarListIter vi = parameters_.begin(); vi != parameters_.end(); vi++) {
-    delete *vi;
+  for (TypeListIter ti = parameters_.begin(); ti != parameters_.end(); ti++) {
+    const UnionType* ut = dynamic_cast<const UnionType*>(*ti);
+    if (ut != NULL) {
+      delete ut;
+    }
   }
-}
-
-
-/* Adds a parameter to this predicate. */
-void Predicate::add(const Variable& param) {
-  parameters_.push_back(&param);
 }
 
 
@@ -48,16 +45,22 @@ size_t Predicate::arity() const {
 
 
 /* Predicate parameters. */
-const VariableList& Predicate::parameters() const {
-  return parameters_;
+const Type& Predicate::type(size_t i) const {
+  return *parameters_[i];
+}
+
+
+/* Adds a parameter to this predicate. */
+void Predicate::add_parameter(const Type& type) {
+  parameters_.push_back(&type);
 }
 
 
 /* Prints this object on the given stream. */
 void Predicate::print(ostream& os) const {
   os << '(' << name;
-  for (VarListIter vi = parameters_.begin(); vi != parameters_.end(); vi++) {
-    os << ' ' << **vi << " - " << (*vi)->type();
+  for (TypeListIter ti = parameters_.begin(); ti != parameters_.end(); ti++) {
+    os << " x? - " << **ti;
   }
   os << ')';
 }
@@ -618,26 +621,26 @@ const ActionSchemaMap& Domain::actions() const {
 
 
 /* Adds a type to this domain. */
-void Domain::add(const SimpleType& type) {
+void Domain::add_type(const SimpleType& type) {
   types_.insert(make_pair(type.name(), &type));
 }
 
 
 /* Adds a constant to this domain. */
-void Domain::add(const Name& constant) {
+void Domain::add_constant(const Name& constant) {
   constants_[constant.name()] = &constant;
 }
 
 
 /* Adds a predicate to this domain. */
-void Domain::add(const Predicate& predicate) {
+void Domain::add_predicate(const Predicate& predicate) {
   predicates_.insert(make_pair(predicate.name, &predicate));
   static_predicates_.insert(predicate.name);
 }
 
 
 /* Adds an action to this domain. */
-void Domain::add(const ActionSchema& action) {
+void Domain::add_action(const ActionSchema& action) {
   actions_.insert(make_pair(action.name, &action));
   hash_set<string> achievable_preds;
   action.achievable_predicates(achievable_preds, achievable_preds);
