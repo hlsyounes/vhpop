@@ -1,5 +1,5 @@
 /*
- * $Id: formulas.cc,v 1.13 2001-10-06 00:44:59 lorens Exp $
+ * $Id: formulas.cc,v 1.14 2001-10-06 03:56:15 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -628,6 +628,26 @@ size_t Atom::hash_value() const {
 }
 
 
+/* Returns an instantiation of this atom list. */
+const AtomList& AtomList::instantiation(size_t id) const {
+  AtomList& atoms = *(new AtomList());
+  for (const_iterator i = begin(); i != end(); i++) {
+    atoms.push_back(&(*i)->instantiation(id));
+  }
+  return atoms;
+}
+
+
+/* Returns an instantiation of this atom list. */
+const AtomList& AtomList::substitution(const SubstitutionList& subst) const {
+  AtomList& atoms = *(new AtomList());
+  for (const_iterator i = begin(); i != end(); i++) {
+    atoms.push_back(&(*i)->substitution(subst));
+  }
+  return atoms;
+}
+
+
 /* Returns an instantiation of this formula. */
 const Negation& Negation::instantiation(size_t id) const {
   return *(new Negation(atom.instantiation(id)));
@@ -820,7 +840,15 @@ const Formula& Conjunction::instantiation(const SubstitutionList& subst,
 					  const Problem& problem) const {
   const Formula* c = &TRUE;
   for (FLCI fi = conjuncts.begin(); fi != conjuncts.end(); fi++) {
-    c = &(*c && (*fi)->instantiation(subst, problem));
+    const Formula& ci = (*fi)->instantiation(subst, problem);
+    const Conjunction* conj = dynamic_cast<const Conjunction*>(c);
+    if (conj != NULL
+	&& find_if(conj->conjuncts.begin(), conj->conjuncts.end(),
+		   bind1st(equal_to<const Formula*>(), &!ci))
+	!= conj->conjuncts.end()) {
+      return FALSE;
+    }
+    c = &(*c && ci);
   }
   return *c;
 }
