@@ -2,7 +2,7 @@
 /*
  * PDDL parser.
  *
- * $Id: pddl.yy,v 1.9 2001-09-04 22:04:43 lorens Exp $
+ * $Id: pddl.yy,v 1.10 2001-09-28 16:24:37 lorens Exp $
  */
 %{
 #include <utility>
@@ -164,11 +164,11 @@ pddl_file : { line_number = 1; } domain_or_problems { if (!success) YYERROR; }
           ;
 
 domain_or_problems : /* empty */
-                   | { context = ""; } domain_or_problems domain_or_problem
+                   | domain_or_problems domain_or_problem
                    ;
 
-domain_or_problem : domain
-                  | problem
+domain_or_problem : domain  { context = ""; }
+                  | problem { context = ""; }
                   ;
 
 
