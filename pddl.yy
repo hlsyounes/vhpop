@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 4.3 2002-09-20 16:37:08 lorens Exp $
+ * $Id: pddl.yy,v 4.4 2002-10-14 20:20:32 lorens Exp $
  */
 %{
 #include <typeinfo>
@@ -189,8 +189,8 @@ domain_or_problems : /* empty */
                    | domain_or_problems domain_or_problem
                    ;
 
-domain_or_problem : domain  { context = ""; }
-                  | problem { context = ""; }
+domain_or_problem : domain_def  { context = ""; }
+                  | problem_def { context = ""; }
                   ;
 
 
@@ -198,17 +198,17 @@ domain_or_problem : domain  { context = ""; }
  * Domains
  */
 
-domain : '(' define '(' domain name ')'
-           {
-	     pdomain = NULL;
-	     domain = new Domain(*$5);
-	     delete $5;
-	     requirements = &domain->requirements;
-	     context = " in domain `" + domain->name() + "'";
-	     problem = NULL;
-	   }
-         domain_body ')'
-       ;
+domain_def : '(' define '(' domain name ')'
+               {
+	         pdomain = NULL;
+	         domain = new Domain(*$5);
+		 delete $5;
+		 requirements = &domain->requirements;
+		 context = " in domain `" + domain->name() + "'";
+		 problem = NULL;
+	       }
+             domain_body ')'
+           ;
 
 domain_body : /* empty */
             | require_def
@@ -635,30 +635,30 @@ timed_effect : '(' at start
  * Problems
  */
 
-problem : '(' define '(' problem name ')' 
-            {
-	      context = " in problem `" + *$5 + "'";
-	    }
-          '(' PDOMAIN name ')'
-            {
-	      domain = NULL;
-	      pdomain = Domain::find(*$10);
-	      delete $10;
-	      if (pdomain != NULL) {
-		requirements = new Requirements(pdomain->requirements);
-	      } else {
-		yyerror("undeclared domain used");
-		/* Cannot recover from this error, so just bail out. */
-		YYERROR;
-	      }
-	      problem = new Problem(*$5, *pdomain);
-	      delete $5;
-	    }
-          problem_body ')'
-            {
-	      delete requirements;
-	    }
-        ;
+problem_def : '(' define '(' problem name ')' 
+                {
+		  context = " in problem `" + *$5 + "'";
+	        }
+              '(' PDOMAIN name ')'
+                {
+		  domain = NULL;
+		  pdomain = Domain::find(*$10);
+		  delete $10;
+		  if (pdomain != NULL) {
+		    requirements = new Requirements(pdomain->requirements);
+		  } else {
+		    yyerror("undeclared domain used");
+		    /* Cannot recover from this error, so just bail out. */
+		    YYERROR;
+		  }
+		  problem = new Problem(*$5, *pdomain);
+		  delete $5;
+		}
+              problem_body ')'
+                {
+		  delete requirements;
+		}
+            ;
 
 problem_body : require_def problem_body2
              | problem_body2
