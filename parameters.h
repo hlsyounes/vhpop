@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: parameters.h,v 1.8 2002-01-25 18:23:30 lorens Exp $
+ * $Id: parameters.h,v 3.1 2002-03-18 13:52:41 lorens Exp $
  */
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
@@ -39,7 +39,7 @@ struct InvalidSearchAlgorithm : public Exception {
 /*
  * Planning parameters.
  */
-struct Parameters : public gc {
+struct Parameters {
   /* Valid search algorithms. */
   typedef enum { A_STAR, IDA_STAR, HILL_CLIMBING } SearchAlgorithm;
 
