@@ -2,7 +2,7 @@
 /*
  * Auxiliary types and functions.
  *
- * $Id: support.h,v 1.12 2001-12-23 16:26:24 lorens Exp $
+ * $Id: support.h,v 1.13 2001-12-25 20:10:12 lorens Exp $
  */
 #ifndef SUPPORT_H
 #define SUPPORT_H
@@ -21,6 +21,21 @@
  * Allocator to use with all STL container classes.
  */
 typedef single_client_traceable_alloc container_alloc;
+
+
+/* Checks if the given sequence contains the given value. */
+template<typename I, typename T>
+inline bool member(I first, I last, T value) {
+  return find(first, last, value) != last;
+}
+
+
+/* Checks if the given sequence contains a value satisfying the given
+   predicate. */
+template<typename I, typename P>
+inline bool member_if(I first, I last, P pred) {
+  return find_if(first, last, pred) != last;
+}
 
 
 /*

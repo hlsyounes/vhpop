@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.25 2001-12-25 17:35:14 lorens Exp $
+ * $Id: plans.h,v 1.26 2001-12-25 20:11:16 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -466,16 +466,6 @@ private:
   bool duplicate() const;
 
   bool equivalent(const Plan& p) const;
-
-  void h_rank() const;
-
-  size_t make_node(CostGraph& cg, hash_map<size_t, size_t>& step_nodes,
-		   hash_map<const Formula*, size_t>& f_nodes,
-		   size_t step_id) const;
-
-  size_t make_node(CostGraph& cg, hash_map<size_t, size_t>& step_nodes,
-		   hash_map<const Formula*, size_t>& f_nodes,
-		   const Formula& condition, size_t step_id) const;
 };
 
 #endif /* PLANS_H */

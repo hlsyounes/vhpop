@@ -2,7 +2,7 @@
 /*
  * Domain descriptions.
  *
- * $Id: domains.h,v 1.26 2001-12-23 15:50:04 lorens Exp $
+ * $Id: domains.h,v 1.27 2001-12-25 20:10:44 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -112,6 +112,9 @@ protected:
  * List of effect definitions.
  */
 struct EffectList : public Vector<const Effect*> {
+  /* An empty effect list. */
+  static const EffectList& EMPTY;
+
   /* Constructs an empty effect list. */
   EffectList() {}
 

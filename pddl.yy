@@ -2,7 +2,7 @@
 /*
  * PDDL parser.
  *
- * $Id: pddl.yy,v 1.20 2001-12-23 17:27:19 lorens Exp $
+ * $Id: pddl.yy,v 1.21 2001-12-25 20:11:00 lorens Exp $
  */
 %{
 #include <utility>
@@ -733,11 +733,11 @@ static const Name* find_constant(const string& name) {
     c = pdomain->find_constant(name);
   }
   if (c == NULL && domain_constants != NULL) {
-    NameMap::const_iterator ni = domain_constants->find(name);
+    NameMapIter ni = domain_constants->find(name);
     c = (ni != domain_constants->end()) ? (*ni).second : NULL;
   }
   if (c == NULL && problem_objects != NULL) {
-    NameMap::const_iterator ni = problem_objects->find(name);
+    NameMapIter ni = problem_objects->find(name);
     c = (ni != problem_objects->end()) ? (*ni).second : NULL;
   }
   return c;
@@ -775,7 +775,7 @@ static void add_names(const vector<string>& names, const Type& type) {
 		  + " `" + s + "'");
       }
     } else {
-      NameMap::const_iterator ni = name_map->find(s);
+      NameMapIter ni = name_map->find(s);
       if (ni == name_map->end()) {
 	if (pdomain != NULL && pdomain->find_constant(s) != NULL) {
 	  yywarning("ignoring declaration of object `" + s
@@ -889,7 +889,7 @@ static TermList& add_name(TermList& terms, const string& name) {
   if (c == NULL) {
     const Predicate* predicate = find_predicate(current_predicate);
     if (predicate == NULL || predicate->arity() <= terms.size()) {
-      c = new Name(name);
+      c = new Name(name, SimpleType::OBJECT);
     } else {
       c = new Name(name, predicate->parameters[terms.size()]->type);
     }

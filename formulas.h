@@ -2,7 +2,7 @@
 /*
  * Formulas.
  *
- * $Id: formulas.h,v 1.30 2001-12-23 15:38:09 lorens Exp $
+ * $Id: formulas.h,v 1.31 2001-12-25 20:10:56 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -12,8 +12,12 @@
 #include <hash_map>
 #include <hash_set>
 #include "support.h"
-#include "types.h"
 #include "heuristics.h"
+
+struct Type;
+struct Domain;
+struct Problem;
+struct Bindings;
 
 
 struct Term;
@@ -29,8 +33,7 @@ struct Substitution : public Printable, public gc {
   const Term& term;
 
   /* Constructs a substitution. */
-  Substitution(const Variable& var, const Term& term)
-    : var(var), term(term) {}
+  Substitution(const Variable& var, const Term& term);
 
 protected:
   /* Prints this object on the given stream. */
@@ -44,10 +47,9 @@ protected:
 struct SubstitutionList : public Vector<const Substitution*> {
 };
 
+/* Substitution list iterator. */
 typedef SubstitutionList::const_iterator SubstListIter;
 
-
-struct Bindings;
 
 /*
  * Abstract term.
@@ -58,10 +60,6 @@ struct Term
   const string name;
   /* Type of term. */
   const Type& type;
-
-  /* Constructs an abstract term with the given name. */
-  Term(const string& name, const Type& type)
-    : name(name), type(type) {}
 
   /* Returns an instantiation of this term. */
   virtual const Term& instantiation(size_t id) const = 0;
@@ -78,8 +76,14 @@ struct Term
   virtual bool equivalent(const Term& t) const = 0;
 
 protected:
+  /* Constructs an abstract term with the given name. */
+  Term(const string& name, const Type& type);
+
   /* Checks if this object is less than the given object. */
   virtual bool less(const LessThanComparable& o) const;
+
+  /* Checks if this object equals the given object. */
+  virtual bool equals(const EqualityComparable& o) const;
 
   /* Returns the hash value of this object. */
   virtual size_t hash_value() const;
@@ -94,8 +98,7 @@ protected:
  */
 struct Name : public Term {
   /* Constructs a name. */
-  Name(const string& name, const Type& type = SimpleType::OBJECT)
-    : Term(name, type) {}
+  Name(const string& name, const Type& type);
 
   /* Returns an instantiation of this term. */
   virtual const Name& instantiation(size_t id) const;
@@ -107,10 +110,6 @@ struct Name : public Term {
      are equivalent if they are the same name, or if they are both
      variables. */
   virtual bool equivalent(const Term& t) const;
-
-protected:
-  /* Checks if this object equals the given object. */
-  virtual bool equals(const EqualityComparable& o) const;
 };
 
 
@@ -119,8 +118,10 @@ protected:
  */
 struct Variable : public Term {
   /* Constructs a variable with the given name. */
-  Variable(const string& name, const Type& type = SimpleType::OBJECT)
-    : Term(name, type) {}
+  Variable(const string& name);
+
+  /* Constructs a variable with the given name and type. */
+  Variable(const string& name, const Type& type);
 
   /* Returns an instantiation of this term. */
   virtual const Variable& instantiation(size_t id) const;
@@ -132,10 +133,6 @@ struct Variable : public Term {
      are equivalent if they are the same name, or if they are both
      variables. */
   virtual bool equivalent(const Term& t) const;
-
-protected:
-  /* Checks if this object equals the given object. */
-  virtual bool equals(const EqualityComparable& o) const;
 };
 
 
@@ -158,8 +155,7 @@ protected:
 
 private:
   /* Constructs an instantiated variable. */
-  StepVar(const Variable& var, size_t id)
-    : Variable(var), id(id) {}
+  StepVar(const Variable& var, size_t id);
 
   friend const Variable& Variable::instantiation(size_t id) const;
 };
@@ -169,9 +165,6 @@ private:
  * List of terms.
  */
 struct TermList : public Vector<const Term*> {
-  /* Constructs an empty term list. */
-  TermList() {}
-
   /* Returns an instantiation of this term list. */
   const TermList& instantiation(size_t id) const;
 
@@ -185,6 +178,7 @@ struct TermList : public Vector<const Term*> {
   bool equivalent(const TermList& terms) const;
 };
 
+/* Term list iterator. */
 typedef TermList::const_iterator TermListIter;
 
 
@@ -194,6 +188,7 @@ typedef TermList::const_iterator TermListIter;
 struct NameList : public Vector<const Name*> {
 };
 
+/* Name list iterator. */
 typedef NameList::const_iterator NameListIter;
 
 
@@ -203,6 +198,7 @@ typedef NameList::const_iterator NameListIter;
 struct NameMap : public HashMap<string, const Name*> {
 };
 
+/* Name table iterator. */
 typedef NameMap::const_iterator NameMapIter;
 
 
@@ -213,39 +209,13 @@ struct VariableList : public Vector<const Variable*> {
   /* An empty variable list. */
   static const VariableList& EMPTY;
 
-  /* Constructs an empty variable list. */
-  VariableList() {}
-
-  /* Checks if this variable list contains the given variable. */
-  bool contains(const Variable& v) const;
-
   /* Returns an instantiation of this variable list. */
   const VariableList& instantiation(size_t id) const;
 };
 
+/* Variable list iterator. */
 typedef VariableList::const_iterator VarListIter;
 
-
-struct Formula;
-
-/*
- * Equality function object for formula pointers.
- */
-struct equal_to<const Formula*>
-  : binary_function<const Formula*, const Formula*, bool> {
-  bool operator()(const Formula* f1, const Formula* f2) const;
-};
-
-/*
- * Hash function object for formula pointers.
- */
-struct hash<const Formula*> {
-  size_t operator()(const Formula* f) const;
-};
-
-
-struct Problem;
-struct Domain;
 
 /*
  * Abstract formula.
@@ -809,5 +779,6 @@ protected:
   /* Returns the negation of this formula. */
   virtual const Formula& negation() const;
 };
+
 
 #endif /* FORMULAS_H */

@@ -1,5 +1,5 @@
 /*
- * $Id: domains.cc,v 1.25 2001-10-30 16:01:47 lorens Exp $
+ * $Id: domains.cc,v 1.26 2001-12-25 20:10:38 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -73,7 +73,7 @@ void Effect::instantiations(EffectList& effects, const SubstitutionList& subst,
     SubstitutionList args;
     for (SubstListIter si = subst.begin(); si != subst.end(); si++) {
       const Substitution& s = **si;
-      if (!forall.contains(s.var)) {
+      if (!member(forall.begin(), forall.end(), &s.var)) {
 	args.push_back(&s);
       }
     }
@@ -130,7 +130,7 @@ const Effect& Effect::substitution(const SubstitutionList& subst) const {
     SubstitutionList eff_subst;
     for (SubstListIter si = subst.begin(); si != subst.end(); si++) {
       const Substitution& s = **si;
-      if (!forall.contains(s.var)) {
+      if (!member(forall.begin(), forall.end(), &s.var)) {
 	eff_subst.push_back(&s);
       }
     }
@@ -206,10 +206,9 @@ const EffectList& EffectList::instantiation(const SubstitutionList& subst,
 	  NegationList del_list = (*ej)->del_list;
 	  for (NegationListIter gi = del_list.begin();
 	       gi != del_list.end(); gi++) {
-	    if (find_if(add_list.begin(), add_list.end(),
-			bind1st(equal_to<const EqualityComparable*>(),
-				&(*gi)->atom))
-		!= add_list.end()) {
+	    if (member_if(add_list.begin(), add_list.end(),
+			  bind1st(equal_to<const EqualityComparable*>(),
+				  &(*gi)->atom))) {
 	      /* conflicting effects */
 	      effects.clear();
 	      return effects;
