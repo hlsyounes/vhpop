@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 4.1 2002-07-22 22:37:30 lorens Exp $
+ * $Id: pddl.yy,v 4.2 2002-07-24 14:45:38 lorens Exp $
  */
 %{
 #include <typeinfo>
@@ -647,7 +647,8 @@ problem : '(' define '(' problem name ')'
 		requirements = new Requirements(pdomain->requirements);
 	      } else {
 		yyerror("undeclared domain used");
-		requirements = new Requirements();
+		/* Cannot recover from this error, so just bail out. */
+		YYERROR;
 	      }
 	      problem = new Problem(*$5, *pdomain);
 	      delete $5;
