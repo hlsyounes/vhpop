@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.4 2001-05-04 15:38:29 lorens Exp $
+ * $Id: plans.h,v 1.5 2001-05-04 19:50:35 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -151,7 +151,7 @@ struct Step : public gc {
   /* Step id. */
   const unsigned int id;
   /* Action formula, or NULL if step is not instantiated from an action. */
-  const Formula* const action;
+  const AtomicFormula* const action;
   /* Precondition of step, or NULL if step has no precondition. */
   const Formula* const precondition;
   /* List of effects. */
@@ -183,7 +183,8 @@ struct Step : public gc {
 
 private:
   /* Returns an action formula for the given action. */
-  static const Formula& action_formula(unsigned int id, const Action& action) {
+  static const AtomicFormula& action_formula(unsigned int id,
+					     const Action& action) {
     TermList& terms = *(new TermList());
     const VariableList& parameters = action.parameters;
     for (VariableList::const_iterator i = parameters.begin();
@@ -194,8 +195,9 @@ private:
   }
 
   /* Constructs a step. */
-  Step(unsigned int id, const Formula* action, const Formula* precondition,
-       const EffectList& effects, const Reason& reason)
+  Step(unsigned int id, const AtomicFormula* action,
+       const Formula* precondition, const EffectList& effects,
+       const Reason& reason)
     : id(id), action(action), precondition(precondition), effects(effects),
       reason(reason) {
   }
