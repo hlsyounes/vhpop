@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 4.10 2003-03-01 18:47:14 lorens Exp $
+ * $Id: plans.cc,v 4.11 2003-03-10 17:25:50 lorens Exp $
  */
 #include "mathport.h"
 #include "plans.h"
@@ -532,7 +532,7 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
    */
   bool need_pg = (params->ground_actions || params->domain_constraints
 		  || params->heuristic.needs_planning_graph());
-  for (int i = 0; !need_pg && i < params->flaw_orders.size(); i++) {
+  for (size_t i = 0; !need_pg && i < params->flaw_orders.size(); i++) {
     if (params->flaw_orders[i].needs_planning_graph()) {
       need_pg = true;
     }
@@ -944,7 +944,6 @@ void Plan::refinements(PlanList& plans,
 
 /* Handles an unsafe link. */
 void Plan::handle_unsafe(PlanList& plans, const Unsafe& unsafe) const {
-  size_t num_prev_plans = plans.size();
   const Link& link = unsafe.link();
   StepTime lt1 = link.effect_time();
   StepTime lt2 = end_time(link.condition());
