@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: types.h,v 3.3 2002-03-18 09:41:21 lorens Exp $
+ * $Id: types.h,v 3.4 2002-03-18 09:41:29 lorens Exp $
  */
 #ifndef TYPES_H
 #define TYPES_H
@@ -43,13 +43,14 @@ struct SimpleType : public LessThanComparable, public Type {
   /* The object type. */
   static const SimpleType OBJECT;
 
-  /* Name of type. */
-  const string name;
-  /* Supertype */
-  const Type& supertype;
-
   /* Constructs a simple type with the given name. */
   explicit SimpleType(const string& name, const Type& supertype = OBJECT);
+
+  /* Returns the name of this type. */
+  const string& name() const { return name_; }
+
+  /* Returns the supertype of this type. */
+  const Type& supertype() const { return *supertype_; }
 
   /* Checks if this type is a subtype of the given type. */
   virtual bool subtype(const Type& t) const;
@@ -63,6 +64,12 @@ protected:
 
   /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
+
+private:
+  /* Name of type. */
+  string name_;
+  /* Supertype */
+  const Type* supertype_;
 };
 
 
@@ -98,8 +105,8 @@ struct UnionType : public Type {
   /* Constructs a singleton union type. */
   explicit UnionType(const SimpleType& type);
 
-  /* Constituent types. */
-  const TypeSet& types() const;
+  /* Returns the constituent types of this union type. */
+  const TypeSet& types() const { return types_; }
 
   /* Adds the given simple type to this union. */
   void add(const SimpleType& t);
