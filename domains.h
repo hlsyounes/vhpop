@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.h,v 4.9 2002-12-16 17:27:12 lorens Exp $
+ * $Id: domains.h,v 4.10 2002-12-17 18:30:44 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -151,7 +151,8 @@ struct Effect {
   EffectTime when() const { return when_; }
 
   /* Fills the provided list with instantiations of this effect. */
-  void instantiations(EffectList& effects, const SubstitutionList& subst,
+  void instantiations(EffectList& effects, size_t& useful,
+		      const SubstitutionList& subst,
 		      const Problem& problem) const;
 
   /* Fills the provided sets with predicates achievable by the
