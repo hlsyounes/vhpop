@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: flaws.h,v 3.1 2002-03-18 10:11:19 lorens Exp $
+ * $Id: flaws.h,v 3.2 2002-03-18 10:14:30 lorens Exp $
  */
 #ifndef FLAWS_H
 #define FLAWS_H
@@ -71,7 +71,7 @@ protected:
 
 private:
   /* Id of step to which this open condition belongs. */
-  const size_t step_id_;
+  size_t step_id_;
 #ifdef TRANSFORMATIONAL
   /* Reason for open condition. */
   const Reason* reason_;
@@ -188,7 +188,7 @@ private:
   /* Threatened link. */
   const Link* link_;
   /* Id of threatening step. */
-  const size_t step_id_;
+  size_t step_id_;
   /* Threatening effect. */
   const Effect* effect_;
   /* Specific part of effect that threatens link. */

@@ -13,10 +13,11 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: flaws.cc,v 1.6 2002-01-25 18:23:11 lorens Exp $
+ * $Id: flaws.cc,v 3.1 2002-03-18 10:11:24 lorens Exp $
  */
 #include "flaws.h"
 #include "plans.h"
+#include "reasons.h"
 #include "domains.h"
 #include "formulas.h"
 
@@ -26,12 +27,26 @@
 
 /* Constructs an open condition. */
 OpenCondition::OpenCondition(size_t step_id, const Reason& reason)
-  : step_id(step_id), reason(reason) {}
+  : step_id_(step_id) {
+#ifdef TRANSFORMATIONAL
+  reason_ = &reason;
+#endif
+}
+
+
+/* Returns the reason. */
+const Reason& OpenCondition::reason() const {
+#ifdef TRANSFORMATIONAL
+  return *reason_;
+#else
+  return Reason::DUMMY;
+#endif
+}
 
 
 /* Prints this open condition on the given stream. */
 void OpenCondition::print(ostream& os) const {
-  os << "#<OPEN " << condition() << " step " << step_id << ">";
+  os << "#<OPEN " << condition() << " step " << step_id() << ">";
 }
 
 
@@ -42,19 +57,19 @@ void OpenCondition::print(ostream& os) const {
 LiteralOpenCondition::LiteralOpenCondition(const Literal& cond,
 					   size_t step_id,
 					   const Reason& reason)
-  : OpenCondition(step_id, reason), literal(cond) {}
+  : OpenCondition(step_id, reason), literal_(&cond) {}
 
 
 /* Returns the open condition. */
 const Formula& LiteralOpenCondition::condition() const {
-  return literal;
+  return literal();
 }
 
 
 /* Checks if this is a static open condition. */
 bool LiteralOpenCondition::is_static(const Domain& domain) const {
-  return (step_id != Plan::GOAL_ID
-	  && domain.static_predicate(literal.predicate()));
+  return (step_id() != Plan::GOAL_ID
+	  && domain.static_predicate(literal().predicate()));
 }
 
 
@@ -65,12 +80,12 @@ bool LiteralOpenCondition::is_static(const Domain& domain) const {
 InequalityOpenCondition::InequalityOpenCondition(const Inequality& cond,
 						 size_t step_id,
 						 const Reason& reason)
-  : OpenCondition(step_id, reason), neq(cond) {}
+  : OpenCondition(step_id, reason), neq_(&cond) {}
 
 
 /* Returns the open condition. */
 const Formula& InequalityOpenCondition::condition() const {
-  return neq;
+  return neq();
 }
 
 
@@ -87,12 +102,12 @@ bool InequalityOpenCondition::is_static(const Domain& domain) const {
 DisjunctiveOpenCondition::DisjunctiveOpenCondition(const Disjunction& cond,
 						   size_t step_id,
 						   const Reason& reason)
-  : OpenCondition(step_id, reason), disjunction(cond) {}
+  : OpenCondition(step_id, reason), disjunction_(&cond) {}
 
 
 /* Returns the open condition. */
 const Formula& DisjunctiveOpenCondition::condition() const {
-  return disjunction;
+  return disjunction();
 }
 
 
@@ -108,10 +123,11 @@ bool DisjunctiveOpenCondition::is_static(const Domain& domain) const {
 /* Constructs a threatened causal link. */
 Unsafe::Unsafe(const Link& link, size_t step_id, const Effect& effect,
 	       const Literal& effect_add)
-  : link(link), step_id(step_id), effect(effect), effect_add(effect_add) {}
+  : link_(&link), step_id_(step_id),
+    effect_(&effect), effect_add_(&effect_add) {}
 
 
 /* Prints this threatened causal link on the given stream. */
 void Unsafe::print(ostream& os) const {
-  os << "#<UNSAFE " << link << " step " << step_id << ">";
+  os << "#<UNSAFE " << link() << " step " << step_id() << ">";
 }

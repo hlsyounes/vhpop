@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 3.6 2002-03-15 19:01:48 lorens Exp $
+ * $Id: formulas.h,v 3.7 2002-03-18 10:12:03 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -41,7 +41,7 @@ struct Variable;
 /*
  * Variable substitution.
  */
-struct Substitution : public Printable {
+struct Substitution {
   /* Constructs a substitution. */
   Substitution(const Variable& var, const Term& term);
 
@@ -50,10 +50,6 @@ struct Substitution : public Printable {
 
   /* Returns the term to substitute with. */
   const Term& term() const { return *term_; }
-
-protected:
-  /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const;
 
 private:
   /* Variable to get substituted. */

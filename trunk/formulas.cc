@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 3.6 2002-03-15 19:01:54 lorens Exp $
+ * $Id: formulas.cc,v 3.7 2002-03-18 10:11:45 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -65,12 +65,6 @@ struct EquivalentFormulas
 /* Constructs a substitution. */
 Substitution::Substitution(const Variable& var, const Term& term)
   : var_(&var), term_(&term) {}
-
-
-/* Prints this object on the given stream. */
-void Substitution::print(ostream& os) const {
-  os << '[' << var() << '/' << term() << ']';
-}
 
 
 /* ====================================================================== */
