@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 6.3 2003-07-21 02:20:50 lorens Exp $
+ * $Id: heuristics.cc,v 6.4 2003-07-28 01:37:07 lorens Exp $
  */
 #include "heuristics.h"
 #include "plans.h"
@@ -377,8 +377,8 @@ void Exists::heuristic_value(HeuristicValue& h,
 void Forall::heuristic_value(HeuristicValue& h,
 			     const PlanningGraph& pg, size_t step_id,
 			     const Bindings* b) const {
-  throw Exception("heuristic value of univerally quantified formula"
-		  " not implemented");
+  const Formula& f = universal_base(SubstitutionMap(), pg.problem());
+  f.heuristic_value(h, pg, step_id, b);
 }
 
 
@@ -398,7 +398,8 @@ void Condition::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
 /* PlanningGraph */
 
 /* Constructs a planning graph. */
-PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
+PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints)
+  : problem_(&problem) {
   /*
    * Find all consistent action instantiations.
    */
