@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 4.3 2002-09-18 02:40:33 lorens Exp $
+ * $Id: formulas.cc,v 4.4 2002-09-20 16:46:32 lorens Exp $
  */
 #include <typeinfo>
 #include <stack>
@@ -29,10 +29,18 @@
  */
 struct Substitutes
   : public binary_function<Substitution, const Variable*, bool> {
+  /* Constructs a substitutes binary predicate. */
+  Substitutes(size_t step_id)
+    : step_id_(step_id) {}
+
   /* Checks if the given substitution involves the given variable. */
   bool operator()(const Substitution& s, const Variable* v) const {
-    return s.var() == *v;
+    return s.var() == *v && s.var_id() == step_id_;
   }
+
+private:
+  /* Step id to use for variables. */
+  size_t step_id_;
 };
 
 
@@ -41,7 +49,13 @@ struct Substitutes
 
 /* Constructs a substitution. */
 Substitution::Substitution(const Variable& var, const Term& term)
-  : var_(&var), term_(&term) {}
+  : var_(&var), var_id_(0), term_(&term), term_id_(0) {}
+
+
+/* Constructs a substitution with assigned step ids. */
+Substitution::Substitution(const Variable& var, size_t var_id,
+			   const Term& term, size_t term_id)
+  : var_(&var), var_id_(var_id), term_(&term), term_id_(term_id) {}
 
 
 /* ====================================================================== */
@@ -54,29 +68,35 @@ Term::Term(const string& name, const Type& type)
 
 /* Deletes this term. */
 Term::~Term() {
-  if (typeid(*this) != typeid(StepVar)) {
-    const UnionType* ut = dynamic_cast<const UnionType*>(type_);
-    if (ut != NULL) {
-      delete ut;
-    }
+  const UnionType* ut = dynamic_cast<const UnionType*>(type_);
+  if (ut != NULL) {
+    delete ut;
   }
 }
 
 
 /* Checks if this object is less than the given object. */
 bool Term::less(const LessThanComparable& o) const {
-  if (typeid(o) == typeid(StepVar)) {
-    return true;
-  } else {
-    const Term& t = dynamic_cast<const Term&>(o);
-    return name() < t.name();
-  }
+  const Term& t = dynamic_cast<const Term&>(o);
+  return name() < t.name();
+}
+
+
+/* Checks if this object equals the given object. */
+bool Term::equals(const EqualityComparable& o) const {
+  return this == &o;
+}
+
+
+/* Returns the hash value of this object. */
+size_t Term::hash_value() const {
+  return size_t(this);
 }
 
 
 /* Prints this term on the given stream with the given bindings. */
-void Term::print(ostream& os, const Bindings& bindings) const {
-  os << bindings.binding(*this);
+void Term::print(ostream& os, size_t step_id, const Bindings& bindings) const {
+  os << bindings.binding(*this, step_id);
 }
 
 
@@ -94,128 +114,49 @@ Name::Name(const string& name, const Type& type)
   : Term(name, type) {}
 
 
-/* Returns an instantiation of this term. */
-const Name& Name::instantiation(size_t id) const {
-  return *this;
-}
-
-
 /* Returns this term subject to the given substitutions. */
-const Name& Name::substitution(const SubstitutionList& subst) const {
+const Name& Name::substitution(const SubstitutionList& subst,
+			       size_t step_id) const {
   return *this;
-}
-
-
-/* Checks if this object equals the given object. */
-bool Name::equals(const EqualityComparable& o) const {
-  return this == &o;
-}
-
-
-/* Returns the hash value of this object. */
-size_t Name::hash_value() const {
-  return size_t(this);
 }
 
 
 /* ====================================================================== */
 /* Variable */
 
-/* Constructs a variable with the given name. */
-Variable::Variable(const string& name)
-  : Term(name, SimpleType::OBJECT) {}
-
-
 /* Constructs a variable with the given name and type. */
 Variable::Variable(const string& name, const Type& type)
   : Term(name, type) {}
 
 
-/* Returns an instantiation of this term. */
-const Variable& Variable::instantiation(size_t id) const {
-  return *(new StepVar(*this, id));
-}
-
-
 /* Returns this term subject to the given substitutions. */
-const Term& Variable::substitution(const SubstitutionList& subst) const {
+const Term& Variable::substitution(const SubstitutionList& subst,
+				   size_t step_id) const {
   SubstListIter si = find_if(subst.begin(), subst.end(),
-			     bind2nd(Substitutes(), this));
+			     bind2nd(Substitutes(step_id), this));
   return (si != subst.end()) ? (*si).term() : *this;
-}
-
-
-/* Checks if this object equals the given object. */
-bool Variable::equals(const EqualityComparable& o) const {
-  return this == &o;
-}
-
-
-/* Returns the hash value of this object. */
-size_t Variable::hash_value() const {
-  return size_t(this);
-}
-
-
-/* ====================================================================== */
-/* StepVar */
-
-/* Constructs an instantiated variable. */
-StepVar::StepVar(const Variable& var, size_t id)
-  : Variable(var), id_(id) {}
-
-
-/* Checks if this object is less than the given object. */
-bool StepVar::less(const LessThanComparable& o) const {
-  if (typeid(o) != typeid(StepVar)) {
-    return false;
-  } else {
-    const StepVar& vt = dynamic_cast<const StepVar&>(o);
-    return id() < vt.id() || (id() == vt.id() && name() < vt.name());
-  }
-}
-
-
-/* Checks if this object equals the given object. */
-bool StepVar::equals(const EqualityComparable& o) const {
-  const StepVar* vt = dynamic_cast<const StepVar*>(&o);
-  return vt != NULL && id() == vt->id() && name() == vt->name();
-}
-
-
-/* Returns the hash value of this object. */
-size_t StepVar::hash_value() const {
-  return 5*hash<string>()(name()) + id();
-}
-
-
-/* Prints this object on the given stream. */
-void StepVar::print(ostream& os) const {
-  os << name() << '(' << id() << ')';
 }
 
 
 /* ====================================================================== */
 /* TermList */
 
-/* Returns an instantiation of this term list. */
-const TermList& TermList::instantiation(size_t id) const {
-  TermList& terms = *(new TermList());
-  for (const_iterator ti = begin(); ti != end(); ti++) {
-    terms.push_back(&(*ti)->instantiation(id));
-  }
-  return terms;
-}
-
-
 /* Returns this term list subject to the given substitutions. */
-const TermList& TermList::substitution(const SubstitutionList& subst) const {
+const TermList& TermList::substitution(const SubstitutionList& subst,
+				       size_t step_id) const {
   TermList& terms = *(new TermList());
   for (const_iterator ti = begin(); ti != end(); ti++) {
-    terms.push_back(&(*ti)->substitution(subst));
+    terms.push_back(&(*ti)->substitution(subst, step_id));
   }
   return terms;
 }
+
+
+/* ====================================================================== */
+/* NameList */
+
+/* An empty name list. */
+const NameList NameList::EMPTY = NameList();
 
 
 /* ====================================================================== */
@@ -223,20 +164,6 @@ const TermList& TermList::substitution(const SubstitutionList& subst) const {
 
 /* An empty variable list. */
 const VariableList VariableList::EMPTY = VariableList();
-
-
-/* Returns an instantiation of this variable list. */
-const VariableList& VariableList::instantiation(size_t id) const {
-  if (empty()) {
-    return EMPTY;
-  } else {
-    VariableList& variables = *(new VariableList());
-    for (const_iterator vi = begin(); vi != end(); vi++) {
-      variables.push_back(&(*vi)->instantiation(id));
-    }
-    return variables;
-  }
-}
 
 
 /* ====================================================================== */
@@ -336,16 +263,6 @@ FormulaList::FormulaList(const Formula* formula)
   : vector<const Formula*>(1, formula) {}
 
 
-/* Returns an instantiation of this formula list. */
-const FormulaList& FormulaList::instantiation(size_t id) const {
-  FormulaList& formulas = *(new FormulaList());
-  for (const_iterator i = begin(); i != end(); i++) {
-    formulas.push_back(&(*i)->instantiation(id));
-  }
-  return formulas;
-}
-
-
 /* Returns the negation of this formula list. */
 const FormulaList& FormulaList::negation() const {
   FormulaList& formulas = *(new FormulaList());
@@ -378,12 +295,6 @@ const Formula& Constant::separate(const Literal& literal) const {
 
 
 /* Returns an instantiation of this formula. */
-const Constant& Constant::instantiation(size_t id) const {
-  return *this;
-}
-
-
-/* Returns an instantiation of this formula. */
 const Constant& Constant::instantiation(const SubstitutionList& subst,
 					const Problem& problem) const {
   return *this;
@@ -391,7 +302,8 @@ const Constant& Constant::instantiation(const SubstitutionList& subst,
 
 
 /* Returns this formula subject to the given substitutions. */
-const Constant& Constant::substitution(const SubstitutionList& subst) const {
+const Constant& Constant::substitution(const SubstitutionList& subst,
+				       size_t step_id) const {
   return *this;
 }
 
@@ -403,7 +315,8 @@ const Constant& Constant::strip_static(const Domain& domain) const {
 
 
 /* Prints this formula on the given stream with the given bindings. */
-void Constant::print(ostream& os, const Bindings& bindings) const {
+void Constant::print(ostream& os, size_t step_id,
+		     const Bindings& bindings) const {
   print(os);
 }
 
@@ -434,7 +347,7 @@ const Formula& Literal::separate(const Literal& literal) const {
   if (when() == literal.when()
       || when() == OVER_ALL || literal.when() == OVER_ALL) {
     SubstitutionList mgu;
-    if (Bindings::unifiable(mgu, *this, literal)) {
+    if (Bindings::unifiable(mgu, *this, 0, literal, 0)) {
       const Formula* sep = &FALSE;
       for (SubstListIter si = mgu.begin(); si != mgu.end(); si++) {
 	const Substitution& subst = *si;
@@ -469,21 +382,15 @@ Atom::Atom(const Predicate& predicate, const TermList& terms, FormulaTime when)
 
 
 /* Returns an instantiation of this formula. */
-const Atom& Atom::instantiation(size_t id) const {
-  return *(new Atom(predicate(), terms().instantiation(id), when()));
-}
-
-
-/* Returns an instantiation of this formula. */
 const Formula& Atom::instantiation(const SubstitutionList& subst,
 				   const Problem& problem) const {
-  const Atom& f = substitution(subst);
+  const Atom& f = substitution(subst, 0);
   if (problem.domain().static_predicate(predicate())) {
     const AtomList& adds = problem.init().add_list();
     for (AtomListIter gi = adds.begin(); gi != adds.end(); gi++) {
       if (f == **gi) {
 	return TRUE;
-      } else if (Bindings::unifiable(f, **gi)) {
+      } else if (Bindings::unifiable(f, 0, **gi, 0)) {
 	return f;
       }
     }
@@ -500,8 +407,10 @@ const Formula& Atom::instantiation(const SubstitutionList& subst,
 
 
 /* Returns this formula subject to the given substitutions. */
-const Atom& Atom::substitution(const SubstitutionList& subst) const {
-  return *(new Atom(predicate(), terms().substitution(subst), when()));
+const Atom& Atom::substitution(const SubstitutionList& subst,
+			       size_t step_id) const {
+  return *(new Atom(predicate(), terms().substitution(subst, step_id),
+		    when()));
 }
 
 
@@ -527,11 +436,11 @@ size_t Atom::hash_value() const {
 
 
 /* Prints this formula on the given stream with the given bindings. */
-void Atom::print(ostream& os, const Bindings& bindings) const {
+void Atom::print(ostream& os, size_t step_id, const Bindings& bindings) const {
   os << '(' << predicate().name();
   for (TermListIter ti = terms().begin(); ti != terms().end(); ti++) {
     os << ' ';
-    (*ti)->print(os, bindings);
+    (*ti)->print(os, step_id, bindings);
   }
   os << ')';
 }
@@ -560,12 +469,6 @@ Negation::Negation(const Atom& atom)
 
 
 /* Returns an instantiation of this formula. */
-const Negation& Negation::instantiation(size_t id) const {
-  return *(new Negation(atom().instantiation(id)));
-}
-
-
-/* Returns an instantiation of this formula. */
 const Formula& Negation::instantiation(const SubstitutionList& subst,
 				       const Problem& problem) const {
   return !atom().instantiation(subst, problem);
@@ -573,8 +476,9 @@ const Formula& Negation::instantiation(const SubstitutionList& subst,
 
 
 /* Returns this formula subject to the given substitutions. */
-const Negation& Negation::substitution(const SubstitutionList& subst) const {
-  return *(new Negation(atom().substitution(subst)));
+const Negation& Negation::substitution(const SubstitutionList& subst,
+				       size_t step_id) const {
+  return *(new Negation(atom().substitution(subst, step_id)));
 }
 
 
@@ -592,9 +496,10 @@ size_t Negation::hash_value() const {
 
 
 /* Prints this formula on the given stream with the given bindings. */
-void Negation::print(ostream& os, const Bindings& bindings) const {
+void Negation::print(ostream& os, size_t step_id,
+		     const Bindings& bindings) const {
   os << "(not ";
-  atom().print(os, bindings);
+  atom().print(os, step_id, bindings);
   os << ")";
 }
 
@@ -615,8 +520,9 @@ const Literal& Negation::negation() const {
 /* BindingLiteral */
 
 /* Constructs a binding literal. */
-BindingLiteral::BindingLiteral(const Term& term1, const Term& term2)
-  : term1_(&term1), term2_(&term2) {}
+BindingLiteral::BindingLiteral(const Term& term1, size_t id1,
+			       const Term& term2, size_t id2)
+  : term1_(&term1), id1_(id1), term2_(&term2), id2_(id2) {}
 
 
 /* Returns a formula that separates the given literal from anything
@@ -631,34 +537,32 @@ const Formula& BindingLiteral::separate(const Literal& literal) const {
 
 /* Constructs an equality. */
 Equality::Equality(const Term& term1, const Term& term2)
-  : BindingLiteral(term1, term2) {}
+  : BindingLiteral(term1, 0, term2, 0) {}
 
 
-/* Returns the instantiation of this formula. */
-const Equality& Equality::instantiation(size_t id) const {
-  const Term& t1 = term1().instantiation(id);
-  const Term& t2 = term2().instantiation(id);
-  return ((&t1 == &term1() && &t2 == &term2())
-	  ? *this : *(new Equality(t1, t2)));
-}
+/* Constructs an equality with assigned step ids. */
+Equality::Equality(const Term& term1, size_t id1,
+		   const Term& term2, size_t id2)
+  : BindingLiteral(term1, id1, term2, id2) {}
 
 
 /* Returns an instantiation of this formula. */
 const Formula& Equality::instantiation(const SubstitutionList& subst,
 				       const Problem& problem) const {
-  return substitution(subst);
+  return substitution(subst, 0);
 }
 
 
 /* Returns this formula subject to the given substitutions. */
-const Formula& Equality::substitution(const SubstitutionList& subst) const {
-  const Term& t1 = term1().substitution(subst);
-  const Term& t2 = term2().substitution(subst);
+const Formula& Equality::substitution(const SubstitutionList& subst,
+				      size_t step_id) const {
+  const Term& t1 = term1().substitution(subst, step_id);
+  const Term& t2 = term2().substitution(subst, step_id);
   if (typeid(t1) == typeid(Name) && typeid(t2) == typeid(Name)) {
     return (t1 == t2) ? TRUE : FALSE;
   } else {
     return ((&t1 == &term1() && &t2 == &term2())
-	    ? *this : *(new Equality(t1, t2)));
+	    ? *this : *(new Equality(t1, step_id1(0), t2, step_id2(0))));
   }
 }
 
@@ -670,11 +574,12 @@ const Formula& Equality::strip_static(const Domain& domain) const {
 
 
 /* Prints this formula on the given stream with the given bindings. */
-void Equality::print(ostream& os, const Bindings& bindings) const {
+void Equality::print(ostream& os, size_t step_id,
+		     const Bindings& bindings) const {
   os << "(= ";
-  term1().print(os, bindings);
+  term1().print(os, step_id, bindings);
   os << ' ';
-  term2().print(os, bindings);
+  term2().print(os, step_id, bindings);
   os << ")";
 }
 
@@ -687,7 +592,7 @@ void Equality::print(ostream& os) const {
 
 /* Returns the negation of this formula. */
 const BindingLiteral& Equality::negation() const {
-  return *(new Inequality(term1(), term2()));
+  return *(new Inequality(term1(), step_id1(0), term2(), step_id2(0)));
 }
 
 
@@ -696,34 +601,32 @@ const BindingLiteral& Equality::negation() const {
 
 /* Constructs an inequality. */
 Inequality::Inequality(const Term& term1, const Term& term2)
-  : BindingLiteral(term1, term2) {}
+  : BindingLiteral(term1, 0, term2, 0) {}
 
 
-/* Returns an instantiation of this formula. */
-const Inequality& Inequality::instantiation(size_t id) const {
-  const Term& t1 = term1().instantiation(id);
-  const Term& t2 = term2().instantiation(id);
-  return ((&t1 == &term1() && &t2 == &term2())
-	  ? *this : *(new Inequality(t1, t2)));
-}
+/* Constructs an inequality with assigned step ids. */
+Inequality::Inequality(const Term& term1, size_t id1,
+		       const Term& term2, size_t id2)
+  : BindingLiteral(term1, id1, term2, id2) {}
 
 
 /* Returns an instantiation of this formula. */
 const Formula& Inequality::instantiation(const SubstitutionList& subst,
 					 const Problem& problem) const {
-  return substitution(subst);
+  return substitution(subst, 0);
 }
 
 
 /* Returns this formula subject to the given substitutions. */
-const Formula& Inequality::substitution(const SubstitutionList& subst) const {
-  const Term& t1 = term1().substitution(subst);
-  const Term& t2 = term2().substitution(subst);
+const Formula& Inequality::substitution(const SubstitutionList& subst,
+					size_t step_id) const {
+  const Term& t1 = term1().substitution(subst, step_id);
+  const Term& t2 = term2().substitution(subst, step_id);
   if (typeid(t1) == typeid(Name) && typeid(t2) == typeid(Name)) {
     return (t1 != t2) ? TRUE : FALSE;
   } else {
     return ((&t1 == &term1() && &t2 == &term2())
-	    ? *this : *(new Inequality(t1, t2)));
+	    ? *this : *(new Inequality(t1, step_id1(0), t2, step_id2(0))));
   }
 }
 
@@ -735,11 +638,12 @@ const Formula& Inequality::strip_static(const Domain& domain) const {
 
 
 /* Prints this formula on the given stream with the given bindings. */
-void Inequality::print(ostream& os, const Bindings& bindings) const {
+void Inequality::print(ostream& os, size_t step_id,
+		       const Bindings& bindings) const {
   os << "(not (= ";
-  term1().print(os, bindings);
+  term1().print(os, step_id, bindings);
   os << ' ';
-  term2().print(os, bindings);
+  term2().print(os, step_id, bindings);
   os << "))";
 }
 
@@ -752,7 +656,7 @@ void Inequality::print(ostream& os) const {
 
 /* Returns the negation of this formula. */
 const BindingLiteral& Inequality::negation() const {
-  return *(new Equality(term1(), term2()));
+  return *(new Equality(term1(), step_id1(0), term2(), step_id2(0)));
 }
 
 
@@ -777,12 +681,6 @@ const Formula& Conjunction::separate(const Literal& literal) const {
 
 
 /* Returns an instantiation of this formula. */
-const Conjunction& Conjunction::instantiation(size_t id) const {
-  return *(new Conjunction(conjuncts().instantiation(id)));
-}
-
-
-/* Returns an instantiation of this formula. */
 const Formula& Conjunction::instantiation(const SubstitutionList& subst,
 					  const Problem& problem) const {
   const Formula* c = &TRUE;
@@ -795,11 +693,12 @@ const Formula& Conjunction::instantiation(const SubstitutionList& subst,
 
 
 /* Returns this formula subject to the given substitutions. */
-const Formula& Conjunction::substitution(const SubstitutionList& subst) const {
+const Formula& Conjunction::substitution(const SubstitutionList& subst,
+					 size_t step_id) const {
   const Formula* c = &TRUE;
   for (FormulaListIter fi = conjuncts().begin();
        fi != conjuncts().end() && !c->contradiction(); fi++) {
-    c = &(*c && (*fi)->substitution(subst));
+    c = &(*c && (*fi)->substitution(subst, step_id));
   }
   return *c;
 }
@@ -817,12 +716,13 @@ const Formula& Conjunction::strip_static(const Domain& domain) const {
 
 
 /* Prints this formula on the given stream with the given bindings. */
-void Conjunction::print(ostream& os, const Bindings& bindings) const {
+void Conjunction::print(ostream& os, size_t step_id,
+			const Bindings& bindings) const {
   os << "(and";
   for (FormulaListIter fi = conjuncts().begin();
        fi != conjuncts().end(); fi++) {
     os << ' ';
-    (*fi)->print(os, bindings);
+    (*fi)->print(os, step_id, bindings);
   }
   os << ")";
 }
@@ -866,12 +766,6 @@ const Formula& Disjunction::separate(const Literal& literal) const {
 
 
 /* Returns an instantiation of this formula. */
-const Disjunction& Disjunction::instantiation(size_t id) const {
-  return *(new Disjunction(disjuncts().instantiation(id)));
-}
-
-
-/* Returns an instantiation of this formula. */
 const Formula& Disjunction::instantiation(const SubstitutionList& subst,
 					  const Problem& problem) const {
   const Formula* d = &FALSE;
@@ -884,11 +778,12 @@ const Formula& Disjunction::instantiation(const SubstitutionList& subst,
 
 
 /* Returns this formula subject to the given substitutions. */
-const Formula& Disjunction::substitution(const SubstitutionList& subst) const {
+const Formula& Disjunction::substitution(const SubstitutionList& subst,
+					 size_t step_id) const {
   const Formula* d = &FALSE;
   for (FormulaListIter fi = disjuncts().begin();
        fi != disjuncts().end() && d->tautology(); fi++) {
-    d = &(*d || (*fi)->substitution(subst));
+    d = &(*d || (*fi)->substitution(subst, step_id));
   }
   return *d;
 }
@@ -906,12 +801,13 @@ const Formula& Disjunction::strip_static(const Domain& domain) const {
 
 
 /* Prints this formula on the given stream with the given bindings. */
-void Disjunction::print(ostream& os, const Bindings& bindings) const {
+void Disjunction::print(ostream& os, size_t step_id,
+			const Bindings& bindings) const {
   os << "(or";
   for (FormulaListIter fi = disjuncts().begin();
        fi != disjuncts().end(); fi++) {
     os << ' ';
-    (*fi)->print(os, bindings);
+    (*fi)->print(os, step_id, bindings);
   }
   os << ")";
 }
@@ -962,13 +858,6 @@ const Formula& QuantifiedFormula::separate(const Literal& literal) const {
 ExistsFormula::ExistsFormula(const VariableList& parameters,
 			     const Formula& body)
   : QuantifiedFormula(parameters, body) {}
-
-
-/* Returns an instantiation of this formula. */
-const ExistsFormula& ExistsFormula::instantiation(size_t id) const {
-  return *(new ExistsFormula(parameters().instantiation(id),
-			     body().instantiation(id)));
-}
 
 
 /* Returns an instantiation of this formula. */
@@ -1024,8 +913,9 @@ const Formula& ExistsFormula::instantiation(const SubstitutionList& subst,
 
 /* Returns this formula subject to the given substitutions. */
 const Formula&
-ExistsFormula::substitution(const SubstitutionList& subst) const {
-  const Formula& b = body().substitution(subst);
+ExistsFormula::substitution(const SubstitutionList& subst,
+			    size_t step_id) const {
+  const Formula& b = body().substitution(subst, step_id);
   return (b.constant()
 	  ? b : (const Formula&) *(new ExistsFormula(parameters(), b)));
 }
@@ -1040,17 +930,18 @@ const Formula& ExistsFormula::strip_static(const Domain& domain) const {
 
 
 /* Prints this formula on the given stream with the given bindings. */
-void ExistsFormula::print(ostream& os, const Bindings& bindings) const {
+void ExistsFormula::print(ostream& os, size_t step_id,
+			  const Bindings& bindings) const {
   os << "(exists (";
   for (VarListIter vi = parameters().begin(); vi != parameters().end(); vi++) {
     if (vi != parameters().begin()) {
       os << ' ';
     }
-    (*vi)->print(os, bindings);
+    (*vi)->print(os, step_id, bindings);
     os << " - " << (*vi)->type();
   }
   os << ") ";
-  body().print(os, bindings);
+  body().print(os, step_id, bindings);
   os << ")";
 }
 
@@ -1081,13 +972,6 @@ const QuantifiedFormula& ExistsFormula::negation() const {
 ForallFormula::ForallFormula(const VariableList& parameters,
 			     const Formula& body)
   : QuantifiedFormula(parameters, body) {}
-
-
-/* Returns an instantiation of this formula. */
-const ForallFormula& ForallFormula::instantiation(size_t id) const {
-  return *(new ForallFormula(parameters().instantiation(id),
-			     body().instantiation(id)));
-}
 
 
 /* Returns an instantiation of this formula. */
@@ -1143,8 +1027,9 @@ const Formula& ForallFormula::instantiation(const SubstitutionList& subst,
 
 /* Returns this formula subject to the given substitutions. */
 const Formula&
-ForallFormula::substitution(const SubstitutionList& subst) const {
-  const Formula& b = body().substitution(subst);
+ForallFormula::substitution(const SubstitutionList& subst,
+			    size_t step_id) const {
+  const Formula& b = body().substitution(subst, step_id);
   return (b.constant()
 	  ? b : (const Formula&) *(new ForallFormula(parameters(), b)));
 }
@@ -1159,17 +1044,18 @@ const Formula& ForallFormula::strip_static(const Domain& domain) const {
 
 
 /* Prints this formula on the given stream with the given bindings. */
-void ForallFormula::print(ostream& os, const Bindings& bindings) const {
+void ForallFormula::print(ostream& os, size_t step_id,
+			  const Bindings& bindings) const {
   os << "(forall (";
   for (VarListIter vi = parameters().begin(); vi != parameters().end(); vi++) {
     if (vi != parameters().begin()) {
       os << ' ';
     }
-    (*vi)->print(os, bindings);
+    (*vi)->print(os, step_id, bindings);
     os << " - " << (*vi)->type();
   }
   os << ") ";
-  body().print(os, bindings);
+  body().print(os, step_id, bindings);
   os << ")";
 }
 
@@ -1209,28 +1095,15 @@ AtomList::AtomList(const Atom* atom)
   : vector<const Atom*>(1, atom) {}
 
 
-/* Returns an instantiation of this atom list. */
-const AtomList& AtomList::instantiation(size_t id) const {
-  if (empty()) {
-    return EMPTY;
-  } else {
-    AtomList& atoms = *(new AtomList());
-    for (const_iterator i = begin(); i != end(); i++) {
-      atoms.push_back(&(*i)->instantiation(id));
-    }
-    return atoms;
-  }
-}
-
-
 /* Returns this atom list subject to the given substitutions. */
-const AtomList& AtomList::substitution(const SubstitutionList& subst) const {
+const AtomList& AtomList::substitution(const SubstitutionList& subst,
+				       size_t step_id) const {
   if (empty()) {
     return EMPTY;
   } else {
     AtomList& atoms = *(new AtomList());
     for (const_iterator i = begin(); i != end(); i++) {
-      atoms.push_back(&(*i)->substitution(subst));
+      atoms.push_back(&(*i)->substitution(subst, step_id));
     }
     return atoms;
   }
@@ -1253,29 +1126,16 @@ NegationList::NegationList(const Atom* atom)
   : vector<const Negation*>(1, new Negation(*atom)) {}
 
 
-/* Returns an instantiation of this negation list. */
-const NegationList& NegationList::instantiation(size_t id) const {
-  if (empty()) {
-    return EMPTY;
-  } else {
-    NegationList& negations = *(new NegationList());
-    for (const_iterator i = begin(); i != end(); i++) {
-      negations.push_back(&(*i)->instantiation(id));
-    }
-    return negations;
-  }
-}
-
-
 /* Returns this negation list subject to the given substitutions. */
 const NegationList&
-NegationList::substitution(const SubstitutionList& subst) const {
+NegationList::substitution(const SubstitutionList& subst,
+			   size_t step_id) const {
   if (empty()) {
     return EMPTY;
   } else {
     NegationList& negations = *(new NegationList());
     for (const_iterator i = begin(); i != end(); i++) {
-      negations.push_back(&(*i)->substitution(subst));
+      negations.push_back(&(*i)->substitution(subst, step_id));
     }
     return negations;
   }
