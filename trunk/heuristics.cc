@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 3.9 2002-03-23 19:10:18 lorens Exp $
+ * $Id: heuristics.cc,v 3.10 2002-04-02 17:32:45 lorens Exp $
  */
 #include "heuristics.h"
 #include "plans.h"
@@ -456,7 +456,7 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
   GroundActionList actions;
   problem.instantiated_actions(actions);
   if (verbosity > 0) {
-    cout << endl << "instantiated actions: " << actions.size() << endl;
+    cout << endl << ";instantiated actions: " << actions.size() << endl;
   }
 
   /*
@@ -484,14 +484,14 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
       /*
        * Print literal values at this level.
        */
-      cout << "Literal values at level " << level << ":" << endl;
+      cout << ";Literal values at level " << level << ":" << endl;
       for (AtomValueMapIter vi = atom_values.begin();
 	   vi != atom_values.end(); vi++) {
-	cout << "  " << *(*vi).first << " -- " << (*vi).second << endl;
+	cout << ";  " << *(*vi).first << " -- " << (*vi).second << endl;
       }
       for (AtomValueMapIter vi = negation_values.begin();
 	   vi != negation_values.end(); vi++) {
-	cout << "  " << !*(*vi).first << " -- " << (*vi).second << endl;
+	cout << ";  " << !*(*vi).first << " -- " << (*vi).second << endl;
       }
     }
     level++;
@@ -551,7 +551,7 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
 	      if (achieves.find(make_pair(&atom, &action)) == achieves.end()) {
 		achieves.insert(make_pair(&atom, &action));
 		if (verbosity > 4) {
-		  cout << "  " << action.action_formula() << " achieves "
+		  cout << ";  " << action.action_formula() << " achieves "
 		       << atom << endl;
 		}
 	      }
@@ -589,7 +589,7 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
 		  == achieves.end()) {
 		achieves.insert(make_pair(&negation, &action));
 		if (verbosity > 4) {
-		  cout << "  " << action.action_formula() << " achieves "
+		  cout << ";  " << action.action_formula() << " achieves "
 		       << negation << endl;
 		}
 	      }
@@ -664,7 +664,7 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
     /*
      * Print statistics.
      */
-    cout << "applicable actions: " << applicable_actions.size() << endl;
+    cout << ";applicable actions: " << applicable_actions.size() << endl;
     if (verbosity > 2) {
       /*
        * Print applicable actions.
@@ -673,22 +673,63 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
 	     applicable_actions.begin();
 	   ai != applicable_actions.end(); ai++) {
 	if (verbosity > 3) {
-	  cout << "  " << **ai << endl;
+	  cout << ";  " << **ai << endl;
 	} else {
-	  cout << "  " << (*ai)->action_formula() << endl;
+	  cout << ";  " << (*ai)->action_formula() << endl;
 	}
       }
+    }
+#if 0
+    typedef hash_map<const Atom*, size_t, hash<const Literal*>,
+      equal_to<const Literal*> > AtomCount;
+    AtomCount atom_count;
+    AtomCount negation_count;
+    for (AtomListIter gi = problem.init.add_list.begin();
+	 gi != problem.init.add_list.end(); gi++) {
+      const Atom* atom = *gi;
+      atom_count[atom] = 1;
+    }
+    for (LiteralActionsMapIter i = achieves.begin();
+	 i != achieves.end(); i++) {
+      const Literal* l = (*i).first;
+      const Atom* atom = dynamic_cast<const Atom*>(l);
+      if (atom != NULL) {
+	atom_count[atom]++;
+      } else {
+	const Negation& neg = dynamic_cast<const Negation&>(*l);
+	negation_count[&neg.atom]++;
+      }
+    }
+    cout << ";achievable literals: "
+	 << (atom_count.size() + negation_count.size())
+	 << " (" << atom_count.size() << " + " << negation_count.size() << ")"
+	 << endl;
+    if (!atom_count.empty()) {
+      float sum = 0.0;
+      for (AtomCount::const_iterator i = atom_count.begin();
+	   i != atom_count.end(); i++) {
+	const Atom* atom = (*i).first;
+	size_t an = (*i).second;
+	AtomCount::const_iterator ni = negation_count.find(atom);
+	if (ni != negation_count.end()) {
+	  size_t nn = (*ni).second;
+	  sum += float(nn)/an;
+	}
+      }
+      cout << ";clobber factor: " << (sum/atom_count.size()) << endl;
+    }
+#endif
+    if (verbosity > 2) {
       /*
        * Print literal values.
        */
-      cout << "Literal values:" << endl;
       for (AtomValueMapIter vi = atom_values.begin();
 	   vi != atom_values.end(); vi++) {
-	cout << "  " << *(*vi).first << " -- " << (*vi).second << endl;
+	cout << ";  " << *(*vi).first << " -- " << (*vi).second << endl;
       }
       for (AtomValueMapIter vi = negation_values.begin();
 	   vi != negation_values.end(); vi++) {
-	cout << "  " << !*(*vi).first << " -- " << (*vi).second << endl;
+	cout << ";  " << !*(*vi).first << " -- " << (*vi).second << endl;
       }
     }
   }
@@ -1618,7 +1659,7 @@ int FlawSelectionOrder::select_unsafe(FlawSelection& selection,
        uc != NULL && first_criterion <= last_criterion; uc = uc->tail) {
     const Unsafe& unsafe = uc->head;
     if (verbosity > 1) {
-      cout << "(considering " << unsafe << ")" << endl;
+      cout << ";(considering " << unsafe << ")" << endl;
     }
     int refinements = -1;
     int separable = -1;
@@ -1652,7 +1693,7 @@ int FlawSelectionOrder::select_unsafe(FlawSelection& selection,
 	    selection.criterion = c;
 	    last_criterion = c - 1;
 	    if (verbosity > 1) {
-	      cout << "selecting " << unsafe << " by criterion "
+	      cout << ";selecting " << unsafe << " by criterion "
 		   << criterion << endl;
 	    }
 	    break;
@@ -1661,7 +1702,7 @@ int FlawSelectionOrder::select_unsafe(FlawSelection& selection,
 	    selection.criterion = c;
 	    last_criterion = c;
 	    if (verbosity > 1) {
-	      cout << "selecting " << unsafe << " by criterion "
+	      cout << ";selecting " << unsafe << " by criterion "
 		   << criterion << endl;
 	    }
 	    break;
@@ -1676,7 +1717,7 @@ int FlawSelectionOrder::select_unsafe(FlawSelection& selection,
 	      selection.criterion = c;
 	      last_criterion = c;
 	      if (verbosity > 1) {
-		cout << "selecting " << unsafe << " by criterion "
+		cout << ";selecting " << unsafe << " by criterion "
 		     << criterion << endl;
 	      }
 	    }
@@ -1693,7 +1734,7 @@ int FlawSelectionOrder::select_unsafe(FlawSelection& selection,
 	      selection.rank = refinements;
 	      last_criterion = (refinements == 0) ? c - 1 : c;
 	      if (verbosity > 1) {
-		cout << "selecting " << unsafe << " by criterion "
+		cout << ";selecting " << unsafe << " by criterion "
 		     << criterion << " with rank " << refinements << endl;
 	      }
 	    }
@@ -1708,7 +1749,7 @@ int FlawSelectionOrder::select_unsafe(FlawSelection& selection,
 	      selection.rank = refinements;
 	      last_criterion = (refinements == 3) ? c - 1 : c;
 	      if (verbosity > 1) {
-		cout << "selecting " << unsafe << " by criterion "
+		cout << ";selecting " << unsafe << " by criterion "
 		     << criterion << " with rank " << refinements << endl;
 	      }
 	    }
@@ -1790,7 +1831,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
        occ != NULL && first_criterion <= last_criterion; occ = occ->tail) {
     const OpenCondition& open_cond = occ->head;
     if (verbosity > 1) {
-      cout << "(considering " << open_cond << ")" << endl;
+      cout << ";(considering " << open_cond << ")" << endl;
     }
     if (local_id == 0) {
       local_id = open_cond.step_id();
@@ -1836,7 +1877,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 	    selection.criterion = c;
 	    last_criterion = c - 1;
 	    if (verbosity > 1) {
-	      cout << "selecting " << open_cond << " by criterion "
+	      cout << ";selecting " << open_cond << " by criterion "
 		   << criterion << endl;
 	    }
 	    break;
@@ -1845,7 +1886,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 	    selection.criterion = c;
 	    last_criterion = c;
 	    if (verbosity > 1) {
-	      cout << "selecting " << open_cond << " by criterion "
+	      cout << ";selecting " << open_cond << " by criterion "
 		   << criterion << endl;
 	    }
 	    break;
@@ -1860,7 +1901,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 	      selection.criterion = c;
 	      last_criterion = c;
 	      if (verbosity > 1) {
-		cout << "selecting " << open_cond << " by criterion "
+		cout << ";selecting " << open_cond << " by criterion "
 		     << criterion << endl;
 	      }
 	    }
@@ -1877,7 +1918,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 	      selection.rank = refinements;
 	      last_criterion = (refinements == 0) ? c - 1 : c;
 	      if (verbosity > 1) {
-		cout << "selecting " << open_cond << " by criterion "
+		cout << ";selecting " << open_cond << " by criterion "
 		     << criterion << " with rank " << refinements << endl;
 	      }
 	    }
@@ -1892,7 +1933,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 	      selection.rank = refinements;
 	      last_criterion = c;
 	      if (verbosity > 1) {
-		cout << "selecting " << open_cond << " by criterion "
+		cout << ";selecting " << open_cond << " by criterion "
 		     << criterion << " with rank " << refinements << endl;
 	      }
 	    }
@@ -1914,7 +1955,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 		selection.criterion = c;
 		last_criterion = has_new ? c - 1 : c;
 		if (verbosity > 1) {
-		  cout << "selecting " << open_cond << " by criterion "
+		  cout << ";selecting " << open_cond << " by criterion "
 		       << criterion;
 		  if (has_new) {
 		    cout << " with new";
@@ -1941,7 +1982,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 		selection.criterion = c;
 		last_criterion = has_reuse ? c - 1 : c;
 		if (verbosity > 1) {
-		  cout << "selecting " << open_cond << " by criterion "
+		  cout << ";selecting " << open_cond << " by criterion "
 		       << criterion;
 		  if (has_reuse) {
 		    cout << " with reuse";
@@ -1964,7 +2005,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 		selection.rank = rank;
 		last_criterion = (rank == 0) ? c - 1 : c;
 		if (verbosity > 1) {
-		  cout << "selecting " << open_cond << " by criterion "
+		  cout << ";selecting " << open_cond << " by criterion "
 		       << criterion << " with rank " << rank << endl;
 		}
 	      }
@@ -1983,7 +2024,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 		selection.rank = rank;
 		last_criterion = c;
 		if (verbosity > 1) {
-		  cout << "selecting " << open_cond << " by criterion "
+		  cout << ";selecting " << open_cond << " by criterion "
 		       << criterion << " with rank " << rank << endl;
 		}
 	      }
@@ -2002,7 +2043,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 		selection.rank = rank;
 		last_criterion = (rank == 0) ? c - 1 : c;
 		if (verbosity > 1) {
-		  cout << "selecting " << open_cond << " by criterion "
+		  cout << ";selecting " << open_cond << " by criterion "
 		       << criterion << " with rank " << rank << endl;
 		}
 	      }
@@ -2021,7 +2062,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 		selection.rank = rank;
 		last_criterion = c;
 		if (verbosity > 1) {
-		  cout << "selecting " << open_cond << " by criterion "
+		  cout << ";selecting " << open_cond << " by criterion "
 		       << criterion << " with rank " << rank << endl;
 		}
 	      }
