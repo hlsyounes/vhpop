@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 3.4 2002-03-23 15:18:22 lorens Exp $
+ * $Id: vhpop.cc,v 3.5 2002-03-23 15:24:31 lorens Exp $
  */
 #include <iostream>
 #include <cstdio>
@@ -358,10 +358,10 @@ int main(int argc, char* argv[]) {
   }
 
 #ifdef DEBUG
-  cout << "Chains created: " << created_chains << endl;
-  cout << "Chains deleted: " << deleted_chains << endl;
-  cout << "Collectibles created: " << created_collectibles << endl;
-  cout << "Collectibles deleted: " << deleted_collectibles << endl;
+  cout << ";Chains created: " << created_chains << endl;
+  cout << ";Chains deleted: " << deleted_chains << endl;
+  cout << ";Collectibles created: " << created_collectibles << endl;
+  cout << ";Collectibles deleted: " << deleted_collectibles << endl;
 #endif
 
   return 0;
