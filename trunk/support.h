@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  * 
- * $Id: support.h,v 3.8 2002-09-22 01:40:04 lorens Exp $
+ * $Id: support.h,v 3.9 2002-09-22 23:20:53 lorens Exp $
  */
 #ifndef SUPPORT_H
 #define SUPPORT_H
@@ -120,124 +120,6 @@ struct HashMultimap : public hash_multimap<K, T, H, E> {
     return end();
   }
 };
-
-
-/*
- * A equality comparable object.
- */
-struct EqualityComparable {
-  virtual ~EqualityComparable() {}
-
-protected:
-  /* Checks if this object equals the given object. */
-  virtual bool equals(const EqualityComparable& o) const = 0;
-
-  friend bool operator==(const EqualityComparable& o1,
-			 const EqualityComparable& o2);
-};
-
-/* Equality operator for equality comparable objects. */
-inline bool operator==(const EqualityComparable& o1,
-		       const EqualityComparable& o2) {
-  return o1.equals(o2);
-}
-
-/* Inequality operator for equality comparable objects. */
-inline bool operator!=(const EqualityComparable& o1,
-		       const EqualityComparable& o2) {
-  return !(o1 == o2);
-}
-
-/*
- * Equality function object for equality comparable object pointers.
- */
-namespace std {
-struct equal_to<const EqualityComparable*>
-  : public binary_function<const EqualityComparable*,
-			   const EqualityComparable*, bool> {
-  bool operator()(const EqualityComparable* o1,
-		  const EqualityComparable* o2) const {
-    return *o1 == *o2;
-  }
-};
-}
-
-
-/*
- * A less than comparable object.
- */
-struct LessThanComparable {
-  virtual ~LessThanComparable() {}
-
-protected:
-  /* Checks if this object is less than the given object. */
-  virtual bool less(const LessThanComparable& o) const = 0;
-
-  friend bool operator<(const LessThanComparable& o1,
-			const LessThanComparable& o2);
-};
-
-/* Less than operator for less than comparable objects. */
-inline bool operator<(const LessThanComparable& o1,
-		      const LessThanComparable& o2) {
-  return o1.less(o2);
-}
-
-
-/* Greater than operator for less than comparable objects. */
-inline bool operator>(const LessThanComparable& o1,
-		      const LessThanComparable& o2) {
-  return o2 < o1;
-}
-
-/*
- * Less than function object for less than comparable object pointers.
- */
-namespace std {
-struct less<const LessThanComparable*>
-  : public binary_function<const LessThanComparable*,
-			   const LessThanComparable*, bool> {
-  bool operator()(const LessThanComparable* o1,
-		  const LessThanComparable* o2) const {
-    return *o1 < *o2;
-  }
-};
-}
-
-
-/*
- * A hashable object.
- */
-struct Hashable : public EqualityComparable {
-protected:
-  /* Returns the hash value of this object. */
-  virtual size_t hash_value() const = 0;
-
-  friend struct hash<Hashable>;
-  friend struct hash<const Hashable*>;
-};
-
-/*
- * Hash function object for hashable objects.
- */
-namespace std {
-struct hash<Hashable> {
-  size_t operator()(const Hashable& o) const {
-    return o.hash_value();
-  }
-};
-}
-
-/*
- * Hash function object for hashable object pointers.
- */
-namespace std {
-struct hash<const Hashable*> {
-  size_t operator()(const Hashable* o) const {
-    return o->hash_value();
-  }
-};
-}
 
 
 /*

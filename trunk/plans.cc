@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 4.4 2002-09-22 01:40:23 lorens Exp $
+ * $Id: plans.cc,v 4.5 2002-09-22 23:20:48 lorens Exp $
  */
 #include <queue>
 #include <stack>
@@ -767,7 +767,7 @@ Plan::Plan(const StepChain* steps, size_t num_steps,
     open_conds_(open_conds), num_open_conds_(num_open_conds) {
   StepChain::register_use(steps);
   LinkChain::register_use(links);
-  Collectible::register_use(&orderings);
+  Orderings::register_use(&orderings);
   Collectible::register_use(&bindings);
   UnsafeChain::register_use(unsafes);
   OpenConditionChain::register_use(open_conds);
@@ -806,7 +806,7 @@ Plan::~Plan() {
 #endif
   StepChain::unregister_use(steps_);
   LinkChain::unregister_use(links_);
-  Collectible::unregister_use(orderings_);
+  Orderings::unregister_use(orderings_);
   Collectible::unregister_use(bindings_);
   UnsafeChain::unregister_use(unsafes_);
   OpenConditionChain::unregister_use(open_conds_);
