@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.cc,v 3.9 2002-03-29 15:47:46 lorens Exp $
+ * $Id: orderings.cc,v 3.10 2002-03-29 19:42:28 lorens Exp $
  */
 #include "orderings.h"
 #include "plans.h"
@@ -195,7 +195,11 @@ private:
 /* Orderings */
 
 /* Constructs an empty ordering collection. */
-Orderings::Orderings() {
+Orderings::Orderings()
+  : ref_count_(0) {
+#ifdef DEBUG_MEMORY
+    created_collectibles++;
+#endif
 #ifdef TRANSFORMATIONAL
   orderings_ = NULL;
 #endif
@@ -204,7 +208,11 @@ Orderings::Orderings() {
 
 /* Constructs a copy of this ordering collection. */
 Orderings::Orderings(const Orderings& o)
-  : id_map1_(o.id_map1_), id_map2_(o.id_map2_), order_(o.order_) {
+  : id_map1_(o.id_map1_), id_map2_(o.id_map2_), order_(o.order_),
+    ref_count_(0) {
+#ifdef DEBUG_MEMORY
+    created_collectibles++;
+#endif
   size_t n = order_.size();
   for (size_t i = 0; i < n; i++) {
     BoolVector::register_use(order_[i]);
@@ -218,6 +226,9 @@ Orderings::Orderings(const Orderings& o)
 
 /* Deletes this ordering collection. */
 Orderings::~Orderings() {
+#ifdef DEBUG_MEMORY
+    deleted_collectibles++;
+#endif
   size_t n = order_.size();
   for (size_t i = 0; i < n; i++) {
     BoolVector::unregister_use(order_[i]);
