@@ -1,7 +1,7 @@
 /*
  * Main program.
  *
- * $Id: vhpop.cc,v 1.1 2001-05-03 15:41:34 lorens Exp $
+ * $Id: vhpop.cc,v 1.2 2001-05-04 04:06:14 lorens Exp $
  */
 #include <iostream>
 #include <stdio.h>
@@ -225,6 +225,7 @@ int main(int argc, char* argv[]) {
 	}
       } else {
 	if (verbosity > 0) {
+	  cout << endl << *plan;
 	  cout << endl << "Search limit reached." << endl;
 	}
       }
