@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 2.2 2002-02-03 18:57:08 lorens Exp $
+ * $Id: pddl.yy,v 2.3 2002-02-07 19:05:50 lorens Exp $
  */
 %{
 #include <typeinfo>
@@ -133,7 +133,7 @@ static bool unique_variables = true;
 %token WHEN NOT AND OR IMPLY EXISTS FORALL
 %token EITHER
 %token MINIMIZE MAXIMIZE TOTAL_TIME
-%token EQUALS NAME VARIABLE
+%token EQUALS NAME VARIABLE NUMBER
 %token ILLEGAL_TOKEN
 
 %union {
@@ -149,6 +149,7 @@ static bool unique_variables = true;
   VariableList* variables;
   const Variable* variable;
   const string* str;
+  double num;
   vector<string>* strings;
   const Type* type;
 }
@@ -158,21 +159,21 @@ static bool unique_variables = true;
 %type <effects> effect eff_formula eff_formulas
 %type <add_del_lists> one_eff_formula term_literals term_literal
 %type <effect> init
-%type <add_del_lists> atomic_name_formulas atomic_name_formula
+%type <add_del_lists> name_literals name_literal
 %type <terms> names
 %type <formula> goals
 %type <formulas> goal_list
 %type <formula> goal
 %type <formulas> formulas
 %type <formula> formula
-%type <atom> atomic_term_formula
-%type <str> predicate
+%type <atom> atomic_term_formula atomic_name_formula
 %type <terms> terms
 %type <variables> opt_variables variables
 %type <strings> name_seq variable_seq
 %type <type> types
 %type <type> type_spec type
-%type <str> name NAME VARIABLE
+%type <str> predicate function_symbol name NAME VARIABLE
+%type <num> NUMBER
 %type <str> DEFINE DOMAIN PROBLEM
 %type <str> WHEN NOT AND OR IMPLY EXISTS FORALL EITHER
 %type <str> MINIMIZE MAXIMIZE TOTAL_TIME
@@ -499,26 +500,31 @@ init : '(' INIT
 	   context =
 	     " in initial conditions of problem `" + problem_name + "'";
 	 }
-       atomic_name_formulas ')'
+       name_literals ')'
          { $$ = new Effect(*$4->first, *$4->second); }
      ;
 
-atomic_name_formulas : atomic_name_formula
-                     | atomic_name_formulas atomic_name_formula
-                         {
-			   copy($2->first->begin(), $2->first->end(),
-				back_inserter(*$1->first));
-			   $$ = $1;
-			 }
-                     ;
+name_literals : name_literal
+              | name_literals name_literal
+                  {
+		    copy($2->first->begin(), $2->first->end(),
+			 back_inserter(*$1->first));
+		    copy($2->second->begin(), $2->second->end(),
+			 back_inserter(*$1->second));
+		    $$ = $1;
+		  }
+              ;
+
+name_literal : atomic_name_formula
+                 { $$ = &make_add_del(new AtomList($1), new NegationList()); }
+             | '(' NOT atomic_name_formula ')'
+                 { $$ = &make_add_del(new AtomList(), new NegationList()); }
+             ;
 
 atomic_name_formula : '(' predicate
                         { current_predicate = *$2; }
                       names ')'
-                        {
-			  AtomList* adds = new AtomList(&make_atom(*$2, *$4));
-			  $$ = &make_add_del(adds, new NegationList());
-			}
+                        { $$ = &make_atom(*$2, *$4); }
                     ;
 
 names : /* empty */
@@ -560,16 +566,19 @@ optimization : MINIMIZE {}
              | MAXIMIZE {}
              ;
 
-ground_f_exp : '(' binary_op ground_f_exp ground_f_exp ')'
-             | '(' name names ')'
-             | name {}
+ground_f_exp : '(' '+' ground_f_exp ground_f_exp ')'
+             | '(' '-' ground_f_exp ground_f_exp_opt ')'
+             | '(' '*' ground_f_exp ground_f_exp ')'
+             | '(' '/' ground_f_exp ground_f_exp ')'
+             | NUMBER {}
+             | '(' function_symbol names ')'
+             | TOTAL_TIME {}
+             | function_symbol {}
              ;
 
-binary_op : '+'
-          | '-'
-          | '*'
-          | '/'
-          ;
+ground_f_exp_opt : /* empty */
+                 | ground_f_exp
+                 ;
 
 
 /*
@@ -670,12 +679,6 @@ atomic_term_formula : '(' predicate
                         { $$ = &make_atom(*$2, *$4); }
                     ;
 
-predicate : NAME
-          | DEFINE
-          | DOMAIN
-          | PROBLEM
-          ;
-
 terms : /* empty */
           { $$ = new TermList(); }
       | terms name
@@ -750,6 +753,30 @@ type_spec : '-' type { $$ = $2; }
 type : predicate            { $$ = &make_type(*$1); }
      | '(' EITHER types ')' { $$ = $3; }
      ;
+
+predicate : NAME
+          | DEFINE
+          | DOMAIN
+          | PROBLEM
+          | MINIMIZE
+          | MAXIMIZE
+          ;
+
+function_symbol : NAME
+                | DEFINE
+                | DOMAIN
+                | PROBLEM
+                | WHEN
+                | NOT
+                | AND
+                | OR
+                | IMPLY
+                | EXISTS
+                | FORALL
+                | EITHER
+                | MINIMIZE
+                | MAXIMIZE
+                ;
 
 name : NAME
      | DEFINE

@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.cc,v 1.33 2002-01-25 18:23:17 lorens Exp $
+ * $Id: domains.cc,v 2.1 2002-02-07 19:05:42 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -242,25 +242,6 @@ const EffectList& EffectList::instantiation(const SubstitutionList& subst,
   EffectList& effects = *(new EffectList());
   for (const_iterator ei = begin(); ei != end(); ei++) {
     (*ei)->instantiations(effects, subst, problem);
-  }
-  for (const_iterator ei = effects.begin(); ei != effects.end(); ei++) {
-    if ((*ei)->condition.tautology()) {
-      AtomList add_list = (*ei)->add_list;
-      for (const_iterator ej = effects.begin(); ej != effects.end(); ej++) {
-	if ((*ej)->condition.tautology()) {
-	  NegationList del_list = (*ej)->del_list;
-	  for (NegationListIter gi = del_list.begin();
-	       gi != del_list.end(); gi++) {
-	    if (member_if(add_list.begin(), add_list.end(),
-			  bind1st(equal_to<const Literal*>(), &(*gi)->atom))) {
-	      /* conflicting effects */
-	      effects.clear();
-	      return effects;
-	    }
-	  }
-	}
-      }
-    }
   }
   return effects;
 }

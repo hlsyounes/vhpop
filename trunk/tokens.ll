@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: tokens.ll,v 2.2 2002-02-03 18:57:33 lorens Exp $
+ * $Id: tokens.ll,v 2.3 2002-02-07 19:06:06 lorens Exp $
  */
 %{
 struct Type;
@@ -42,6 +42,7 @@ struct ActionSchema;
 size_t line_number;
 
 static int make_string(const char* s, int token);
+static int make_number(const char* s);
 %}
 
 %option case-insensitive never-interactive nounput
@@ -93,6 +94,7 @@ total-time                   return make_string(yytext, TOTAL_TIME);
 [A-Za-z]([A-Za-z0-9\-_])*    return make_string(yytext, NAME);
 =                            return EQUALS;
 \?[A-Za-z]([A-Z0-9a-z\-_])*  return make_string(yytext, VARIABLE);
+[+\-]?[0-9]*\.?[0-9]+        return make_number(yytext);
 ;.*$                         /* comment */
 [ \t\r]+                     /* whitespace */
 \n                           line_number++;
@@ -109,4 +111,10 @@ static int make_string(const char* s, int token) {
   }
   yylval.str = result;
   return token;
+}
+
+/* Makes a number of the given string, and return the NUMBER token. */
+static int make_number(const char* s) {
+  yylval.num = atof(s);
+  return NUMBER;
 }

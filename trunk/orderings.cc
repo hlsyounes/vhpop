@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.cc,v 1.6 2002-01-25 18:23:06 lorens Exp $
+ * $Id: orderings.cc,v 2.1 2002-02-07 19:05:06 lorens Exp $
  */
 #include "orderings.h"
 #include "plans.h"
@@ -108,17 +108,21 @@ bool Orderings::possibly_after(size_t id1, size_t id2) const {
 /* Computes the flexibility of this ordering collection as defined in
    "Reviving Partial Order Planning" (Nguyen & Kambhampati 2001). */
 double Orderings::flexibility() const {
-  size_t unordered = 0;
-  for (size_t i = 0; i < size_; i++) {
-    for (size_t j = 0; j < size_; j++) {
-      if (i != j) {
-	if (!order_[i][j] && !order_[j][i]) {
-	  unordered++;
+  if (size_ == 0) {
+    return 0.0;
+  } else {
+    size_t unordered = 0;
+    for (size_t i = 0; i < size_; i++) {
+      for (size_t j = 0; j < size_; j++) {
+	if (i != j) {
+	  if (!order_[i][j] && !order_[j][i]) {
+	    unordered++;
+	  }
 	}
       }
     }
+    return double(unordered)/size_;
   }
-  return double(unordered)/size_;
 }
 
 

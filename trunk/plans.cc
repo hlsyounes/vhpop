@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 1.56 2002-01-25 20:22:14 lorens Exp $
+ * $Id: plans.cc,v 2.1 2002-02-07 19:05:29 lorens Exp $
  */
 #include <queue>
 #include <algorithm>
@@ -270,8 +270,9 @@ static void link_threats(const UnsafeChain*& unsafes, size_t& num_unsafes,
   for (const StepChain* sc = steps; sc != NULL; sc = sc->tail) {
     const Step& s = *sc->head;
     if (seen_steps.find(s.id) == seen_steps.end()
-	&& orderings.possibly_before(link.from_id, s.id)
-	&& orderings.possibly_after(link.to_id, s.id)) {
+	&& (link.from_id == s.id
+	    || (orderings.possibly_before(link.from_id, s.id)
+		&& orderings.possibly_after(link.to_id, s.id)))) {
       seen_steps.insert(s.id);
       const EffectList& effects = s.effects;
       for (EffectListIter ei = effects.begin(); ei != effects.end(); ei++) {
@@ -286,7 +287,7 @@ static void link_threats(const UnsafeChain*& unsafes, size_t& num_unsafes,
 	      num_unsafes++;
 	    }
 	  }
-	} else {
+	} else if (link.from_id != s.id) {
 	  const NegationList& dels = e.del_list;
 	  for (NegationListIter fi = dels.begin(); fi != dels.end(); fi++) {
 	    const Negation& neg = **fi;
@@ -304,7 +305,7 @@ static void link_threats(const UnsafeChain*& unsafes, size_t& num_unsafes,
 
 
 /* Returns the initial plan representing the given problem, or NULL
-   if goals of problem are inconsistent. */
+   if initial conditions or goals of the problem are inconsistent. */
 const Plan* Plan::make_initial_plan(const Problem& problem) {
   /* Reason for initial steps in plan. */
   const Reason& init_reason = InitReason::make(*params);
@@ -412,6 +413,9 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
   PlanQueue plans;
   /* Construct the initial plan. */
   const Plan* initial_plan = make_initial_plan(problem);
+  if (initial_plan == NULL) {
+    return NULL;
+  }
   const Plan* current_plan = initial_plan;
   current_plan->id_ = 0;
   num_generated_plans++;
@@ -744,9 +748,10 @@ void Plan::refinements(PlanList& plans) const {
 /* Handles an unsafe link. */
 void Plan::handle_unsafe(PlanList& plans, const Unsafe& unsafe) const {
   size_t num_prev_plans = plans.size();
-  if (orderings.possibly_before(unsafe.link.from_id, unsafe.step_id) &&
-      orderings.possibly_after(unsafe.link.to_id, unsafe.step_id) &&
-      bindings_.affects(unsafe.effect_add, unsafe.link.condition)) {
+  if ((unsafe.link.from_id == unsafe.step_id
+       || (orderings.possibly_before(unsafe.link.from_id, unsafe.step_id)
+	   && orderings.possibly_after(unsafe.link.to_id, unsafe.step_id)))
+      && bindings_.affects(unsafe.effect_add, unsafe.link.condition)) {
     separate(plans, unsafe);
     promote(plans, unsafe);
     demote(plans, unsafe);
@@ -777,9 +782,11 @@ void Plan::handle_unsafe(PlanList& plans, const Unsafe& unsafe) const {
 /* Checks if the given threat is separable. */
 int Plan::separable(const Unsafe& unsafe) const {
   SubstitutionList unifier;
-  if (orderings.possibly_before(unsafe.link.from_id, unsafe.step_id) &&
-      orderings.possibly_after(unsafe.link.to_id, unsafe.step_id) &&
-      bindings_.affects(unifier, unsafe.effect_add, unsafe.link.condition)) {
+  if ((unsafe.link.from_id == unsafe.step_id
+       || (orderings.possibly_before(unsafe.link.from_id, unsafe.step_id)
+	   && orderings.possibly_after(unsafe.link.to_id, unsafe.step_id)))
+      && bindings_.affects(unifier,
+			   unsafe.effect_add, unsafe.link.condition)) {
     const VariableList& effect_forall = unsafe.effect.forall;
     const Formula* goal = &Formula::FALSE;
     for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
@@ -1524,7 +1531,7 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
    */
   const UnsafeChain* new_unsafes = unsafes;
   size_t new_num_unsafes = num_unsafes;
-  link_threats(new_unsafes, new_num_unsafes, link, steps, new_orderings,
+  link_threats(new_unsafes, new_num_unsafes, link, new_steps, new_orderings,
 	       *bindings);
 
   /*
