@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 4.2 2002-07-24 16:00:29 lorens Exp $
+ * $Id: formulas.cc,v 4.3 2002-09-18 02:40:33 lorens Exp $
  */
 #include <typeinfo>
 #include <stack>
@@ -32,30 +32,6 @@ struct Substitutes
   /* Checks if the given substitution involves the given variable. */
   bool operator()(const Substitution& s, const Variable* v) const {
     return s.var() == *v;
-  }
-};
-
-
-/*
- * An equivalent terms binary predicate.
- */
-struct EquivalentTerms
-  : public binary_function<const Term*, const Term*, bool> {
-  /* Checks if the two terms are equivalent. */
-  bool operator()(const Term* t1, const Term* t2) const {
-    return t1->equivalent(*t2);
-  }
-};
-
-
-/*
- * An equivalent formulas binary predicate.
- */
-struct EquivalentFormulas
-  : public binary_function<const Formula*, const Formula*, bool> {
-  /* Checks if the two formulas are equivalent. */
-  bool operator()(const Formula* f1, const Formula* f2) const {
-    return f1->equivalent(*f2);
   }
 };
 
@@ -87,12 +63,6 @@ Term::~Term() {
 }
 
 
-/* Returns an instantiation of this term. */
-const Term& Term::instantiation(const Bindings& bindings) const {
-  return bindings.binding(*this);
-}
-
-
 /* Checks if this object is less than the given object. */
 bool Term::less(const LessThanComparable& o) const {
   if (typeid(o) == typeid(StepVar)) {
@@ -101,6 +71,12 @@ bool Term::less(const LessThanComparable& o) const {
     const Term& t = dynamic_cast<const Term&>(o);
     return name() < t.name();
   }
+}
+
+
+/* Prints this term on the given stream with the given bindings. */
+void Term::print(ostream& os, const Bindings& bindings) const {
+  os << bindings.binding(*this);
 }
 
 
@@ -127,14 +103,6 @@ const Name& Name::instantiation(size_t id) const {
 /* Returns this term subject to the given substitutions. */
 const Name& Name::substitution(const SubstitutionList& subst) const {
   return *this;
-}
-
-
-/* Checks if this term is equivalent to the given term.  Two terms
-   are equivalent if they are the same name, or if they are both
-   variables. */
-bool Name::equivalent(const Term& t) const {
-  return equals(t);
 }
 
 
@@ -174,14 +142,6 @@ const Term& Variable::substitution(const SubstitutionList& subst) const {
   SubstListIter si = find_if(subst.begin(), subst.end(),
 			     bind2nd(Substitutes(), this));
   return (si != subst.end()) ? (*si).term() : *this;
-}
-
-
-/* Checks if this term is equivalent to the given term.  Two terms
-   are equivalent if they are the same name, or if they are both
-   variables. */
-bool Variable::equivalent(const Term& t) const {
-  return dynamic_cast<const Variable*>(&t) != NULL;
 }
 
 
@@ -243,16 +203,6 @@ const TermList& TermList::instantiation(size_t id) const {
   TermList& terms = *(new TermList());
   for (const_iterator ti = begin(); ti != end(); ti++) {
     terms.push_back(&(*ti)->instantiation(id));
-  }
-  return terms;
-}
-
-
-/* Returns an instantiation of this term list. */
-const TermList& TermList::instantiation(const Bindings& bindings) const {
-  TermList& terms = *(new TermList());
-  for (const_iterator ti = begin(); ti != end(); ti++) {
-    terms.push_back(&(*ti)->instantiation(bindings));
   }
   return terms;
 }
@@ -434,12 +384,6 @@ const Constant& Constant::instantiation(size_t id) const {
 
 
 /* Returns an instantiation of this formula. */
-const Constant& Constant::instantiation(const Bindings& bindings) const {
-  return *this;
-}
-
-
-/* Returns an instantiation of this formula. */
 const Constant& Constant::instantiation(const SubstitutionList& subst,
 					const Problem& problem) const {
   return *this;
@@ -458,11 +402,9 @@ const Constant& Constant::strip_static(const Domain& domain) const {
 }
 
 
-/* Checks if this formula is equivalent to the given formula.  Two
-   formulas are equivalent if they only differ in the choice of
-   variable names. */
-bool Constant::equivalent(const Formula& f) const {
-  return &f == this;
+/* Prints this formula on the given stream with the given bindings. */
+void Constant::print(ostream& os, const Bindings& bindings) const {
+  print(os);
 }
 
 
@@ -533,12 +475,6 @@ const Atom& Atom::instantiation(size_t id) const {
 
 
 /* Returns an instantiation of this formula. */
-const Formula& Atom::instantiation(const Bindings& bindings) const {
-  return *(new Atom(predicate(), terms().instantiation(bindings), when()));
-}
-
-
-/* Returns an instantiation of this formula. */
 const Formula& Atom::instantiation(const SubstitutionList& subst,
 				   const Problem& problem) const {
   const Atom& f = substitution(subst);
@@ -569,18 +505,6 @@ const Atom& Atom::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Checks if this formula is equivalent to the given formula.  Two
-   formulas are equivalent if they only differ in the choice of
-   variable names. */
-bool Atom::equivalent(const Formula& f) const {
-  const Atom* atom = dynamic_cast<const Atom*>(&f);
-  return (atom != NULL && predicate() == atom->predicate()
-	  && terms().size() == atom->terms().size()
-	  && equal(terms().begin(), terms().end(), atom->terms().begin(),
-		   EquivalentTerms()));
-}
-
-
 /* Checks if this object equals the given object. */
 bool Atom::equals(const Literal& o) const {
   const Atom* atom = dynamic_cast<const Atom*>(&o);
@@ -599,6 +523,17 @@ size_t Atom::hash_value() const {
     val = 5*val + h(**ti);
   }
   return val;
+}
+
+
+/* Prints this formula on the given stream with the given bindings. */
+void Atom::print(ostream& os, const Bindings& bindings) const {
+  os << '(' << predicate().name();
+  for (TermListIter ti = terms().begin(); ti != terms().end(); ti++) {
+    os << ' ';
+    (*ti)->print(os, bindings);
+  }
+  os << ')';
 }
 
 
@@ -631,12 +566,6 @@ const Negation& Negation::instantiation(size_t id) const {
 
 
 /* Returns an instantiation of this formula. */
-const Formula& Negation::instantiation(const Bindings& bindings) const {
-  return !atom().instantiation(bindings);
-}
-
-
-/* Returns an instantiation of this formula. */
 const Formula& Negation::instantiation(const SubstitutionList& subst,
 				       const Problem& problem) const {
   return !atom().instantiation(subst, problem);
@@ -646,15 +575,6 @@ const Formula& Negation::instantiation(const SubstitutionList& subst,
 /* Returns this formula subject to the given substitutions. */
 const Negation& Negation::substitution(const SubstitutionList& subst) const {
   return *(new Negation(atom().substitution(subst)));
-}
-
-
-/* Checks if this formula is equivalent to the given formula.  Two
-   formulas are equivalent if they only differ in the choice of
-   variable names. */
-bool Negation::equivalent(const Formula& f) const {
-  const Negation* negation = dynamic_cast<const Negation*>(&f);
-  return negation != NULL && atom().equivalent(negation->atom());
 }
 
 
@@ -668,6 +588,14 @@ bool Negation::equals(const Literal& o) const {
 /* Returns the hash value of this object. */
 size_t Negation::hash_value() const {
   return 5*hash<Literal>()(atom());
+}
+
+
+/* Prints this formula on the given stream with the given bindings. */
+void Negation::print(ostream& os, const Bindings& bindings) const {
+  os << "(not ";
+  atom().print(os, bindings);
+  os << ")";
 }
 
 
@@ -716,22 +644,6 @@ const Equality& Equality::instantiation(size_t id) const {
 
 
 /* Returns an instantiation of this formula. */
-const Formula& Equality::instantiation(const Bindings& bindings) const {
-  const Term& t1 = term1().instantiation(bindings);
-  const Term& t2 = term2().instantiation(bindings);
-  if (typeid(t1) == typeid(Name) && typeid(t2) == typeid(Name)) {
-    return (t1 == t2) ? TRUE : FALSE;
-  } else if (&t1 == &term1() && &t2 == &term2()) {
-    return *this;
-  } else if (t1.type().subtype(t2.type()) || t2.type().subtype(t1.type())) {
-    return *(new Equality(t1, t2));
-  } else {
-    return FALSE;
-  }
-}
-
-
-/* Returns an instantiation of this formula. */
 const Formula& Equality::instantiation(const SubstitutionList& subst,
 				       const Problem& problem) const {
   return substitution(subst);
@@ -757,14 +669,13 @@ const Formula& Equality::strip_static(const Domain& domain) const {
 }
 
 
-/* Checks if this formula is equivalent to the given formula.  Two
-   formulas are equivalent if they only differ in the choice of
-   variable names. */
-bool Equality::equivalent(const Formula& f) const {
-  const Equality* eq = dynamic_cast<const Equality*>(&f);
-  return (eq != NULL
-	  && term1().equivalent(eq->term1())
-	  && term2().equivalent(eq->term2()));
+/* Prints this formula on the given stream with the given bindings. */
+void Equality::print(ostream& os, const Bindings& bindings) const {
+  os << "(= ";
+  term1().print(os, bindings);
+  os << ' ';
+  term2().print(os, bindings);
+  os << ")";
 }
 
 
@@ -798,22 +709,6 @@ const Inequality& Inequality::instantiation(size_t id) const {
 
 
 /* Returns an instantiation of this formula. */
-const Formula& Inequality::instantiation(const Bindings& bindings) const {
-  const Term& t1 = term1().instantiation(bindings);
-  const Term& t2 = term2().instantiation(bindings);
-  if (typeid(t1) == typeid(Name) && typeid(t2) == typeid(Name)) {
-    return (t1 != t2) ? TRUE : FALSE;
-  } else if (&t1 == &term1() && &t2 == &term2()) {
-    return *this;
-  } else if (t1.type().subtype(t2.type()) || t2.type().subtype(t1.type())) {
-    return *(new Inequality(t1, t2));
-  } else {
-    return TRUE;
-  }
-}
-
-
-/* Returns an instantiation of this formula. */
 const Formula& Inequality::instantiation(const SubstitutionList& subst,
 					 const Problem& problem) const {
   return substitution(subst);
@@ -839,14 +734,13 @@ const Formula& Inequality::strip_static(const Domain& domain) const {
 }
 
 
-/* Checks if this formula is equivalent to the given formula.  Two
-   formulas are equivalent if they only differ in the choice of
-   variable names. */
-bool Inequality::equivalent(const Formula& f) const {
-  const Inequality* neq = dynamic_cast<const Inequality*>(&f);
-  return (neq != NULL
-	  && term1().equivalent(neq->term1())
-	  && term2().equivalent(neq->term2()));
+/* Prints this formula on the given stream with the given bindings. */
+void Inequality::print(ostream& os, const Bindings& bindings) const {
+  os << "(not (= ";
+  term1().print(os, bindings);
+  os << ' ';
+  term2().print(os, bindings);
+  os << "))";
 }
 
 
@@ -889,17 +783,6 @@ const Conjunction& Conjunction::instantiation(size_t id) const {
 
 
 /* Returns an instantiation of this formula. */
-const Formula& Conjunction::instantiation(const Bindings& bindings) const {
-  const Formula* c = &TRUE;
-  for (FormulaListIter fi = conjuncts().begin();
-       fi != conjuncts().end() && !c->contradiction(); fi++) {
-    c = &(*c && (*fi)->instantiation(bindings));
-  }
-  return *c;
-}
-
-
-/* Returns an instantiation of this formula. */
 const Formula& Conjunction::instantiation(const SubstitutionList& subst,
 					  const Problem& problem) const {
   const Formula* c = &TRUE;
@@ -933,14 +816,15 @@ const Formula& Conjunction::strip_static(const Domain& domain) const {
 }
 
 
-/* Checks if this formula is equivalent to the given formula.  Two
-   formulas are equivalent if they only differ in the choice of
-   variable names. */
-bool Conjunction::equivalent(const Formula& f) const {
-  const Conjunction* conj = dynamic_cast<const Conjunction*>(&f);
-  return (conj != NULL  && conjuncts().size() == conj->conjuncts().size()
-	  && equal(conjuncts().begin(), conjuncts().end(),
-		   conj->conjuncts().begin(), EquivalentFormulas()));
+/* Prints this formula on the given stream with the given bindings. */
+void Conjunction::print(ostream& os, const Bindings& bindings) const {
+  os << "(and";
+  for (FormulaListIter fi = conjuncts().begin();
+       fi != conjuncts().end(); fi++) {
+    os << ' ';
+    (*fi)->print(os, bindings);
+  }
+  os << ")";
 }
 
 
@@ -988,17 +872,6 @@ const Disjunction& Disjunction::instantiation(size_t id) const {
 
 
 /* Returns an instantiation of this formula. */
-const Formula& Disjunction::instantiation(const Bindings& bindings) const {
-  const Formula* d = &FALSE;
-  for (FormulaListIter fi = disjuncts().begin();
-       fi != disjuncts().end() && !d->tautology(); fi++) {
-    d = &(*d || (*fi)->instantiation(bindings));
-  }
-  return *d;
-}
-
-
-/* Returns an instantiation of this formula. */
 const Formula& Disjunction::instantiation(const SubstitutionList& subst,
 					  const Problem& problem) const {
   const Formula* d = &FALSE;
@@ -1032,14 +905,15 @@ const Formula& Disjunction::strip_static(const Domain& domain) const {
 }
 
 
-/* Checks if this formula is equivalent to the given formula.  Two
-   formulas are equivalent if they only differ in the choice of
-   variable names. */
-bool Disjunction::equivalent(const Formula& f) const {
-  const Disjunction* disj = dynamic_cast<const Disjunction*>(&f);
-  return (disj != NULL && disjuncts().size() == disj->disjuncts().size()
-	  && equal(disjuncts().begin(), disjuncts().end(),
-		   disj->disjuncts().begin(), EquivalentFormulas()));
+/* Prints this formula on the given stream with the given bindings. */
+void Disjunction::print(ostream& os, const Bindings& bindings) const {
+  os << "(or";
+  for (FormulaListIter fi = disjuncts().begin();
+       fi != disjuncts().end(); fi++) {
+    os << ' ';
+    (*fi)->print(os, bindings);
+  }
+  os << ")";
 }
 
 
@@ -1094,14 +968,6 @@ ExistsFormula::ExistsFormula(const VariableList& parameters,
 const ExistsFormula& ExistsFormula::instantiation(size_t id) const {
   return *(new ExistsFormula(parameters().instantiation(id),
 			     body().instantiation(id)));
-}
-
-
-/* Returns an instantiation of this formula. */
-const Formula& ExistsFormula::instantiation(const Bindings& bindings) const {
-  const Formula& b = body().instantiation(bindings);
-  return (b.constant()
-	  ? b : (const Formula&) *(new ExistsFormula(parameters(), b)));
 }
 
 
@@ -1173,13 +1039,19 @@ const Formula& ExistsFormula::strip_static(const Domain& domain) const {
 }
 
 
-/* Checks if this formula is equivalent to the given formula.  Two
-   formulas are equivalent if they only differ in the choice of
-   variable names. */
-bool ExistsFormula::equivalent(const Formula& f) const {
-  const ExistsFormula* exists = dynamic_cast<const ExistsFormula*>(&f);
-  return (exists != NULL && parameters().size() == exists->parameters().size()
-	  && body().equivalent(exists->body()));
+/* Prints this formula on the given stream with the given bindings. */
+void ExistsFormula::print(ostream& os, const Bindings& bindings) const {
+  os << "(exists (";
+  for (VarListIter vi = parameters().begin(); vi != parameters().end(); vi++) {
+    if (vi != parameters().begin()) {
+      os << ' ';
+    }
+    (*vi)->print(os, bindings);
+    os << " - " << (*vi)->type();
+  }
+  os << ") ";
+  body().print(os, bindings);
+  os << ")";
 }
 
 
@@ -1215,14 +1087,6 @@ ForallFormula::ForallFormula(const VariableList& parameters,
 const ForallFormula& ForallFormula::instantiation(size_t id) const {
   return *(new ForallFormula(parameters().instantiation(id),
 			     body().instantiation(id)));
-}
-
-
-/* Returns an instantiation of this formula. */
-const Formula& ForallFormula::instantiation(const Bindings& bindings) const {
-  const Formula& b = body().instantiation(bindings);
-  return (b.constant()
-	  ? b : (const Formula&) *(new ForallFormula(parameters(), b)));
 }
 
 
@@ -1294,13 +1158,19 @@ const Formula& ForallFormula::strip_static(const Domain& domain) const {
 }
 
 
-/* Checks if this formula is equivalent to the given formula.  Two
-   formulas are equivalent if they only differ in the choice of
-   variable names. */
-bool ForallFormula::equivalent(const Formula& f) const {
-  const ForallFormula* forall = dynamic_cast<const ForallFormula*>(&f);
-  return (forall != NULL && parameters().size() == forall->parameters().size()
-	  && body().equivalent(forall->body()));
+/* Prints this formula on the given stream with the given bindings. */
+void ForallFormula::print(ostream& os, const Bindings& bindings) const {
+  os << "(forall (";
+  for (VarListIter vi = parameters().begin(); vi != parameters().end(); vi++) {
+    if (vi != parameters().begin()) {
+      os << ' ';
+    }
+    (*vi)->print(os, bindings);
+    os << " - " << (*vi)->type();
+  }
+  os << ") ";
+  body().print(os, bindings);
+  os << ")";
 }
 
 
