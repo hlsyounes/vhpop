@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.34 2002-01-01 17:59:56 lorens Exp $
+ * $Id: plans.h,v 1.35 2002-01-01 22:26:35 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -217,39 +217,49 @@ private:
   void new_ordering(PlanList& plans, size_t before_id, size_t after_id,
 		    const Unsafe& unsafe) const;
 
+  /* Handles an open condition. */
+  void handle_open_condition(PlanList& plans,
+			     const OpenCondition& open_cond) const;
+
+  /* Handles a disjunctive open condition. */
+  void handle_disjunction(PlanList& plans,
+			  const DisjunctiveOpenCondition& open_cond) const;
+
+  /* Handles an inequality open condition. */
+  void handle_inequality(PlanList& plans,
+			 const InequalityOpenCondition& open_cond) const;
+
+  /* Handles a literal open condition by adding a new step. */
+  void add_step(PlanList& plans,
+		const LiteralOpenCondition& open_cond) const;
+
+  /* Handles a literal open condition by reusing an existing step. */
+  void reuse_step(PlanList& plans,
+		  const LiteralOpenCondition& open_cond) const;
+
+  /* Adds plans to the given plan list with a link from the given step
+     to the given open condition added. */
+  void new_link(PlanList& plans, const Step& step,
+		const LiteralOpenCondition& open_cond, const Link& link,
+		const Reason& reason) const;
+
+  /* Adds plans to the given plan list with a link from the given step
+     to the given open condition added using the closed world
+     assumption. */
+  void new_cw_link(PlanList& plans, const Step& step,
+		   const LiteralOpenCondition& open_cond, const Link& link,
+		   const Reason& reason) const;
+
+  /* Returns a plan with a link added from the given effect to the
+     given open condition. */
+  const Plan* make_link(const Step& step, const Effect& effect,
+			const LiteralOpenCondition& open_cond,
+			const Link& link, const Reason& reason,
+			const SubstitutionList& unifier) const;
+
   void relink(PlanList& new_plans, const Link& link) const;
 
   pair<const Plan*, const OpenCondition*> unlink(const Link& link) const;
-
-  void handle_open_condition(PlanList& new_plans,
-			     const OpenCondition& open_cond) const;
-
-  void handle_disjunction(PlanList& new_plans,
-			  const DisjunctiveOpenCondition& open_cond) const;
-
-  void handle_inequality(PlanList& new_plans,
-			 const InequalityOpenCondition& open_cond) const;
-
-  void add_step(PlanList& new_plans,
-		const LiteralOpenCondition& open_cond) const;
-
-  void link_preconditions(PlanList& new_plans) const;
-
-  void reuse_step(PlanList& new_plans,
-		  const LiteralOpenCondition& open_cond) const;
-
-  bool new_link(PlanList& new_plans, const Step& step,
-		const LiteralOpenCondition& open_cond, const Link& link,
-		const Reason& establish_reason) const;
-
-  void new_cw_link(PlanList& new_plans, const Step& step,
-		   const LiteralOpenCondition& open_cond, const Link& link,
-		   const Reason& establish_reason) const;
-
-  const Plan* make_link(const Step& step, const Effect& effect,
-			const LiteralOpenCondition& open_cond,
-			const Link& link, const Reason& establish_reason,
-			const SubstitutionList& unifier) const;
 
   bool duplicate() const;
 
