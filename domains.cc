@@ -1,5 +1,5 @@
 /*
- * $Id: domains.cc,v 1.1 2001-05-03 15:26:27 lorens Exp $
+ * $Id: domains.cc,v 1.2 2001-05-04 04:45:28 lorens Exp $
  */
 #include "domains.h"
 
@@ -14,7 +14,7 @@ void Predicate::print(ostream& os) const {
   for (VariableList::const_iterator i = parameters.begin();
        i != parameters.end(); i++) {
     os << ' ' << **i;
-    if (&(*i)->type != &SimpleType::OBJECT_TYPE) {
+    if (!(*i)->type.object()) {
       os << " - " << (*i)->type;
     }
   }
@@ -52,7 +52,7 @@ void Action::print(ostream& os) const {
       os << ' ';
     }
     os << **i;
-    if (&(*i)->type != &SimpleType::OBJECT_TYPE) {
+    if (!(*i)->type.object()) {
       os << " - " << (*i)->type;
     }
   }
@@ -81,9 +81,9 @@ void Domain::print(ostream& os) const {
      << ((action_style == STRIPS) ? "STRIPS" : "ADL");
   os << endl << "types:";
   for (TypeMap::const_iterator i = types_.begin(); i != types_.end(); i++) {
-    if ((*i).second != & SimpleType::OBJECT_TYPE) {
+    if (!(*i).second->object()) {
       os << ' ' << *(*i).second;
-      if (&(*i).second->super_type != &SimpleType::OBJECT_TYPE) {
+      if (!(*i).second->super_type.object()) {
 	os << " - " << (*i).second->super_type;
       }
     }
@@ -92,7 +92,7 @@ void Domain::print(ostream& os) const {
   for (NameMap::const_iterator i = constants_.begin();
        i != constants_.end(); i++) {
     os << ' ' << *(*i).second;
-    if (&(*i).second->type != &SimpleType::OBJECT_TYPE) {
+    if (!(*i).second->type.object()) {
       os << " - " << (*i).second->type;
     }
   }
