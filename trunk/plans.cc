@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 3.6 2002-03-18 12:08:01 lorens Exp $
+ * $Id: plans.cc,v 3.7 2002-03-18 17:23:15 lorens Exp $
  */
 #include <queue>
 #include <algorithm>
@@ -508,12 +508,11 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
   PlanQueue plans;
   /* Construct the initial plan. */
   const Plan* initial_plan = make_initial_plan(problem);
-  if (initial_plan == NULL) {
-    return NULL;
-  }
   const Plan* current_plan = initial_plan;
-  current_plan->id_ = 0;
-  num_generated_plans++;
+  if (current_plan != NULL) {
+    current_plan->id_ = 0;
+    num_generated_plans++;
+  }
 
   /* Variable for progress bar (number of generated plans). */
   size_t last_dot = 0;

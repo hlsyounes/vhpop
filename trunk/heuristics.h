@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.h,v 1.22 2002-01-26 03:32:24 lorens Exp $
+ * $Id: heuristics.h,v 3.1 2002-03-18 17:22:31 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
@@ -29,6 +29,7 @@ struct ActionList;
 struct Action;
 struct Domain;
 struct Problem;
+struct ActionDomain;
 struct Bindings;
 struct Flaw;
 struct Unsafe;
@@ -36,10 +37,13 @@ struct OpenCondition;
 struct Plan;
 
 
+/* ====================================================================== */
+/* HeuristicValue */
+
 /*
  * A heuristic value.
  */
-struct HeuristicValue : public Printable, public gc {
+struct HeuristicValue {
   /* A zero heuristic value. */
   static const HeuristicValue ZERO;
   /* A zero cost, unit work, heuristic value. */
@@ -54,16 +58,16 @@ struct HeuristicValue : public Printable, public gc {
   HeuristicValue(int max_cost, int max_work, int add_cost, int add_work);
 
   /* Returns the cost according to the max heuristic. */
-  int max_cost() const;
+  int max_cost() const { return max_cost_; }
 
   /* Returns the work according to the max heuristic. */
-  int max_work() const;
+  int max_work() const { return max_work_; }
 
   /* Returns the cost according to the additive heurisitc. */
-  int add_cost() const;
+  int add_cost() const { return add_cost_; }
 
   /* Returns the work according to the additive heuristic. */
-  int add_work() const;
+  int add_work() const { return add_work_; }
 
   /* Checks if this heuristic value is zero. */
   bool zero() const;
@@ -79,10 +83,6 @@ struct HeuristicValue : public Printable, public gc {
 
   /* Adds the given work to this heuristic value. */
   void add_work(int w);
-
-protected:
-  /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const;
 
 private:
   /* Cost according to max heuristic. */
@@ -117,8 +117,12 @@ bool operator>=(const HeuristicValue& v1, const HeuristicValue& v2);
    heuristic values. */
 HeuristicValue min(const HeuristicValue& v1, const HeuristicValue& v2);
 
+/* Output operator for heuristic values. */
+ostream& operator<<(ostream& os, const HeuristicValue& v);
 
-struct ActionDomain;
+
+/* ====================================================================== */
+/* PlanningGraph */
 
 /*
  * A planning graph.
@@ -146,8 +150,8 @@ struct PlanningGraph : public gc {
 private:
   /* Atom value map. */
   struct AtomValueMap
-    : public HashMap<const Atom*, HeuristicValue, hash<const Literal*>,
-		     equal_to<const Literal*> > {
+    : public hash_map<const Atom*, HeuristicValue, hash<const Literal*>,
+    equal_to<const Literal*> > {
   };
 
   /* Iterator for AtomValueMap. */
@@ -190,6 +194,9 @@ private:
 };
 
 
+/* ====================================================================== */
+/* InvalidHeuristic */
+
 /*
  * An invalid heuristic exception.
  */
@@ -198,6 +205,9 @@ struct InvalidHeuristic : public Exception {
   InvalidHeuristic(const string& name);
 };
 
+
+/* ====================================================================== */
+/* Heuristic */
 
 /*
  * Heuristic for ranking plans.
@@ -216,7 +226,7 @@ struct InvalidHeuristic : public Exception {
  * MAX is an admissible heuristic counting parallel cost.
  * MAXR is like MAX, but thries to take reuse into account.
  */
-struct Heuristic : public gc {
+struct Heuristic {
   /* Constructs a heuristic from a name. */
   Heuristic(const string& name = "UCPOP");
 
@@ -246,6 +256,9 @@ private:
 };
 
 
+/* ====================================================================== */
+/* InvalidFlawSelectionOrder */
+
 /*
  * An invalid flaw selection order exception.
  */
@@ -254,6 +267,9 @@ struct InvalidFlawSelectionOrder : public Exception {
   InvalidFlawSelectionOrder(const string& name);
 };
 
+
+/* ====================================================================== */
+/* SelectionCriterion */
 
 /*
  * A selection criterion.
@@ -303,6 +319,9 @@ struct SelectionCriterion {
   bool reuse;
 };
 
+
+/* ====================================================================== */
+/* FlawSelectionOrder */
 
 /*
  * Flaw selection order.

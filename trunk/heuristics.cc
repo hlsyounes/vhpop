@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 3.4 2002-03-18 10:11:07 lorens Exp $
+ * $Id: heuristics.cc,v 3.5 2002-03-18 17:21:07 lorens Exp $
  */
 #include <set>
 #include <typeinfo>
@@ -144,72 +144,41 @@ HeuristicValue::HeuristicValue(int max_cost, int max_work,
     add_cost_(add_cost), add_work_(add_work) {}
 
 
-/* Returns the cost according to the max heuristic. */
-int HeuristicValue::max_cost() const {
-  return max_cost_;
-}
-
-
-/* Returns the work according to the max heuristic. */
-int HeuristicValue::max_work() const {
-  return max_work_;
-}
-
-
-/* Returns the cost according to the additive heurisitc. */
-int HeuristicValue::add_cost() const {
-  return add_cost_;
-}
-
-
-/* Returns the work according to the additive heuristic. */
-int HeuristicValue::add_work() const {
-  return add_work_;
-}
-
-
 /* Checks if this heuristic value is zero. */
 bool HeuristicValue::zero() const {
-  return max_cost_ == 0;
+  return max_cost() == 0;
 }
 
 
 /* Checks if this heuristic value is infinite. */
 bool HeuristicValue::infinite() const {
-  return max_cost_ == INT_MAX;
+  return max_cost() == INT_MAX;
 }
 
 
 /* Adds the given heuristic value to this heuristic value. */
 HeuristicValue& HeuristicValue::operator+=(const HeuristicValue& v) {
-  if (max_cost_ < v.max_cost_) {
-    max_cost_ = v.max_cost_;
+  if (max_cost() < v.max_cost()) {
+    max_cost_ = v.max_cost();
   }
-  max_work_ = sum(max_work_, v.max_work_);
-  add_cost_ = sum(add_cost_, v.add_cost_);
-  add_work_ = sum(add_work_, v.add_work_);
+  max_work_ = sum(max_work(), v.max_work());
+  add_cost_ = sum(add_cost(), v.add_cost());
+  add_work_ = sum(add_work(), v.add_work());
   return *this;
 }
 
 
 /* Adds the given cost to this heuristic value. */
 void HeuristicValue::add_cost(int c) {
-  max_cost_ = sum(max_cost_, c);
-  add_cost_ = sum(add_cost_, c);
+  max_cost_ = sum(max_cost(), c);
+  add_cost_ = sum(add_cost(), c);
 }
 
 
 /* Adds the given work to this heuristic value. */
 void HeuristicValue::add_work(int w) {
-  max_work_ = sum(max_work_, w);
-  add_work_ = sum(add_work_, w);
-}
-
-
-/* Prints this object on the given stream. */
-void HeuristicValue::print(ostream& os) const {
-  os << "MAX<" << max_cost_ << ',' << max_work_ << '>'
-     << " ADD<" << add_cost_ << ',' << add_work_ << '>';
+  max_work_ = sum(max_work(), w);
+  add_work_ = sum(add_work(), w);
 }
 
 
@@ -277,6 +246,14 @@ HeuristicValue min(const HeuristicValue& v1, const HeuristicValue& v2) {
     add_work = v2.add_work();
   }
   return HeuristicValue(max_cost, max_work, add_cost, add_work);
+}
+
+
+/* Output operator for heuristic values. */
+ostream& operator<<(ostream& os, const HeuristicValue& v) {
+  os << "MAX<" << v.max_cost() << ',' << v.max_work() << '>'
+     << " ADD<" << v.add_cost() << ',' << v.add_work() << '>';
+  return os;
 }
 
 
@@ -1160,8 +1137,7 @@ InvalidFlawSelectionOrder::InvalidFlawSelectionOrder(const string& name)
 
 
 /* ====================================================================== */
-/* FlawSelectionOrder */
-
+/* SelectionCriterion */
 
 /* Output operator for selection criterion. */
 ostream& operator<<(ostream& os, const SelectionCriterion& c) {
@@ -1307,6 +1283,9 @@ ostream& operator<<(ostream& os, const SelectionCriterion& c) {
   return os;
 }
 
+
+/* ====================================================================== */
+/* FlawSelectionOrder */
 
 /* Constructs a default flaw selection order. */
 FlawSelectionOrder::FlawSelectionOrder(const string& name) {
