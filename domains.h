@@ -2,7 +2,7 @@
 /*
  * Domain descriptions.
  *
- * $Id: domains.h,v 1.13 2001-09-03 20:06:07 lorens Exp $
+ * $Id: domains.h,v 1.14 2001-09-18 15:39:04 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -67,6 +67,8 @@ struct PredicateMap : public gc,
 };
 
 
+struct EffectList;
+
 /*
  * Effect definition.
  */
@@ -99,9 +101,9 @@ struct Effect : public gc {
   /* Returns an instantiation of this effect. */
   const Effect& instantiation(size_t id) const;
 
-  /* Returns an instantiation of this effect. */
-  const Effect& instantiation(const SubstitutionList& subst,
-			      const Problem& problem) const;
+  /* Fills the provided list with instantiations of this effect. */
+  void instantiations(EffectList& effects, const SubstitutionList& subst,
+		      const Problem& problem) const;
 
   /* Returns this effect subject to the given substitutions. */
   const Effect& substitution(const SubstitutionList& subst) const;
@@ -180,7 +182,7 @@ struct Action : public gc {
   }
 
   /* Returns a formula representing this action. */
-  virtual const AtomicFormula& action_formula(size_t id) const = 0;
+  virtual const AtomicFormula& action_formula() const = 0;
 
   /* Fills the provided action list with all instantiations of this
      action. */
@@ -289,7 +291,7 @@ struct ActionSchema : public Action {
   }
 
   /* Returns a formula representing this action. */
-  virtual const AtomicFormula& action_formula(size_t id) const;
+  virtual const AtomicFormula& action_formula() const;
 
   /* Fills the provided action list with all instantiations of this
      action. */
@@ -317,7 +319,7 @@ struct GroundAction : public Action {
 	       const Formula& precondition, const EffectList& effects);
 
   /* Returns a formula representing this action. */
-  virtual const AtomicFormula& action_formula(size_t id) const;
+  virtual const AtomicFormula& action_formula() const;
 
   /* Fills the provided action list with all instantiations of this
      action. */
