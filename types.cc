@@ -1,5 +1,5 @@
 /*
- * $Id: types.cc,v 1.3 2001-08-11 01:12:03 lorens Exp $
+ * $Id: types.cc,v 1.4 2001-08-11 02:31:46 lorens Exp $
  */
 #include <algorithm>
 #include "types.h"
@@ -76,7 +76,7 @@ const Type& SimpleType::add(const Type& t) const {
     } else if (t.subtype(*this)) {
       return t;
     } else {
-	TypeList& new_types = *(new TypeList(1, this));
+	TypeList& new_types = *(new TypeList(this));
 	new_types.push_back(st);
 	sort(new_types.begin(), new_types.end(), less<const SimpleType*>());
 	return *(new UnionType(new_types));
