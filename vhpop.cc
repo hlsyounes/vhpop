@@ -15,12 +15,11 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 3.14 2002-05-26 11:20:24 lorens Exp $
+ * $Id: vhpop.cc,v 3.15 2002-05-27 11:34:19 lorens Exp $
  */
 #include "plans.h"
 #include "reasons.h"
 #include "parameters.h"
-#include "orderings.h"
 #include "heuristics.h"
 #include "domains.h"
 #include "problems.h"
