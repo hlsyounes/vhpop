@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.h,v 3.6 2002-03-25 00:44:30 lorens Exp $
+ * $Id: bindings.h,v 3.7 2002-06-11 20:24:46 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
@@ -45,90 +45,67 @@ struct PlanningGraph;
 /* Binding */
 
 /*
- * Abstract variable binding.
+ * Variable binding.
  */
-struct Binding : public Printable {
+struct Binding {
+  /* Constructs a variable binding from the given substitution. */
+  Binding(const Substitution& s, bool equality, const Reason& reason);
+
+  /* Constructs a variable binding. */
+  Binding(const Variable& var, const Term& term, bool equality,
+	  const Reason& reason);
+
   /* Returns the variable of this binding. */
   const Variable& var() const { return *var_; }
 
   /* Returns the term of this binding. */
   const Term& term() const { return *term_; }
 
+  /* Checks if this is an equality binding. */
+  bool equality() const { return equality_; }
+
   /* Returns the reason for this binding. */
   const Reason& reason() const;
-
-protected:
-  /* Constructs an abstract variable binding. */
-  Binding(const Variable& var, const Term& term, const Reason& reason);
 
 private:
   /* A variable. */
   const Variable* var_;
   /* A term either bound to, or separated from the variable. */
   const Term* term_;
+  /* Whether or not this is an equality binding. */
+  bool equality_;
 #ifdef TRANSFORMATIONAL
   /* Reason for this binding. */
   const Reason* reason_;
 #endif
+
+  friend ostream& operator<<(ostream& os, const Binding& b);
 };
+
+/* Output operator for variable bindings. */
+ostream& operator<<(ostream& os, const Binding& b);
 
 
 /* ====================================================================== */
-/* EqualityBinding */
-
-/*
- * Equality binding.
- */
-struct EqualityBinding : public Binding {
-  /* Constructs an equality binding from the given substitution. */
-  EqualityBinding(const Substitution& s, const Reason& reason);
-
-  /* Construct an equality binding, binding the given variable to the
-     given term. */
-  EqualityBinding(const Variable& var, const Term& term,
-		  const Reason& reason);
-
-protected:
-  /* Prints this equality binding on the given stream. */
-  virtual void print(ostream& os) const;
-};
-
-
-/* ====================================================================== */
-/* InequalityBinding */
-
-/*
- * Inequality binding.
- */
-struct InequalityBinding : public Binding {
-  /* Constructs an inequality binding from the given substitution. */
-  InequalityBinding(const Substitution& s, const Reason& reason);
-
-  /* Constructs an inequality binding, separating the given variable
-     from the given term. */
-  InequalityBinding(const Variable& var, const Term& term,
-		    const Reason& reason);
-
-protected:
-  /* Prints this inequality binding on the given stream. */
-  virtual void print(ostream& os) const;
-};
-
+/* BindingList */
 
 /*
  * List of bindings.
  */
-struct BindingList : vector<const Binding*> {
+struct BindingList : vector<Binding> {
 };
 
 /* Iterator for binding lists. */
 typedef BindingList::const_iterator BindingListIter;
 
 
+/* ====================================================================== */
+/* BindingChain */
+
 /*
  * Chain of bindings.
  */
-typedef Chain<const Binding*> BindingChain;
+typedef CollectibleChain<Binding> BindingChain;
 
 
 /*
@@ -139,18 +116,6 @@ struct NameSet : public set<const Name*, less<const LessThanComparable*> > {
 
 /* Iterator for name sets. */
 typedef NameSet::const_iterator NameSetIter;
-
-
-/*
- * A set of variables.
- */
-struct VariableSet
-  : public set<const Variable*, less<const LessThanComparable*> > {
-  static const VariableSet& EMPTY;
-};
-
-/* Iterator for variable sets. */
-typedef VariableSet::const_iterator VariableSetIter;
 
 
 /*
@@ -209,7 +174,7 @@ struct Varset;
 /*
  * Chain of varsets.
  */
-typedef Chain<const Varset*> VarsetChain;
+typedef CollectibleChain<Varset> VarsetChain;
 
 struct StepDomain;
 
@@ -226,13 +191,9 @@ typedef Chain<const StepDomain*> StepDomainChain;
  * A collection of variable bindings.
  */
 struct Bindings : public Printable, public Collectible {
-  /* Creates a binding collection with parameter constrains if pg is
-     not NULL, or an empty binding collection otherwise. */
-  static const Bindings& make_bindings(const CollectibleChain<Step>* steps,
-				       const PlanningGraph* pg);
-
   /* Creates a collection of variable bindings with the given equality
-     and inequality bindings. */
+     and inequality bindings. Parameter constrains are used if pg is
+     not NULL. */
   static const Bindings* make_bindings(const CollectibleChain<Step>* steps,
 				       const PlanningGraph* pg,
 				       const BindingChain* equalities,
@@ -245,6 +206,9 @@ struct Bindings : public Printable, public Collectible {
      unifier is added to the provided substitution list. */
   static bool unifiable(SubstitutionList& mgu,
 			const Literal& l1, const Literal& l2);
+
+  /* Deletes this binding collection. */
+  virtual ~Bindings();
 
   /* Returns the equality bindings. */
   const BindingChain* equalities() const;
