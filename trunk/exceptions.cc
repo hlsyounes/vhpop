@@ -13,10 +13,9 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: exceptions.cc,v 1.1 2003-03-01 18:55:40 lorens Exp $
+ * $Id: exceptions.cc,v 6.1 2003-03-23 10:15:24 lorens Exp $
  */
 #include "exceptions.h"
-#include <iostream>
 
 
 /* ====================================================================== */

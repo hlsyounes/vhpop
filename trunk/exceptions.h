@@ -16,12 +16,13 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: exceptions.h,v 1.2 2003-03-01 18:52:35 lorens Exp $
+ * $Id: exceptions.h,v 6.1 2003-03-23 10:15:16 lorens Exp $
  */
 #ifndef EXCEPTIONS_H
 #define EXCEPTIONS_H
 
 #include <config.h>
+#include <iostream>
 #include <string>
 
 
