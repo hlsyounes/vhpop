@@ -2,7 +2,7 @@
 /*
  * Heuristics.
  *
- * $Id: heuristics.h,v 1.3 2001-08-20 04:11:09 lorens Exp $
+ * $Id: heuristics.h,v 1.4 2001-09-03 20:06:16 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
@@ -128,14 +128,18 @@ struct Cost {
 /*
  * Flaw selection order.
  *
- * LIFO/FIFO order works with all heuristics.  Hardest/easiest first
- * can be combined with LIFO/FIFO order, but works only with
- * heuristics that can estimate cost for open conditions.
+ * LIFO/FIFO order works with all heuristics.  Other orders can be
+ * combined with LIFO/FIFO order, but work only with heuristics that
+ * can estimate cost for open conditions.
  */
 struct FlawSelectionOrder {
+private:
+  typedef enum { NONE, MC, LC, MW, LW } FVal;
+
+public:
   /* Constructs a default flaw selection order. */
   FlawSelectionOrder()
-    : lifo_(true), difficulty_(0) {
+    : lifo_(true), mode_(NONE) {
   }
 
   /* Selects LIFO order. */
@@ -158,31 +162,51 @@ struct FlawSelectionOrder {
     return !lifo_;
   }
 
-  /* Selects hardest first order. */
-  void set_hardest_first() {
-    difficulty_ = 1;
+  /* Selects most cost first order. */
+  void set_most_cost_first() {
+    mode_ = MC;
   }
 
-  /* Checks if hardest first order is selected. */
-  bool hardest_first() const {
-    return difficulty_ > 0;
+  /* Checks if most cost first order is selected. */
+  bool most_cost_first() const {
+    return mode_ == MC;
   }
 
-  /* Selects easiest first order. */
-  void set_easiest_first() {
-    difficulty_ = -1;
+  /* Selects least cost first order. */
+  void set_least_cost_first() {
+    mode_ = LC;
   }
 
-  /* Checks if easiest first order is selected. */
-  bool easiest_first() const {
-    return difficulty_ < 0;
+  /* Checks if least cost first order is selected. */
+  bool least_cost_first() const {
+    return mode_ == LC;
+  }
+
+  /* Selects most work first order. */
+  void set_most_work_first() {
+    mode_ = MW;
+  }
+
+  /* Checks if most work first order is selected. */
+  bool most_work_first() const {
+    return mode_ == MW;
+  }
+
+  /* Selects least work first order. */
+  void set_least_work_first() {
+    mode_ = LW;
+  }
+
+  /* Checks if least work first order is selected. */
+  bool least_work_first() const {
+    return mode_ == LW;
   }
 
 private:
   /* Whether to select flaws in LIFO order or FIFO order. */
   bool lifo_;
-  /* Hardest first (> 0), easiest first (< 0), or no preference (== 0). */
-  int difficulty_;
+  /* Flaw selection mode. */
+  FVal mode_;
 };
 
 #endif /* HEURISTICS_H */
