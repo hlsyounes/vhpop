@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.4 2001-05-04 03:51:51 lorens Exp $
+ * $Id: plans.cc,v 1.5 2001-05-04 15:39:22 lorens Exp $
  */
 #include <queue>
 #include <hash_set>
@@ -10,7 +10,7 @@
 
 
 /* Id of goal step. */
-const unsigned int Plan::GOAL_ID = UINT_MAX;
+const size_t Plan::GOAL_ID = UINT_MAX;
 /* Heiristic to use for estimating cost of plan. */
 Heuristic Plan::heuristic = MAX_HEURISTIC;
 /* Whether to allow early linking. */
@@ -19,12 +19,12 @@ unsigned int Plan::early_linking = 0;
 bool Plan::transformations = false;
 /* Verbosity. */
 unsigned int Plan::verbosity = 0;
-/* Domain of problem currently being solved. */
-const Domain* Plan::domain = NULL;
 /* Number of visited plans. */
 size_t Plan::num_visited_plans = 0;
 /* Number of generated plans. */
 size_t Plan::num_generated_plans = 0;
+/* Domain of problem currently being solved. */
+static const Domain* domain = NULL;
 
 
 /*
@@ -76,10 +76,10 @@ protected:
  */
 struct AddStepReason : public Reason {
   /* Id of added step. */
-  const unsigned int step_id;
+  const size_t step_id;
 
   /* Constructs an AddStep reason. */
-  AddStepReason(unsigned int step_id)
+  AddStepReason(size_t step_id)
     : step_id(step_id) {
   }
 
@@ -128,10 +128,10 @@ struct ProtectReason : public Reason {
   /* Protected link. */
   const Link& link;
   /* Id of threatening step. */
-  const unsigned int step_id;
+  const size_t step_id;
 
   /* Constructs a Protect reason. */
-  ProtectReason(const Link& link, unsigned int step_id)
+  ProtectReason(const Link& link, size_t step_id)
     : link(link), step_id(step_id) {
   }
 
@@ -180,6 +180,23 @@ void Link::print(ostream& os) const {
 }
 
 
+/* Checks if the given open condition is static. */
+static bool static_open_condition(const OpenCondition& open_cond) {
+  const Formula& formula = open_cond.condition;
+  const Negation* negation = dynamic_cast<const Negation*>(&formula);
+  if (negation != NULL) {
+    return domain->static_predicate(negation->atom.predicate);
+  } else {
+    const AtomicFormula* atom = dynamic_cast<const AtomicFormula*>(&formula);
+    if (atom != NULL) {
+      return domain->static_predicate(atom->predicate);
+    } else {
+      return false;
+    }
+  }
+}
+
+
 /* Adds atomic goal to chain of open conditions, and returns true if
    and only if the goal is consistent. */
 static bool add_open_condition(const OpenConditionChain*& open_conds,
@@ -188,29 +205,42 @@ static bool add_open_condition(const OpenConditionChain*& open_conds,
 			       const Formula& goal, size_t step_id,
 			       const Reason& reason, const LinkChain* links) {
   for (const OpenConditionChain* oc = open_conds; oc != NULL; oc = oc->tail) {
+    /*
+     * Consistency check with open conditions in same step.
+     */
     if (oc->head->step_id == step_id) {
       const Formula& cond = oc->head->condition;
       if (goal.negates(cond)) {
+	/* goal is inconsistent with other precondition of same step */
 	return false;
       } else if (goal == cond) {
+	/* goal already added */
 	return true;
       }
     }
   }
+  /*
+   * Consistency check with linked preconditions in same step.
+   */
   for (; links != NULL; links = links->tail) {
     if (links->head->to_id == step_id) {
       const Formula& cond = links->head->condition;
       if (goal.negates(cond)) {
+	/* goal is inconsistent with other precondition of same step */
 	return false;
       } else if (goal == cond) {
+	/* goal already added */
 	return true;
       }
     }
   }
+  /*
+   * Add goal as open condition.
+   */
   const OpenCondition& open_cond = *(new OpenCondition(goal, step_id, reason));
   open_conds = new OpenConditionChain(&open_cond, open_conds);
   num_open_conds++;
-  if (Plan::static_open_condition(open_cond)) {
+  if (static_open_condition(open_cond)) {
     num_static_open_conds++;
   }
   return true;
@@ -309,7 +339,7 @@ static bool add_goal(const OpenConditionChain*& open_conds,
    chain removed, and sets num_unsafes to the remaining number of
    unsafes. */
 static const UnsafeChain*
-remove_obsolete_unsafes(const UnsafeChain* unsafes, unsigned int& num_unsafes,
+remove_obsolete_unsafes(const UnsafeChain* unsafes, size_t& num_unsafes,
 			const Orderings& orderings, const Bindings& bindings) {
   if (unsafes == NULL) {
     return NULL;
@@ -342,7 +372,7 @@ const Plan* Plan::plan(const Problem& problem, Heuristic heuristic,
   /* Set verbosity. */
   Plan::verbosity = verbosity;
   /* Set current domain. */
-  Plan::domain = &problem.domain;
+  domain = &problem.domain;
   /* Reset number of visited plan. */
   Plan::num_visited_plans = 0;
   /* Reset number of generated plans. */
@@ -360,7 +390,7 @@ const Plan* Plan::plan(const Problem& problem, Heuristic heuristic,
       /* Search limit reached. */
       break;
     }
-    if (!current_plan->duplicate()) {
+    if (!(transformations && current_plan->duplicate())) {
       /*
        * This is a new plan.
        */
@@ -396,10 +426,8 @@ const Plan* Plan::plan(const Problem& problem, Heuristic heuristic,
     /*
      * Print statistics.
      */
-    cout << endl << "Plans visited: " << num_visited_plans << endl;
-    cout << "Plans generated: " << num_generated_plans << endl;
-    cout << "Average branching factor: "
-	 << ((float)num_generated_plans/num_visited_plans) << endl;
+    cout << endl << "Plans visited: " << num_visited_plans;
+    cout << endl << "Plans generated: " << num_generated_plans << endl;
   }
   /* Return last plan, or NULL if problem does not have a solution. */
   return current_plan;
@@ -773,7 +801,7 @@ remove_open_conditions(const OpenConditionChain* open_conds,
     const OpenCondition& open_cond = *open_conds->head;
     if (open_cond.reason.involves(link)) {
       num_open_conds--;
-      if (Plan::static_open_condition(open_cond)) {
+      if (static_open_condition(open_cond)) {
 	num_static_open_conds--;
       }
       return tail;
@@ -799,7 +827,7 @@ remove_open_conditions(const OpenConditionChain* open_conds,
     const OpenCondition& open_cond = *open_conds->head;
     if (open_cond.step_id == step.id) {
       num_open_conds--;
-      if (Plan::static_open_condition(open_cond)) {
+      if (static_open_condition(open_cond)) {
 	num_static_open_conds--;
       }
       return tail;
@@ -1086,21 +1114,6 @@ void Plan::add_step(PlanList& new_plans,
 	  num_prev_plans = new_plans.size();
 	}
       }
-    }
-  }
-}
-
-bool Plan::static_open_condition(const OpenCondition& open_cond) {
-  const Formula& formula = open_cond.condition;
-  const Negation* negation = dynamic_cast<const Negation*>(&formula);
-  if (negation != NULL) {
-    return domain->static_predicate(negation->atom.predicate);
-  } else {
-    const AtomicFormula* atom = dynamic_cast<const AtomicFormula*>(&formula);
-    if (atom != NULL) {
-      return domain->static_predicate(atom->predicate);
-    } else {
-      return false;
     }
   }
 }
