@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.17 2001-09-29 18:56:21 lorens Exp $
+ * $Id: plans.h,v 1.18 2001-10-06 00:34:59 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -145,7 +145,7 @@ struct Step : public gc {
   /* Step id. */
   const size_t id;
   /* Action formula, or NULL if step is not instantiated from an action. */
-  const AtomicFormula* const action;
+  const Atom* const action;
   /* Precondition of step, or TRUE if step has no precondition. */
   const Formula& precondition;
   /* List of effects. */
@@ -180,7 +180,7 @@ struct Step : public gc {
 
 private:
   /* Constructs a step. */
-  Step(size_t id, const AtomicFormula* action, const Formula& precondition,
+  Step(size_t id, const Atom* action, const Formula& precondition,
        const EffectList& effects, const Reason& reason)
     : id(id), action(action), precondition(precondition), effects(effects),
       reason(reason) {

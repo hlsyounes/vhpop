@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.19 2001-09-29 18:55:58 lorens Exp $
+ * $Id: plans.cc,v 1.20 2001-10-06 00:35:10 lorens Exp $
  */
 #include <queue>
 #include <hash_set>
@@ -178,7 +178,7 @@ static bool add_open_condition(const OpenConditionChain*& open_conds,
    * Add goal as open condition.
    */
   const OpenCondition* open_cond;
-  const AtomicFormula* atom = dynamic_cast<const AtomicFormula*>(&goal);
+  const Atom* atom = dynamic_cast<const Atom*>(&goal);
   if (atom != NULL) {
     open_cond = new PredicateOpenCondition(goal, step_id, reason,
 					   atom->predicate);
@@ -1686,7 +1686,7 @@ size_t Plan::make_node(CostGraph& cg, hash_map<size_t, size_t>& step_nodes,
   }
   Cost c = cond.cost(atom_cost, params.heuristic);
   if (c.infinite() && !params.ground_actions) {
-    const AtomicFormula* atom = dynamic_cast<const AtomicFormula*>(&cond);
+    const Atom* atom = dynamic_cast<const Atom*>(&cond);
     if (atom != NULL) {
       if (domain->static_predicate(atom->predicate)) {
 	c.cost = 0;

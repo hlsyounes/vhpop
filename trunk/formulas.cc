@@ -1,5 +1,5 @@
 /*
- * $Id: formulas.cc,v 1.11 2001-09-29 18:54:44 lorens Exp $
+ * $Id: formulas.cc,v 1.12 2001-10-06 00:35:18 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -466,14 +466,14 @@ const FormulaList& FormulaList::operator!() const {
 
 
 /* Returns an instantiation of this formula. */
-const AtomicFormula& AtomicFormula::instantiation(size_t id) const {
-  return *(new AtomicFormula(predicate, terms.instantiation(id)));
+const Atom& Atom::instantiation(size_t id) const {
+  return *(new Atom(predicate, terms.instantiation(id)));
 }
 
 
 /* Returns an instantiation of this formula. */
-const Formula& AtomicFormula::instantiation(const SubstitutionList& subst,
-					    const Problem& problem) const {
+const Formula& Atom::instantiation(const SubstitutionList& subst,
+				   const Problem& problem) const {
   const Formula& f = substitution(subst);
   if (problem.domain.static_predicate(predicate)) {
     if (problem.init != NULL) {
@@ -495,30 +495,30 @@ const Formula& AtomicFormula::instantiation(const SubstitutionList& subst,
 
 /* Returns this formula subject to the given substitutions. */
 const Formula&
-AtomicFormula::substitution(const SubstitutionList& subst) const {
-  return *(new AtomicFormula(predicate, terms.substitution(subst)));
+Atom::substitution(const SubstitutionList& subst) const {
+  return *(new Atom(predicate, terms.substitution(subst)));
 }
 
 
 /* Returns the heuristic cost of this formula. */
-Cost AtomicFormula::cost(const hash_map<const Formula*, Cost>& atom_cost,
-			 Heuristic h) const {
+Cost Atom::cost(const hash_map<const Formula*, Cost>& atom_cost,
+		Heuristic h) const {
   hash_map<const Formula*, Cost>::const_iterator ci = atom_cost.find(this);
   return (ci != atom_cost.end()) ? (*ci).second : Cost::INFINITE;
 }
 
 
 /* Fills the provided lists with goals achievable by this formula. */
-void AtomicFormula::achievable_goals(FormulaList& goals,
-				     FormulaList& neg_goals) const {
+void Atom::achievable_goals(FormulaList& goals,
+			    FormulaList& neg_goals) const {
   goals.push_back(this);
 }
 
 
 /* Fills the provided sets with predicates achievable by this
    formula. */
-void AtomicFormula::achievable_predicates(hash_set<string>& preds,
-					  hash_set<string>& neg_preds) const {
+void Atom::achievable_predicates(hash_set<string>& preds,
+				 hash_set<string>& neg_preds) const {
   for (TermList::const_iterator ti = terms.begin(); ti != terms.end(); ti++) {
     if (typeid(**ti) != typeid(Name)) {
       preds.insert(predicate);
@@ -529,7 +529,7 @@ void AtomicFormula::achievable_predicates(hash_set<string>& preds,
 
 
 /* Prints this formula on the given stream. */
-void AtomicFormula::print(ostream& os) const {
+void Atom::print(ostream& os) const {
   os << '(' << predicate;
   for (TermList::const_iterator i = terms.begin(); i != terms.end(); i++) {
     os << ' ' << **i;
@@ -539,20 +539,20 @@ void AtomicFormula::print(ostream& os) const {
 
 
 /* Checks if this formula equals the given formula. */
-bool AtomicFormula::equals(const Formula& f) const {
-  const AtomicFormula* atom = dynamic_cast<const AtomicFormula*>(&f);
+bool Atom::equals(const Formula& f) const {
+  const Atom* atom = dynamic_cast<const Atom*>(&f);
   return atom != NULL && predicate == atom->predicate && terms == atom->terms;
 }
 
 
 /* Returns the negation of this formula. */
-const Formula& AtomicFormula::negation() const {
+const Formula& Atom::negation() const {
   return *(new Negation(*this));
 }
 
 
 /* Returns the hash value of this formula. */
-size_t AtomicFormula::hash_value() const {
+size_t Atom::hash_value() const {
   return 5*hash<string>()(predicate) + hash<TermList>()(terms);
 }
 

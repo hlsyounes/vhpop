@@ -2,7 +2,7 @@
 /*
  * PDDL tokenizer.
  *
- * $Id: tokens.ll,v 1.3 2001-08-10 04:43:00 lorens Exp $
+ * $Id: tokens.ll,v 1.4 2001-10-06 00:35:07 lorens Exp $
  */
 %{
 struct Type;
@@ -12,7 +12,7 @@ struct Variable;
 struct VariableList;
 struct Formula;
 struct FormulaList;
-struct AtomicFormula;
+struct Atom;
 struct Effect;
 struct EffectList;
 struct ActionSchema;

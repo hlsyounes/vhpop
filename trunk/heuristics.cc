@@ -1,5 +1,5 @@
 /*
- * $Id: heuristics.cc,v 1.1 2001-09-29 18:54:53 lorens Exp $
+ * $Id: heuristics.cc,v 1.2 2001-10-06 00:35:15 lorens Exp $
  */
 #include <hash_map>
 #include "heuristics.h"
@@ -49,7 +49,7 @@ void Heuristic::compute_cost(hash_map<const Formula*, Cost>& atom_cost,
   if (problem.init != NULL) {
     problem.init->achievable_goals(goals, neg_goals);
     for (FLCI fi = goals.begin(); fi != goals.end(); fi++) {
-      const AtomicFormula& atom = dynamic_cast<const AtomicFormula&>(**fi);
+      const Atom& atom = dynamic_cast<const Atom&>(**fi);
       if (!problem.domain.static_predicate(atom.predicate)) {
 	atom_cost[&atom] = Cost(0, 1);
       }

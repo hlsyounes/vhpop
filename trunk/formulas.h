@@ -2,7 +2,7 @@
 /*
  * Formulas.
  *
- * $Id: formulas.h,v 1.16 2001-09-28 17:55:44 lorens Exp $
+ * $Id: formulas.h,v 1.17 2001-10-06 00:35:02 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -372,19 +372,19 @@ typedef FormulaList::const_iterator FLCI;
 /*
  * Atomic formula.
  */
-struct AtomicFormula : public Formula {
+struct Atom : public Formula {
   /* Predicate of this atomic formula. */
   const string predicate;
   /* Terms of this atomic formula. */
   const TermList& terms;
 
   /* Constructs an atomic formula. */
-  AtomicFormula(const string& predicate, const TermList& terms)
+  Atom(const string& predicate, const TermList& terms)
     : predicate(predicate), terms(terms) {
   }
 
   /* Returns an instantiation of this formula. */
-  virtual const AtomicFormula& instantiation(size_t id) const;
+  virtual const Atom& instantiation(size_t id) const;
 
   /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionList& subst,
@@ -426,7 +426,7 @@ protected:
  */
 struct Negation : public Formula {
   /* The negated atomic formula. */
-  const AtomicFormula& atom;
+  const Atom& atom;
 
   /* Returns an instantiation of this formula. */
   virtual const Negation& instantiation(size_t id) const;
@@ -462,11 +462,11 @@ protected:
 
 private:
   /* Constructs a negated atomic formula. */
-  Negation(const AtomicFormula& atom)
+  Negation(const Atom& atom)
     : atom(atom) {
   }
 
-  friend const Formula& AtomicFormula::negation() const;
+  friend const Formula& Atom::negation() const;
 };
 
 
