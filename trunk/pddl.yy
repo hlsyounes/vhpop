@@ -2,7 +2,7 @@
 /*
  * PDDL parser.
  *
- * $Id: pddl.yy,v 1.28 2002-01-12 18:59:05 lorens Exp $
+ * $Id: pddl.yy,v 1.29 2002-01-12 22:15:32 lorens Exp $
  */
 %{
 #include <typeinfo>
@@ -293,17 +293,18 @@ atomic_formula_skeleton : '(' predicate
  * Actions
  */
 
-action_def : '(' ACTION NAME PARAMETERS
-               { free_variables.push_frame(); }
-             '(' opt_variables ')'
+action_def : '(' ACTION NAME
                {
 		 context = (" in action `" + *$3 + "' of domain `"
 			    + domain_name + "'");
 	       }
+             PARAMETERS
+               { free_variables.push_frame(); }
+             '(' opt_variables ')'
              action_body ')'
                {
 		 free_variables.pop_frame();
-		 $$ = new ActionSchema(*$3, *$7, *action_precond,
+		 $$ = new ActionSchema(*$3, *$8, *action_precond,
 				       *action_adds);
 	       }
            ;
@@ -404,11 +405,14 @@ term_literal : atomic_term_formula
  * Problems
  */
 
-problem : '(' DEFINE '(' PROBLEM NAME ')' '(' PDOMAIN NAME ')'
+problem : '(' DEFINE '(' PROBLEM NAME ')' 
             {
-	      pdomain = Domain::find(*$9);
 	      problem_name = *$5;
 	      context = " in problem `" + problem_name + "'";
+	    }
+          '(' PDOMAIN NAME ')'
+            {
+	      pdomain = Domain::find(*$10);
 	      if (pdomain != NULL) {
 		requirements = new Requirements(pdomain->requirements);
 	      } else {
