@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.cc,v 6.5 2003-08-28 15:30:32 lorens Exp $
+ * $Id: bindings.cc,v 6.6 2003-08-28 16:48:25 lorens Exp $
  */
 #include "bindings.h"
 #include "plans.h"
@@ -591,17 +591,19 @@ void ActionDomain::print(std::ostream& os, const TermTable& terms) const {
 const Bindings Bindings::EMPTY = Bindings();
 
 /* Checks if the given formulas can be unified. */
-bool Bindings::unifiable(const Literal& l1, const Literal& l2) {
+bool Bindings::unifiable(const Literal& l1, size_t id1,
+			 const Literal& l2, size_t id2) {
   BindingList dummy;
-  return unifiable(dummy, l1, l2);
+  return unifiable(dummy, l1, id1, l2, id2);
 }
 
 
 /* Checks if the given formulas can be unified; the most general
    unifier is added to the provided substitution list. */
 bool Bindings::unifiable(BindingList& mgu,
-			 const Literal& l1, const Literal& l2) {
-  return EMPTY.unify(mgu, l1, 0, l2, 0);
+			 const Literal& l1, size_t id1,
+			 const Literal& l2, size_t id2) {
+  return EMPTY.unify(mgu, l1, id1, l2, id2);
 }
 
 
@@ -703,13 +705,28 @@ bool Bindings::unify(BindingList& mgu,
   } else if (l1.predicate() != l2.predicate()) {
     /* The predicates do not match. */
     return false;
-  } else if (id2 == 0) {
-    /* Special case: the second literal is fully instantiated. */
+  } else if (id1 == 0 && id2 == 0) {
+    /* Both literals are fully instantiated. */
+    return &l1 == &l2;
+  } else if (id1 == 0 || id2 == 0) {
+    /* One of the literals is fully instantiated. */
+    const Literal* ll;
+    const Literal* lg;
+    size_t idl;
+    if (id1 == 0) {
+      ll = &l2;
+      lg = &l1;
+      idl = id2;
+    } else {
+      ll = &l1;
+      lg = &l2;
+      idl = id1;
+    }
     SubstitutionMap bind;
-    size_t n = l1.arity();
+    size_t n = ll->arity();
     for (size_t i = 0; i < n; i++) {
-      Term t1 = l1.term(i);
-      Object o2 = l2.term(i);
+      Term t1 = ll->term(i);
+      Object o2 = lg->term(i);
       if (is_object(t1)) {
 	if (Object(t1) != o2) {
 	  return false;
@@ -717,18 +734,17 @@ bool Bindings::unify(BindingList& mgu,
       } else {
 	SubstitutionMap::const_iterator b = bind.find(t1);
 	if (b != bind.end()) {
-	  if ((*b).second != Object(l2.term(i))) {
+	  if ((*b).second != o2) {
 	    return false;
 	  }
 	} else {
-	  Object o2 = l2.term(i);
-	  Term bt = binding(t1, id1);
+	  Term bt = binding(t1, idl);
 	  if (is_object(bt)) {
 	    if (Object(bt) != o2) {
 	      return false;
 	    }
 	  } else {
-	    mgu.push_back(Binding(t1, id1, o2, 0, true));
+	    mgu.push_back(Binding(t1, idl, o2, 0, true));
 	  }
 	  bind.insert(std::make_pair(t1, o2));
 	}
