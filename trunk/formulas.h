@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 4.1 2002-07-22 22:41:12 lorens Exp $
+ * $Id: formulas.h,v 4.2 2002-07-24 16:00:37 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -117,9 +117,6 @@ protected:
   /* Checks if this object is less than the given object. */
   virtual bool less(const LessThanComparable& o) const;
 
-  /* Returns the hash value of this object. */
-  virtual size_t hash_value() const;
-
   /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
 
@@ -155,6 +152,9 @@ struct Name : public Term {
 protected:
   /* Checks if this object equals the given object. */
   virtual bool equals(const EqualityComparable& o) const;
+
+  /* Returns the hash value of this object. */
+  virtual size_t hash_value() const;
 };
 
 
@@ -185,6 +185,9 @@ struct Variable : public Term {
 protected:
   /* Checks if this object equals the given object. */
   virtual bool equals(const EqualityComparable& o) const;
+
+  /* Returns the hash value of this object. */
+  virtual size_t hash_value() const;
 };
 
 
@@ -204,6 +207,9 @@ protected:
 
   /* Checks if this object equals the given object. */
   virtual bool equals(const EqualityComparable& o) const;
+
+  /* Returns the hash value of this object. */
+  virtual size_t hash_value() const;
 
   /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
