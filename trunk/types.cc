@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: types.cc,v 4.4 2002-11-05 04:43:13 lorens Exp $
+ * $Id: types.cc,v 4.5 2002-12-06 01:40:39 lorens Exp $
  */
 #include "types.h"
 #include <iostream>
@@ -54,7 +54,7 @@ std::ostream& operator<<(std::ostream& os, const Type& t) {
 /* SimpleType */
 
 /* The object type. */
-const SimpleType SimpleType::OBJECT_("object");
+const SimpleType SimpleType::OBJECT_("object", Type::OBJECT);
 
 
 /* Constructs a simple type with the given name. */
@@ -97,12 +97,6 @@ bool SimpleType::subtype(const Type& t) const {
 }
 
 
-/* Checks if this type equals the given type. */
-bool SimpleType::equals(const Type& t) const {
-  return this == &t;
-}
-
-
 /* Prints this object on the given stream. */
 void SimpleType::print(std::ostream& os) const {
   os << name();
@@ -112,19 +106,19 @@ void SimpleType::print(std::ostream& os) const {
 /* ====================================================================== */
 /* UnionType */
 
-/* Returns the canonical form of the given union type. */
+/* Simplifies the given union type. */
 const Type& UnionType::simplify(const UnionType& t) {
-  const Type* canonical_type;
+  const Type* new_type;
   if (t.types().empty()) {
-    canonical_type = &Type::OBJECT;
+    new_type = &Type::OBJECT;
     delete &t;
   } else if (t.types().size() == 1) {
-    canonical_type = *t.types().begin();
+    new_type = *t.types().begin();
     delete &t;
   } else {
-    canonical_type = &t;
+    new_type = &t;
   }
-  return *canonical_type;
+  return *new_type;
 }
 
 
@@ -143,7 +137,8 @@ const Type& UnionType::add(const Type& t1, const Type& t2) {
     t->add(*st2);
   } else {
     const UnionType& ut2 = dynamic_cast<const UnionType&>(t2);
-    for (TypeSetIter ti = ut2.types().begin(); ti != ut2.types().end(); ti++) {
+    for (SimpleTypeListIter ti = ut2.types().begin();
+	 ti != ut2.types().end(); ti++) {
       t->add(**ti);
     }
   }
@@ -157,21 +152,15 @@ UnionType::UnionType() {
 
 
 /* Constructs a singleton union type. */
-UnionType::UnionType(const SimpleType& type) {
-  types_.insert(&type);
+UnionType::UnionType(const SimpleType& t) {
+  types_.push_back(&t);
 }
 
 
-/* Adds the given simple type to this union. */
+/* Adds the given simple type to this union type. */
 void UnionType::add(const SimpleType& t) {
   if (!subtype(t)) {
-    TypeSetIter ti =
-      find_if(types().begin(), types().end(), bind1st(Subtype(), &t));
-    while (ti != types().end()) {
-      types_.erase(ti);
-      ti = find_if(types().begin(), types().end(), bind1st(Subtype(), &t));
-    }
-    types_.insert(&t);
+    types_.push_back(&t);
   }
 }
 
@@ -183,18 +172,10 @@ bool UnionType::subtype(const Type& t) const {
 }
 
 
-/* Checks if this type equals the given type. */
-bool UnionType::equals(const Type& t) const {
-  const UnionType* ut = dynamic_cast<const UnionType*>(&t);
-  return (ut != NULL && types().size() == ut->types().size()
-	  && equal(types().begin(), types().end(), ut->types().begin()));
-}
-
-
 /* Prints this object on the given stream. */
 void UnionType::print(std::ostream& os) const {
   os << "(either";
-  for (TypeSetIter ti = types().begin(); ti != types().end(); ti++) {
+  for (SimpleTypeListIter ti = types().begin(); ti != types().end(); ti++) {
     os << ' ' << **ti;
   }
   os << ")";
