@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.5 2001-05-04 19:50:35 lorens Exp $
+ * $Id: plans.h,v 1.6 2001-05-15 13:54:22 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -348,6 +348,10 @@ struct Plan : public gc {
   /* Returns the secondary rank of this plan, where a lower rank
      signifies a better plan. */
   int secondary_rank() const;
+
+  /* Returns the tertiary rank of this plan, where a lower rank
+     signifies a better plan. */
+  int tertiary_rank() const;
 
   /* Returns the number of open conditions of this plan. */
   size_t num_open_conds() const {
