@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.cc,v 3.8 2002-03-29 14:35:38 lorens Exp $
+ * $Id: orderings.cc,v 3.9 2002-03-29 15:47:46 lorens Exp $
  */
 #include "orderings.h"
 #include "plans.h"
@@ -577,8 +577,7 @@ TemporalOrderings::TemporalOrderings(const StepChain* steps,
   }
   hash_map<size_t, FloatVector*> own_data2;
   for (size_t i = 0; i < 2*n; i++) {
-    FloatVector* fv = new FloatVector(2*i + 1, INFINITY);
-    (*fv)[i] = 0.0f;
+    FloatVector* fv = new FloatVector(2*i, INFINITY);
     own_data2.insert(make_pair(distance_.size(), fv));
     distance_.push_back(fv);
     FloatVector::register_use(fv);
@@ -693,20 +692,18 @@ const Orderings* TemporalOrderings::refine(const Ordering& new_ordering,
 	own_data1.insert(make_pair(orderings.order_.size(), bv));
 	orderings.order_.push_back(bv);
 	BoolVector::register_use(bv);
+	FloatVector* fv = new FloatVector(4*n, INFINITY);
+	own_data2.insert(make_pair(orderings.distance_.size(), fv));
+	orderings.distance_.push_back(fv);
+	FloatVector::register_use(fv);
       }
       BoolVector* bv = new BoolVector(4*n + 2, false);
       own_data1.insert(make_pair(orderings.order_.size(), bv));
       orderings.order_.push_back(bv);
       BoolVector::register_use(bv);
-      FloatVector* fv = new FloatVector(4*n + 1, INFINITY);
-      (*fv)[2*n] = 0.0f;
-      own_data2.insert(make_pair(orderings.distance_.size(), fv));
-      orderings.distance_.push_back(fv);
-      FloatVector::register_use(fv);
-      fv = new FloatVector(4*n + 3, INFINITY);
+      FloatVector* fv = new FloatVector(4*n + 2, INFINITY);
       (*fv)[2*n] = new_step.action()->max_duration;
-      (*fv)[2*n + 1] = 0.0f;
-      (*fv)[2*n + 2] = -new_step.action()->min_duration;
+      (*fv)[2*n + 1] = -new_step.action()->min_duration;
       own_data2.insert(make_pair(orderings.distance_.size(), fv));
       orderings.distance_.push_back(fv);
       FloatVector::register_use(fv);
@@ -816,9 +813,13 @@ void TemporalOrderings::print(ostream& os) const {
 /* Returns the entry at (r,c) in the matrix representing the minimal
    network for the ordering constraints. */
 float TemporalOrderings::distance(size_t r, size_t c) const {
-  size_t i = max(r, c);
-  size_t j = (r <= c) ? r : 2*i - c;
-  return (*distance_[i])[j];
+  if (r != c) {
+    size_t i = max(r, c) - 1;
+    size_t j = (r <= c) ? r : 2*i - c + 1;
+    return (*distance_[i])[j];
+  } else {
+    return 0.0f;
+  }
 }
 
 
@@ -826,21 +827,23 @@ float TemporalOrderings::distance(size_t r, size_t c) const {
    network for the ordering constraints. */
 void TemporalOrderings::set_distance(hash_map<size_t, FloatVector*>& own_data,
 				     size_t r, size_t c, float d) {
-  size_t i = max(r, c);
-  FloatVector* fv;
-  hash_map<size_t, FloatVector*>::const_iterator vi = own_data.find(i);
-  if (vi == own_data.end()) {
-    const FloatVector* old_fv = distance_[i];
-    fv = new FloatVector(*old_fv);
-    FloatVector::unregister_use(old_fv);
-    distance_[i] = fv;
-    FloatVector::register_use(fv);
-    own_data.insert(make_pair(i, fv));
-  } else {
-    fv = (*vi).second;
+  if (r != c) {
+    size_t i = max(r, c) - 1;
+    FloatVector* fv;
+    hash_map<size_t, FloatVector*>::const_iterator vi = own_data.find(i);
+    if (vi == own_data.end()) {
+      const FloatVector* old_fv = distance_[i];
+      fv = new FloatVector(*old_fv);
+      FloatVector::unregister_use(old_fv);
+      distance_[i] = fv;
+      FloatVector::register_use(fv);
+      own_data.insert(make_pair(i, fv));
+    } else {
+      fv = (*vi).second;
+    }
+    size_t j = (r <= c) ? r : 2*i - c + 1;
+    (*fv)[j] = d;
   }
-  size_t j = (r <= c) ? r : 2*i - c;
-  (*fv)[j] = d;
 }
 
 
