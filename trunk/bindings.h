@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.h,v 3.11 2002-07-01 19:35:08 lorens Exp $
+ * $Id: bindings.h,v 4.1 2002-09-20 16:44:39 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
@@ -52,14 +52,20 @@ struct Binding {
   Binding(const Substitution& s, bool equality, const Reason& reason);
 
   /* Constructs a variable binding. */
-  Binding(const Variable& var, const Term& term, bool equality,
-	  const Reason& reason);
+  Binding(const Variable& var, size_t var_id, const Term& term, size_t term_id,
+	  bool equality, const Reason& reason);
 
   /* Returns the variable of this binding. */
   const Variable& var() const { return *var_; }
 
+  /* Returns the step id for the variable. */
+  size_t var_id() const { return var_id_; }
+
   /* Returns the term of this binding. */
   const Term& term() const { return *term_; }
+
+  /* Return the step id for the term. */
+  size_t term_id() const { return term_id_; }
 
   /* Checks if this is an equality binding. */
   bool equality() const { return equality_; }
@@ -70,8 +76,12 @@ struct Binding {
 private:
   /* A variable. */
   const Variable* var_;
+  /* Step id for the variable. */
+  size_t var_id_;
   /* A term either bound to, or separated from the variable. */
   const Term* term_;
+  /* Step id for the term. */
+  size_t term_id_;
   /* Whether or not this is an equality binding. */
   bool equality_;
 #ifdef TRANSFORMATIONAL
@@ -186,6 +196,7 @@ struct Varset;
  */
 typedef CollectibleChain<Varset> VarsetChain;
 
+
 /* ====================================================================== */
 /* StepDomainChain */
 
@@ -213,12 +224,14 @@ struct Bindings : public Printable, public Collectible {
 				       const BindingChain* inequalities);
 
   /* Checks if the given formulas can be unified. */
-  static bool unifiable(const Literal& l1, const Literal& l2);
+  static bool unifiable(const Literal& l1, size_t id1,
+			const Literal& l2, size_t id2);
 
   /* Checks if the given formulas can be unified; the most general
      unifier is added to the provided substitution list. */
   static bool unifiable(SubstitutionList& mgu,
-			const Literal& l1, const Literal& l2);
+			const Literal& l1, size_t id1,
+			const Literal& l2, size_t id2);
 
   /* Deletes this binding collection. */
   virtual ~Bindings();
@@ -231,36 +244,40 @@ struct Bindings : public Printable, public Collectible {
 
   /* Returns the binding for the given term, or the term itself if it
      is not bound to a single name. */
-  const Term& binding(const Term& t) const;
+  const Term& binding(const Term& t, size_t step_id) const;
 
   /* Returns the domain for the given step variable. */
-  const NameSet* domain(const Variable& v) const;
+  const NameSet* domain(const Variable& v, size_t step_id) const;
 
   /* Checks if one of the given formulas is the negation of the other,
      and the atomic formulas can be unified. */
-  bool affects(const Literal& l1, const Literal& l2) const;
+  bool affects(const Literal& l1, size_t id1,
+	       const Literal& l2, size_t id2) const;
 
   /* Checks if one of the given formulas is the negation of the other,
      and the atomic formulas can be unified; the most general unifier
      is added to the provided substitution list. */
   bool affects(SubstitutionList& mgu,
-	       const Literal& l1, const Literal& l2) const;
+	       const Literal& l1, size_t id1,
+	       const Literal& l2, size_t id2) const;
 
   /* Checks if the given formulas can be unified. */
-  bool unify(const Literal& l1, const Literal& l2) const;
+  bool unify(const Literal& l1, size_t id1,
+	     const Literal& l2, size_t id2) const;
 
   /* Checks if the given formulas can be unified; the most general
      unifier is added to the provided substitution list. */
   bool unify(SubstitutionList& mgu,
-	     const Literal& l1, const Literal& l2) const;
+	     const Literal& l1, size_t id1,
+	     const Literal& l2, size_t id2) const;
 
   /* Checks if the given equality is consistent with the current
      bindings. */
-  bool consistent_with(const Equality& eq) const;
+  bool consistent_with(const Equality& eq, size_t step_id) const;
 
   /* Checks if the given inequality is consistent with the current
      bindings. */
-  bool consistent_with(const Inequality& neq) const;
+  bool consistent_with(const Inequality& neq, size_t step_id) const;
 
   /* Returns the binding collection obtained by adding the given
      bindings to this binding collection, or NULL if the new bindings
@@ -271,7 +288,7 @@ struct Bindings : public Printable, public Collectible {
   /* Returns the binding collection obtained by adding the constraints
      associated with the given step to this binding collection, or
      NULL if the new binding collection would be inconsistent. */
-  const Bindings* add(size_t step_id, const Action* step_action,
+  const Bindings* add(size_t step_id, const Action& step_action,
 		      const PlanningGraph& pg, bool test_only = false) const;
 
 protected:
@@ -280,11 +297,11 @@ protected:
 
 private:
   /* Varsets representing the transitive closure of the bindings. */
-  const VarsetChain* const varsets_;
+  const VarsetChain* varsets_;
   /* Highest step id of variable in varsets. */
-  const size_t high_step_;
+  size_t high_step_;
   /* Step domains. */
-  const StepDomainChain* const step_domains_;
+  const StepDomainChain* step_domains_;
 #ifdef TRANSFORMATIONAL
   /* Equality bindings. */
   const BindingChain* equalities_;
