@@ -1,5 +1,5 @@
 /*
- * $Id: formulas.cc,v 1.3 2001-08-11 06:13:57 lorens Exp $
+ * $Id: formulas.cc,v 1.4 2001-08-12 06:53:22 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -405,6 +405,78 @@ const Formula& operator||(const Formula& f1, const Formula& f2) {
 }
 
 
+/* Returns an instantiation of this formula list. */
+const FormulaList& FormulaList::instantiation(size_t id) const {
+  FormulaList& formulas = *(new FormulaList());
+  for (const_iterator i = begin(); i != end(); i++) {
+    formulas.push_back(&(*i)->instantiation(id));
+  }
+  return formulas;
+}
+
+
+/* Returns this formula list subject to the given substitutions. */
+const FormulaList&
+FormulaList::substitution(const SubstitutionList& subst) const {
+  FormulaList& formulas = *(new FormulaList());
+  for (const_iterator i = begin(); i != end(); i++) {
+    formulas.push_back(&(*i)->substitution(subst));
+  }
+  return formulas;
+}
+
+
+/* Fills the provided list with goals achievable by the formulas in
+   this list. */
+void FormulaList::achievable_goals(FormulaList& goals) const {
+  for (const_iterator i = begin(); i != end(); i++) {
+    (*i)->achievable_goals(goals);
+  }
+}
+
+
+/* Fills the provided list with predicates achievable by the formulas
+   in this list. */
+void FormulaList::achievable_predicates(vector<string>& preds,
+					vector<string>& neg_preds) const {
+  for (const_iterator i = begin(); i != end(); i++) {
+    (*i)->achievable_predicates(preds, neg_preds);
+  }
+}
+
+
+/* Equality operator for formula lists. */
+bool FormulaList::operator==(const FormulaList& formulas) const {
+  if (size() != formulas.size()) {
+    return false;
+  } else {
+    for (const_iterator i = begin(), j = formulas.begin();
+	 i != end(); i++, j++) {
+      if (**i != **j) {
+	return false;
+      }
+    }
+    return true;
+  }
+}
+
+
+/* Inequality operator for formula lists. */
+bool FormulaList::operator!=(const FormulaList& formulas) const {
+  return !(*this == formulas);
+}
+
+
+/* Returns the negation of this formula list. */
+const FormulaList& FormulaList::operator!() const {
+  FormulaList& formulas = *(new FormulaList());
+  for (const_iterator i = begin(); i != end(); i++) {
+    formulas.push_back(&!**i);
+  }
+  return formulas;
+}
+
+
 /* Returns an instantiation of this formula. */
 const AtomicFormula& AtomicFormula::instantiation(size_t id) const {
   return *(new AtomicFormula(predicate, terms.instantiation(id)));
@@ -439,7 +511,26 @@ AtomicFormula::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Prints this atomic formula on the given stream. */
+/* Fills the provided list with goals achievable by this formula. */
+void AtomicFormula::achievable_goals(FormulaList& goals) const {
+  goals.push_back(this);
+}
+
+
+/* Fills the provided list with predicates achievable by this
+   formula. */
+void AtomicFormula::achievable_predicates(vector<string>& preds,
+					  vector<string>& neg_preds) const {
+  for (TermList::const_iterator ti = terms.begin(); ti != terms.end(); ti++) {
+    if (typeid(**ti) != typeid(Name)) {
+      preds.push_back(predicate);
+      return;
+    }
+  }
+}
+
+
+/* Prints this formula on the given stream. */
 void AtomicFormula::print(ostream& os) const {
   os << '(' << predicate;
   for (TermList::const_iterator i = terms.begin(); i != terms.end(); i++) {
@@ -449,9 +540,22 @@ void AtomicFormula::print(ostream& os) const {
 }
 
 
-/* Returns a negation of this atomic formula. */
+/* Checks if this formula equals the given formula. */
+bool AtomicFormula::equals(const Formula& f) const {
+  const AtomicFormula* atom = dynamic_cast<const AtomicFormula*>(&f);
+  return atom != NULL && predicate == atom->predicate && terms == atom->terms;
+}
+
+
+/* Returns the negation of this formula. */
 const Formula& AtomicFormula::negation() const {
   return *(new Negation(*this));
+}
+
+
+/* Returns the hash value of this formula. */
+size_t AtomicFormula::hash_value() const {
+  return hash<string>()(predicate) + hash<TermList>()(terms);
 }
 
 
@@ -474,15 +578,42 @@ const Formula& Negation::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Prints this negation on the given stream. */
+/* Fills the provided list with goals achievable by this formula. */
+void Negation::achievable_goals(FormulaList& goals) const {
+  goals.push_back(this);
+}
+
+
+/* Fills the provided list with predicates achievable by this
+   formula. */
+void Negation::achievable_predicates(vector<string>& preds,
+				     vector<string>& neg_preds) const {
+  atom.achievable_predicates(neg_preds, preds);
+}
+
+
+/* Prints this formula on the given stream. */
 void Negation::print(ostream& os) const {
   os << "(not " << atom << ")";
 }
 
 
-/* Returns an atomic formula that this is a negation of. */
+/* Checks if this formula equals the given formula. */
+bool Negation::equals(const Formula& f) const {
+  const Negation* negation = dynamic_cast<const Negation*>(&f);
+  return negation != NULL && atom == negation->atom;
+}
+
+
+/* Returns the negation of this formula. */
 const Formula& Negation::negation() const {
   return atom;
+}
+
+
+/* Returns the hash value of this formula. */
+size_t Negation::hash_value() const {
+  return 2*hash<Formula>()(atom);
 }
 
 
@@ -513,13 +644,20 @@ const Formula& Equality::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Prints this equality on the given stream. */
+/* Prints this formula on the given stream. */
 void Equality::print(ostream& os) const {
   os << "(= " << term1 << ' ' << term2 << ")";
 }
 
 
-/* Returns a negation of this equality. */
+/* Checks if this formula equals the given formula. */
+bool Equality::equals(const Formula& f) const {
+  const Equality* eq = dynamic_cast<const Equality*>(&f);
+  return eq != NULL && term1 == eq->term1 && term2 == eq->term2;
+}
+
+
+/* Returns the negation of this formula. */
 const Formula& Equality::negation() const {
   return *(new Inequality(term1, term2));
 }
@@ -553,13 +691,20 @@ const Formula& Inequality::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Prints this inequality on the given stream. */
+/* Prints this formula on the given stream. */
 void Inequality::print(ostream& os) const {
   os << "(not (= " << term1 << ' ' << term2 << "))";
 }
 
 
-/* Returns a negation of this inequality formula. */
+/* Checks if this formula equals the given formula. */
+bool Inequality::equals(const Formula& f) const {
+  const Inequality* neq = dynamic_cast<const Inequality*>(&f);
+  return neq != NULL && term1 == neq->term1 && term2 == neq->term2;
+}
+
+
+/* Returns the negation of this formula. */
 const Formula& Inequality::negation() const {
   return *(new Equality(term1, term2));
 }
@@ -594,7 +739,21 @@ const Formula& Conjunction::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Prints this conjunction on the given stream. */
+/* Fills the provided list with goals achievable by this formula. */
+void Conjunction::achievable_goals(FormulaList& goals) const {
+  conjuncts.achievable_goals(goals);
+}
+
+
+/* Fills the provided list with predicates achievable by this
+   formula. */
+void Conjunction::achievable_predicates(vector<string>& preds,
+					vector<string>& neg_preds) const {
+  conjuncts.achievable_predicates(preds, neg_preds);
+}
+
+
+/* Prints this formula on the given stream. */
 void Conjunction::print(ostream& os) const {
   os << "(and";
   for (FormulaList::const_iterator i = conjuncts.begin();
@@ -605,7 +764,14 @@ void Conjunction::print(ostream& os) const {
 }
 
 
-/* Returns the negation of this conjunction. */
+/* Checks if this formula equals the given formula. */
+bool Conjunction::equals(const Formula& f) const {
+  const Conjunction* conjunction = dynamic_cast<const Conjunction*>(&f);
+  return conjunction != NULL && conjuncts == conjunction->conjuncts;
+}
+
+
+/* Returns the negation of this formula. */
 const Formula& Conjunction::negation() const {
   const Formula* d = &FALSE;
   for (FormulaList::const_iterator fi = conjuncts.begin();
@@ -645,7 +811,21 @@ const Formula& Disjunction::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Prints this disjunction on the given stream. */
+/* Fills the provided list with goals achievable by this formula. */
+void Disjunction::achievable_goals(FormulaList& goals) const {
+  disjuncts.achievable_goals(goals);
+}
+
+
+/* Fills the provided list with predicates achievable by this
+   formula. */
+void Disjunction::achievable_predicates(vector<string>& preds,
+					vector<string>& neg_preds) const {
+  disjuncts.achievable_predicates(preds, neg_preds);
+}
+
+
+/* Prints this formula on the given stream. */
 void Disjunction::print(ostream& os) const {
   os << "(or";
   for (FormulaList::const_iterator i = disjuncts.begin();
@@ -656,7 +836,14 @@ void Disjunction::print(ostream& os) const {
 }
 
 
-/* Returns a negation of this disjunction. */
+/* Checks if this formula equals the given formula. */
+bool Disjunction::equals(const Formula& f) const {
+  const Disjunction* disjunction = dynamic_cast<const Disjunction*>(&f);
+  return disjunction != NULL && disjuncts == disjunction->disjuncts;
+}
+
+
+/* Returns the negation of this formula. */
 const Formula& Disjunction::negation() const {
   const Formula* c = &TRUE;
   for (FormulaList::const_iterator fi = disjuncts.begin();
@@ -664,6 +851,15 @@ const Formula& Disjunction::negation() const {
     c = &(*c && !**fi);
   }
   return *c;
+}
+
+
+/* Fills the provided list with predicates achievable by this
+   formula. */
+void
+QuantifiedFormula::achievable_predicates(vector<string>& preds,
+					 vector<string>& neg_preds) const {
+  body.achievable_predicates(preds, neg_preds);
 }
 
 
@@ -707,7 +903,15 @@ void ExistsFormula::print(ostream& os) const {
 }
 
 
-/* Returns a negation of this formula. */
+/* Checks if this formula equals the given formula. */
+bool ExistsFormula::equals(const Formula& f) const {
+  const ExistsFormula* exists = dynamic_cast<const ExistsFormula*>(&f);
+  return (exists != NULL
+	  && parameters == exists->parameters && body == exists->body);
+}
+
+
+/* Returns the negation of this formula. */
 const Formula& ExistsFormula::negation() const {
   return *(new ForallFormula(parameters, !body));
 }
@@ -750,6 +954,14 @@ void ForallFormula::print(ostream& os) const {
     }
   }
   os << ") " << body << ")";
+}
+
+
+/* Checks if this formula equals the given formula. */
+bool ForallFormula::equals(const Formula& f) const {
+  const ForallFormula* forall = dynamic_cast<const ForallFormula*>(&f);
+  return (forall != NULL
+	  && parameters == forall->parameters && body == forall->body);
 }
 
 
