@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 6.1 2003-07-13 16:12:55 lorens Exp $
+ * $Id: vhpop.cc,v 6.2 2003-07-21 02:27:10 lorens Exp $
  */
 #include "plans.h"
 #include "parameters.h"
@@ -176,6 +176,8 @@ static void cleanup() {
 #ifdef DEBUG_MEMORY
   std::cerr << "Formulas created: " << created_formulas << std::endl
 	    << "Formulas deleted: " << deleted_formulas << std::endl
+	    << "Conditions created: " << created_conditions << std::endl
+	    << "Conditions deleted: " << deleted_conditions << std::endl
 	    << "Name sets created: " << created_name_sets << std::endl
 	    << "Name sets deleted: " << deleted_name_sets << std::endl
 	    << "Action domains created: " << created_action_domains
@@ -201,6 +203,8 @@ static void cleanup() {
 #ifdef DEBUG_MEMORY
 size_t created_formulas = 0;
 size_t deleted_formulas = 0;
+size_t created_conditions = 0;
+size_t deleted_conditions = 0;
 size_t created_name_sets = 0;
 size_t deleted_name_sets = 0;
 size_t created_action_domains = 0;
