@@ -16,13 +16,14 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.h,v 1.41 2002-01-25 20:22:18 lorens Exp $
+ * $Id: plans.h,v 3.1 2002-03-10 14:57:52 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
 
 #include "support.h"
 #include "chain.h"
+#include "orderings.h"
 
 struct Parameters;
 struct SubstitutionList;
@@ -41,8 +42,6 @@ struct LiteralOpenCondition;
 struct InequalityOpenCondition;
 struct DisjunctiveOpenCondition;
 struct Unsafe;
-struct Ordering;
-struct Orderings;
 struct Bindings;
 
 
@@ -64,6 +63,8 @@ typedef Chain<const Unsafe*> UnsafeChain;
 struct Link : public Printable, public gc {
   /* Id of step that link goes from. */
   const size_t from_id;
+  /* Time of effect satisfying link. */
+  const StepTime effect_time;
   /* Id of step that link goes to. */
   const size_t to_id;
   /* Condition satisfied by link. */
@@ -72,7 +73,8 @@ struct Link : public Printable, public gc {
   const Reason& reason;
 
   /* Constructs a causal link. */
-  Link(size_t from_id, const LiteralOpenCondition& open_cond);
+  Link(size_t from_id, StepTime effect_time,
+       const LiteralOpenCondition& open_cond);
 
 protected:
   /* Prints this causal link. */
@@ -274,7 +276,8 @@ private:
   void promote(PlanList& new_plans, const Unsafe& unsasfe) const;
 
   /* Adds a plan to the given plan list with an ordering added. */
-  void new_ordering(PlanList& plans, size_t before_id, size_t after_id,
+  void new_ordering(PlanList& plans, size_t before_id, StepTime t1,
+		    size_t after_id, StepTime t2,
 		    const Unsafe& unsafe) const;
 
   /* Handles an open condition. */
@@ -308,8 +311,7 @@ private:
   /* Adds plans to the given plan list with a link from the given step
      to the given open condition added. */
   void new_link(PlanList& plans, const Step& step,
-		const LiteralOpenCondition& open_cond, const Link& link,
-		const Reason& reason) const;
+		const LiteralOpenCondition& open_cond) const;
 
   /* Checks if a new link be established between the given effects and
      the open condition using the closed world assumption. */
@@ -320,8 +322,7 @@ private:
      to the given open condition added using the closed world
      assumption. */
   void new_cw_link(PlanList& plans, const Step& step,
-		   const LiteralOpenCondition& open_cond, const Link& link,
-		   const Reason& reason) const;
+		   const LiteralOpenCondition& open_cond) const;
 
   /* Checks if a new link can be established between the given effect
      and the open condition. */
