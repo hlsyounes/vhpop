@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 6.13 2003-09-18 21:50:57 lorens Exp $
+ * $Id: plans.cc,v 6.14 2003-12-05 21:27:19 lorens Exp $
  */
 #include "mathport.h"
 #include "plans.h"
@@ -311,14 +311,18 @@ static void link_threats(const Chain<Unsafe>*& unsafes, size_t& num_unsafes,
 	    || orderings.possibly_after(link.to_id(), lt2, s.id(), et)) {
 	  if (typeid(link.condition()) == typeid(Negation)) {
 	    if (bindings.affects(e.literal(), s.id(),
-				 link.condition(), link.to_id(), problem)) {
+				 link.condition(), link.to_id(),
+				 problem->domain().types(),
+				 problem->terms())) {
 	      unsafes = new Chain<Unsafe>(Unsafe(link, s.id(), e, e.literal()),
 					  unsafes);
 	      num_unsafes++;
 	    }
 	  } else if (!(link.from_id() == s.id() && lt1 == et)) {
 	    if (bindings.affects(e.literal(), s.id(),
-				 link.condition(), link.to_id(), problem)) {
+				 link.condition(), link.to_id(),
+				 problem->domain().types(),
+				 problem->terms())) {
 	      unsafes = new Chain<Unsafe>(Unsafe(link, s.id(), e, e.literal()),
 					  unsafes);
 	      num_unsafes++;
@@ -354,12 +358,59 @@ static void step_threats(const Chain<Unsafe>*& unsafes, size_t& num_unsafes,
 	if (orderings.possibly_before(l.from_id(), lt1, step.id(), et)
 	    && orderings.possibly_after(l.to_id(), lt2, step.id(), et)) {
 	  if (bindings.affects(e.literal(), step.id(),
-			       l.condition(), l.to_id(), problem)) {
+			       l.condition(), l.to_id(),
+			       problem->domain().types(), problem->terms())) {
 	    unsafes = new Chain<Unsafe>(Unsafe(l, step.id(), e, e.literal()),
 					unsafes);
 	    num_unsafes++;
 	  }
 	}
+      }
+    }
+  }
+}
+
+
+/* Returns binding constraints that make the given steps fully
+   instantiated, or NULL if no consistent binding constraints can be
+   found. */
+static const Bindings* step_instantiation(const Chain<Step>* steps, size_t n,
+					  const Bindings& bindings) {
+  if (steps == NULL) {
+    return &bindings;
+  } else {
+    const Step& step = steps->head;
+    const ActionSchema* as = dynamic_cast<const ActionSchema*>(&step.action());
+    if (as == NULL || as->parameters().size() <= n) {
+      return step_instantiation(steps->tail, 0, bindings);
+    } else {
+      Variable v = as->parameters()[n];
+      if (v != bindings.binding(v, step.id())) {
+	return step_instantiation(steps, n + 1, bindings);
+      } else {
+	std::cout << "instantiating parameter " << n << " of ";
+	as->print(std::cout, problem->terms(), step.id(), bindings);
+	std::cout << std::endl;
+	Type t = problem->domain().terms().type(v);
+	const ObjectList& arguments = problem->compatible_objects(t);
+	for (ObjectList::const_iterator oi = arguments.begin();
+	     oi != arguments.end(); oi++) {
+	  BindingList bl;
+	  bl.push_back(Binding(v, step.id(), *oi, 0, true));
+	  const Bindings* new_bindings =
+	    bindings.add(bl, problem->domain().types(), problem->terms());
+	  if (new_bindings != NULL) {
+	    const Bindings* result = step_instantiation(steps, n + 1,
+							*new_bindings);
+	    if (result != new_bindings) {
+	      delete new_bindings;
+	    }
+	    if (result != NULL) {
+	      return result;
+	    }
+	  }
+	}
+	return NULL;
       }
     }
   }
@@ -454,7 +505,7 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
     }
   }
   if (need_pg) {
-    planning_graph = new PlanningGraph(problem, params->domain_constraints);
+    planning_graph = new PlanningGraph(problem, *params);
   } else {
     planning_graph = NULL;
   }
@@ -688,6 +739,34 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
 	    plans[current_flaw_order].pop();
 	  }
 	}
+	/*
+	 * Instantiate all actions if the plan is otherwise complete.
+	 */
+	bool instantiated = params->ground_actions;
+	while (current_plan != NULL && current_plan->complete()
+	       && !instantiated) {
+	  const Bindings* new_bindings =
+	    step_instantiation(current_plan->steps(), 0,
+			       *current_plan->bindings_);
+	  if (new_bindings != NULL) {
+	    instantiated = true;
+	    if (new_bindings != current_plan->bindings_) {
+	      const Plan* inst_plan =
+		new Plan(current_plan->steps(), current_plan->num_steps(),
+			 current_plan->links(), current_plan->num_links(),
+			 current_plan->orderings(), *new_bindings,
+			 NULL, 0, NULL, 0, current_plan);
+	      delete current_plan;
+	      current_plan = inst_plan;
+	    }
+	  } else if (plans[current_flaw_order].empty()) {
+	    /* Problem lacks solution. */
+	    current_plan = NULL;
+	  } else {
+	    current_plan = plans[current_flaw_order].top();
+	    plans[current_flaw_order].pop();
+	  }
+	}
       } else {
 	if (!isinf(next_f_limit)) {
 	  current_plan = NULL;
@@ -881,7 +960,8 @@ bool Plan::unsafe_refinements(int& refinements, int& separable,
 	     && orderings().possibly_after(link.to_id(), lt2,
 					   unsafe.step_id(), et)))
 	&& bindings_->affects(unifier, unsafe.effect_add(), unsafe.step_id(),
-			      link.condition(), link.to_id(), problem)) {
+			      link.condition(), link.to_id(),
+			      problem->domain().types(), problem->terms())) {
       PlanList dummy;
       if (separable < 0) {
 	separable = separate(dummy, unsafe, unifier, true);
@@ -923,7 +1003,8 @@ void Plan::handle_unsafe(PlanList& plans, const Unsafe& unsafe) const {
 	   && orderings().possibly_after(link.to_id(), lt2,
 				       unsafe.step_id(), et)))
       && bindings_->affects(unifier, unsafe.effect_add(), unsafe.step_id(),
-			    link.condition(), link.to_id(), problem)) {
+			    link.condition(), link.to_id(),
+			    problem->domain().types(), problem->terms())) {
     separate(plans, unsafe, unifier);
     promote(plans, unsafe);
     demote(plans, unsafe);
@@ -951,7 +1032,8 @@ int Plan::separable(const Unsafe& unsafe) const {
 				       unsafe.step_id(), et)))
       && bindings_->affects(unifier,
 			    unsafe.effect_add(), unsafe.step_id(),
-			    link.condition(), link.to_id(), problem)) {
+			    link.condition(), link.to_id(),
+			    problem->domain().types(), problem->terms())) {
     PlanList dummy;
     return separate(dummy, unsafe, unifier, true);
   } else {
@@ -1042,7 +1124,9 @@ int Plan::separate(PlanList& plans, const Unsafe& unsafe,
   }
   int count = 0;
   if (added) {
-    const Bindings* bindings = bindings_->add(new_bindings, test_only);
+    const Bindings* bindings = bindings_->add(new_bindings,
+					      problem->domain().types(),
+					      problem->terms(), test_only);
     if (bindings != NULL) {
       if (!test_only) {
 	const Orderings* new_orderings = orderings_;
@@ -1147,7 +1231,9 @@ bool Plan::unsafe_open_condition(const OpenCondition& open_cond) const {
 	  if (orderings().possibly_before(s.id(), et,
 					  open_cond.step_id(), gt)) {
 	    if (bindings_->affects(e.literal(), s.id(),
-				   goal, open_cond.step_id(), problem)) {
+				   goal, open_cond.step_id(),
+				   problem->domain().types(),
+				   problem->terms())) {
 	      return true;
 	    }
 	  }
@@ -1256,7 +1342,9 @@ int Plan::handle_disjunction(PlanList& plans, const Disjunction& disj,
       Chain<OpenCondition>::register_use(new_open_conds);
     }
     if (added) {
-      const Bindings* bindings = bindings_->add(new_bindings, test_only);
+      const Bindings* bindings = bindings_->add(new_bindings,
+						problem->domain().types(),
+						problem->terms(), test_only);
       if (bindings != NULL) {
 	if (!test_only) {
 	  plans.push_back(new Plan(steps(), num_steps(), links(), num_links(),
@@ -1313,7 +1401,9 @@ int Plan::handle_inequality(PlanList& plans, const Inequality& neq,
     BindingList new_bindings;
     new_bindings.push_back(Binding(var1, id1, name, 0, true));
     new_bindings.push_back(Binding(var2, id2, name, 0, false));
-    const Bindings* bindings = bindings_->add(new_bindings, test_only);
+    const Bindings* bindings = bindings_->add(new_bindings,
+					      problem->domain().types(),
+					      problem->terms(), test_only);
     if (bindings != NULL) {
       if (!test_only) {
 	plans.push_back(new Plan(steps(), num_steps(), links(), num_links(),
@@ -1451,7 +1541,8 @@ int Plan::new_link(PlanList& plans, const Step& step, const Effect& effect,
 		   bool test_only) const {
   BindingList mgu;
   if (bindings_->unify(mgu, literal, open_cond.step_id(),
-		       effect.literal(), step.id(), problem)) {
+		       effect.literal(), step.id(),
+		       problem->domain().types(), problem->terms())) {
     return make_link(plans, step, effect, literal, open_cond, mgu, test_only);
   } else {
     return 0;
@@ -1472,7 +1563,8 @@ int Plan::new_cw_link(PlanList& plans, const EffectList& effects,
     const Effect& effect = **ei;
     BindingList mgu;
     if (bindings_->unify(mgu, goal, open_cond.step_id(),
-			 effect.literal(), 0, problem)) {
+			 effect.literal(), 0,
+			 problem->domain().types(), problem->terms())) {
       if (mgu.empty()) {
 	/* Impossible to separate goal and initial condition. */
 	return 0;
@@ -1500,7 +1592,9 @@ int Plan::new_cw_link(PlanList& plans, const EffectList& effects,
   }
   int count = 0;
   if (added) {
-    const Bindings* bindings = bindings_->add(new_bindings, test_only);
+    const Bindings* bindings = bindings_->add(new_bindings,
+					      problem->domain().types(),
+					      problem->terms(), test_only);
     if (bindings != NULL) {
       if (!test_only) {
 	const Chain<Unsafe>* new_unsafes = unsafes();
@@ -1622,7 +1716,9 @@ int Plan::make_link(PlanList& plans, const Step& step, const Effect& effect,
       new_num_steps++;
     }
   }
-  const Bindings* tmp_bindings = bindings->add(new_bindings, test_only);
+  const Bindings* tmp_bindings = bindings->add(new_bindings,
+					       problem->domain().types(),
+					       problem->terms(), test_only);
   if ((test_only || tmp_bindings != bindings) && bindings != bindings_) {
     delete bindings;
   }
@@ -1767,7 +1863,9 @@ disable_interference(const std::vector<const Step*>& ordered_steps,
 		if (new_orderings->possibly_concurrent(si.id(), et,
 						       l.to_id(), lt)) {
 		  if (bindings.affects(e.literal(), si.id(),
-				       l.condition(), l.to_id(), problem)) {
+				       l.condition(), l.to_id(),
+				       problem->domain().types(),
+				       problem->terms())) {
 		    interference = true;
 		  }
 		}
@@ -1785,7 +1883,9 @@ disable_interference(const std::vector<const Step*>& ordered_steps,
 		if (new_orderings->possibly_concurrent(sj.id(), et,
 						       l.to_id(), lt)) {
 		  if (bindings.affects(e.literal(), sj.id(),
-				       l.condition(), l.to_id(), problem)) {
+				       l.condition(), l.to_id(),
+				       problem->domain().types(),
+				       problem->terms())) {
 		    interference = true;
 		  }
 		}
