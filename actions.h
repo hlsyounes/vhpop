@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: actions.h,v 6.3 2003-09-05 16:16:03 lorens Exp $
+ * $Id: actions.h,v 6.4 2003-09-09 20:37:21 lorens Exp $
  */
 #ifndef ACTIONS_H
 #define ACTIONS_H
@@ -84,9 +84,6 @@ struct Action {
 protected:
   /* Constructs an action with the given name. */
   Action(const std::string& name, bool durative);
-
-  /* Assigns an id to this literal. */
-  void assign_id();
 
 private:
   /* Next action id. */
