@@ -1,5 +1,5 @@
 /*
- * $Id: heuristics.cc,v 1.13 2001-12-30 19:30:04 lorens Exp $
+ * $Id: heuristics.cc,v 1.14 2001-12-31 16:59:13 lorens Exp $
  */
 #include <set>
 #include <cmath>
@@ -620,10 +620,10 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
       rank.push_back((plan.num_unsafes() > 0) ? 1 : 0);
       break;
     case S_PLUS_OC:
-      rank.push_back(plan.num_steps() + weight*plan.num_open_conds());
+      rank.push_back(plan.num_steps + weight*plan.num_open_conds());
       break;
     case UCPOP:
-      rank.push_back(plan.num_steps()
+      rank.push_back(plan.num_steps
 		     + weight*(plan.num_open_conds() + plan.num_unsafes()));
       break;
     case SUM:
@@ -641,7 +641,7 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
       }
       if (h != SUM_WORK) {
 	if (sum_cost < INT_MAX) {
-	  rank.push_back(plan.num_steps() + weight*sum_cost);
+	  rank.push_back(plan.num_steps + weight*sum_cost);
 	} else {
 	  rank.push_back(HUGE_VAL);
 	}
