@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.h,v 4.4 2002-09-23 18:24:39 lorens Exp $
+ * $Id: domains.h,v 4.5 2002-09-24 17:32:21 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -339,10 +339,6 @@ struct ActionSchema : public Action {
   /* Fills the provided action list with all instantiations of this
      action schema. */
   void instantiations(GroundActionList& actions, const Problem& problem) const;
-
-  /* Returns this action schema with all static preconditions assumed
-     true. */
-  const ActionSchema& strip_static(const Domain& domain) const;
 
   /* Prints this action on the given stream with the given bindings. */
   virtual void print(ostream& os, size_t step_id,
