@@ -2,7 +2,7 @@
 /*
  * Formulas.
  *
- * $Id: formulas.h,v 1.15 2001-09-04 23:01:45 lorens Exp $
+ * $Id: formulas.h,v 1.16 2001-09-28 17:55:44 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -23,7 +23,7 @@ struct Variable;
 /*
  * Variable substitution.
  */
-struct Substitution : public gc {
+struct Substitution : public Printable {
   /* Variable to get substituted. */
   const Variable& var;
   /* Term to substitute with. */
@@ -34,18 +34,10 @@ struct Substitution : public gc {
     : var(var), term(term) {
   }
 
-private:
+protected:
   /* Prints this substitution on the given stream. */
   virtual void print(ostream& os) const;
-
-  friend ostream& operator<<(ostream& os, const Substitution& s);
 };
-
-/* Output operator for substitutions. */
-inline ostream& operator<<(ostream& os, const Substitution& s) {
-  s.print(os);
-  return os;
-}
 
 
 /*
@@ -61,7 +53,7 @@ typedef SubstitutionList::const_iterator SLCI;
 /*
  * Abstract term.
  */
-struct Term : public gc {
+struct Term : public Printable {
   /* Name of term. */
   const string name;
   /* Type of term. */
@@ -70,10 +62,6 @@ struct Term : public gc {
   /* Constructs an abstract term with the given name. */
   Term(const string& name, const Type& type)
     : name(name), type(type) {
-  }
-
-  /* Deletes this term. */
-  virtual ~Term() {
   }
 
   /* Returns an instantiation of this term. */
@@ -92,16 +80,9 @@ protected:
   /* Returns the hash value of this term. */
   virtual size_t hash_value() const;
 
-  friend ostream& operator<<(ostream& os, const Term& t);
   friend bool operator==(const Term& t1, const Term& t2);
   friend struct hash<Term>;
 };
-
-/* Output operator for terms. */
-inline ostream& operator<<(ostream& os, const Term& t) {
-  t.print(os);
-  return os;
-}
 
 /* Equality operator for terms. */
 inline bool operator==(const Term& t1, const Term& t2) {
@@ -260,15 +241,11 @@ struct FormulaList;
 /*
  * Abstract formula.
  */
-struct Formula : public gc {
+struct Formula : public Printable {
   /* The true formula. */
   static const Formula& TRUE;
   /* The false formula. */
   static const Formula& FALSE;
-
-  /* Deletes this formula. */
-  virtual ~Formula() {
-  }
 
   /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(size_t id) const = 0;
@@ -299,9 +276,6 @@ struct Formula : public gc {
   }
 
 protected:
-  /* Prints this formula on the given stream. */
-  virtual void print(ostream& os) const = 0;
-
   /* Checks if this formula equals the given formula. */
   virtual bool equals(const Formula& f) const = 0;
 
@@ -313,17 +287,10 @@ protected:
     return 0;
   }
 
-  friend ostream& operator<<(ostream& os, const Formula& f);
   friend bool operator==(const Formula& f1, const Formula& f2);
   friend const Formula& operator!(const Formula& f);
   friend struct hash<Formula>;
 };
-
-/* Output operator for formulas. */
-inline ostream& operator<<(ostream& os, const Formula& f) {
-  f.print(os);
-  return os;
-}
 
 /* Equality operator for formulas. */
 inline bool operator==(const Formula& f1, const Formula& f2) {
