@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 4.4 2002-09-20 16:46:32 lorens Exp $
+ * $Id: formulas.cc,v 4.5 2002-09-22 22:55:52 lorens Exp $
  */
 #include <typeinfo>
 #include <stack>
@@ -75,34 +75,16 @@ Term::~Term() {
 }
 
 
-/* Checks if this object is less than the given object. */
-bool Term::less(const LessThanComparable& o) const {
-  const Term& t = dynamic_cast<const Term&>(o);
-  return name() < t.name();
-}
-
-
-/* Checks if this object equals the given object. */
-bool Term::equals(const EqualityComparable& o) const {
-  return this == &o;
-}
-
-
-/* Returns the hash value of this object. */
-size_t Term::hash_value() const {
-  return size_t(this);
-}
-
-
 /* Prints this term on the given stream with the given bindings. */
 void Term::print(ostream& os, size_t step_id, const Bindings& bindings) const {
   os << bindings.binding(*this, step_id);
 }
 
 
-/* Prints this object on the given stream. */
-void Term::print(ostream& os) const {
-  os << name();
+/* Output operator for terms. */
+ostream& operator<<(ostream& os, const Term& t) {
+  os << t.name();
+  return os;
 }
 
 
@@ -248,6 +230,13 @@ const Formula& operator||(const Formula& f1, const Formula& f2) {
     }
     return *(new Disjunction(disjuncts));
   }
+}
+
+
+/* Output operator for formulas. */
+ostream& operator<<(ostream& os, const Formula& f) {
+  f.print(os);
+  return os;
 }
 
 
@@ -419,17 +408,16 @@ bool Atom::equals(const Literal& o) const {
   const Atom* atom = dynamic_cast<const Atom*>(&o);
   return (atom != NULL && predicate() == atom->predicate()
 	  && terms().size() == atom->terms().size()
-	  && equal(terms().begin(), terms().end(), atom->terms().begin(),
-		   equal_to<const EqualityComparable*>()));
+	  && equal(terms().begin(), terms().end(), atom->terms().begin()));
 }
 
 
 /* Returns the hash value of this object. */
 size_t Atom::hash_value() const {
-  hash<Hashable> h;
+  hash<const Term*> h;
   size_t val = size_t(&predicate());
   for (TermListIter ti = terms().begin(); ti != terms().end(); ti++) {
-    val = 5*val + h(**ti);
+    val = 5*val + h(*ti);
   }
   return val;
 }
