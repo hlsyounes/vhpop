@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 4.7 2003-03-01 18:55:18 lorens Exp $
+ * $Id: heuristics.cc,v 6.1 2003-07-13 16:02:15 lorens Exp $
  */
 #include "heuristics.h"
 #include "plans.h"
@@ -52,7 +52,7 @@ formula_value(const Formula& formula, size_t step_id, const Plan& plan,
     const Literal* literal = dynamic_cast<const Literal*>(&formula);
     if (literal != NULL) {
       StepTime gt = start_time(*literal);
-      if (!domain.static_predicate(literal->predicate())) {
+      if (!domain.predicates().static_predicate(literal->predicate())) {
 	hashing::hash_set<size_t> seen_steps;
 	for (const StepChain* sc = plan.steps(); sc != NULL; sc = sc->tail) {
 	  const Step& step = sc->head;
@@ -491,7 +491,7 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
   for (AtomListIter gi = problem.init().add_list().begin();
        gi != problem.init().add_list().end(); gi++) {
     const Atom& atom = **gi;
-    if (problem.domain().static_predicate(atom.predicate())) {
+    if (problem.domain().predicates().static_predicate(atom.predicate())) {
       atom_values_.insert(std::make_pair(&atom, HeuristicValue::ZERO));
     } else {
       atom_values_.insert(std::make_pair(&atom,
@@ -583,7 +583,7 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
 		}
 		if (verbosity > 4) {
 		  std::cerr << "  ";
-		  action.print(std::cerr, 0, NULL);
+		  action.print(std::cerr, 0, problem, NULL);
 		  std::cerr << " achieves " << atom << std::endl;
 		}
 	      }
@@ -624,7 +624,7 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
 		}
 		if (verbosity > 4) {
 		  std::cerr << "  ";
-		  action.print(std::cerr, 0, NULL);
+		  action.print(std::cerr, 0, problem, NULL);
 		  std::cerr << " achieves " << negation << std::endl;
 		}
 	      }
@@ -683,7 +683,7 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
   for (AtomValueMapIter vi = atom_values_.begin();
        vi != atom_values_.end(); vi++) {
     const Atom& atom = *(*vi).first;
-    predicate_atoms_.insert(std::make_pair(&atom.predicate(), &atom));
+    predicate_atoms_.insert(std::make_pair(atom.predicate(), &atom));
   }
 
   /*
@@ -692,7 +692,7 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
   for (AtomValueMapIter vi = negation_values_.begin();
        vi != negation_values_.end(); vi++) {
     const Atom& atom = *(*vi).first;
-    predicate_negations_.insert(std::make_pair(&atom.predicate(), &atom));
+    predicate_negations_.insert(std::make_pair(atom.predicate(), &atom));
   }
 
   /*
@@ -749,7 +749,7 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
 	std::cerr << "  " << **ai << std::endl;
       } else {
 	std::cerr << "  ";
-	(*ai)->print(std::cerr, 0, NULL);
+	(*ai)->print(std::cerr, 0, problem, NULL);
 	std::cerr << std::endl;
       }
     }
@@ -801,7 +801,7 @@ HeuristicValue PlanningGraph::heuristic_value(const Atom& atom, size_t step_id,
     /* Take minimum value of ground atoms that unify. */
     HeuristicValue value = HeuristicValue::INFINITE;
     std::pair<PredicateAtomsMapIter, PredicateAtomsMapIter> bounds =
-      predicate_atoms_.equal_range(&atom.predicate());
+      predicate_atoms_.equal_range(atom.predicate());
     for (PredicateAtomsMapIter gi = bounds.first; gi != bounds.second; gi++) {
       const Atom& a = *(*gi).second;
       if (bindings->unify(atom, step_id, a, 0)) {
@@ -840,7 +840,7 @@ HeuristicValue PlanningGraph::heuristic_value(const Negation& negation,
     }
     HeuristicValue value = HeuristicValue::INFINITE;
     std::pair<PredicateAtomsMapIter, PredicateAtomsMapIter> bounds =
-      predicate_negations_.equal_range(&negation.predicate());
+      predicate_negations_.equal_range(negation.predicate());
     for (PredicateAtomsMapIter gi = bounds.first; gi != bounds.second; gi++) {
       const Atom& a = *(*gi).second;
       if (bindings->unify(atom, step_id, a, 0)) {
