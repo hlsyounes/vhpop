@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2002 Carnegie Mellon University
+ * Copyright (C) 2003 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: requirements.cc,v 3.1 2002-05-26 10:25:52 lorens Exp $
+ * $Id: requirements.cc,v 3.2 2003-03-01 18:54:27 lorens Exp $
  */
 #include "requirements.h"
 

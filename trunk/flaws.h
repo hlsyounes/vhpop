@@ -2,7 +2,7 @@
 /*
  * Plan flaws.
  *
- * Copyright (C) 2002 Carnegie Mellon University
+ * Copyright (C) 2003 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: flaws.h,v 3.7 2002-12-16 17:08:23 lorens Exp $
+ * $Id: flaws.h,v 3.8 2003-03-01 18:52:24 lorens Exp $
  */
 #ifndef FLAWS_H
 #define FLAWS_H

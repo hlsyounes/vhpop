@@ -1,3 +1,9 @@
+2003-03-01  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Added -S option for specifying seed to random number generator.
+
+	* Changed -r option to mean random open condition order.
+
 2002-12-18  Håkan L. S. Younes  <lorens@cs.cmu.edu>
 
 	* Fixed bug that made end times equal start times when scheduling

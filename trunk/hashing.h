@@ -2,7 +2,7 @@
 /*
  * Hashing.
  *
- * Copyright (C) 2002 Carnegie Mellon University
+ * Copyright (C) 2003 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: hashing.h,v 1.1 2003-03-01 18:51:26 lorens Exp $
+ * $Id: hashing.h,v 1.2 2003-03-01 18:51:58 lorens Exp $
  */
 #ifndef HASHING_H
 #define HASHING_H

@@ -2,7 +2,7 @@
 /*
  * Formulas.
  *
- * Copyright (C) 2002 Carnegie Mellon University
+ * Copyright (C) 2003 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 4.10 2002-12-16 17:28:24 lorens Exp $
+ * $Id: formulas.h,v 4.11 2003-03-01 18:52:17 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H

@@ -2,7 +2,7 @@
 /*
  * Types.
  *
- * Copyright (C) 2002 Carnegie Mellon University
+ * Copyright (C) 2003 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: types.h,v 3.16 2002-12-18 22:59:26 lorens Exp $
+ * $Id: types.h,v 3.17 2003-03-01 18:48:31 lorens Exp $
  */
 #ifndef TYPES_H
 #define TYPES_H

@@ -2,7 +2,7 @@
 /*
  * Debugging related stuff.
  *
- * Copyright (C) 2002 Carnegie Mellon University
+ * Copyright (C) 2003 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: debug.h,v 1.7 2002-12-16 17:03:37 lorens Exp $
+ * $Id: debug.h,v 1.8 2003-03-01 18:52:55 lorens Exp $
  */
 #ifndef DEBUG_H
 #define DEBUG_H

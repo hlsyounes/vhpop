@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * Copyright (C) 2002 Carnegie Mellon University
+ * Copyright (C) 2003 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.h,v 4.4 2002-12-16 17:41:06 lorens Exp $
+ * $Id: plans.h,v 4.5 2003-03-01 18:50:52 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H

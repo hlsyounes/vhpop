@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2002 Carnegie Mellon University
+ * Copyright (C) 2003 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.cc,v 4.9 2002-12-17 18:29:09 lorens Exp $
+ * $Id: domains.cc,v 4.10 2003-03-01 18:55:49 lorens Exp $
  */
 #include "domains.h"
 #include "bindings.h"

@@ -2,7 +2,7 @@
 /*
  * Exceptions.
  *
- * Copyright (C) 2002 Carnegie Mellon University
+ * Copyright (C) 2003 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: exceptions.h,v 1.1 2003-03-01 18:52:31 lorens Exp $
+ * $Id: exceptions.h,v 1.2 2003-03-01 18:52:35 lorens Exp $
  */
 #ifndef EXCEPTIONS_H
 #define EXCEPTIONS_H

@@ -2,7 +2,7 @@
 /*
  * Ordering constraints.
  *
- * Copyright (C) 2002 Carnegie Mellon University
+ * Copyright (C) 2003 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.h,v 3.18 2002-12-16 17:35:01 lorens Exp $
+ * $Id: orderings.h,v 3.19 2003-03-01 18:51:02 lorens Exp $
  */
 #ifndef ORDERINGS_H
 #define ORDERINGS_H
