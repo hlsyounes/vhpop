@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.h,v 1.40 2002-01-25 18:23:28 lorens Exp $
+ * $Id: plans.h,v 1.41 2002-01-25 20:22:18 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -337,12 +337,18 @@ private:
 			const Link& link, const Reason& reason,
 			const SubstitutionList& unifier) const;
 
+  /* Adds plans to the given plan list with the given link removed and
+     the resulting open condition relinked. */
   void relink(PlanList& new_plans, const Link& link) const;
 
+  /* Adds plans to the given plan list with the given link removed and
+     the resulting open condition relinked. */
   pair<const Plan*, const OpenCondition*> unlink(const Link& link) const;
 
+  /* Checks if this plan is a duplicate of a previous plan. */
   bool duplicate() const;
 
+  /* Checks if this plan is equivalent to the given plan. */
   bool equivalent(const Plan& p) const;
 };
 

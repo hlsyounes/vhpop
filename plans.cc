@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 1.55 2002-01-25 18:22:58 lorens Exp $
+ * $Id: plans.cc,v 1.56 2002-01-25 20:22:14 lorens Exp $
  */
 #include <queue>
 #include <algorithm>
@@ -1573,28 +1573,8 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
 }
 
 
-static const Step* find_step(const StepChain* steps, size_t id) {
-  if (steps == NULL) {
-    return NULL;
-  } else if (steps->head->id == id) {
-    return steps->head;
-  } else {
-    return find_step(steps->tail, id);
-  }
-}
-
-static bool
-valid_open_condition(const OpenCondition& open_cond,
-		     const StepChain* steps, const LinkChain* links) {
-  if (find_step(steps, open_cond.step_id) == NULL) {
-    return false;
-  } else {
-    const EstablishReason* er =
-      dynamic_cast<const EstablishReason*>(&open_cond.reason);
-    return (er != NULL) ? links->contains(&er->link) : false;
-  }
-}
-
+/* Adds plans to the given plan list with the given link removed and
+   the resulting open condition relinked. */
 void Plan::relink(PlanList& new_plans, const Link& link) const {
   pair<const Plan*, const OpenCondition*> p = unlink(link);
   if (verbosity > 2) {
@@ -1614,6 +1594,34 @@ typedef Stack<const Link*> LinkStack;
  * A stack of steps.
  */
 typedef Stack<const Step*> StepStack;
+
+
+/* Returns the first occurance of the step with the given id, or NULL
+   if no such step exists. */
+static const Step* find_step(const StepChain* steps, size_t id) {
+  if (steps == NULL) {
+    return NULL;
+  } else if (steps->head->id == id) {
+    return steps->head;
+  } else {
+    return find_step(steps->tail, id);
+  }
+}
+
+
+/* Checks if the given open condition is valid. */
+static bool
+valid_open_condition(const OpenCondition& open_cond,
+		     const StepChain* steps, const LinkChain* links) {
+  if (find_step(steps, open_cond.step_id) == NULL) {
+    return false;
+  } else {
+    const EstablishReason* er =
+      dynamic_cast<const EstablishReason*>(&open_cond.reason);
+    return (er != NULL) ? links->contains(&er->link) : false;
+  }
+}
+
 
 /* Returns a chain of unsafes with all unsafes in the given chain
    involving the given link removed. */
@@ -1789,6 +1797,7 @@ remove_bindings(const BindingChain* bindings, const Link& link) {
   }
 }
 
+
 /* Returns a chain of binding constraints with all binding constraints
    in the given chain involving the given step removed. */
 static const BindingChain*
@@ -1805,6 +1814,9 @@ remove_bindings(const BindingChain* bindings, const Step& step) {
   }
 }
 
+
+/* Returns a plan with the given link removed, and also returns the
+   resulting open condition. */
 pair<const Plan*, const OpenCondition*> Plan::unlink(const Link& link) const {
   const OpenCondition* link_cond = NULL;
   const StepChain* new_steps = steps;
@@ -1883,6 +1895,8 @@ pair<const Plan*, const OpenCondition*> Plan::unlink(const Link& link) const {
   return pair<const Plan*, const OpenCondition*>(plan, link_cond);
 }
 
+
+/* Checks if this plan is a duplicate of a previous plan. */
 bool Plan::duplicate() const {
   if (type_ == TRANSFORMED_PLAN) {
     if (verbosity > 2) {
@@ -1900,9 +1914,12 @@ bool Plan::duplicate() const {
   return false;
 }
 
-typedef hash_map<size_t, const Formula*, hash<size_t>,
-  equal_to<size_t>, container_alloc> FormulaMap;
 
+/* Maps step ids to formulas. */
+typedef HashMap<size_t, const Formula*> FormulaMap;
+
+
+/* Checks if the steps match for two plans. */
 static bool matching_plans(hash_map<size_t, size_t>& step_map,
 			   const FormulaMap& steps1, const FormulaMap& steps2,
 			   FormulaMap::const_iterator s1) {
@@ -1924,6 +1941,8 @@ static bool matching_plans(hash_map<size_t, size_t>& step_map,
   return false;
 }
 
+
+/* Checks if this plan is equivalent to the given plan. */
 bool Plan::equivalent(const Plan& p) const {
   if (num_steps == p.num_steps && num_open_conds == p.num_open_conds
       && num_links == p.num_links) {
