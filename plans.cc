@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2002 Carnegie Mellon University
+ * Copyright (C) 2003 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 4.9 2002-12-17 17:21:31 lorens Exp $
+ * $Id: plans.cc,v 4.10 2003-03-01 18:47:14 lorens Exp $
  */
 #include "mathport.h"
 #include "plans.h"
@@ -207,7 +207,7 @@ static bool add_goal(const OpenConditionChain*& open_conds,
   } else if (goal.contradiction()) {
     return false;
   }
-  std::deque<const Formula*> goals(1, &goal);
+  std::vector<const Formula*> goals(1, &goal);
   while (!goals.empty()) {
     const Formula* goal = goals.back();
     goals.pop_back();
@@ -215,8 +215,15 @@ static bool add_goal(const OpenConditionChain*& open_conds,
     if (conj != NULL) {
       const FormulaList& gs = conj->conjuncts();
       for (FormulaListIter fi = gs.begin(); fi != gs.end(); fi++) {
-	if (params->reverse_open_conditions) {
-	  goals.push_front(*fi);
+	if (params->random_open_conditions) {
+	  size_t pos = size_t((goals.size() + 1.0)*rand()/(RAND_MAX + 1.0));
+	  if (pos == goals.size()) {
+	    goals.push_back(*fi);
+	  } else {
+	    const Formula* tmp = goals[pos];
+	    goals[pos] = *fi;
+	    goals.push_back(tmp);
+	  }
 	} else {
 	  goals.push_back(*fi);
 	}
@@ -290,8 +297,16 @@ static bool add_goal(const OpenConditionChain*& open_conds,
 	    const ExistsFormula* exists =
 	      dynamic_cast<const ExistsFormula*>(goal);
 	    if (exists != NULL) {
-	      if (params->reverse_open_conditions) {
-		goals.push_front(&exists->body());
+	      if (params->random_open_conditions) {
+		size_t pos =
+		  size_t((goals.size() + 1.0)*rand()/(RAND_MAX + 1.0));
+		if (pos == goals.size()) {
+		  goals.push_back(&exists->body());
+		} else {
+		  const Formula* tmp = goals[pos];
+		  goals[pos] = &exists->body();
+		  goals.push_back(tmp);
+		}
 	      } else {
 		goals.push_back(&exists->body());
 	      }
