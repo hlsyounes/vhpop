@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 3.22 2002-07-02 16:43:06 lorens Exp $
+ * $Id: vhpop.cc,v 3.23 2002-07-06 22:28:14 lorens Exp $
  */
 #include <cstdio>
 #include <cstdlib>
@@ -240,7 +240,11 @@ int main(int argc, char* argv[]) {
 	params.search_limits.clear();
 	no_search_limit = false;
       }
-      params.search_limits.push_back(atoi(optarg));
+      if (optarg == string("unlimited")) {
+	params.search_limits.push_back(UINT_MAX);
+      } else {
+	params.search_limits.push_back(atoi(optarg));
+      }
       break;
     case 'r':
       params.reverse_open_conditions = true;
@@ -256,7 +260,11 @@ int main(int argc, char* argv[]) {
       }
       break;
     case 't':
-      TemporalOrderings::threshold = atof(optarg);
+      if (optarg == string("unlimited")) {
+	TemporalOrderings::threshold = UINT_MAX;
+      } else {
+	TemporalOrderings::threshold = atof(optarg);
+      }
       break;
 #ifdef TRANSFORMATIONAL
     case 1:
