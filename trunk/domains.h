@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.h,v 3.12 2002-06-30 14:56:42 lorens Exp $
+ * $Id: domains.h,v 4.1 2002-07-22 22:42:44 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -39,7 +39,7 @@ struct Problem;
  */
 struct Predicate {
   /* Constructs a predicate with the given name. */
-  Predicate(const string& name);
+  explicit Predicate(const string& name);
 
   /* Deletes this predicate. */
   ~Predicate();
@@ -70,6 +70,18 @@ private:
   TypeList parameters_;
 };
 
+/*
+ * Hash function object for predicates.
+ */
+struct hash<const Predicate*> {
+  size_t operator()(const Predicate* p) const {
+    return size_t(p);
+  }
+};
+
+/* Equality operator for predicates. */
+bool operator==(const Predicate& p1, const Predicate& p2);
+
 /* Output operator for predicates. */
 ostream& operator<<(ostream& os, const Predicate& p);
 
@@ -83,6 +95,17 @@ struct PredicateMap : public hash_map<string, const Predicate*> {
 
 /* Iterator for predicate table. */
 typedef PredicateMap::const_iterator PredicateMapIter;
+
+
+/* ====================================================================== */
+/* PredicateSet */
+
+/* Set of predicate declarations. */
+struct PredicateSet : public hash_set<const Predicate*> {
+};
+
+/* Iterator for predicate sets. */
+typedef PredicateSet::const_iterator PredicateSetIter;
 
 
 /* ====================================================================== */
@@ -147,8 +170,8 @@ struct Effect {
 
   /* Fills the provided sets with predicates achievable by the
      effect. */
-  void achievable_predicates(hash_set<string>& preds,
-			     hash_set<string>& neg_preds) const;
+  void achievable_predicates(PredicateSet& preds,
+			     PredicateSet& neg_preds) const;
 
   /* Returns a copy of this effect with a new link condition. */
   const Effect& new_link_condition(const Formula& cond) const;
@@ -206,8 +229,8 @@ struct EffectList : public vector<const Effect*> {
 
   /* Fills the provided sets with predicates achievable by the effects
      in this list. */
-  void achievable_predicates(hash_set<string>& preds,
-			     hash_set<string>& neg_preds) const;
+  void achievable_predicates(PredicateSet& preds,
+			     PredicateSet& neg_preds) const;
 
   /* "Strengthens" this effect list. */
   const EffectList& strengthen(const Formula& condition) const;
@@ -247,8 +270,8 @@ struct Action : public Printable {
 
   /* Fills the provided sets with predicates achievable by this
      action. */
-  void achievable_predicates(hash_set<string>& preds,
-			     hash_set<string>& neg_preds) const;
+  void achievable_predicates(PredicateSet& preds,
+			     PredicateSet& neg_preds) const;
 
 protected:
   /* Constructs an action. */
@@ -478,7 +501,7 @@ struct Domain {
   void compatible_constants(NameList& constants, const Type& t) const;
 
   /* Tests if the given predicate is static. */
-  bool static_predicate(const string& predicate) const;
+  bool static_predicate(const Predicate& predicate) const;
 
 private:
   /* Table of all defined domains. */
@@ -495,7 +518,7 @@ private:
   /* Domain action schemas. */
   ActionSchemaMap actions_;
   /* Static predicates. */
-  hash_set<string> static_predicates_;
+  PredicateSet static_predicates_;
 
   friend ostream& operator<<(ostream& os, const Domain& d);
 };

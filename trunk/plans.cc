@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 3.28 2002-07-16 22:25:42 lorens Exp $
+ * $Id: plans.cc,v 4.1 2002-07-22 22:39:27 lorens Exp $
  */
 #include <queue>
 #include <stack>
@@ -38,7 +38,7 @@
  * Mapping of predicate names to actions.
  */
 struct PredicateActionsMap
-  : public hash_multimap<string, const ActionSchema*> {
+  : public hash_multimap<const Predicate*, const ActionSchema*> {
 };
 
 /* Iterator for PredicateActionsMap. */
@@ -282,14 +282,14 @@ static void applicable_actions(ActionList& actions, const Literal& literal) {
     planning_graph->achieves_formula(actions, literal);
   } else if (typeid(literal) == typeid(Atom)) {
     pair<PredicateActionsMapIter, PredicateActionsMapIter> bounds =
-      achieves_pred.equal_range(literal.predicate());
+      achieves_pred.equal_range(&literal.predicate());
     for (PredicateActionsMapIter pai = bounds.first;
 	 pai != bounds.second; pai++) {
       actions.push_back((*pai).second);
     }
   } else {
     pair<PredicateActionsMapIter, PredicateActionsMapIter> bounds =
-      achieves_neg_pred.equal_range(literal.predicate());
+      achieves_neg_pred.equal_range(&literal.predicate());
     for (PredicateActionsMapIter pai = bounds.first;
 	 pai != bounds.second; pai++) {
       actions.push_back((*pai).second);
@@ -495,14 +495,13 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
       if (params->domain_constraints && !params->keep_static_preconditions) {
 	as = &as->strip_static(*domain);
       }
-      hash_set<string> preds;
-      hash_set<string> neg_preds;
+      PredicateSet preds;
+      PredicateSet neg_preds;
       as->achievable_predicates(preds, neg_preds);
-      for (hash_set<string>::const_iterator si = preds.begin();
-	   si != preds.end(); si++) {
+      for (PredicateSetIter si = preds.begin(); si != preds.end(); si++) {
 	achieves_pred.insert(make_pair(*si, as));
       }
-      for (hash_set<string>::const_iterator si = neg_preds.begin();
+      for (PredicateSetIter si = neg_preds.begin();
 	   si != neg_preds.end(); si++) {
 	achieves_neg_pred.insert(make_pair(*si, as));
       }

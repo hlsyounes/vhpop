@@ -16,18 +16,16 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.h,v 3.4 2002-03-25 00:44:58 lorens Exp $
+ * $Id: heuristics.h,v 4.1 2002-07-22 22:39:59 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
 
 #include "support.h"
 #include "formulas.h"
+#include "domains.h"
 
 
-struct ActionList;
-struct Action;
-struct Domain;
 struct Problem;
 struct ActionDomain;
 struct Bindings;
@@ -166,7 +164,8 @@ private:
   typedef LiteralActionsMap::const_iterator LiteralActionsMapIter;
 
   /* Mapping of predicate names to ground atoms. */
-  struct PredicateAtomsMap : public HashMultimap<string, const Atom*> {
+  struct PredicateAtomsMap :
+    public HashMultimap<const Predicate*, const Atom*> {
   };
 
   /* Iterator for PredicateAtomsMap. */
