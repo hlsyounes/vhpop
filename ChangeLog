@@ -1,4 +1,4 @@
-2002-09-24  Håkan L. S. Younes  <lorens@dhcp-7-251.dsl.telerama.com>
+2002-09-24  Håkan L. S. Younes  <lorens@cs.cmu.edu>
 
 	* Instead of stripping static preconditions before planning phase,
 	just do not add static open conditions.  This prevents unnecessary

@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: parameters.h,v 3.5 2002-07-02 16:42:19 lorens Exp $
+ * $Id: parameters.h,v 3.6 2002-09-24 17:37:30 lorens Exp $
  */
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
@@ -72,6 +72,9 @@ struct Parameters {
 
   /* Constructs default planning parameters. */
   Parameters();
+
+  /* Whether to strip static preconditions. */
+  bool strip_static_preconditions() const;
 
   /* Selects a search algorithm from a name. */
   void set_search_algorithm(const string& name);
