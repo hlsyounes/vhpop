@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.cc,v 4.7 2002-12-16 17:06:45 lorens Exp $
+ * $Id: domains.cc,v 4.8 2002-12-17 17:14:58 lorens Exp $
  */
 #include "domains.h"
 #include "bindings.h"
@@ -238,13 +238,10 @@ void Effect::achievable_predicates(PredicateSet& preds,
 const Effect* Effect::instantiation(const SubstitutionList& args,
 				    const Problem& problem,
 				    const Formula& condition) const {
-  const Formula& inst_link_cond =
-    link_condition().instantiation(args, problem);
-  if (!inst_link_cond.contradiction()
-      && !(add_list().empty() && del_list().empty())) {
+  if (!(add_list().empty() && del_list().empty())) {
     Effect& inst_eff = *(new Effect(when()));
     inst_eff.set_condition(condition);
-    inst_eff.set_link_condition(inst_link_cond);
+    inst_eff.set_link_condition(link_condition().instantiation(args, problem));
     for (AtomListIter ai = add_list().begin(); ai != add_list().end(); ai++) {
       inst_eff.add_positive((*ai)->substitution(args, 0));
     }
@@ -254,8 +251,6 @@ const Effect* Effect::instantiation(const SubstitutionList& args,
     }
     return &inst_eff;
   } else {
-    Formula::register_use(&inst_link_cond);
-    Formula::unregister_use(&inst_link_cond);
     return NULL;
   }
 }
