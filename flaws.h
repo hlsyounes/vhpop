@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: flaws.h,v 3.8 2003-03-01 18:52:24 lorens Exp $
+ * $Id: flaws.h,v 6.1 2003-07-13 16:00:07 lorens Exp $
  */
 #ifndef FLAWS_H
 #define FLAWS_H
@@ -30,7 +30,6 @@ struct Literal;
 struct Inequality;
 struct Disjunction;
 struct Domain;
-struct Reason;
 struct Effect;
 struct Link;
 
@@ -61,8 +60,7 @@ std::ostream& operator<<(std::ostream& os, const Flaw& f);
  */
 struct OpenCondition : public Flaw {
   /* Constructs an open condition. */
-  OpenCondition(size_t step_id, const Formula& condition,
-		const Reason& reason);
+  OpenCondition(size_t step_id, const Formula& condition);
 
   /* Constructs an open condition. */
   OpenCondition(const OpenCondition& oc);
@@ -75,9 +73,6 @@ struct OpenCondition : public Flaw {
 
   /* Returns the open condition. */
   const Formula& condition() const { return *condition_; }
-
-  /* Returns the reason. */
-  const Reason& reason() const;
 
   /* Checks if this is a static open condition. */
   bool is_static(const Domain& domain) const;
@@ -103,10 +98,6 @@ private:
   size_t step_id_;
   /* The open condition. */
   const Formula* condition_;
-#ifdef TRANSFORMATIONAL
-  /* Reason for open condition. */
-  const Reason* reason_;
-#endif
 };
 
 /* Equality operator for open conditions. */
