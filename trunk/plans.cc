@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.53 2002-01-09 18:05:35 lorens Exp $
+ * $Id: plans.cc,v 1.54 2002-01-24 03:36:04 lorens Exp $
  */
 #include <queue>
 #include <algorithm>
@@ -132,7 +132,7 @@ static bool add_goal(const OpenConditionChain*& open_conds,
   } else if (goal.contradiction()) {
     return false;
   }
-  deque<const Formula*, container_alloc> goals(1, &goal);
+  Deque<const Formula*> goals(1, &goal);
   while (!goals.empty()) {
     const Formula* goal = goals.back();
     goals.pop_back();
@@ -197,10 +197,20 @@ static bool add_goal(const OpenConditionChain*& open_conds,
 	      }
 #endif
 	    }
-	  } else if (dynamic_cast<const QuantifiedFormula*>(goal) != NULL) {
-	    throw Unimplemented("adding quantified goal");
 	  } else {
-	    throw Unimplemented("unknown kind of goal");
+	    const ExistsFormula* exists =
+	      dynamic_cast<const ExistsFormula*>(goal);
+	    if (exists != NULL) {
+	      if (params->reverse_open_conditions) {
+		goals.push_front(&exists->body);
+	      } else {
+		goals.push_back(&exists->body);
+	      }
+	    } else if (dynamic_cast<const ForallFormula*>(goal) != NULL) {
+	      throw Unimplemented("adding universally quantified goal");
+	    } else {
+	      throw Unimplemented("unknown kind of goal");
+	    }
 	  }
 	}
       }
@@ -295,9 +305,16 @@ const Plan* Plan::make_initial_plan(const Problem& problem) {
   /*
    * Create step representing goal of problem.
    */
+  const Formula* goal;
+  if (params->ground_actions) {
+    SubstitutionList dummy;
+    goal = &problem.goal.instantiation(dummy, problem);
+  } else {
+    goal = &problem.goal;
+  }
   /* Goal step. */
   const Step& goal_step =
-    *(new Step(GOAL_ID, problem.goal, EffectList::EMPTY, init_reason));
+    *(new Step(GOAL_ID, *goal, EffectList::EMPTY, init_reason));
   /* Reason for open conditions of goal. */
   const Reason& goal_reason = AddStepReason::make(*params, goal_step.id);
   /* Chain of open conditions. */
@@ -354,7 +371,6 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
 	if (!params->keep_static_preconditions) {
 	  as = &as->strip_static(*domain);
 	}
-	as = &as->strip_equality();
       }
       hash_set<string> preds;
       hash_set<string> neg_preds;
@@ -1578,12 +1594,12 @@ void Plan::relink(PlanList& new_plans, const Link& link) const {
 /*
  * A stack of causal links.
  */
-typedef stack<const Link*, deque<const Link*, container_alloc> > LinkStack;
+typedef Stack<const Link*> LinkStack;
 
 /*
  * A stack of steps.
  */
-typedef stack<const Step*, deque<const Step*, container_alloc> > StepStack;
+typedef Stack<const Step*> StepStack;
 
 /* Returns a chain of unsafes with all unsafes in the given chain
    involving the given link removed. */
