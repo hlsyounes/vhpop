@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 4.7 2002-12-16 17:36:45 lorens Exp $
+ * $Id: pddl.yy,v 4.8 2002-12-18 23:22:40 lorens Exp $
  */
 %{
 #include "requirements.h"
@@ -31,6 +31,9 @@
 #include <cstdlib>
 #include <iostream>
 
+
+/* Workaround for bug in Bison 1.35 that disables stack growth. */
+#define YYLTYPE_IS_TRIVIAL 1
 
 /* The lexer. */
 extern int yylex();
