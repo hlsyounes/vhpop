@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 3.21 2002-07-02 14:42:19 lorens Exp $
+ * $Id: vhpop.cc,v 3.22 2002-07-02 16:43:06 lorens Exp $
  */
 #include <cstdio>
 #include <cstdlib>
@@ -58,8 +58,9 @@ static struct option long_options[] = {
   { "limit", required_argument, NULL, 'l' },
   { "reverse-open-conditions", no_argument, NULL, 'r' },
   { "search-algorithm", required_argument, NULL, 's' },
+  { "tolerance", required_argument, NULL, 't' },
 #ifdef TRANSFORMATIONAL
-  { "transformational", no_argument, NULL, 't' },
+  { "transformational", no_argument, NULL, 1 },
 #endif
   { "time-limit", required_argument, NULL, 'T' },
   { "verbose", optional_argument, NULL, 'v' },
@@ -69,7 +70,7 @@ static struct option long_options[] = {
   { "help", no_argument, NULL, '?' },
   { 0, 0, 0, 0 }
 };
-static const char OPTION_STRING[] = "d::f:gh:l:rs:tT:v::Vw:W::?";
+static const char OPTION_STRING[] = "d::f:gh:l:rs:t:T:v::Vw:W::?";
 
 
 /* Displays help. */
@@ -92,8 +93,13 @@ static void display_help() {
        << "\t\t\treverse the order that open conditions are added" << endl
        << "  -s s,  --search-algorithm=s" << endl
        << "\t\t\tuse search algorithm s" << endl
+       << "  -t t,  --tolerance=t\t"
+       << "use tolerance t with durative actions;" << endl
+       << "\t\t\t  time stamps less than t appart are considered"
+       << " indistinguashable;" << endl
+       << "\t\t\t  default is 0.01" << endl
 #ifdef TRANSFORMATIONAL
-       << "  -t,    --transformational" << endl
+       << "         --transformational" << endl
        << "\t\t\tuse transformational planner" << endl
 #endif
        << "  -T t,  --time-limit=t\t"
@@ -249,8 +255,11 @@ int main(int argc, char* argv[]) {
 	return -1;
       }
       break;
-#ifdef TRANSFORMATIONAL
     case 't':
+      TemporalOrderings::threshold = atof(optarg);
+      break;
+#ifdef TRANSFORMATIONAL
+    case 1:
       params.transformational = true;
       break;
 #endif

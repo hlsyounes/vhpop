@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.cc,v 3.21 2002-06-30 23:03:18 lorens Exp $
+ * $Id: orderings.cc,v 3.22 2002-07-02 16:41:35 lorens Exp $
  */
 #include "orderings.h"
 #include "plans.h"
@@ -535,7 +535,7 @@ void BinaryOrderings::fill_transitive(hash_map<size_t, BoolVector*>& own_data,
 /* TemporalOrderings */
 
 /* Minimum distance between two ordered steps. */
-float TemporalOrderings::threshold = 1.0f;
+float TemporalOrderings::threshold = 0.01f;
 
 
 /* Constructs an empty ordering collection. */

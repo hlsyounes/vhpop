@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 3.23 2002-06-30 23:03:11 lorens Exp $
+ * $Id: plans.cc,v 3.24 2002-07-02 16:42:24 lorens Exp $
  */
 #include <queue>
 #include <stack>
@@ -476,9 +476,14 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
   /*
    * Initialize planning graph and maps from predicates to actions.
    */
-  if (params->ground_actions || params->domain_constraints
-      || params->heuristic.needs_planning_graph()
-      || params->flaw_order.needs_planning_graph()) {
+  bool need_pg = (params->ground_actions || params->domain_constraints
+		  || params->heuristic.needs_planning_graph());
+  for (int i = 0; !need_pg && i < params->flaw_orders.size(); i++) {
+    if (params->flaw_orders[i].needs_planning_graph()) {
+      need_pg = true;
+    }
+  }
+  if (need_pg) {
     planning_graph = new PlanningGraph(problem, params->domain_constraints);
   } else {
     planning_graph = NULL;
@@ -516,14 +521,16 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
   /* Number of dead ends encountered. */
   size_t num_dead_ends = 0;
 
-  /* Queue of pending plans. */
-  PlanQueue plans;
+  /* Generated plans for different flaw selection orders. */
+  vector<size_t> generated_plans(params->flaw_orders.size(), 0);
+  /* Queues of pending plans. */
+  vector<PlanQueue> plans(params->flaw_orders.size(), PlanQueue());
+  /* Dead plan queues. */
+  vector<PlanQueue*> dead_queues;
   /* Construct the initial plan. */
   const Plan* initial_plan = make_initial_plan(problem);
-  const Plan* current_plan = initial_plan;
-  if (current_plan != NULL) {
-    current_plan->id_ = 0;
-    num_generated_plans++;
+  if (initial_plan != NULL) {
+    initial_plan->id_ = 0;
   }
 
   /* Variable for progress bar (number of generated plans). */
@@ -534,6 +541,15 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
   /*
    * Search for complete plan.
    */
+  size_t current_flaw_order = 0;
+  size_t flaw_orders_left = params->flaw_orders.size();
+  size_t next_switch = 1000;
+  const Plan* current_plan = initial_plan;
+  generated_plans[current_flaw_order]++;
+  num_generated_plans++;
+  if (verbosity > 1) {
+    cerr << "using flaw order " << current_flaw_order << endl;
+  }
   float f_limit;
   if (current_plan != NULL
       && params->search_algorithm == Parameters::IDA_STAR) {
@@ -544,9 +560,14 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
   do {
     float next_f_limit = INFINITY;
     while (current_plan != NULL && !current_plan->complete()) {
-      if (num_generated_plans - num_static >= params->search_limit) {
-	/* Search limit exceeded. */
-	break;
+      /* Do a little amortized cleanup of dead queues. */
+      for (size_t dq = 0; dq < 4 && !dead_queues.empty(); dq++) {
+	PlanQueue& dead_queue = *dead_queues.back();
+	delete dead_queue.top();
+	dead_queue.pop();
+	if (dead_queue.empty()) {
+	  dead_queues.pop_back();
+	}
       }
       struct itimerval timer;
 #ifdef PROFILING
@@ -567,28 +588,29 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
       num_visited_plans++;
       if (verbosity == 1) {
 	while (num_generated_plans - num_static - last_dot >= 1000) {
-	  cout << '.';
+	  cerr << '.';
 	  last_dot += 1000;
 	}
 	while (t - 60.0*last_hash >= 60.0) {
-	  cout << '#';
+	  cerr << '#';
 	  last_hash++;
 	}
       }
       if (verbosity > 1) {
-	cout << endl << (num_visited_plans - num_static) << ": "
+	cerr << endl << (num_visited_plans - num_static) << ": "
 	     << "!!!!CURRENT PLAN (id " << current_plan->id_ << ")"
 	     << " with rank (" << current_plan->primary_rank();
 	for (size_t ri = 1; ri < current_plan->rank_.size(); ri++) {
-	  cout << ',' << current_plan->rank_[ri];
+	  cerr << ',' << current_plan->rank_[ri];
 	}
-	cout << ")" << endl
+	cerr << ")" << endl
 	     << *current_plan << endl;
       }
       /* List of children to current plan. */
       PlanList refinements;
       /* Get plan refinements. */
-      current_plan->refinements(refinements);
+      current_plan->refinements(refinements,
+				params->flaw_orders[current_flaw_order]);
       /* Add children to queue of pending plans. */
       bool added = false;
       for (PlanListIter pi = refinements.begin();
@@ -596,8 +618,7 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
 	const Plan& new_plan = **pi;
 	/* N.B. Must set id before computing rank, because it may be used. */
 	new_plan.id_ = num_generated_plans;
-	if (!isinf(new_plan.primary_rank())
-	    && num_generated_plans - num_static < params->search_limit) {
+	if (!isinf(new_plan.primary_rank())) {
 	  if (params->search_algorithm == Parameters::IDA_STAR
 	      && new_plan.primary_rank() > f_limit) {
 	    next_f_limit = min(next_f_limit, new_plan.primary_rank());
@@ -608,15 +629,16 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
 	    num_static++;
 	  }
 	  added = true;
-	  plans.push(&new_plan);
+	  plans[current_flaw_order].push(&new_plan);
+	  generated_plans[current_flaw_order]++;
 	  num_generated_plans++;
 	  if (verbosity > 2) {
-	    cout << endl << "####CHILD (id " << new_plan.id_ << ")"
+	    cerr << endl << "####CHILD (id " << new_plan.id_ << ")"
 		 << " with rank (" << new_plan.primary_rank();
 	    for (size_t ri = 1; ri < new_plan.rank_.size(); ri++) {
-	      cout << ',' << new_plan.rank_[ri];
+	      cerr << ',' << new_plan.rank_[ri];
 	    }
-	    cout << "):" << endl
+	    cerr << "):" << endl
 		 << new_plan << endl;
 	  }
 	} else {
@@ -630,24 +652,57 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
       /*
        * Process next plan.
        */
-      do {
-	if (!params->transformational && current_plan != initial_plan) {
-	  delete current_plan;
+      bool limit_reached = false;
+      if ((limit_reached = (generated_plans[current_flaw_order]
+			    >= params->search_limits[current_flaw_order]))
+	  || generated_plans[current_flaw_order] >= next_switch) {
+	if (verbosity > 1) {
+	  cerr << "time to switch (" << generated_plans[current_flaw_order]
+	       << ")" << endl;
 	}
-	if (plans.empty()) {
-	  /* Problem lacks solution. */
-	  current_plan = NULL;
+	if (limit_reached) {
+	  flaw_orders_left--;
+	  /* Discard the rest of the plan queue. */
+	  dead_queues.push_back(&plans[current_flaw_order]);
+	}
+	if (flaw_orders_left > 0) {
+	  do {
+	    current_flaw_order++;
+	    if (verbosity > 1) {
+	      cerr << "use flaw order " << current_flaw_order << "?" << endl;
+	    }
+	    if (current_flaw_order >= params->flaw_orders.size()) {
+	      current_flaw_order = 0;
+	      next_switch *= 2;
+	    }
+	  } while ((generated_plans[current_flaw_order]
+		    >= params->search_limits[current_flaw_order]));
+	  if (verbosity > 1) {
+	    cerr << "using flaw order " << current_flaw_order << endl;
+	  }
+	}
+      }
+      if (flaw_orders_left > 0) {
+	if (generated_plans[current_flaw_order] == 0) {
+	  current_plan = initial_plan;
+	  generated_plans[current_flaw_order]++;
+	  num_generated_plans++;
 	} else {
-	  current_plan = plans.top();
-	  plans.pop();
+	  do {
+	    if (!params->transformational && current_plan != initial_plan) {
+	      delete current_plan;
+	    }
+	    if (plans[current_flaw_order].empty()) {
+	      /* Problem lacks solution. */
+	      current_plan = NULL;
+	    } else {
+	      current_plan = plans[current_flaw_order].top();
+	      plans[current_flaw_order].pop();
+	    }
+	  } while (current_plan != NULL && current_plan->duplicate());
 	}
-      } while (current_plan != NULL && current_plan->duplicate());
-      if (params->search_algorithm == Parameters::HILL_CLIMBING) {
-	/* Discard the rest of the plan queue. */
-	while (!plans.empty()) {
-	  delete plans.top();
-	  plans.pop();
-	}
+      } else {
+	current_plan = NULL;
       }
     }
     if (current_plan != NULL && current_plan->complete()) {
@@ -660,34 +715,32 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
 	delete current_plan;
       }
       current_plan = initial_plan;
-      while (!plans.empty()) {
-	delete plans.top();
-	plans.pop();
-      }
     }
   } while (!isinf(f_limit));
   if (verbosity > 0) {
     /*
      * Print statistics.
      */
-    cout << endl << ";Plans generated: " << num_generated_plans;
+    cerr << endl << "Plans generated: " << num_generated_plans;
     if (num_static > 0) {
-      cout << " [" << (num_generated_plans - num_static) << "]";
+      cerr << " [" << (num_generated_plans - num_static) << "]";
     }
-    cout << endl << ";Plans visited: " << num_visited_plans;
+    cerr << endl << "Plans visited: " << num_visited_plans;
     if (num_static > 0) {
-      cout << " [" << (num_visited_plans - num_static) << "]";
+      cerr << " [" << (num_visited_plans - num_static) << "]";
     }
-    cout << endl << ";Dead ends encountered: " << num_dead_ends << endl;
+    cerr << endl << "Dead ends encountered: " << num_dead_ends << endl;
   }
   if (current_plan != initial_plan) {
     delete initial_plan;
   }
   /* Discard the rest of the plan queue. */
   if (!last_problem) {
-    while (!plans.empty()) {
-      delete plans.top();
-      plans.pop();
+    for (size_t i = 0; i < plans.size(); i++) {
+      while (!plans[i].empty()) {
+	delete plans[i].top();
+	plans[i].pop();
+      }
     }
   }
   /* Return last plan, or NULL if problem does not have a solution. */
@@ -785,8 +838,8 @@ size_t Plan::serial_no() const {
 
 
 /* Returns the next flaw to work on. */
-const Flaw& Plan::get_flaw() const {
-  const Flaw& flaw = params->flaw_order.select(*this, *domain, planning_graph);
+const Flaw& Plan::get_flaw(const FlawSelectionOrder& flaw_order) const {
+  const Flaw& flaw = flaw_order.select(*this, *domain, planning_graph);
   if (!params->ground_actions) {
     const OpenCondition* open_cond = dynamic_cast<const OpenCondition*>(&flaw);
     static_pred_flaw = (open_cond != NULL && open_cond->is_static(*domain));
@@ -796,10 +849,11 @@ const Flaw& Plan::get_flaw() const {
 
 
 /* Returns the refinements for the next flaw to work on. */
-void Plan::refinements(PlanList& plans) const {
-  const Flaw& flaw = get_flaw();
+void Plan::refinements(PlanList& plans,
+		       const FlawSelectionOrder& flaw_order) const {
+  const Flaw& flaw = get_flaw(flaw_order);
   if (verbosity > 1) {
-    cout << endl << "handle " << flaw << endl;
+    cerr << endl << "handle " << flaw << endl;
   }
   const Unsafe* unsafe = dynamic_cast<const Unsafe*>(&flaw);
   if (unsafe != NULL) {
@@ -834,12 +888,12 @@ void Plan::handle_unsafe(PlanList& plans, const Unsafe& unsafe) const {
     if (num_prev_plans == plans.size()) {
       if (params->transformational) {
 	if (verbosity > 2) {
-	  cout << endl << "++++DEAD END:" << endl << *this << endl;
+	  cerr << endl << "++++DEAD END:" << endl << *this << endl;
 	}
 	relink(plans, unsafe.link());
 	if (verbosity > 2) {
 	  for (size_t i = num_prev_plans; i < plans.size(); i++) {
-	    cout << "^^^^Transformed plan" << endl << *plans[i] << endl;
+	    cerr << "^^^^Transformed plan" << endl << *plans[i] << endl;
 	    plans[i]->duplicate();
 	  }
 	}
@@ -1710,8 +1764,8 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
 void Plan::relink(PlanList& new_plans, const Link& link) const {
   pair<const Plan*, const OpenCondition*> p = unlink(link);
   if (verbosity > 2) {
-    cout << "!!!!!!!!!!!!!!!!! Unlinked plan !!!!!!!!!!!!!!!!" << endl;
-    cout << *p.first << endl;
+    cerr << "!!!!!!!!!!!!!!!!! Unlinked plan !!!!!!!!!!!!!!!!" << endl;
+    cerr << *p.first << endl;
   }
   p.first->handle_open_condition(new_plans, *p.second);
 }
@@ -2040,12 +2094,12 @@ bool Plan::duplicate() const {
 #ifdef TRANSFORMATIONAL
   if (type_ == TRANSFORMED_PLAN) {
     if (verbosity > 2) {
-      cout << "searching for duplicate..." << endl;
+      cerr << "searching for duplicate..." << endl;
     }
     for (const Plan* p = parent_; p != NULL; p = p->parent_) {
       if (equivalent(*p)) {
 	if (verbosity > 2) {
-	  cout << "matching steps!" << endl;
+	  cerr << "matching steps!" << endl;
 	}
 	return true;
       }
@@ -2089,7 +2143,7 @@ bool Plan::equivalent(const Plan& p) const {
   if (num_steps() == p.num_steps() && num_open_conds() == p.num_open_conds()
       && num_links() == p.num_links()) {
     if (verbosity > 2) {
-      cout << "matching number of steps, etc..." << endl;
+      cerr << "matching number of steps, etc..." << endl;
     }
     // instantiate steps in this and p
     FormulaMap steps1;
@@ -2164,10 +2218,10 @@ disable_interference(const vector<const Step*>& ordered_steps,
 						sj.id(), STEP_START)
 	  || new_orderings->possibly_concurrent(si.id(), STEP_END,
 						sj.id(), STEP_END)) {
-#if 0
-	cout << si.id() << " and " << sj.id() << " possibly concurrent"
-	     << endl;
-#endif
+	if (verbosity > 1) {
+	  cerr << si.id() << " and " << sj.id() << " possibly concurrent"
+	       << endl;
+	}
 	bool interference = false;
 	for (const LinkChain* lc = links;
 	     lc != NULL && !interference; lc = lc->tail) {
@@ -2242,12 +2296,9 @@ disable_interference(const vector<const Step*>& ordered_steps,
 	  }
 	}
 	if (interference) {
-#if 0
-	  cout << si.id() << " and " << sj.id() << " interfering" << endl;
-#endif
-	  // if durative, then order both start and end relative eachother
-	  // ...
-	  // otherwise just add ordering constraint between si and sj
+	  if (verbosity > 1) {
+	    cerr << si.id() << " and " << sj.id() << " interfering" << endl;
+	  }
 	  new_orderings = new_orderings->refine(Ordering(si.id(), STEP_START,
 							 sj.id(), STEP_START,
 							 Reason::DUMMY));
@@ -2281,7 +2332,16 @@ ostream& operator<<(ostream& os, const Plan& p) {
   hash_map<size_t, float> end_times;
   p.orderings().schedule(start_times, end_times);
   sort(ordered_steps.begin(), ordered_steps.end(), StepSorter(start_times));
-  // make sure nothing scheduled at the same time is interfering
+  /*
+   * Now make sure that nothing scheduled at the same time is
+   * interfering.  This can only occur if there are link conditions on
+   * effects, and we can always resolve the threats by arbitrarily
+   * ordering the interfering steps.  Note, however, that this is not
+   * necessarily the if there are durative actions.  Because of this
+   * we never add link conditions when the `:durative-actions'
+   * requirement flag is present in the domain description, so we
+   * don't have to worry about it here.
+   */
   const BinaryOrderings* orderings =
     dynamic_cast<const BinaryOrderings*>(&p.orderings());
   if (orderings != NULL) {

@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: parameters.h,v 3.4 2002-03-23 19:10:22 lorens Exp $
+ * $Id: parameters.h,v 3.5 2002-07-02 16:42:19 lorens Exp $
  */
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
@@ -47,8 +47,6 @@ struct Parameters {
   /* Valid search algorithms. */
   typedef enum { A_STAR, IDA_STAR, HILL_CLIMBING } SearchAlgorithm;
 
-  /* Search limit. */
-  size_t search_limit;
   /* Time limit, in minutes. */
   size_t time_limit;
   /* Search algorithm to use. */
@@ -57,8 +55,10 @@ struct Parameters {
   Heuristic heuristic;
   /* Weight to use with heuristic. */
   float weight;
-  /* Flaw selecion order. */
-  FlawSelectionOrder flaw_order;
+  /* Flaw selecion orders. */
+  vector<FlawSelectionOrder> flaw_orders;
+  /* Search limits. */
+  vector<size_t> search_limits;
   /* Whether to reverse the order that open conditions are added. */
   bool reverse_open_conditions;
   /* Whether to use ground actions. */
