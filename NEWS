@@ -1,4 +1,8 @@
-Version 2.2 (Dec 18, 2002):
+Version 2.2 (Mar 1, 2003):
+
+* Added -S option for specifying seed to random number generator.
+
+* Changed -r option to mean random open condition order.
 
 * Further improvements to memory and time efficiency.  All known
   memory leaks have been eliminated.

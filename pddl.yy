@@ -2,7 +2,7 @@
 /*
  * PDDL parser.
  *
- * Copyright (C) 2002 Carnegie Mellon University
+ * Copyright (C) 2003 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 4.9 2002-12-19 01:56:51 lorens Exp $
+ * $Id: pddl.yy,v 4.10 2003-03-01 18:55:04 lorens Exp $
  */
 %{
 #include "requirements.h"

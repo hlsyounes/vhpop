@@ -172,4 +172,6 @@ Plans for Future Improvements
 
 * Allow secondary ordering criterion for flaw selection strategies.
 
+* Add support for durations that depend on action parameters.
+
 * Add support for numeric effects and preconditions (level 2 of PDDL+).

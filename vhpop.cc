@@ -1,7 +1,7 @@
 /*
  * Main program.
  *
- * Copyright (C) 2002 Carnegie Mellon University
+ * Copyright (C) 2003 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 3.28 2003-03-01 18:39:02 lorens Exp $
+ * $Id: vhpop.cc,v 3.29 2003-03-01 18:53:49 lorens Exp $
  */
 #include "plans.h"
 #include "reasons.h"
@@ -146,7 +146,7 @@ static void display_help() {
 /* Displays version information. */
 static void display_version() {
   std::cout << PACKAGE " " VERSION << std::endl
-	    << "Copyright (C) 2002 Carnegie Mellon University" << std::endl
+	    << "Copyright (C) 2003 Carnegie Mellon University" << std::endl
 	    << PACKAGE
 	    << " comes with NO WARRANTY, to the extent permitted by law."
 	    << std::endl
