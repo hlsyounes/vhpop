@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 6.5 2003-09-09 23:51:10 lorens Exp $
+ * $Id: vhpop.cc,v 6.6 2003-12-05 22:30:21 lorens Exp $
  */
 #include "plans.h"
 #include "parameters.h"
@@ -58,6 +58,7 @@ int verbosity;
 
 /* Program options. */
 static struct option long_options[] = {
+  { "action-cost", required_argument, NULL, 'a' },
   { "domain-constraints", optional_argument, NULL, 'd' },
   { "flaw-order", required_argument, NULL, 'f' },
   { "ground-actions", no_argument, NULL, 'g' },
@@ -75,13 +76,15 @@ static struct option long_options[] = {
   { "help", no_argument, NULL, '?' },
   { 0, 0, 0, 0 }
 };
-static const char OPTION_STRING[] = "d::f:gh:l:rs:S:t:T:v::Vw:W::?";
+static const char OPTION_STRING[] = "a:d::f:gh:l:rs:S:t:T:v::Vw:W::?";
 
 
 /* Displays help. */
 static void display_help() {
   std::cout << "usage: " << PACKAGE << " [options] [file ...]" << std::endl
 	    << "options:" << std::endl
+	    << "  -a a,  --action-cost=a" << std::endl
+	    << "\t\t\tuse action cost a" << std::endl
 	    << "  -d[k], --domain-constraints=[k]" << std::endl
 	    << "\t\t\tuse parameter domain constraints;" << std::endl
 	    << "\t\t\t  if k is 0, static preconditions are pruned;"
@@ -248,6 +251,16 @@ int main(int argc, char* argv[]) {
       break;
     }
     switch (c) {
+    case 'a':
+      try {
+	params.set_action_cost(optarg);
+      } catch (const InvalidActionCost& e) {
+	std::cerr << PACKAGE ": " << e << std::endl
+		  << "Try `" PACKAGE " --help' for more information."
+		  << std::endl;
+	return -1;
+      }
+      break;
     case 'd':
       params.domain_constraints = true;
       params.keep_static_preconditions = (optarg == NULL || atoi(optarg) != 0);
