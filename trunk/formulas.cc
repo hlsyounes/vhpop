@@ -1,5 +1,5 @@
 /*
- * $Id: formulas.cc,v 1.33 2002-01-09 18:34:14 lorens Exp $
+ * $Id: formulas.cc,v 1.34 2002-01-12 18:31:36 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -857,8 +857,7 @@ const Formula& Conjunction::instantiation(const SubstitutionList& subst,
   const Formula* c = &TRUE;
   for (FormulaListIter fi = conjuncts.begin();
        fi != conjuncts.end() && !c->contradiction(); fi++) {
-    const Formula& ci = (*fi)->instantiation(subst, problem);
-    c = &(*c && ci);
+    c = &(*c && (*fi)->instantiation(subst, problem));
   }
   return *c;
 }
@@ -957,7 +956,7 @@ const Formula& Disjunction::instantiation(const Bindings& bindings) const {
 /* Returns an instantiation of this formula. */
 const Formula& Disjunction::instantiation(const SubstitutionList& subst,
 					  const Problem& problem) const {
-  const Formula* d = &TRUE;
+  const Formula* d = &FALSE;
   for (FormulaListIter fi = disjuncts.begin();
        fi != disjuncts.end() && !d->tautology(); fi++) {
     d = &(*d || (*fi)->instantiation(subst, problem));

@@ -1,5 +1,5 @@
 /*
- * $Id: heuristics.cc,v 1.24 2002-01-09 16:58:11 lorens Exp $
+ * $Id: heuristics.cc,v 1.25 2002-01-12 18:32:02 lorens Exp $
  */
 #include <set>
 #include <typeinfo>
@@ -543,7 +543,11 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
       for (set<const GroundAction*>::const_iterator ai =
 	     applicable_actions.begin();
 	   ai != applicable_actions.end(); ai++) {
-	cout << "  " << (*ai)->action_formula() << endl;
+	if (verbosity > 3) {
+	  cout << "  " << **ai << endl;
+	} else {
+	  cout << "  " << (*ai)->action_formula() << endl;
+	}
       }
       /*
        * Print literal values.
