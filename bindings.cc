@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.cc,v 6.2 2003-07-13 16:51:05 lorens Exp $
+ * $Id: bindings.cc,v 6.3 2003-07-21 01:57:48 lorens Exp $
  */
 #include "bindings.h"
 #include "plans.h"
@@ -798,22 +798,19 @@ bool Bindings::unify(BindingList& mgu,
   /*
    * Try to unify the terms of the literals.
    */
-  /* Terms of the first literal. */
-  const TermList& terms1 = l1.terms();
-  /* Terms of the second literal. */
-  const TermList& terms2 = l2.terms();
-  if (terms1.size() != terms2.size()) {
+  /* Number of terms for the first literal. */
+  size_t n = l1.arity();
+  if (n != l2.arity()) {
     /* Term lists of different size. */
     return false;
   }
   BindingList bl;
-  for (TermList::const_iterator ti = terms1.begin(), tj = terms2.begin();
-       ti != terms1.end(); ti++, tj++) {
+  for (size_t i = 0; i < n; i++) {
     /*
      * Try to unify a pair of terms.
      */
-    Term term1 = *ti;
-    Term term2 = *tj;
+    Term term1 = l1.term(i);
+    Term term2 = l2.term(i);
     if (is_object(term1)) {
       /* The first term is a name. */
       if (is_object(term2)) {

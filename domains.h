@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.h,v 6.1 2003-07-13 15:54:49 lorens Exp $
+ * $Id: domains.h,v 6.2 2003-07-21 02:03:07 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -55,10 +55,10 @@ struct Effect {
   void add_forall(Variable parameter);
 
   /* Sets the condition of this effect. */
-  void set_condition(const Formula& condition);
+  void set_condition(const Condition& condition);
 
   /* Sets the link condition of this effect. */
-  void set_link_condition(const Formula& link_condition) const;
+  void set_link_condition(const Condition& link_condition) const;
 
   /* Adds an atom to the add list of this effect. */
   void add_positive(const Atom& atom);
@@ -70,11 +70,11 @@ struct Effect {
   const VariableList& forall() const { return forall_; }
 
   /* Returns the condition for this effect. */
-  const Formula& condition() const { return *condition_; }
+  const Condition& condition() const { return *condition_; }
 
   /* Returns the condition that must hold for this effect to be
      considered for linking. */
-  const Formula& link_condition() const { return *link_condition_; }
+  const Condition& link_condition() const { return *link_condition_; }
 
   /* Returns the add list for this effect. */
   const AtomList& add_list() const { return add_list_; }
@@ -95,13 +95,17 @@ struct Effect {
   void achievable_predicates(PredicateSet& preds,
 			     PredicateSet& neg_preds) const;
 
+  /* Prints this effect on the given stream. */
+  void print(std::ostream& os, const PredicateTable& predicates,
+	     const TermTable& terms) const;
+
 private:
   /* List of universally quantified variables for this effect. */
   VariableList forall_;
   /* Condition for this effect, or TRUE if unconditional effect. */
-  const Formula* condition_;
+  const Condition* condition_;
   /* Condition that must hold for this effect to be considered for linking. */
-  mutable const Formula* link_condition_;
+  mutable const Condition* link_condition_;
   /* Add list for this effect. */
   AtomList add_list_;
   /* Delete list for this effect. */
@@ -112,11 +116,8 @@ private:
   /* Returns an instantiation of this effect. */
   const Effect* instantiation(const SubstitutionMap& args,
 			      const Problem& problem,
-			      const Formula& condition) const;
+			      const Condition& condition) const;
 };
-
-/* Output operator for effects. */
-std::ostream& operator<<(std::ostream& os, const Effect& e);
 
 
 /* ====================================================================== */
@@ -142,8 +143,8 @@ struct Action {
   /* Deletes this action. */
   virtual ~Action();
 
-  /* Sets the precondition for this action. */
-  void set_precondition(const Formula& precondition);
+  /* Sets the condition for this action. */
+  void set_condition(const Condition& condition);
 
   /* Adds an effect to this action. */
   void add_effect(const Effect& effect);
@@ -160,8 +161,8 @@ struct Action {
   /* Returns the name of this action. */
   const std::string& name() const { return name_; }
 
-  /* Return the precondition of this action. */
-  const Formula& precondition() const { return *precondition_; }
+  /* Return the condition of this action. */
+  const Condition& condition() const { return *condition_; }
 
   /* List of action effects. */
   const EffectList& effects() const { return effects_; }
@@ -184,21 +185,18 @@ struct Action {
   void strengthen_effects();
 
   /* Prints this action on the given stream with the given bindings. */
-  virtual void print(std::ostream& os, size_t step_id, const Problem& problem,
-		     const Bindings* bindings) const = 0;
+  virtual void print(std::ostream& os, const TermTable& terms,
+		     size_t step_id, const Bindings& bindings) const = 0;
 
 protected:
   /* Constructs an action with the given name. */
   Action(const std::string& name, bool durative);
 
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const = 0;
-
 private:
   /* Name of this action. */
   std::string name_;
-  /* Action precondition. */
-  const Formula* precondition_;
+  /* Action condition. */
+  const Condition* condition_;
   /* List of action effects. */
   EffectList effects_;
   /* Whether this is a durative action. */
@@ -207,12 +205,7 @@ private:
   float min_duration_;
   /* Maximum duration of this action. */
   float max_duration_;
-
-  friend std::ostream& operator<<(std::ostream& os, const Action& a);
 };
-
-/* Output operator for actions. */
-std::ostream& operator<<(std::ostream& os, const Action& a);
 
 
 /* ====================================================================== */
@@ -252,13 +245,13 @@ struct ActionSchema : public Action {
      action schema. */
   void instantiations(GroundActionList& actions, const Problem& problem) const;
 
-  /* Prints this action on the given stream with the given bindings. */
-  virtual void print(std::ostream& os, size_t step_id, const Problem& problem,
-		     const Bindings* bindings) const;
+  /* Prints this action on the given stream. */
+  void print(std::ostream& os, const PredicateTable& predicates,
+	     const TermTable& terms) const;
 
-protected:
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const;
+  /* Prints this action on the given stream with the given bindings. */
+  virtual void print(std::ostream& os, const TermTable& terms,
+		     size_t step_id, const Bindings& bindings) const;
 
 private:
   /* Action schema parameters. */
@@ -267,7 +260,7 @@ private:
   /* Returns an instantiation of this action schema. */
   const GroundAction* instantiation(const SubstitutionMap& args,
 				    const Problem& problem,
-				    const Formula& precond) const;
+				    const Condition& condition) const;
 };
 
 
@@ -301,12 +294,8 @@ struct GroundAction : public Action {
   const ObjectList& arguments() const { return arguments_; }
 
   /* Prints this action on the given stream with the given bindings. */
-  virtual void print(std::ostream& os, size_t step_id, const Problem& problem,
-		     const Bindings* bindings) const;
-
-protected:
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const;
+  virtual void print(std::ostream& os, const TermTable& terms,
+		     size_t step_id, const Bindings& bindings) const;
 
 private:
   /* Action arguments. */
