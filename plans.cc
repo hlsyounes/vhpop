@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.28 2001-10-18 21:16:19 lorens Exp $
+ * $Id: plans.cc,v 1.29 2001-10-25 18:06:05 lorens Exp $
  */
 #include <queue>
 #include <hash_set>
@@ -19,10 +19,6 @@ const size_t Plan::GOAL_ID = UINT_MAX;
 
 /* Planning parameters. */
 static Parameters params;
-/* Number of visited plans. */
-size_t num_visited_plans = 0;
-/* Number of generated plans. */
-size_t num_generated_plans = 0;
 /* Domain of problem currently being solved. */
 static const Domain* domain = NULL;
 /* Maps predicates to actions. */
@@ -31,7 +27,8 @@ static hash_map<string, ActionList> achieves_pred;
 static hash_map<string, ActionList> achieves_neg_pred;
 /* Planning graph. */
 static const PlanningGraph* planning_graph;
-
+/* Whether last flaw was a static predicate. */
+static bool static_pred_flaw = false;
 
 /*
  * Reason attached to elements of the initial plan.
@@ -341,24 +338,32 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
   if (!params.ground_actions) {
     for (ActionSchemaMap::const_iterator i = domain->actions.begin();
 	 i != domain->actions.end(); i++) {
+      const ActionSchema* action = (*i).second;
+#if 0
+      if (!params.heuristic.ucpop()) {
+	action = &action->strip_static(*domain);
+      }
+#endif
       hash_set<string> preds;
       hash_set<string> neg_preds;
-      (*i).second->achievable_predicates(preds, neg_preds);
+      action->achievable_predicates(preds, neg_preds);
       for (hash_set<string>::const_iterator j = preds.begin();
 	   j != preds.end(); j++) {
-	achieves_pred[*j].push_back((*i).second);
+	achieves_pred[*j].push_back(action);
       }
       for (hash_set<string>::const_iterator j = neg_preds.begin();
 	   j != neg_preds.end(); j++) {
-	achieves_neg_pred[*j].push_back((*i).second);
+	achieves_neg_pred[*j].push_back(action);
       }
     }
   }
 
-  /* Reset number of visited plan. */
-  num_visited_plans = 0;
-  /* Reset number of generated plans. */
-  num_generated_plans = 0;
+  /* Number of visited plan. */
+  size_t num_visited_plans = 0;
+  /* Number of generated plans. */
+  size_t num_generated_plans = 0;
+  /* Number of static preconditions encountered. */
+  size_t num_static = 0;
 
   /* Queue of pending plans. */
   priority_queue<const Plan*, PlanList> plans;
@@ -379,7 +384,8 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
      */
     num_visited_plans++;
     if (verbosity > 1) {
-      cout << endl << "!!!!CURRENT PLAN (id " << current_plan->id << ")"
+      cout << endl << (num_visited_plans - num_static) << ": "
+	   << "!!!!CURRENT PLAN (id " << current_plan->id << ")"
 	   << " with rank " << current_plan->primary_rank() << ','
 	   << current_plan->secondary_rank() << endl;
       cout << *current_plan << endl;
@@ -403,6 +409,9 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
 	}
       }
     }
+    if (static_pred_flaw) {
+      num_static++;
+    }
     /* Process next plan. */
     do {
       if (plans.empty()) {
@@ -422,7 +431,14 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
      * Print statistics.
      */
     cout << endl << "Plans visited: " << num_visited_plans;
-    cout << endl << "Plans generated: " << num_generated_plans << endl;
+    if (num_static > 0) {
+      cout << " [" << (num_visited_plans - num_static) << "]";
+    }
+    cout << endl << "Plans generated: " << num_generated_plans;
+    if (num_static > 0) {
+      cout << " [" << (num_generated_plans - num_static) << "]";
+    }
+    cout << endl;
   }
   /* Return last plan, or NULL if problem does not have a solution. */
   return current_plan;
@@ -461,7 +477,10 @@ int Plan::tertiary_rank() const {
 #if 0
   return num_unsafes_;
 #else
-  return 0;
+  /* Prefer later generated plans.  N.B. this forces a total order
+     of plans, which makes the comparison between ground actions and
+     least-commitment planning easier. */
+  return -id;
 #endif
 }
 
@@ -515,10 +534,13 @@ const Plan* Plan::make_initial_plan(const Problem& problem) {
 
 
 const Flaw& Plan::get_flaw() const {
-  if (unsafes_ != NULL) {
+  h_rank();
+  const PredicateOpenCondition* oc =
+    dynamic_cast<const PredicateOpenCondition*>(best_open_cond_);
+  static_pred_flaw = oc != NULL && domain->static_predicate(oc->predicate);
+  if (!static_pred_flaw && unsafes_ != NULL) {
     return *unsafes_->head;
   } else {
-    h_rank();
     return *best_open_cond_;
   }
 }
@@ -1324,8 +1346,8 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
 }
 
 void Plan::print(ostream& os) const {
-  const Step* init;
-  const Step* goal;
+  const Step* init = NULL;
+  const Step* goal = NULL;
   vector<const Step*, container_alloc> ordered_steps;
   hash_set<size_t> seen_steps;
   for (const StepChain* steps = steps_; steps != NULL; steps = steps->tail) {
@@ -1565,7 +1587,7 @@ size_t Plan::make_node(CostGraph& cg, hash_map<size_t, size_t>& step_nodes,
     size_t step_node;
     if (params.heuristic.max()) {
       step_node = cg.add_max_node();
-    } else if (params.heuristic.sum()) {
+    } else {
       step_node = cg.add_sum_node();
     }
     const Step* step = find_step(steps_, step_id);
