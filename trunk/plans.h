@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.h,v 3.6 2002-03-23 15:18:17 lorens Exp $
+ * $Id: plans.h,v 3.7 2002-03-23 19:10:30 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -161,7 +161,8 @@ struct Plan {
   static const size_t GOAL_ID;
 
   /* Returns plan for given problem. */
-  static const Plan* plan(const Problem& problem, const Parameters& params);
+  static const Plan* plan(const Problem& problem, const Parameters& params,
+			  bool last_problem);
 
   /* Deletes this plan. */
   ~Plan();
@@ -201,7 +202,7 @@ struct Plan {
 
   /* Returns the primary rank of this plan, where a lower rank
      signifies a better plan. */
-  double primary_rank() const;
+  float primary_rank() const;
 
   /* Returns the serial number of this plan. */
   size_t serial_no() const;
@@ -278,7 +279,7 @@ private:
   /* Number of open conditions. */
   const size_t num_open_conds_;
   /* Rank of this plan. */
-  mutable vector<double> rank_;
+  mutable vector<float> rank_;
   /* Plan id (serial number). */
   mutable size_t id_;
 #ifdef DEBUG

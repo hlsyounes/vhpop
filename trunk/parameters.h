@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: parameters.h,v 3.3 2002-03-18 17:23:08 lorens Exp $
+ * $Id: parameters.h,v 3.4 2002-03-23 19:10:22 lorens Exp $
  */
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
@@ -56,7 +56,7 @@ struct Parameters {
   /* Plan selection heuristic. */
   Heuristic heuristic;
   /* Weight to use with heuristic. */
-  double weight;
+  float weight;
   /* Flaw selecion order. */
   FlawSelectionOrder flaw_order;
   /* Whether to reverse the order that open conditions are added. */

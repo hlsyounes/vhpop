@@ -13,14 +13,8 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 3.10 2002-03-23 15:18:06 lorens Exp $
+ * $Id: plans.cc,v 3.11 2002-03-23 19:10:43 lorens Exp $
  */
-#include <queue>
-#include <algorithm>
-#include <typeinfo>
-#include <climits>
-#include <cmath>
-#include <sys/time.h>
 #include "plans.h"
 #include "heuristics.h"
 #include "bindings.h"
@@ -31,6 +25,13 @@
 #include "requirements.h"
 #include "parameters.h"
 #include "debug.h"
+#include <queue>
+#include <algorithm>
+#include <typeinfo>
+#include <climits>
+#include <sys/time.h>
+#define __USE_ISOC99 1
+#include <cmath>
 
 
 /*
@@ -144,6 +145,11 @@ const Atom* Step::step_formula() const {
 /* ====================================================================== */
 /* Plan */
 
+#ifdef DEBUG
+extern size_t created_plans;
+extern size_t deleted_plans;
+#endif
+
 /*
  * Less than function object for plan pointers.
  */
@@ -249,7 +255,8 @@ static bool add_goal(const OpenConditionChain*& open_conds,
 		    new OpenConditionChain(OpenCondition(step_id, *neq,
 							 reason),
 					   open_conds);
-		num_open_conds++;
+		  num_open_conds++;
+		}
 	      } else {
 		new_bindings.push_back(b);
 	      }
@@ -460,7 +467,8 @@ const Plan* Plan::make_initial_plan(const Problem& problem) {
 
 
 /* Returns plan for given problem. */
-const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
+const Plan* Plan::plan(const Problem& problem, const Parameters& p,
+		       bool last_problem) {
   /* Set planning parameters. */
   params = &p;
   /* Set current domain. */
@@ -525,15 +533,15 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
   /*
    * Search for complete plan.
    */
-  double f_limit;
+  float f_limit;
   if (current_plan != NULL
       && params->search_algorithm == Parameters::IDA_STAR) {
     f_limit = current_plan->primary_rank();
   } else {
-    f_limit = HUGE_VAL;
+    f_limit = INFINITY;
   }
   do {
-    double next_f_limit = HUGE_VAL;
+    float next_f_limit = INFINITY;
     while (current_plan != NULL && !current_plan->complete()) {
       if (num_generated_plans - num_static >= params->search_limit) {
 	/* Search limit exceeded. */
@@ -637,9 +645,14 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
     }
     f_limit = next_f_limit;
     if (!isinf(f_limit)) {
+      /* Restart search. */
       if (current_plan != NULL && current_plan != initial_plan) {
 	delete current_plan;
-	current_plan = initial_plan;
+      }
+      current_plan = initial_plan;
+      while (!plans.empty()) {
+	delete plans.top();
+	plans.pop();
       }
     }
   } while (!isinf(f_limit));
@@ -661,9 +674,11 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
     delete initial_plan;
   }
   /* Discard the rest of the plan queue. */
-  while (!plans.empty()) {
-    delete plans.top();
-    plans.pop();
+  if (!last_problem) {
+    while (!plans.empty()) {
+      delete plans.top();
+      plans.pop();
+    }
   }
   /* Return last plan, or NULL if problem does not have a solution. */
   return current_plan;
@@ -689,6 +704,7 @@ Plan::Plan(const StepChain* steps, size_t num_steps,
   UnsafeChain::register_use(unsafes);
   OpenConditionChain::register_use(open_conds);
 #ifdef DEBUG
+  created_plans++;
   depth_ = (parent != NULL) ? parent->depth() + 1 : 0;
 #endif
 #ifdef TRANSFORMATIONAL
@@ -715,6 +731,9 @@ Plan::Plan(const StepChain* steps, size_t num_steps,
 
 /* Deletes this plan. */
 Plan::~Plan() {
+#ifdef DEBUG
+  deleted_plans++;
+#endif
   StepChain::unregister_use(steps_);
   LinkChain::unregister_use(links_);
   Collectible::unregister_use(orderings_);
@@ -738,7 +757,7 @@ bool Plan::complete() const {
 
 /* Returns the primary rank of this plan, where a lower rank
    signifies a better plan. */
-double Plan::primary_rank() const {
+float Plan::primary_rank() const {
   if (rank_.empty()) {
     params->heuristic.plan_rank(rank_, *this, params->weight, *domain,
 				planning_graph);
@@ -2082,7 +2101,7 @@ bool Plan::equivalent(const Plan& p) const {
 
 /* Less than operator for plans. */
 bool operator<(const Plan& p1, const Plan& p2) {
-  double diff = p1.primary_rank() - p2.primary_rank();
+  float diff = p1.primary_rank() - p2.primary_rank();
   for (size_t i = 1; i < p1.rank_.size() && diff == 0.0; i++) {
     diff = p1.rank_[i] - p2.rank_[i];
   }

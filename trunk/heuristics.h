@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.h,v 3.1 2002-03-18 17:22:31 lorens Exp $
+ * $Id: heuristics.h,v 3.2 2002-03-23 19:05:48 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
@@ -237,8 +237,8 @@ struct Heuristic {
   bool needs_planning_graph() const;
 
   /* Fills the provided vector with the ranks for the given plan. */
-  void plan_rank(vector<double>& rank, const Plan& plan,
-		 double weight, const Domain& domain,
+  void plan_rank(vector<float>& rank, const Plan& plan,
+		 float weight, const Domain& domain,
 		 const PlanningGraph* planning_graph) const;
 
 private:
@@ -328,7 +328,7 @@ struct SelectionCriterion {
  *
  * This is basically a list of selection criteria.
  */
-struct FlawSelectionOrder : public gc {
+struct FlawSelectionOrder {
   /* Constructs a default flaw selection order. */
   FlawSelectionOrder(const string& name = "UCPOP");
 

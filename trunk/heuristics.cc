@@ -13,12 +13,8 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 3.8 2002-03-23 15:18:14 lorens Exp $
+ * $Id: heuristics.cc,v 3.9 2002-03-23 19:10:18 lorens Exp $
  */
-#include <set>
-#include <typeinfo>
-#include <climits>
-#include <cmath>
 #include "heuristics.h"
 #include "plans.h"
 #include "bindings.h"
@@ -27,6 +23,11 @@
 #include "problems.h"
 #include "domains.h"
 #include "debug.h"
+#include <set>
+#include <typeinfo>
+#include <climits>
+#define __USE_ISOC99 1
+#include <cmath>
 
 
 /* Returns the sum of two integers, avoiding overflow. */
@@ -877,8 +878,8 @@ bool Heuristic::needs_planning_graph() const {
 
 
 /* Fills the provided vector with the ranks for the given plan. */
-void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
-			  double weight, const Domain& domain,
+void Heuristic::plan_rank(vector<float>& rank, const Plan& plan,
+			  float weight, const Domain& domain,
 			  const PlanningGraph* planning_graph) const {
   bool add_done = false;
   int add_cost = 0;
@@ -937,19 +938,19 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
 	if (add_cost < INT_MAX) {
 	  rank.push_back(plan.num_steps() + weight*add_cost);
 	} else {
-	  rank.push_back(HUGE_VAL);
+	  rank.push_back(INFINITY);
 	}
       } else if (h == ADD_COST) {
 	if (add_cost < INT_MAX) {
 	  rank.push_back(add_cost);
 	} else {
-	  rank.push_back(HUGE_VAL);
+	  rank.push_back(INFINITY);
 	}
       } else {
 	if (add_work < INT_MAX) {
 	  rank.push_back(add_work);
 	} else {
-	  rank.push_back(HUGE_VAL);
+	  rank.push_back(INFINITY);
 	}
       }
       break;
@@ -972,19 +973,19 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
 	if (addr_cost < INT_MAX) {
 	  rank.push_back(plan.num_steps() + weight*addr_cost);
 	} else {
-	  rank.push_back(HUGE_VAL);
+	  rank.push_back(INFINITY);
 	}
       } else if (h == ADDR_COST) {
 	if (addr_cost < INT_MAX) {
 	  rank.push_back(addr_cost);
 	} else {
-	  rank.push_back(HUGE_VAL);
+	  rank.push_back(INFINITY);
 	}
       } else {
 	if (addr_work < INT_MAX) {
 	  rank.push_back(addr_work);
 	} else {
-	  rank.push_back(HUGE_VAL);
+	  rank.push_back(INFINITY);
 	}
       }
       break;
@@ -1013,19 +1014,19 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
 	if (max_cost < INT_MAX) {
 	  rank.push_back(max_steps + weight*(max_cost - max_steps));
 	} else {
-	  rank.push_back(HUGE_VAL);
+	  rank.push_back(INFINITY);
 	}
       } else if (h == MAX_COST) {
 	if (max_cost < INT_MAX) {
 	  rank.push_back(max_cost);
 	} else {
-	  rank.push_back(HUGE_VAL);
+	  rank.push_back(INFINITY);
 	}
       } else {
 	if (max_work < INT_MAX) {
 	  rank.push_back(max_work);
 	} else {
-	  rank.push_back(HUGE_VAL);
+	  rank.push_back(INFINITY);
 	}
       }
       break;
@@ -1054,19 +1055,19 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
 	if (maxr_cost < INT_MAX) {
 	  rank.push_back(max_steps + weight*(maxr_cost - max_steps));
 	} else {
-	  rank.push_back(HUGE_VAL);
+	  rank.push_back(INFINITY);
 	}
       } else if (h == MAXR_COST) {
 	if (maxr_cost < INT_MAX) {
 	  rank.push_back(maxr_cost);
 	} else {
-	  rank.push_back(HUGE_VAL);
+	  rank.push_back(INFINITY);
 	}
       } else {
 	if (maxr_work < INT_MAX) {
 	  rank.push_back(maxr_work);
 	} else {
-	  rank.push_back(HUGE_VAL);
+	  rank.push_back(INFINITY);
 	}
       }
       break;
