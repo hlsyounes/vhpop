@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 3.14 2002-03-29 10:04:35 lorens Exp $
+ * $Id: plans.cc,v 3.15 2002-03-29 14:35:27 lorens Exp $
  */
 #include "plans.h"
 #include "heuristics.h"
@@ -544,7 +544,11 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
 	break;
       }
       struct itimerval timer;
+#ifdef PROFILING
+      getitimer(ITIMER_VIRTUAL, &timer);
+#else
       getitimer(ITIMER_PROF, &timer);
+#endif
       double t = 1000000.9
 	- (timer.it_value.tv_sec + timer.it_value.tv_usec*1e-6);
       if (t >= 60.0*params->time_limit) {
