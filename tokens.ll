@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: tokens.ll,v 3.2 2002-03-12 19:45:33 lorens Exp $
+ * $Id: tokens.ll,v 3.3 2002-03-13 08:48:32 lorens Exp $
  */
 %{
 struct Type;
@@ -35,7 +35,9 @@ struct EffectList;
 struct ActionSchema;
 
 #include <cctype>
-#include "support.h"
+#include <utility>
+#include <string>
+#include <vector>
 #include "pddl.cc.h"
 
 
@@ -116,7 +118,7 @@ total-time                   return make_string(yytext, TOTAL_TIME);
 /* Allocates a string containing the lowercase characters of the given
    C string, and returns the given token. */
 static int make_string(const char* s, int token) {
-  string* result = new (GC) string();
+  string* result = new string();
   for (const char* p = s; *p != '\0'; p++) {
     *result += tolower(*p);
   }
