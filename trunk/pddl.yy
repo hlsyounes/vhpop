@@ -2,7 +2,7 @@
 /*
  * PDDL parser.
  *
- * $Id: pddl.yy,v 1.12 2001-10-06 04:07:03 lorens Exp $
+ * $Id: pddl.yy,v 1.13 2001-10-06 14:57:25 lorens Exp $
  */
 %{
 #include <utility>
@@ -32,6 +32,8 @@ static void add_names(const vector<string>& names,
 static void add_predicate(const string& name, const VariableList& parameters);
 static void add_action(const ActionSchema& action);
 static void add_variable(const Variable& var);
+static const pair<AtomList*, NegationList*>& make_add_del(AtomList* adds,
+							  NegationList* dels);
 static const Atom& make_atom(const string& predicate, const TermList& terms);
 static TermList& add_name(TermList& terms, const string& name);
 static const Type& make_type(const string& name);
@@ -122,6 +124,7 @@ static bool unique_variables = true;
   const Formula* formula;
   EffectList* effects;
   const Effect* effect;
+  const pair<AtomList*, NegationList*>* add_del_lists;
   FormulaList* formulas;
   TermList* terms;
   const Atom* atom;
@@ -137,11 +140,9 @@ static bool unique_variables = true;
 %type <formula> precondition
 %type <effects> effect eff_formula one_eff_formulas
 %type <effect> one_eff_formula atomic_effs_forall_body
-%type <formulas> atomic_effs term_literals
-%type <formula> term_literal
+%type <add_del_lists> atomic_effs term_literals term_literal
 %type <effect> init
-%type <formulas> atomic_name_formulas
-%type <formula> atomic_name_formula
+%type <add_del_lists> atomic_name_formulas atomic_name_formula
 %type <terms> names
 %type <formula> goals
 %type <formulas> goal_list
@@ -326,14 +327,14 @@ one_eff_formulas : one_eff_formula
                  ;
 
 one_eff_formula : term_literal
-                    { $$ = new Effect(*$1); }
+                    { $$ = new Effect(*$1->first, *$1->second); }
                 | '(' WHEN formula atomic_effs ')'
                     {
 		      if (!requirements->conditional_effects) {
 			yywarning("assuming `:conditional-effects' "
 				  "requirement.");
 		      }
-		      $$ = new Effect(*$3, *$4);
+		      $$ = new Effect(*$3, *$4->first, *$4->second);
 		    }
                 | '(' FORALL 
                     {
@@ -353,27 +354,43 @@ one_eff_formula : term_literal
                 ;
 
 atomic_effs_forall_body : atomic_effs
-                            { $$ = new Effect(*eff_forall, *$1); }
+                            {
+			      $$ = new Effect(*eff_forall,
+					      *$1->first, *$1->second);
+			    }
                         | '(' WHEN formula atomic_effs ')'
-                            { $$ = new Effect(*eff_forall, *$3, *$4); }
+                            {
+			      $$ = new Effect(*eff_forall, *$3,
+					      *$4->first, *$4->second);
+			    }
                         ;
 
 atomic_effs : term_literal
-                { $$ = new FormulaList($1); }
             | '(' AND term_literals term_literal ')'
-                { $3->push_back($4); $$ = $3; }
+                {
+		  copy($4->first->begin(), $4->first->end(),
+		       back_inserter(*$3->first));
+		  copy($4->second->begin(), $4->second->end(),
+		       back_inserter(*$3->second));
+		  $$ = $3;
+		}
             ;
 
 term_literals : term_literal
-                  { $$ = new FormulaList($1); }
               | term_literals term_literal
-                  { $1->push_back($2); $$ = $1; }
+                  {
+		    copy($2->first->begin(), $2->first->end(),
+			 back_inserter(*$1->first));
+		    copy($2->second->begin(), $2->second->end(),
+			 back_inserter(*$1->second));
+		    $$ = $1;
+		  }
               ;
 
 term_literal : atomic_term_formula
-                 { $$ = $1; }
+                 { $$ = &make_add_del(new AtomList($1), new NegationList()); }
              | '(' NOT atomic_term_formula ')'
-                 { $$ = &!*$3; }
+                 { $$ = &make_add_del(new AtomList(), new NegationList($3)); }
              ;
 
 
@@ -426,19 +443,25 @@ init : INIT
 	     " in initial conditions of problem `" + problem_name + "'";
 	 }
        atomic_name_formulas ')'
-         { $$ = new Effect(*$3); }
+         { $$ = new Effect(*$3->first, *$3->second); }
      ;
 
 atomic_name_formulas : atomic_name_formula
-                         { $$ = new FormulaList($1); }
                      | atomic_name_formulas atomic_name_formula
-                         { $1->push_back($2); $$ = $1; }
+                         {
+			   copy($2->first->begin(), $2->first->end(),
+				back_inserter(*$1->first));
+			   $$ = $1;
+			 }
                      ;
 
 atomic_name_formula : '(' predicate
                         { current_predicate = *$2; }
                       names ')'
-                        { $$ = &make_atom(*$2, *$4); }
+                        {
+			  AtomList* adds = new AtomList(&make_atom(*$2, *$4));
+			  $$ = &make_add_del(adds, new NegationList());
+			}
                     ;
 
 names : /* empty */
@@ -792,6 +815,15 @@ static void add_variable(const Variable& var) {
     free_variables.insert(&var);
   }
   variables->push_back(&var);
+}
+
+
+/*
+ * Creates an add/delete list pair.
+ */
+static const pair<AtomList*, NegationList*>& make_add_del(AtomList* adds,
+							  NegationList* dels) {
+  return *(new (GC) pair<AtomList*, NegationList*>(adds, dels));
 }
 
 

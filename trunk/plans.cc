@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.22 2001-10-06 04:23:09 lorens Exp $
+ * $Id: plans.cc,v 1.23 2001-10-06 15:00:15 lorens Exp $
  */
 #include <queue>
 #include <hash_set>
@@ -14,6 +14,12 @@
 /* Id of goal step. */
 const size_t Plan::GOAL_ID = UINT_MAX;
 
+struct AchievesMap : public gc,
+		     hash_map<const Formula*, ActionList, hash<const Formula*>,
+		     equal_to<const Formula*>, container_alloc> {
+};
+
+
 /* Planning parameters. */
 static Parameters params;
 /* Verbosity. */
@@ -25,7 +31,7 @@ size_t num_generated_plans = 0;
 /* Domain of problem currently being solved. */
 static const Domain* domain = NULL;
 /* Maps ground atomic formulas to fully instantiated actions. */
-static hash_map<const Formula*, ActionList> achieves;
+static AchievesMap achieves;
 /* Maps predicates to actions. */
 static hash_map<string, ActionList> achieves_pred;
 /* Maps negated predicates to actions. */
@@ -348,12 +354,13 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p, int v) {
     for (ActionList::const_iterator i = all_actions.begin();
 	 i != all_actions.end(); i++) {
       AtomList add_list;
-      FormulaList del_list;
+      NegationList del_list;
       (*i)->achievable_goals(add_list, del_list);
       for (AtomListIter gi = add_list.begin(); gi != add_list.end(); gi++) {
 	achieves[*gi].push_back(*i);
       }
-      for (FLCI gi = del_list.begin(); gi != del_list.end(); gi++) {
+      for (NegationListIter gi = del_list.begin();
+	   gi != del_list.end(); gi++) {
 	achieves[*gi].push_back(*i);
       }
     }
@@ -378,19 +385,19 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p, int v) {
 	 i != domain->actions.end(); i++) {
       all_actions.push_back((*i).second);
     }
-  }
-  for (ActionList::const_iterator i = all_actions.begin();
-       i != all_actions.end(); i++) {
-    hash_set<string> preds;
-    hash_set<string> neg_preds;
-    (*i)->achievable_predicates(preds, neg_preds);
-    for (hash_set<string>::const_iterator j = preds.begin();
-	 j != preds.end(); j++) {
-      achieves_pred[*j].push_back(*i);
-    }
-    for (hash_set<string>::const_iterator j = neg_preds.begin();
-	 j != neg_preds.end(); j++) {
-      achieves_neg_pred[*j].push_back(*i);
+    for (ActionList::const_iterator i = all_actions.begin();
+	 i != all_actions.end(); i++) {
+      hash_set<string> preds;
+      hash_set<string> neg_preds;
+      (*i)->achievable_predicates(preds, neg_preds);
+      for (hash_set<string>::const_iterator j = preds.begin();
+	   j != preds.end(); j++) {
+	achieves_pred[*j].push_back(*i);
+      }
+      for (hash_set<string>::const_iterator j = neg_preds.begin();
+	   j != neg_preds.end(); j++) {
+	achieves_neg_pred[*j].push_back(*i);
+      }
     }
   }
   /* Reset number of visited plan. */
@@ -1130,8 +1137,7 @@ void Plan::handle_disjunction(PlanList& new_plans,
 void Plan::add_step(PlanList& new_plans,
 		    const PredicateOpenCondition& open_cond) const {
   ActionList actions;
-  hash_map<const Formula*, ActionList>::const_iterator fali =
-    achieves.find(&open_cond.condition);
+  AchievesMap::const_iterator fali = achieves.find(&open_cond.condition);
   if (fali != achieves.end()) {
     copy((*fali).second.begin(), (*fali).second.end(), back_inserter(actions));
   }
@@ -1201,14 +1207,28 @@ bool Plan::new_link(PlanList& new_plans, const Step& step,
   const EffectList& effs = step.effects;
   for (EffectList::const_iterator i = effs.begin(); i != effs.end(); i++) {
     const Effect& effect = **i;
-    const FormulaList& adds = effect.add_list;
-    for (FLCI j = adds.begin(); j != adds.end(); j++) {
-      SubstitutionList mgu;
-      if (bindings_.unify(mgu, **j, goal)) {
-	const Plan* new_plan =
-	  make_link(step, effect, open_cond, link, reason, mgu);
-	if (new_plan != NULL) {
-	  new_plans.push_back(new_plan);
+    if (open_cond.negated) {
+      const NegationList& dels = effect.del_list;
+      for (NegationListIter gi = dels.begin(); gi != dels.end(); gi++) {
+	SubstitutionList mgu;
+	if (bindings_.unify(mgu, **gi, goal)) {
+	  const Plan* new_plan =
+	    make_link(step, effect, open_cond, link, reason, mgu);
+	  if (new_plan != NULL) {
+	    new_plans.push_back(new_plan);
+	  }
+	}
+      }
+    } else {
+      const AtomList& adds = effect.add_list;
+      for (AtomListIter gi = adds.begin(); gi != adds.end(); gi++) {
+	SubstitutionList mgu;
+	if (bindings_.unify(mgu, **gi, goal)) {
+	  const Plan* new_plan =
+	    make_link(step, effect, open_cond, link, reason, mgu);
+	  if (new_plan != NULL) {
+	    new_plans.push_back(new_plan);
+	  }
 	}
       }
     }
@@ -1222,15 +1242,15 @@ void Plan::new_cw_link(PlanList& new_plans, const Step& step,
 		       const Reason& establish_reason) const {
   const Negation& negation =
     dynamic_cast<const Negation&>(open_cond.condition);
-  const Formula& goal = negation.atom;
+  const Atom& goal = negation.atom;
   const Formula* goals = &Formula::TRUE;
   const EffectList& effs = step.effects;
   for (EffectList::const_iterator i = effs.begin(); i != effs.end(); i++) {
     const Effect& effect = **i;
-    const FormulaList& adds = effect.add_list;
-    for (FLCI j = adds.begin(); j != adds.end(); j++) {
+    const AtomList& adds = effect.add_list;
+    for (AtomListIter gi = adds.begin(); gi != adds.end(); gi++) {
       SubstitutionList mgu;
-      if (bindings_.unify(mgu, **j, goal)) {
+      if (bindings_.unify(mgu, **gi, goal)) {
 	if (mgu.empty()) {
 	  return;
 	}
@@ -1347,8 +1367,16 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
       const EffectList& effects = s.effects;
       for (EffectList::const_iterator e = effects.begin();
 	   e != effects.end(); e++) {
-	const FormulaList& adds = (*e)->add_list;
-	for (FLCI f = adds.begin(); f != adds.end(); f++) {
+	const AtomList& adds = (*e)->add_list;
+	for (AtomListIter f = adds.begin(); f != adds.end(); f++) {
+	  if (bindings->affects(**f, link.condition)) {
+	    unsafes = new UnsafeChain(new Unsafe(link, s.id, **e, **f),
+				      unsafes);
+	    num_unsafes++;
+	  }
+	}
+	const NegationList& dels = (*e)->del_list;
+	for (NegationListIter f = dels.begin(); f != dels.end(); f++) {
 	  if (bindings->affects(**f, link.condition)) {
 	    unsafes = new UnsafeChain(new Unsafe(link, s.id, **e, **f),
 				      unsafes);
@@ -1366,8 +1394,16 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
 	const EffectList& effects = step.effects;
 	for (EffectList::const_iterator e = effects.begin();
 	     e != effects.end(); e++) {
-	  const FormulaList& adds = (*e)->add_list;
-	  for (FLCI f = adds.begin(); f != adds.end(); f++) {
+	  const AtomList& adds = (*e)->add_list;
+	  for (AtomListIter f = adds.begin(); f != adds.end(); f++) {
+	    if (bindings->affects(**f, l.condition)) {
+	      unsafes = new UnsafeChain(new Unsafe(l, step.id, **e, **f),
+					unsafes);
+	      num_unsafes++;
+	    }
+	  }
+	  const NegationList& dels = (*e)->del_list;
+	  for (NegationListIter f = dels.begin(); f != dels.end(); f++) {
 	    if (bindings->affects(**f, l.condition)) {
 	      unsafes = new UnsafeChain(new Unsafe(l, step.id, **e, **f),
 					unsafes);
@@ -1416,8 +1452,8 @@ void Plan::print(ostream& os) const {
     const EffectList& effects = init->effects;
     for (EffectList::const_iterator i = effects.begin();
 	 i != effects.end(); i++) {
-      const FormulaList& fs = (*i)->add_list;
-      for (FLCI j = fs.begin(); j != fs.end(); j++) {
+      const AtomList& fs = (*i)->add_list;
+      for (AtomListIter j = fs.begin(); j != fs.end(); j++) {
 	os << ' ' << **j;
       }
     }
@@ -1616,8 +1652,7 @@ void Plan::h_rank() const {
       least_work_open_cond_ = oc->head;
       low_work = c.work;
     }
-    hash_map<const Formula*, ActionList>::const_iterator fali =
-      achieves.find(&oc->head->condition);
+    AchievesMap::const_iterator fali = achieves.find(&oc->head->condition);
     if (fali != achieves.end()) {
       int l = (*fali).second.size();
       if (l > high_link
@@ -1706,8 +1741,8 @@ size_t Plan::make_node(CostGraph& cg, hash_map<size_t, size_t>& step_nodes,
 	const EffectList& effs = step.effects;
 	for (EffectList::const_iterator i = effs.begin();
 	     i != effs.end(); i++) {
-	  const FormulaList& adds = (*i)->add_list;
-	  for (FLCI j = adds.begin(); j != adds.end(); j++) {
+	  const AtomList& adds = (*i)->add_list;
+	  for (AtomListIter j = adds.begin(); j != adds.end(); j++) {
 	    if (bindings_.unify(**j, cond)) {
 	      return 1;
 	    }

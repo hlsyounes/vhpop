@@ -1,5 +1,5 @@
 /*
- * $Id: heuristics.cc,v 1.3 2001-10-06 04:22:40 lorens Exp $
+ * $Id: heuristics.cc,v 1.4 2001-10-06 14:57:56 lorens Exp $
  */
 #include <hash_map>
 #include "heuristics.h"
@@ -45,7 +45,7 @@ void Heuristic::compute_cost(hash_map<const Formula*, Cost>& atom_cost,
 			     const Problem& problem,
 			     const ActionList& actions) const {
   AtomList goals;
-  FormulaList neg_goals;
+  NegationList neg_goals;
   if (problem.init != NULL) {
     problem.init->achievable_goals(goals, neg_goals);
     for (AtomListIter gi = goals.begin(); gi != goals.end(); gi++) {

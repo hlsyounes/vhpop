@@ -1,5 +1,5 @@
 /*
- * $Id: formulas.cc,v 1.15 2001-10-06 04:24:30 lorens Exp $
+ * $Id: formulas.cc,v 1.16 2001-10-06 14:59:02 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -539,11 +539,11 @@ const Formula& Atom::instantiation(const SubstitutionList& subst,
   const Formula& f = substitution(subst);
   if (problem.domain.static_predicate(predicate)) {
     if (problem.init != NULL) {
-      const FormulaList& adds = problem.init->add_list;
-      for (FLCI fi = adds.begin(); fi != adds.end(); fi++) {
-	if (f == **fi) {
+      const AtomList& adds = problem.init->add_list;
+      for (AtomListIter gi = adds.begin(); gi != adds.end(); gi++) {
+	if (f == **gi) {
 	  return TRUE;
-	} else if (Bindings().unify(f, **fi)) {
+	} else if (Bindings().unify(f, **gi)) {
 	  return f;
 	}
       }
@@ -637,7 +637,7 @@ const AtomList& AtomList::instantiation(size_t id) const {
 }
 
 
-/* Returns an instantiation of this atom list. */
+/* Returns this atom list subject to the given substitutions. */
 const AtomList& AtomList::substitution(const SubstitutionList& subst) const {
   AtomList& atoms = *(new AtomList());
   for (const_iterator i = begin(); i != end(); i++) {
@@ -661,8 +661,8 @@ const Formula& Negation::instantiation(const SubstitutionList& subst,
 
 
 /* Returns this formula subject to the given substitutions. */
-const Formula& Negation::substitution(const SubstitutionList& subst) const {
-  return !atom.substitution(subst);
+const Negation& Negation::substitution(const SubstitutionList& subst) const {
+  return *(new Negation(atom.substitution(subst)));
 }
 
 
@@ -712,6 +712,33 @@ const Formula& Negation::negation() const {
 /* Returns the hash value of this formula. */
 size_t Negation::hash_value() const {
   return 2*hash<Formula>()(atom);
+}
+
+
+/* Constructs a negation list with a single negated atom. */
+NegationList::NegationList(const Atom* atom)
+  : vector<const Negation*, container_alloc>(1, new Negation(*atom)) {
+}
+
+
+/* Returns an instantiation of this negation list. */
+const NegationList& NegationList::instantiation(size_t id) const {
+  NegationList& negations = *(new NegationList());
+  for (const_iterator i = begin(); i != end(); i++) {
+    negations.push_back(&(*i)->instantiation(id));
+  }
+  return negations;
+}
+
+
+/* Returns this negation list subject to the given substitutions. */
+const NegationList&
+NegationList::substitution(const SubstitutionList& subst) const {
+  NegationList& negations = *(new NegationList());
+  for (const_iterator i = begin(); i != end(); i++) {
+    negations.push_back(&(*i)->substitution(subst));
+  }
+  return negations;
 }
 
 
