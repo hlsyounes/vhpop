@@ -2,25 +2,35 @@
 /*
  * PDDL parser.
  *
- * $Id: pddl.yy,v 1.2 2001-05-04 19:36:59 lorens Exp $
+ * $Id: pddl.yy,v 1.3 2001-07-29 18:14:50 lorens Exp $
  */
 %{
 #include <utility>
 #include <stdlib.h>
+#include "requirements.h"
 #include "domains.h"
 #include "problems.h"
 #include "formulas.h"
 
+
+/* The lexer. */
 extern int yylex();
+/* Current line number. */
+extern size_t line_number;
 
-static void yyerror(const char* s);
+static string tostring(unsigned int n);
 static void yyerror(const string& s); 
-static const Name* find_constant(const string& name);
+static void yywarning(const string& s);
 static const Type* find_type(const string& name);
+static const Name* find_constant(const string& name);
 static const Predicate* find_predicate(const string& name);
+static void add_names(const vector<string>& names,
+		      const Type& type = SimpleType::OBJECT_TYPE);
+static void add_predicate(const string& name, const VariableList& parameters);
+static void add_action(const ActionSchema& action);
 static void add_variable(const Variable& var);
-
-extern unsigned int line_number;
+static const Formula& make_atomic_formula(const string& predicate,
+					  const TermList& terms);
 
 
 /*
@@ -63,32 +73,37 @@ private:
 };
 
 
+/* Level of warnings. */
+int warning_level;
+
 static bool success = true;
 static const Domain* pdomain;
 static string domain_name;
+static Requirements* requirements;
 static TypeMap* domain_types;
-static const NameMap* domain_constants;
+static NameMap* domain_constants;
 static PredicateMap* domain_predicates;
-static const ActionMap* domain_actions;
-static Domain::ActionStyle action_style;
-static bool support_equality;
+static ActionMap* domain_actions;
+static string problem_name;
+static NameMap* problem_objects;
+static string current_predicate;
+static string context;
+static string name_map_type;
+static NameMap* name_map;
 static const Formula* action_precond; 
 static const EffectList* action_adds;
-static NameMap* name_map;
 static VariableList* variables;
 static Context free_variables;
 static const VariableList* eff_forall;
-static string problem_name;
-static const NameMap* problem_objects = NULL;
 static const Effect* problem_init;
 static const Formula* problem_goal;
 static bool unique_variables = true;
-static string name_map_type;
-static string context;
 %}
 
 %token DEFINE DOMAIN PROBLEM
-%token REQUIREMENTS REQSTRIPS REQADL TYPING EQUALITY
+%token REQUIREMENTS STRIPS TYPING DISJUNCTIVE_PRECONDITIONS EQUALITY
+%token EXISTENTIAL_PRECONDITIONS UNIVERSAL_PRECONDITIONS
+%token QUANTIFIED_PRECONDITIONS CONDITIONAL_EFFECTS ADL
 %token TYPES CONSTANTS PREDICATES ACTION PARAMETERS PRECONDITION EFFECT
 %token PDOMAIN OBJECTS INIT GOAL
 %token WHEN NOT AND OR IMPLY EXISTS FORALL
@@ -97,8 +112,7 @@ static string context;
 %token ILLEGAL_TOKEN
 
 %union {
-  ActionMap* actions;
-  const Action* action;
+  const ActionSchema* action;
   const Formula* formula;
   EffectList* effects;
   const Effect* effect;
@@ -106,17 +120,13 @@ static string context;
   TermList* terms;
   const AtomicFormula* atomic_formula;
   const Name* name;
-  const Term* term;
-  NameMap* name_map;
   VariableList* variables;
   const Variable* variable;
   const string* str;
   vector<string>* strings;
-  TypeList* types;
   const Type* type;
 }
 
-%type <actions> action_defs
 %type <action> action_def
 %type <formula> precondition
 %type <effects> effect eff_formula one_eff_formulas
@@ -135,18 +145,15 @@ static string context;
 %type <formula> atomic_term_formula
 %type <str> predicate
 %type <terms> terms
-%type <term> term
-%type <name_map> name_map
 %type <variables> opt_variables variables
 %type <strings> name_seq variable_seq
-%type <types> types
+%type <type> types
 %type <type> type_spec type
 %type <str> NAME VARIABLE
 
 %%
 
-pddl_file : { line_number = 1; } domain_or_problems
-              { if (!success) YYERROR; }
+pddl_file : { line_number = 1; } domain_or_problems { if (!success) YYERROR; }
           ;
 
 domain_or_problems : /* empty */
@@ -165,24 +172,17 @@ domain_or_problem : domain
 domain : '(' DEFINE '(' DOMAIN NAME ')'
            {
 	     pdomain = NULL;
-	     action_style = Domain::STRIPS;
-	     support_equality = false;
 	     domain_name = *$5;
+	     requirements = new Requirements();
 	     domain_types = new TypeMap();
-	     (*domain_types)[string("object")] = &SimpleType::OBJECT_TYPE;
-	     domain_constants = NULL;
+	     domain_constants = new NameMap();
 	     domain_predicates = new PredicateMap();
-	     domain_actions = NULL;
+	     domain_actions = new ActionMap();
+	     problem_objects = NULL;
 	   }
          domain_body ')'
            {
-	     if (domain_constants == NULL) {
-	       domain_constants = new NameMap();
-	     }
-	     if (domain_actions == NULL) {
-	       domain_actions = new ActionMap();
-	     }
-	     new Domain(domain_name, action_style, *domain_types,
+	     new Domain(domain_name, *requirements, *domain_types,
 			*domain_constants, *domain_predicates,
 			*domain_actions);
 	   }
@@ -206,23 +206,11 @@ domain_body3 : '(' constants_def
 
 domain_body4 : '(' predicates_def
              | '(' predicates_def action_defs
-                 { domain_actions = $3; }
              | action_defs
-                 { domain_actions = $1; }
              ;
 
-action_defs : action_def
-                { $$ = new ActionMap(); (*$$)[$1->name] = $1; }
-            | action_defs action_def
-                {
-		  if ($1->find($2->name) != $1->end()) {
-		    yyerror("multiple definitions of action '" + $2->name +
-			    "' in domain '" + domain_name + "'");
-		  } else {
-		    (*$1)[$2->name] = $2;
-		  }
-		  $$ = $1;
-		}
+action_defs : action_def             { add_action(*$1); }
+            | action_defs action_def { add_action(*$2); }
             ;
 
 require_def : REQUIREMENTS require_keys ')'
@@ -232,27 +220,44 @@ require_keys : require_key
              | require_keys require_key
              ;
 
-require_key : REQSTRIPS { action_style = Domain::STRIPS; }
-            | REQADL    { action_style = Domain::ADL; }
+require_key : STRIPS
+                { requirements->strips = true; }
             | TYPING
-	    | EQUALITY  { support_equality = true; }
+                { requirements->typing = true; }
+            | DISJUNCTIVE_PRECONDITIONS
+                { requirements->disjunctive_preconditions = true; }
+	    | EQUALITY
+                { requirements->equality = true; }
+            | EXISTENTIAL_PRECONDITIONS
+                { requirements->existential_preconditions = true; }
+            | UNIVERSAL_PRECONDITIONS
+                { requirements->universal_preconditions = true; }
+            | QUANTIFIED_PRECONDITIONS
+                { requirements->quantified_preconditions(); }
+            | CONDITIONAL_EFFECTS
+                { requirements->conditional_effects = true; }
+            | ADL
+                { requirements->adl(); }
             ;
 
 types_def : TYPES
               {
-		name_map_type = "type";
+		if (!requirements->typing) {
+		  yywarning("assuming ':typing' requirement.");
+		}
 		context = "domain '" + domain_name + "'";
+		name_map_type = "type";
 	      }
             name_map ')'
           ;
 
 constants_def : CONSTANTS
                   {
-		    name_map_type = "constant";
 		    context = "domain '" + domain_name + "'";
+		    name_map_type = "constant";
+		    name_map = domain_constants;
 		  }
                 name_map ')'
-                  { domain_constants = $3; }
               ;
 
 predicates_def : PREDICATES atomic_formula_skeletons ')'
@@ -266,16 +271,8 @@ atomic_formula_skeleton : '(' predicate
                             { unique_variables = false; }
                           opt_variables ')'
                             {
+			      add_predicate(*$2, *$4);
 			      unique_variables = true;
-			      if (domain_predicates->find(*$2) !=
-				  domain_predicates->end()) {
-				yyerror("multiple declarations of "
-					"predicate '" + *$2 +
-					"' in domain '" + domain_name + "'");
-			      } else {
-				(*domain_predicates)[*$2] =
-				  new Predicate(*$2, *$4);
-			      }
 			    }
                         ;
 
@@ -296,7 +293,7 @@ action_def : '(' ACTION NAME PARAMETERS
              action_body ')'
                {
 		 free_variables.pop_frame();
-		 $$ = new Action(*$3, *$7, action_precond, *action_adds);
+		 $$ = new ActionSchema(*$3, *$7, action_precond, *action_adds);
 	       }
            ;
 
@@ -326,17 +323,17 @@ one_eff_formula : term_literal
                     { $$ = new Effect(*$1); }
                 | '(' WHEN formula atomic_effs ')'
                     {
-		      if (action_style == Domain::STRIPS) {
-			yyerror("conditional "
-				"not allowed in STRIPS-style effects.");
+		      if (!requirements->conditional_effects) {
+			yywarning("assuming ':conditional-effects' "
+				  "requirement.");
 		      }
 		      $$ = new Effect($3, *$4);
 		    }
                 | '(' FORALL 
                     {
-		      if (action_style == Domain::STRIPS) {
-			yyerror("universal quantification "
-				"not allowed in STRIPS-style effects.");
+		      if (!requirements->conditional_effects) {
+			yywarning("assuming ':conditional-effects' "
+				  "requirement.");
 		      }
 		      free_variables.push_frame();
 		    }
@@ -385,18 +382,22 @@ term_literal : atomic_term_formula
 problem : '(' DEFINE '(' PROBLEM NAME ')' '(' PDOMAIN NAME ')'
             {
 	      pdomain = Domain::find(*$9);
-	      if (pdomain == NULL) {
-		yyerror("undefined domain used in problem '" + *$5 + "'");
-		YYERROR;
+	      if (pdomain != NULL) {
+		requirements = new Requirements(pdomain->requirements);
+	      } else {
+		yyerror("undeclared domain used in problem '" + *$5 + "'");
+		requirements = new Requirements();
 	      }
-	      action_style = pdomain->action_style;
+	      domain_types = NULL;
+	      domain_constants = NULL;
+	      domain_predicates = NULL;
 	      problem_name = *$5;
+	      problem_objects = new NameMap();
 	    }
           problem_body ')'
             {
 	      new Problem(problem_name, *pdomain, *problem_objects,
 			  problem_init, *problem_goal);
-	      problem_objects = NULL;
 	    }
         ;
 
@@ -409,16 +410,16 @@ problem_body2 : '(' init goals { problem_init = $2; problem_goal = $3; }
 
 object_decl : '(' OBJECTS
                 {
-		  name_map_type = "object";
 		  context = "problem '" + problem_name + "'";
+		  name_map_type = "object";
+		  name_map = problem_objects;
 		}
               name_map ')'
-                { problem_objects = $4; }
             ;
 
 init : INIT
          {
-	   context = ("initial conditions of problem '" + problem_name + "'");
+	   context = "initial conditions of problem '" + problem_name + "'";
 	 }
        atomic_name_formulas ')'
          { $$ = new Effect(*$3); }
@@ -430,32 +431,10 @@ atomic_name_formulas : atomic_name_formula
                          { $1->push_back($2); $$ = $1; }
                      ;
 
-atomic_name_formula : '(' predicate names ')'
-                        {
-			  if (support_equality && *$2 == "=") {
-			    if ($3->size() != 2) {
-			      yyerror($3->size() + " parameter" +
-				      string(($3->size() == 1) ? "" : "s") +
-				      " passed to predicate '=' expecting 2"
-				      " in " + context);
-			    }
-			    $$ = new Equality(*(*$3)[0], *(*$3)[1]);
-			  } else {
-			    const Predicate* p =
-			      pdomain->find_predicate(*$2);
-			    if (p == NULL) {
-			      yyerror("undeclared predicate '" + *$2 +
-				      "' used in " + context);
-			    } else if (p->arity() != $3->size()) {
-			      yyerror($3->size() + " parameter" +
-				      string(($3->size() == 1) ? "" : "s") +
-				      " passed to predicate '" + *$2 +
-				      "' expecting " + tostring(p->arity()) +
-				      " in " + context);
-			    }
-			    $$ = new AtomicFormula(*$2, *$3);
-			  }
-			}
+atomic_name_formula : '(' predicate
+                        { current_predicate = *$2; }
+                      names ')'
+                        { $$ = &make_atomic_formula(*$2, *$4); }
                     ;
 
 names : /* empty */
@@ -464,11 +443,17 @@ names : /* empty */
           {
 	    const Name* c = find_constant(*$2);
 	    if (c == NULL) {
-	      yyerror("undeclared constant '" + *$2 + "' used in " + context);
-	      $1->push_back(new Name(*$2));
-	    } else {
-	      $1->push_back(c);
+	      const Predicate* predicate = find_predicate(current_predicate);
+	      if (predicate == NULL || predicate->arity() <= $1->size()) {
+		c = new Name(*$2);
+	      } else {
+		c = new Name(*$2, predicate->parameters[$1->size()]->type);
+	      }
+	      (*problem_objects)[*$2] = c;
+	      yywarning("implicit declaration of object '" + *$2 +
+			"' in " + context);
 	    }
+	    $1->push_back(c);
 	    $$ = $1;
 	  }
       ;
@@ -506,31 +491,28 @@ formula : atomic_term_formula
             { $$ = $1 }
         | '(' NOT formula ')'
             {
-	      $$ = &$3->negation();
-	      if (action_style == Domain::STRIPS) {
-		const Negation* negation = dynamic_cast<const Negation*>($$);
-		if (negation != NULL) {
-		  yyerror("negation not allowed in "
-			  "STRIPS-style preconditions.");
-		}
+	      if (!requirements->disjunctive_preconditions) {
+		yywarning("assuming ':disjunctive-preconditions' "
+			  "requirement.");
 	      }
+	      $$ = &$3->negation();
 	    }
         | '(' AND formulas formula ')'
             { $3->push_back($4); $$ = new Conjunction(*$3); }
         | '(' OR formulas formula ')'
             {
-	      if (action_style == Domain::STRIPS) {
-		yyerror("disjunction "
-			"not allowerd in STRIPS-style preconditions.");
+	      if (!requirements->disjunctive_preconditions) {
+		yywarning("assuming ':disjunctive-preconditions' "
+			  "requirement.");
 	      }
 	      $3->push_back($4);
 	      $$ = new Disjunction(*$3);
 	    }
         | '(' IMPLY formula formula ')'
             {
-	      if (action_style == Domain::STRIPS) {
-		yyerror("implication "
-			"not allowed in STRIPS-style preconditions.");
+	      if (!requirements->disjunctive_preconditions) {
+		yywarning("assuming ':disjunctive-preconditions' "
+			  "requirement.");
 	      }
 	      FormulaList& disjuncts = *(new FormulaList());
 	      disjuncts.push_back(&$3->negation());
@@ -539,9 +521,9 @@ formula : atomic_term_formula
 	    }
         | '(' EXISTS
             {
-	      if (action_style == Domain::STRIPS) {
-		yyerror("existential quantification "
-			"not allowed in STRIPS-style preconditions.");
+	      if (!requirements->existential_preconditions) {
+		yywarning("assuming ':existential-preconditions' "
+			  "requirement.");
 	      }
 	      free_variables.push_frame();
 	    }
@@ -552,9 +534,8 @@ formula : atomic_term_formula
 	    }
         | '(' FORALL
             {
-	      if (action_style == Domain::STRIPS) {
-		yyerror("universal quantification "
-			"not allowed in STRIPS-style preconditions.");
+	      if (!requirements->universal_preconditions) {
+		yywarning("assuming ':universal-preconditions' requirement.");
 	      }
 	      free_variables.push_frame();
 	    }
@@ -565,110 +546,58 @@ formula : atomic_term_formula
 	    }
         ;
 
-atomic_term_formula : '(' predicate terms ')'
-                        {
-			  if (support_equality && *$2 == "=") {
-			    if ($3->size() != 2) {
-			      yyerror($3->size() + " parameter" +
-				      string(($3->size() == 1) ? "" : "s") +
-				      " passed to predicate '=' expecting 2"
-				      " in " + context);
-			    }
-			    $$ = new Equality(*(*$3)[0], *(*$3)[1]);
-			  } else {
-			    const Predicate* p = find_predicate(*$2);
-			    if (p == NULL) {
-			      yyerror("undeclared predicate '" + *$2 +
-				      "' used in " + context);
-			    } else if (p->arity() != $3->size()) {
-			      yyerror($3->size() + " parameter" +
-				      string(($3->size() == 1) ? "" : "s") +
-				      " passed to predicate '" + *$2 +
-				      "' expecting " + tostring(p->arity()) +
-				      " in " + context);
-			    }
-			    $$ = new AtomicFormula(*$2, *$3);
-			  }
-			}
+atomic_term_formula : '(' predicate
+                        { current_predicate = *$2; }
+                      terms ')'
+                        { $$ = &make_atomic_formula(*$2, *$4); }
                     ;
 
 predicate : NAME
           ;
 
-terms : /* empty */ { $$ = new TermList(); }
-      | terms term  { $1->push_back($2); $$ = $1; }
+terms : /* empty */
+          { $$ = new TermList(); }
+      | terms NAME
+          {
+	    const Name* c = find_constant(*$2);
+	    if (c == NULL) {
+	      const Predicate* predicate = find_predicate(current_predicate);
+	      if (predicate == NULL || predicate->arity() <= $1->size()) {
+		c = new Name(*$2);
+	      } else {
+		c = new Name(*$2, predicate->parameters[$1->size()]->type);
+	      }
+	      if (domain_constants != NULL) {
+		(*domain_constants)[*$2] = c;
+		yywarning("implicit declaration of constant '" + *$2 +
+			  "' in " + context);
+	      } else {
+		(*problem_objects)[*$2] = c;
+		yywarning("implicit declaration of object '" + *$2 +
+			  "' in " + context);
+	      }
+	    }
+	    $1->push_back(c);
+	    $$ = $1;
+	  }
+      | terms VARIABLE
+          {
+	    const Variable* v = free_variables.find(*$2);
+	    if (v == NULL) {
+	      yyerror("free variable '" + *$2 + "'  in " + context);
+	      v = new Variable(*$2);
+	    }
+	    $1->push_back(v);
+	    $$ = $1;
+	  }
       ;
 
-term : NAME
-         {
-	   const Name* c = find_constant(*$1);
-	   if (c == NULL) {
-	     yyerror("undeclared constant '" + *$1 + "' used in " + context);
-	     $$ = new Name(*$1);
-	   } else {
-	     $$ = c;
-	   }
-	 }
-     | VARIABLE
-         {
-	   const Variable* v = free_variables.find(*$1);
-	   if (v == NULL) {
-	     yyerror("undeclared variable '" + *$1 + "' used in " +
-		     context);
-	     $$ = new Variable(*$1);
-	   } else {
-	     $$ = v;
-	   }
-	 }
-     ;
-
-name_map : /* empty */ { $$ = new NameMap(); }
-         | { name_map = new NameMap(); } typed_names { $$ = name_map; }
+name_map : /* empty */
+         | typed_names
 	 ;
 
-typed_names : name_seq
-                {
-		  for (vector<string>::const_iterator i = $1->begin();
-		       i != $1->end(); i++) {
-		    if (name_map_type == "type") {
-		      if (domain_types->find(*i) != domain_types->end()) {
-			yyerror("multiple declarations of " + name_map_type +
-				" '" + *i + "' in " + context);
-		      } else {
-			(*domain_types)[*i] = new SimpleType(*i);
-		      }
-		    } else {
-		      if (name_map->find(*i) != name_map->end()) {
-			yyerror("multiple declarations of " + name_map_type +
-				" '" + *i + "' in " + context);
-		      } else {
-			(*name_map)[*i] = new Name(*i);
-		      }
-		    }
-		  }
-		}
-            | name_seq type_spec
-                {
-		  for (vector<string>::const_iterator i = $1->begin();
-		       i != $1->end(); i++) {
-		    if (name_map_type == "type") {
-		      if (domain_types->find(*i) != domain_types->end()) {
-			yyerror("multiple declarations of " + name_map_type +
-				" '" + *i + "' in " + context);
-		      } else {
-			(*domain_types)[*i] = new SimpleType(*i, *$2);
-		      }
-		    } else {
-		      if (name_map->find(*i) != name_map->end()) {
-			yyerror("multiple declarations of " + name_map_type +
-				" '" + *i + "' in " + context);
-		      } else {
-			(*name_map)[*i] = new Name(*i, *$2);
-		      }
-		    }
-		  }
-		}
-	      opt_typed_names
+typed_names : name_seq           { add_names(*$1); }
+            | name_seq type_spec { add_names(*$1, *$2); } opt_typed_names
             ;
 
 opt_typed_names : /* empty */
@@ -711,39 +640,89 @@ variable_seq : VARIABLE              { $$ = new vector<string>(1, *$1); }
              | variable_seq VARIABLE { $1->push_back(*$2); $$ = $1; }
              ;
 
-types : type        { $$ = new TypeList(1, $1); }
-      | types type  { $1->push_back($2); $$ = $1; }
+types : type
+      | types type { $$ = &(*$1 + *$2); }
       ;
 
-type_spec : '-' type    { $$ = $2; }
+type_spec : '-' type { $$ = $2; }
           ;
 
 type : NAME
          {
 	   const Type* t = find_type(*$1);
 	   if (t == NULL) {
-	     yyerror("undeclared type '" + *$1 + "' used in " + context);
-	     $$ = &SimpleType::OBJECT_TYPE;
+	     const SimpleType* st = new SimpleType(*$1);
+	     $$ = st;
+	     if (domain_types != NULL) {
+	       (*domain_types)[*$1] = st;
+	       yywarning("implicit declaration of type '" + *$1 +
+			 "' in " + context);
+	     } else {
+	       yyerror("undeclared type '" + *$1 + "' used in " + context);
+	     }
 	   } else {
 	     $$ = t;
 	   }
 	 }
      | '(' EITHER types ')'
-         { $$ = new UnionType(*$3); }
+         { $$ = $3; }
      ;
 
 %%
 
-static void yyerror(const char* s) {
-  cerr << "line " << line_number << ": " << s << endl;
-  success = false;
+/*
+ * Converts an unsigned integer to a string.
+ */
+static string tostring(unsigned int n) {
+  string result;
+  while (n > 0) {
+    result = char(n % 10 + '0') + result;
+    n /= 10;
+  }
+  return (result.length() == 0) ? "0" : result;
 }
 
+
+/*
+ * Outputs an error message.
+ */
 static void yyerror(const string& s) {
   cerr << "line " << line_number << ": " << s << endl;
   success = false;
 }
 
+
+/*
+ * Outputs a warning.
+ */
+static void yywarning(const string& s) {
+  if (warning_level > 0) {
+    cerr << "line " << line_number << ": " << s << endl;
+    if (warning_level > 1) {
+      success = false;
+    }
+  }
+}
+
+
+/*
+ * Returns the type with the given name, or NULL if it is undefined.
+ */
+static const Type* find_type(const string& name) {
+  if (pdomain != NULL) {
+    return pdomain->find_type(name);
+  } else if (domain_types != NULL) {
+    TypeMap::const_iterator i = domain_types->find(name);
+    return (i != domain_types->end()) ? (*i).second : NULL;
+  } else {
+    return NULL;
+  }
+}
+
+
+/*
+ * Returns the constant or object with the given name, or NULL if it
+ * is undefined.  */
 static const Name* find_constant(const string& name) {
   const Name* c = NULL;
   if (pdomain != NULL) {
@@ -760,20 +739,77 @@ static const Name* find_constant(const string& name) {
   return c;
 }
 
-static const Type* find_type(const string& name) {
-  TypeMap::const_iterator i = domain_types->find(name);
-  return (i != domain_types->end()) ? (*i).second : NULL;
-}
 
+/*
+ * Returns the predicate with the given name, or NULL if it is
+ * undefined.
+ */
 static const Predicate* find_predicate(const string& name) {
   if (pdomain != NULL) {
     return pdomain->find_predicate(name);
-  } else {
+  } else if (domain_predicates != NULL) {
     PredicateMap::const_iterator i = domain_predicates->find(name);
     return (i != domain_predicates->end()) ? (*i).second : NULL;
+  } else {
+    return NULL;
   }
 }
 
+
+/*
+ * Adds types, constants, or objects to the current domain or problem.
+ */
+static void add_names(const vector<string>& names, const Type& type) {
+  for (vector<string>::const_iterator i = names.begin();
+       i != names.end(); i++) {
+    if (name_map_type == "type") {
+      if (find_type(*i) == NULL) {
+	(*domain_types)[*i] = new SimpleType(*i, type);
+      } else {
+	yywarning("ignoring repeated declaration of " + name_map_type +
+		  " '" + *i + "' in " + context);
+      }
+    } else {
+      NameMap::const_iterator ni = name_map->find(*i);
+      if (ni == name_map->end()) {
+	(*name_map)[*i] = new Name(*i, type);
+      } else {
+	(*name_map)[*i] = new Name(*i, (*ni).second->type + type);
+      }
+    }
+  }
+}
+
+
+/*
+ * Adds a predicate to the current domain.
+ */
+static void add_predicate(const string& name, const VariableList& parameters) {
+  if (find_predicate(name) == NULL) {
+    (*domain_predicates)[name] = new Predicate(name, parameters);
+  } else {
+    yywarning("ignoring repeated declaration of predicate '" + name +
+	      "' in domain '" + domain_name + "'");
+  }
+}
+
+
+/*
+ * Adds an action schema to the current domain.
+ */
+static void add_action(const ActionSchema& action) {
+  if (domain_actions->find(action.name) != domain_actions->end()) {
+    yywarning("ignoring repeated declaration of action '" + action.name +
+	      "' in domain '" + domain_name + "'");
+  } else {
+    (*domain_actions)[action.name] = &action;
+  }
+}
+
+
+/*
+ * Adds a variable to the current context.
+ */
 static void add_variable(const Variable& var) {
   if (unique_variables) {
     if (free_variables.shallow_find(var.name) != NULL) {
@@ -784,4 +820,45 @@ static void add_variable(const Variable& var) {
     free_variables.insert(&var);
   }
   variables->push_back(&var);
+}
+
+
+/*
+ * Creates a formula (predicate terms[0] ...).
+ */
+static const Formula& make_atomic_formula(const string& predicate,
+					  const TermList& terms) {
+  if (predicate == "=") {
+    if (!requirements->equality) {
+      yywarning("assuming ':equality' requirement.");
+    }
+    if (terms.size() == 2) {
+      return *(new Equality(*terms[0], *terms[1]));
+    } else {
+      yyerror(tostring(terms.size()) + " parameter" +
+	      string((terms.size() == 1) ? "" : "s") +
+	      " passed to predicate '=' expecting 2 in " + context);
+    }
+  } else {
+    const Predicate* p = find_predicate(predicate);
+    if (p == NULL) {
+      if (domain_predicates != NULL) {
+	VariableList& params = *(new VariableList());
+	for (size_t i = 0; i < terms.size(); i++) {
+	  params.push_back(new Variable("?x" + tostring(i + 1)));
+	}
+	(*domain_predicates)[predicate] = new Predicate(predicate, params);
+	yywarning("implicit declaration of predicate '" + predicate +
+		  "' in " + context);
+      } else {
+	yyerror("undeclared predicate '" + predicate + "' used in " + context);
+      }
+    } else if (p->arity() != terms.size()) {
+      yyerror(tostring(terms.size()) + " parameter" +
+	      string((terms.size() == 1) ? "" : "s") +
+	      " passed to predicate '" + predicate +
+	      "' expecting " + tostring(p->arity()) + " in " + context);
+    }
+  }
+  return *(new AtomicFormula(predicate, terms));
 }
