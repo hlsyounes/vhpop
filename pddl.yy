@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 4.8 2002-12-18 23:22:40 lorens Exp $
+ * $Id: pddl.yy,v 4.9 2002-12-19 01:56:51 lorens Exp $
  */
 %{
 #include "requirements.h"
@@ -1087,14 +1087,14 @@ static void add_variables(const std::vector<std::string>* names,
     const Type* t = (ut != NULL) ? new UnionType(*ut) : &type;
     const std::string& s = *si;
     if (predicate != NULL) {
-      predicate->add_parameter(type);
+      predicate->add_parameter(*t);
     } else {
       if (context.shallow_find(s) != NULL) {
 	yyerror("repetition of parameter `" + s + "'");
       } else if (context.find(s) != NULL) {
 	yyerror("shadowing parameter `" + s + "'");
       }
-      const Variable* var = new Variable(s, type);
+      const Variable* var = new Variable(s, *t);
       context.insert(var);
       if (!quantified.empty()) {
 	quantified.push_back(var);
