@@ -2,7 +2,7 @@
 /*
  * Formulas.
  *
- * $Id: formulas.h,v 1.36 2002-01-24 01:46:54 lorens Exp $
+ * $Id: formulas.h,v 1.37 2002-01-24 03:43:38 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -714,10 +714,6 @@ struct QuantifiedFormula : public Formula {
   /* The quantified formula. */
   const Formula& body;
 
-  /* Returns the heuristic value of this formula. */
-  virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
-			       const Bindings* b = NULL) const;
-
 protected:
   /* Constructs a quantified formula. */
   QuantifiedFormula(const VariableList& parameters, const Formula& body);
@@ -746,6 +742,10 @@ struct ExistsFormula : public QuantifiedFormula {
 
   /* Returns this formula with static literals assumed true. */
   virtual const Formula& strip_static(const Domain& domain) const;
+
+  /* Returns the heuristic value of this formula. */
+  virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
+			       const Bindings* b = NULL) const;
 
   /* Checks if this formula is equivalent to the given formula.  Two
      formulas are equivalent if they only differ in the choice of
@@ -783,6 +783,10 @@ struct ForallFormula : public QuantifiedFormula {
 
   /* Returns this formula with static literals assumed true. */
   virtual const Formula& strip_static(const Domain& domain) const;
+
+  /* Returns the heuristic value of this formula. */
+  virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
+			       const Bindings* b = NULL) const;
 
   /* Checks if this formula is equivalent to the given formula.  Two
      formulas are equivalent if they only differ in the choice of
