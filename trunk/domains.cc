@@ -1,5 +1,5 @@
 /*
- * $Id: domains.cc,v 1.19 2001-10-06 23:28:54 lorens Exp $
+ * $Id: domains.cc,v 1.20 2001-10-06 23:39:57 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -366,19 +366,6 @@ void ActionSchema::print(ostream& os) const {
 }
 
 
-/* Tests if this action equals the given action. */
-bool ActionSchema::equals(const Action& a) const {
-  const ActionSchema* as = dynamic_cast<const ActionSchema*>(&a);
-  return as != NULL && name == as->name;
-}
-
-
-/* Returns the hash value of this action. */
-size_t ActionSchema::hash_value() const {
-  return hash<string>()(name);
-}
-
-
 /* Constructs a ground action, assuming arguments are names. */
 GroundAction::GroundAction(const string& name, const TermList& arguments,
 			   const Formula& precondition,
@@ -426,19 +413,6 @@ void GroundAction::print(ostream& os) const {
     os << **ei;
   }
   os << ")" << ')';
-}
-
-
-/* Tests if this action equals the given action. */
-bool GroundAction::equals(const Action& a) const {
-  const GroundAction* ga = dynamic_cast<const GroundAction*>(&a);
-  return ga != NULL && formula == ga->formula;
-}
-
-
-/* Returns the hash value of this action. */
-size_t GroundAction::hash_value() const {
-  return hash<Formula>()(formula);
 }
 
 

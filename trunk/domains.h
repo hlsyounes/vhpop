@@ -2,7 +2,7 @@
 /*
  * Domain descriptions.
  *
- * $Id: domains.h,v 1.20 2001-10-06 23:29:00 lorens Exp $
+ * $Id: domains.h,v 1.21 2001-10-06 23:39:55 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -179,52 +179,6 @@ struct Action : public Printable, public gc {
 protected:
   /* Constructs an action. */
   Action(const Formula& precondition, const EffectList& effects);
-
-  /* Tests if this action equals the given action. */
-  virtual bool equals(const Action& a) const = 0;
-
-  /* Returns the hash value of this action. */
-  virtual size_t hash_value() const = 0;
-
-  friend bool operator==(const Action& a1, const Action& a2);
-  friend struct hash<Action>;
-};
-
-/* Equality operator for actions. */
-inline bool operator==(const Action& a1, const Action& a2) {
-  return a1.equals(a2);
-}
-
-/* Inequality operator for actions. */
-inline bool operator!=(const Action& a1, const Action& a2) {
-  return !(a1 == a2);
-}
-
-/*
- * Hash function object for actions.
- */
-struct hash<Action> {
-  size_t operator()(const Action& a) const {
-    return a.hash_value();
-  }
-};
-
-/*
- * Equality function object for action pointers.
- */
-struct equal_to<const Action*> {
-  bool operator()(const Action* a1, const Action* a2) const {
-    return *a1 == *a2;
-  }
-};
-
-/*
- * Hash function object for action pointers.
- */
-struct hash<const Action*> {
-  size_t operator()(const Action* a) const {
-    return hash<Action>()(*a);
-  }
 };
 
 
@@ -271,12 +225,6 @@ struct ActionSchema : public Action {
 protected:
   /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
-
-  /* Tests if this action equals the given action. */
-  virtual bool equals(const Action& a) const;
-
-  /* Returns the hash value of this action. */
-  virtual size_t hash_value() const;
 };
 
 
@@ -299,12 +247,6 @@ struct GroundAction : public Action {
 protected:
   /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
-
-  /* Tests if this action equals the given action. */
-  virtual bool equals(const Action& a) const;
-
-  /* Returns the hash value of this action. */
-  virtual size_t hash_value() const;
 
 private:
   /* Atomic representation of this ground action. */

@@ -2,7 +2,7 @@
 /*
  * Binding constraints.
  *
- * $Id: bindings.h,v 1.4 2001-09-28 17:56:17 lorens Exp $
+ * $Id: bindings.h,v 1.5 2001-10-06 23:44:09 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
@@ -19,7 +19,7 @@ struct Reason;
 /*
  * Abstract variable binding.
  */
-struct Binding : public Printable {
+struct Binding : public Printable, public gc {
   /* A variable. */
   const Variable& variable;
   /* A term either bound to, or separated from the variable. */
@@ -103,7 +103,7 @@ typedef Chain<const Varset*> VarsetChain;
 /*
  * A collection of variable bindings.
  */
-struct Bindings : public Printable {
+struct Bindings : public Printable, public gc {
   /* Equality bindings. */
   const BindingChain* const equalities;
   /* Inequality bindings. */
