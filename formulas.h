@@ -2,7 +2,7 @@
 /*
  * Formulas.
  *
- * $Id: formulas.h,v 1.34 2001-12-29 15:52:15 lorens Exp $
+ * $Id: formulas.h,v 1.35 2002-01-09 18:34:11 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -242,7 +242,7 @@ struct Formula : public Printable, public gc {
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const = 0;
 
-  /* Returns this formula with static predicates assumed true. */
+  /* Returns this formula with static literals assumed true. */
   virtual const Formula& strip_static(const Domain& domain) const = 0;
 
   /* Returns this formula with equalities/inequalities assumed true. */
@@ -314,7 +314,7 @@ struct Constant : public Formula {
   /* Returns this formula subject to the given substitutions. */
   virtual const Constant& substitution(const SubstitutionList& subst) const;
 
-  /* Returns this formula with static predicates assumed true. */
+  /* Returns this formula with static literals assumed true. */
   virtual const Constant& strip_static(const Domain& domain) const;
 
   /* Returns this formula with equalities/inequalities assumed true. */
@@ -356,6 +356,9 @@ struct Literal : public Formula {
 
   /* Returns the terms of this literal. */
   virtual const TermList& terms() const = 0;
+
+  /* Returns this formula with static literals assumed true. */
+  virtual const Formula& strip_static(const Domain& domain) const;
 
 protected:
   /* Checks if this object equals the given object. */
@@ -434,9 +437,6 @@ struct Atom : public Literal {
   /* Returns this formula subject to the given substitutions. */
   virtual const Atom& substitution(const SubstitutionList& subst) const;
 
-  /* Returns this formula with static predicates assumed true. */
-  virtual const Formula& strip_static(const Domain& domain) const;
-
   /* Returns this formula with equalities/inequalities assumed true. */
   virtual const Atom& strip_equality() const;
 
@@ -498,9 +498,6 @@ struct Negation : public Literal {
 
   /* Returns this formula subject to the given substitutions. */
   virtual const Negation& substitution(const SubstitutionList& subst) const;
-
-  /* Returns this formula with static predicates assumed true. */
-  virtual const Formula& strip_static(const Domain& domain) const;
 
   /* Returns this formula with equalities/inequalities assumed true. */
   virtual const Negation& strip_equality() const;
@@ -564,7 +561,7 @@ struct Equality : public BindingLiteral {
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
 
-  /* Returns this formula with static predicates assumed true. */
+  /* Returns this formula with static literals assumed true. */
   virtual const Formula& strip_static(const Domain& domain) const;
 
   /* Returns this formula with equalities/inequalities assumed true. */
@@ -608,7 +605,7 @@ struct Inequality : public BindingLiteral {
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
 
-  /* Returns this formula with static predicates assumed true. */
+  /* Returns this formula with static literals assumed true. */
   virtual const Formula& strip_static(const Domain& domain) const;
 
   /* Returns this formula with equalities/inequalities assumed true. */
@@ -652,7 +649,7 @@ struct Conjunction : public Formula {
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
 
-  /* Returns this formula with static predicates assumed true. */
+  /* Returns this formula with static literals assumed true. */
   virtual const Formula& strip_static(const Domain& domain) const;
 
   /* Returns this formula with equalities/inequalities assumed true. */
@@ -702,7 +699,7 @@ struct Disjunction : public Formula {
   /* Returns this formula subject to the given substitution. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
 
-  /* Returns this formula with static predicates assumed true. */
+  /* Returns this formula with static literals assumed true. */
   virtual const Formula& strip_static(const Domain& domain) const;
 
   /* Returns this formula with equalities/inequalities assumed true. */
@@ -771,7 +768,7 @@ struct ExistsFormula : public QuantifiedFormula {
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
 
-  /* Returns this formula with static predicates assumed true. */
+  /* Returns this formula with static literals assumed true. */
   virtual const Formula& strip_static(const Domain& domain) const;
 
   /* Returns this formula with equalities/inequalities assumed true. */
@@ -811,7 +808,7 @@ struct ForallFormula : public QuantifiedFormula {
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const;
 
-  /* Returns this formula with static predicates assumed true. */
+  /* Returns this formula with static literals assumed true. */
   virtual const Formula& strip_static(const Domain& domain) const;
 
   /* Returns this formula with equalities/inequalities assumed true. */

@@ -1,5 +1,5 @@
 /*
- * $Id: formulas.cc,v 1.32 2001-12-29 15:52:21 lorens Exp $
+ * $Id: formulas.cc,v 1.33 2002-01-09 18:34:14 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -398,7 +398,7 @@ const Constant& Constant::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Returns this formula with static predicates assumed true. */
+/* Returns this formula with static literals assumed true. */
 const Constant& Constant::strip_static(const Domain& domain) const {
   return *this;
 }
@@ -427,6 +427,20 @@ void Constant::print(ostream& os) const {
 /* Returns a negation of this formula. */
 const Formula& Constant::negation() const {
   return value_ ? FALSE : TRUE;
+}
+
+
+/* ====================================================================== */
+/* Literal */
+
+/* Returns this formula with static literals assumed true. */
+const Formula& Literal::strip_static(const Domain& domain) const {
+  if (domain.static_predicate(predicate())
+      || domain.find_type(predicate()) != NULL) {
+    return TRUE;
+  } else {
+    return *this;
+  }
 }
 
 
@@ -490,17 +504,6 @@ const Formula& Atom::instantiation(const SubstitutionList& subst,
 /* Returns this formula subject to the given substitutions. */
 const Atom& Atom::substitution(const SubstitutionList& subst) const {
   return *(new Atom(predicate_, terms_.substitution(subst)));
-}
-
-
-/* Returns this formula with static predicates assumed true. */
-const Formula& Atom::strip_static(const Domain& domain) const {
-  if (domain.static_predicate(predicate_)
-      || domain.find_type(predicate_) != NULL) {
-    return TRUE;
-  } else {
-    return *this;
-  }
 }
 
 
@@ -604,17 +607,6 @@ const Negation& Negation::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Returns this formula with static predicates assumed true. */
-const Formula& Negation::strip_static(const Domain& domain) const {
-  if (domain.static_predicate(predicate())
-      || domain.find_type(predicate()) != NULL) {
-    return FALSE;
-  } else {
-    return *this;
-  }
-}
-
-
 /* Returns this formula with equalities/inequalities assumed true. */
 const Negation& Negation::strip_equality() const {
   return *this;
@@ -714,7 +706,7 @@ const Formula& Equality::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Returns this formula with static predicates assumed true. */
+/* Returns this formula with static literals assumed true. */
 const Formula& Equality::strip_static(const Domain& domain) const {
   return *this;
 }
@@ -800,7 +792,7 @@ const Formula& Inequality::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Returns this formula with static predicates assumed true. */
+/* Returns this formula with static literals assumed true. */
 const Formula& Inequality::strip_static(const Domain& domain) const {
   return *this;
 }
@@ -883,7 +875,7 @@ const Formula& Conjunction::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Returns this formula with static predicates assumed true. */
+/* Returns this formula with static literals assumed true. */
 const Formula& Conjunction::strip_static(const Domain& domain) const {
   const Formula* c = &TRUE;
   for (FormulaListIter fi = conjuncts.begin();
@@ -985,7 +977,7 @@ const Formula& Disjunction::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Returns this formula with static predicates assumed true. */
+/* Returns this formula with static literals assumed true. */
 const Formula& Disjunction::strip_static(const Domain& domain) const {
   const Formula* d = &FALSE;
   for (FormulaListIter fi = disjuncts.begin();
@@ -1087,7 +1079,7 @@ ExistsFormula::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Returns this formula with static predicates assumed true. */
+/* Returns this formula with static literals assumed true. */
 const Formula& ExistsFormula::strip_static(const Domain& domain) const {
   const Formula& b = body.strip_static(domain);
   return b.constant() ? b : *(new ExistsFormula(parameters, b));
@@ -1172,7 +1164,7 @@ ForallFormula::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Returns this formula with static predicates assumed true. */
+/* Returns this formula with static literals assumed true. */
 const Formula& ForallFormula::strip_static(const Domain& domain) const {
   const Formula& b = body.strip_static(domain);
   return b.constant() ? b : *(new ForallFormula(parameters, b));
