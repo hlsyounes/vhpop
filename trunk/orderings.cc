@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.cc,v 6.9 2003-12-10 03:45:48 lorens Exp $
+ * $Id: orderings.cc,v 6.10 2004-02-07 11:33:44 lorens Exp $
  */
 #include "orderings.h"
 #include "plans.h"
@@ -441,9 +441,9 @@ BinaryOrderings::set_before(std::map<size_t, BoolVector*>& own_data,
     } else {
       const BoolVector* old_bv = before_[i];
       bv = new BoolVector(*old_bv);
+      BoolVector::register_use(bv);
       BoolVector::unregister_use(old_bv);
       before_[i] = bv;
-      BoolVector::register_use(bv);
       own_data.insert(std::make_pair(i, bv));
     }
     if (id1 < id2) {
@@ -785,9 +785,9 @@ void TemporalOrderings::set_distance(std::map<size_t, IntVector*>& own_data,
     } else {
       const IntVector* old_fv = distance_[i];
       fv = new IntVector(*old_fv);
+      IntVector::register_use(fv);
       IntVector::unregister_use(old_fv);
       distance_[i] = fv;
-      IntVector::register_use(fv);
       own_data.insert(std::make_pair(i, fv));
     }
     if (t1 < t2) {

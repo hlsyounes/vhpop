@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 6.12 2003-12-05 21:02:30 lorens Exp $
+ * $Id: formulas.cc,v 6.13 2004-02-07 11:33:33 lorens Exp $
  */
 #include "formulas.h"
 #include "bindings.h"
@@ -1298,9 +1298,9 @@ void Quantification::add_parameter(Variable parameter) {
 /* Sets the body of this quantified formula. */
 void Quantification::set_body(const Formula& body) {
   if (&body != body_) {
+    register_use(&body);
     unregister_use(body_);
     body_ = &body;
-    register_use(body_);
   }
 }
 

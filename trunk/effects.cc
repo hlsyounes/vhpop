@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: effects.cc,v 6.4 2003-09-05 16:21:40 lorens Exp $
+ * $Id: effects.cc,v 6.5 2004-02-07 11:33:07 lorens Exp $
  */
 #include "effects.h"
 #include "bindings.h"
@@ -53,9 +53,9 @@ void Effect::add_parameter(Variable parameter) {
 /* Sets the condition of this effect. */
 void Effect::set_condition(const Condition& condition) {
   if (condition_ != &condition) {
+    Condition::register_use(&condition);
     Condition::unregister_use(condition_);
     condition_ = &condition;
-    Condition::register_use(condition_);
   }
 }
 
@@ -63,9 +63,9 @@ void Effect::set_condition(const Condition& condition) {
 /* Sets the link condition of this effect. */
 void Effect::set_link_condition(const Condition& link_condition) const {
   if (link_condition_ != &link_condition) {
+    Condition::register_use(&link_condition);
     Condition::unregister_use(link_condition_);
     link_condition_ = &link_condition;
-    Condition::register_use(link_condition_);
   }
 }
 
