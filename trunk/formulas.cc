@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 6.2 2003-07-21 01:38:19 lorens Exp $
+ * $Id: formulas.cc,v 6.3 2003-07-21 18:16:03 lorens Exp $
  */
 #include "formulas.h"
 #include "bindings.h"
@@ -72,6 +72,8 @@ const Formula& operator&&(const Formula& f1, const Formula& f2) {
     return f2;
   } else if (f2.tautology()) {
     return f1;
+  } else if (&f1 == &f2) {
+    return f1;
   } else {
     Conjunction& conjunction = *new Conjunction();
     const Conjunction* c1 = dynamic_cast<const Conjunction*>(&f1);
@@ -114,6 +116,8 @@ const Formula& operator||(const Formula& f1, const Formula& f2) {
   } else if (f1.contradiction()) {
     return f2;
   } else if (f2.contradiction()) {
+    return f1;
+  } else if (&f1 == &f2) {
     return f1;
   } else {
     Disjunction& disjunction = *new Disjunction();
@@ -210,7 +214,7 @@ const Formula& Literal::separator(const Literal& literal) const {
     for (BindingList::const_iterator bi = mgu.begin(); bi != mgu.end(); bi++) {
       const Binding& b = *bi;
       if (b.var() != b.term()) {
-	const Formula& d = *new Inequality(b.var(), b.term());
+	const Formula& d = Inequality::make(b.var(), b.term());
 	if (first_d->contradiction()) {
 	  first_d = &d;
 	} else if (disj == NULL) {
@@ -259,7 +263,7 @@ bool Atom::AtomLess::operator()(const Atom* a1, const Atom* a2) const {
 
 
 /* Returns an atomic state formula with the given predicate and terms. */
-const Atom& Atom::make_atom(Predicate predicate, const TermList& terms) {
+const Atom& Atom::make(Predicate predicate, const TermList& terms) {
   Atom* atom = new Atom(predicate);
   bool ground = true;
   for (TermList::const_iterator ti = terms.begin(); ti != terms.end(); ti++) {
@@ -312,7 +316,7 @@ const Atom& Atom::substitution(const SubstitutionMap& subst) const {
     }
   }
   if (substituted) {
-    return make_atom(predicate(), inst_terms);
+    return make(predicate(), inst_terms);
   } else {
     return *this;
   }
@@ -360,7 +364,7 @@ void Atom::print(std::ostream& os, const PredicateTable& predicates,
 
 /* Returns the negation of this formula. */
 const Literal& Atom::negation() const {
-  return Negation::make_negation(*this);
+  return Negation::make(*this);
 }
 
 
@@ -379,7 +383,7 @@ bool Negation::NegationLess::operator()(const Negation* n1,
 
 
 /* Returns a negation of the given atom. */
-const Negation& Negation::make_negation(const Atom& atom) {
+const Negation& Negation::make(const Atom& atom) {
   Negation* negation = new Negation(atom);
   bool ground = true;
   size_t n = atom.arity();
@@ -422,14 +426,24 @@ Negation::~Negation() {
 
 /* Returns this formula subject to the given substitutions. */
 const Negation& Negation::substitution(const SubstitutionMap& subst) const {
-  return make_negation(atom().substitution(subst));
+  const Atom& f = atom().substitution(subst);
+  if (&f == atom_) {
+    return *this;
+  } else {
+    return make(f);
+  }
 }
 
 
 /* Returns an instantiation of this formula. */
 const Formula& Negation::instantiation(const SubstitutionMap& subst,
 				       const Problem& problem) const {
-  return !atom().instantiation(subst, problem);
+  const Formula& f = atom().instantiation(subst, problem);
+  if (&f == atom_) {
+    return *this;
+  } else {
+    return !f;
+  }
 }
 
 
@@ -468,9 +482,28 @@ const Formula& BindingLiteral::separator(const Literal& literal) const {
 /* ====================================================================== */
 /* Equality */
 
-/* Constructs an equality. */
-Equality::Equality(Term term1, Term term2)
-  : BindingLiteral(term1, 0, term2, 0) {}
+/* Returns an equality of the two terms. */
+const Formula& Equality::make(Term term1, Term term2) {
+  if (term1 == term2) {
+    return TRUE;
+  } else if (is_object(term1) && is_object(term2) && term1 != term2) {
+    return FALSE;
+  } else {
+    return *new Equality(term1, 0, term2, 0);
+  }
+}
+
+
+/* Returns an equality of the two terms. */
+const Formula& Equality::make(Term term1, size_t id1, Term term2, size_t id2) {
+  if (term1 == term2 && id1 == id2) {
+    return TRUE;
+  } else if (is_object(term1) && is_object(term2)) {
+    return (term1 == term2) ? TRUE : FALSE;
+  } else {
+    return *new Equality(term1, id1, term2, id2);
+  }
+}
 
 
 /* Constructs an equality with assigned step ids. */
@@ -494,11 +527,10 @@ const Formula& Equality::substitution(const SubstitutionMap& subst) const {
       t2 = (*si).second;
     }
   }
-  if (is_object(t1) && is_object(t2)) {
-    return (t1 == t2) ? TRUE : FALSE;
+  if (t1 == term1() && t2 == term2()) {
+    return *this;
   } else {
-    return ((t1 == term1() && t2 == term2())
-	    ? *this : *new Equality(t1, step_id1(0), t2, step_id2(0)));
+    return make(t1, step_id1(0), t2, step_id2(0));
   }
 }
 
@@ -523,17 +555,37 @@ void Equality::print(std::ostream& os, const PredicateTable& predicates,
 
 
 /* Returns the negation of this formula. */
-const BindingLiteral& Equality::negation() const {
-  return *new Inequality(term1(), step_id1(0), term2(), step_id2(0));
+const Formula& Equality::negation() const {
+  return Inequality::make(term1(), step_id1(0), term2(), step_id2(0));
 }
 
 
 /* ====================================================================== */
 /* Inequality */
 
-/* Constructs an inequality. */
-Inequality::Inequality(Term term1, Term term2)
-  : BindingLiteral(term1, 0, term2, 0) {}
+/* Returns an equality of the two terms. */
+const Formula& Inequality::make(Term term1, Term term2) {
+  if (term1 == term2) {
+    return FALSE;
+  } else if (is_object(term1) && is_object(term2) && term1 != term2) {
+    return TRUE;
+  } else {
+    return *new Inequality(term1, 0, term2, 0);
+  }
+}
+
+
+/* Returns an equality of the two terms. */
+const Formula& Inequality::make(Term term1, size_t id1,
+				Term term2, size_t id2) {
+  if (term1 == term2 && id1 == id2) {
+    return FALSE;
+  } else if (is_object(term1) && is_object(term2)) {
+    return (term1 != term2) ? TRUE : FALSE;
+  } else {
+    return *new Inequality(term1, id1, term2, id2);
+  }
+}
 
 
 /* Constructs an inequality with assigned step ids. */
@@ -557,11 +609,10 @@ const Formula& Inequality::substitution(const SubstitutionMap& subst) const {
       t2 = (*si).second;
     }
   }
-  if (is_object(t1) && is_object(t2)) {
-    return (t1 != t2) ? TRUE : FALSE;
+  if (t1 == term1() && t2 == term2()) {
+    return *this;
   } else {
-    return ((t1 == term1() && t2 == term2())
-	    ? *this : *new Inequality(t1, step_id1(0), t2, step_id2(0)));
+    return make(t1, step_id1(0), t2, step_id2(0));
   }
 }
 
@@ -586,8 +637,8 @@ void Inequality::print(std::ostream& os, const PredicateTable& predicates,
 
 
 /* Returns the negation of this formula. */
-const BindingLiteral& Inequality::negation() const {
-  return *new Equality(term1(), step_id1(0), term2(), step_id2(0));
+const Formula& Inequality::negation() const {
+  return Equality::make(term1(), step_id1(0), term2(), step_id2(0));
 }
 
 
@@ -655,9 +706,13 @@ const Formula& Conjunction::separator(const Literal& literal) const {
 const Formula& Conjunction::substitution(const SubstitutionMap& subst) const {
   Conjunction* conj = NULL;
   const Formula* first_c = &TRUE;
+  bool changed = false;
   for (FormulaList::const_iterator fi = conjuncts().begin();
        fi != conjuncts().end(); fi++) {
     const Formula& c = (*fi)->substitution(subst);
+    if (&c != *fi) {
+      changed = true;
+    }
     if (c.contradiction()) {
       if (conj == NULL) {
 	register_use(first_c);
@@ -679,7 +734,16 @@ const Formula& Conjunction::substitution(const SubstitutionMap& subst) const {
       }
     }
   }
-  if (conj != NULL) {
+  if (!changed) {
+    if (conj == NULL) {
+      register_use(first_c);
+      unregister_use(first_c);
+    } else {
+      register_use(conj);
+      unregister_use(conj);
+    }
+    return *this;
+  } else if (conj != NULL) {
     return *conj;
   } else {
     return *first_c;
@@ -692,9 +756,13 @@ const Formula& Conjunction::instantiation(const SubstitutionMap& subst,
 					  const Problem& problem) const {
   Conjunction* conj = NULL;
   const Formula* first_c = &TRUE;
+  bool changed = false;
   for (FormulaList::const_iterator fi = conjuncts().begin();
        fi != conjuncts().end(); fi++) {
     const Formula& c = (*fi)->instantiation(subst, problem);
+    if (&c != *fi) {
+      changed = true;
+    }
     if (c.contradiction()) {
       if (conj == NULL) {
 	register_use(first_c);
@@ -716,7 +784,16 @@ const Formula& Conjunction::instantiation(const SubstitutionMap& subst,
       }
     }
   }
-  if (conj != NULL) {
+  if (!changed) {
+    if (conj == NULL) {
+      register_use(first_c);
+      unregister_use(first_c);
+    } else {
+      register_use(conj);
+      unregister_use(conj);
+    }
+    return *this;
+  } else if (conj != NULL) {
     return *conj;
   } else {
     return *first_c;
@@ -839,9 +916,13 @@ const Formula& Disjunction::separator(const Literal& literal) const {
 const Formula& Disjunction::substitution(const SubstitutionMap& subst) const {
   Disjunction* disj = NULL;
   const Formula* first_d = &FALSE;
+  bool changed = false;
   for (FormulaList::const_iterator fi = disjuncts().begin();
        fi != disjuncts().end(); fi++) {
     const Formula& d = (*fi)->substitution(subst);
+    if (&d != *fi) {
+      changed = true;
+    }
     if (d.tautology()) {
       if (disj == NULL) {
 	register_use(first_d);
@@ -863,7 +944,16 @@ const Formula& Disjunction::substitution(const SubstitutionMap& subst) const {
       }
     }
   }
-  if (disj != NULL) {
+  if (!changed) {
+    if (disj == NULL) {
+      register_use(first_d);
+      unregister_use(first_d);
+    } else {
+      register_use(disj);
+      unregister_use(disj);
+    }
+    return *this;
+  } else if (disj != NULL) {
     return *disj;
   } else {
     return *first_d;
@@ -876,9 +966,13 @@ const Formula& Disjunction::instantiation(const SubstitutionMap& subst,
 					  const Problem& problem) const {
   Disjunction* disj = NULL;
   const Formula* first_d = &FALSE;
+  bool changed = false;
   for (FormulaList::const_iterator fi = disjuncts().begin();
        fi != disjuncts().end(); fi++) {
     const Formula& d = (*fi)->instantiation(subst, problem);
+    if (&d != *fi) {
+      changed = true;
+    }
     if (d.tautology()) {
       if (disj == NULL) {
 	register_use(first_d);
@@ -900,7 +994,16 @@ const Formula& Disjunction::instantiation(const SubstitutionMap& subst,
       }
     }
   }
-  if (disj != NULL) {
+  if (!changed) {
+    if (disj == NULL) {
+      register_use(first_d);
+      unregister_use(first_d);
+    } else {
+      register_use(disj);
+      unregister_use(disj);
+    }
+    return *this;
+  } else if (disj != NULL) {
     return *disj;
   } else {
     return *first_d;
@@ -1008,10 +1111,11 @@ Exists::Exists()
 
 
 /* Returns this formula subject to the given substitutions. */
-const Formula&
-Exists::substitution(const SubstitutionMap& subst) const {
+const Formula& Exists::substitution(const SubstitutionMap& subst) const {
   const Formula& b = body().substitution(subst);
-  if (b.tautology() || b.contradiction()) {
+  if (&b == &body()) {
+    return *this;
+  } else if (b.tautology() || b.contradiction()) {
     return b;
   } else {
     Exists& exists = *new Exists();
@@ -1128,10 +1232,11 @@ Forall::Forall()
 
 
 /* Returns this formula subject to the given substitutions. */
-const Formula&
-Forall::substitution(const SubstitutionMap& subst) const {
+const Formula& Forall::substitution(const SubstitutionMap& subst) const {
   const Formula& b = body().substitution(subst);
-  if (b.tautology() || b.contradiction()) {
+  if (&b == &body()) {
+    return *this;
+  } else if (b.tautology() || b.contradiction()) {
     return b;
   } else {
     Forall& forall = *new Forall();
@@ -1249,9 +1354,9 @@ const Condition Condition::FALSE = Condition(false);
 
 
 /* Returns a condition. */
-const Condition& Condition::make_condition(const Formula& at_start,
-					   const Formula& over_all,
-					   const Formula& at_end) {
+const Condition& Condition::make(const Formula& at_start,
+				 const Formula& over_all,
+				 const Formula& at_end) {
   if (at_start.tautology() && over_all.tautology() && at_end.tautology()) {
     Formula::register_use(&at_start);
     Formula::unregister_use(&at_start);
@@ -1276,16 +1381,15 @@ const Condition& Condition::make_condition(const Formula& at_start,
 
 
 /* Returns a condition. */
-const Condition& Condition::make_condition(const Formula& formula,
-					   FormulaTime when) {
+const Condition& Condition::make(const Formula& formula, FormulaTime when) {
   switch (when) {
   default:
   case AT_START:
-    return make_condition(formula, Formula::TRUE, Formula::TRUE);
+    return make(formula, Formula::TRUE, Formula::TRUE);
   case OVER_ALL:
-    return make_condition(Formula::TRUE, formula, Formula::TRUE);
+    return make(Formula::TRUE, formula, Formula::TRUE);
   case AT_END:
-    return make_condition(Formula::TRUE, Formula::TRUE, formula);
+    return make(Formula::TRUE, Formula::TRUE, formula);
   }
 }
 
@@ -1334,20 +1438,30 @@ Condition::~Condition() {
 }
 
 
-/* Returns an instantiation of this condition. */
-const Condition& Condition::instantiation(const SubstitutionMap& subst,
-					  const Problem& problem) const {
-  return make_condition(at_start().instantiation(subst, problem),
-			over_all().instantiation(subst, problem),
-			at_end().instantiation(subst, problem));
+/* Returns this condition subject to the given substitutions. */
+const Condition& Condition::substitution(const SubstitutionMap& subst) const {
+  const Formula& f1 = at_start().substitution(subst);
+  const Formula& f2 = over_all().substitution(subst);
+  const Formula& f3 = at_end().substitution(subst);
+  if (&f1 == at_start_ && &f2 == over_all_ && &f3 == at_end_) {
+    return *this;
+  } else {
+    return make(f1, f2, f3);
+  }
 }
 
 
-/* Returns this condition subject to the given substitutions. */
-const Condition& Condition::substitution(const SubstitutionMap& subst) const {
-  return make_condition(at_start().substitution(subst),
-			over_all().substitution(subst),
-			at_end().substitution(subst));
+/* Returns an instantiation of this condition. */
+const Condition& Condition::instantiation(const SubstitutionMap& subst,
+					  const Problem& problem) const {
+  const Formula& f1 = at_start().instantiation(subst, problem);
+  const Formula& f2 = over_all().instantiation(subst, problem);
+  const Formula& f3 = at_end().instantiation(subst, problem);
+  if (&f1 == at_start_ && &f2 == over_all_ && &f3 == at_end_) {
+    return *this;
+  } else {
+    return make(f1, f2, f3);
+  }
 }
 
 
@@ -1409,8 +1523,7 @@ const Condition& operator!(const Condition& c) {
   const Formula& at_start = !c.at_start();
   const Formula& over_all = !c.over_all();
   const Formula& at_end = !c.at_end();
-  const Condition& cond =
-    Condition::make_condition(at_start, over_all, at_end);
+  const Condition& cond = Condition::make(at_start, over_all, at_end);
   Condition::register_use(&c);
   Condition::unregister_use(&c);
   return cond;
@@ -1422,13 +1535,20 @@ const Condition& operator&&(const Condition& c1, const Condition& c2) {
   const Formula& at_start = c1.at_start() && c2.at_start();
   const Formula& over_all = c1.over_all() && c2.over_all();
   const Formula& at_end = c1.at_end() && c2.at_end();
-  const Condition& cond =
-    Condition::make_condition(at_start, over_all, at_end);
-  Condition::register_use(&c1);
-  Condition::unregister_use(&c1);
-  Condition::register_use(&c2);
-  Condition::unregister_use(&c2);
-  return cond;
+  if (&at_start == &c1.at_start() && &over_all == &c1.over_all()
+      && &at_end == &c1.at_end()) {
+    return c1;
+  } else if (&at_start == &c2.at_start() && &over_all == &c2.over_all()
+	     && &at_end == &c2.at_end()) {
+    return c2;
+  } else {
+    const Condition& cond = Condition::make(at_start, over_all, at_end);
+    Condition::register_use(&c1);
+    Condition::unregister_use(&c1);
+    Condition::register_use(&c2);
+    Condition::unregister_use(&c2);
+    return cond;
+  }
 }
 
 
@@ -1437,11 +1557,18 @@ const Condition& operator||(const Condition& c1, const Condition& c2) {
   const Formula& at_start = c1.at_start() || c2.at_start();
   const Formula& over_all = c1.over_all() || c2.over_all();
   const Formula& at_end = c1.at_end() || c2.at_end();
-  const Condition& cond =
-    Condition::make_condition(at_start, over_all, at_end);
-  Condition::register_use(&c1);
-  Condition::unregister_use(&c1);
-  Condition::register_use(&c2);
-  Condition::unregister_use(&c2);
-  return cond;
+  if (&at_start == &c1.at_start() && &over_all == &c1.over_all()
+      && &at_end == &c1.at_end()) {
+    return c1;
+  } else if (&at_start == &c2.at_start() && &over_all == &c2.over_all()
+	     && &at_end == &c2.at_end()) {
+    return c2;
+  } else {
+    const Condition& cond = Condition::make(at_start, over_all, at_end);
+    Condition::register_use(&c1);
+    Condition::unregister_use(&c1);
+    Condition::register_use(&c2);
+    Condition::unregister_use(&c2);
+    return cond;
+  }
 }

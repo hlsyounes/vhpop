@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 6.2 2003-07-21 01:25:07 lorens Exp $
+ * $Id: formulas.h,v 6.3 2003-07-21 18:16:32 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -215,7 +215,7 @@ struct Literal : public Formula {
  */
 struct Atom : public Literal {
   /* Returns an atomic formula with the given predicate and terms. */
-  static const Atom& make_atom(Predicate predicate, const TermList& terms);
+  static const Atom& make(Predicate predicate, const TermList& terms);
 
   /* Deletes this atomic formula. */
   virtual ~Atom();
@@ -286,7 +286,7 @@ private:
  */
 struct Negation : public Literal {
   /* Returns a negation of the given atom. */
-  static const Negation& make_negation(const Atom& atom);
+  static const Negation& make(const Atom& atom);
 
   /* Deletes this negated atom. */
   virtual ~Negation();
@@ -395,11 +395,11 @@ private:
  * Equality formula.
  */
 struct Equality : public BindingLiteral {
-  /* Constructs an equality. */
-  Equality(Term term1, Term term2);
+  /* Returns an equality of the two terms. */
+  static const Formula& make(Term term1, Term term2);
 
-  /* Constructs an equality with assigned step ids. */
-  Equality(Term term1, size_t id1, Term term2, size_t id2);
+  /* Returns an equality of the two terms. */
+  static const Formula& make(Term term1, size_t id1, Term term2, size_t id2);
 
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionMap& subst) const;
@@ -420,7 +420,11 @@ struct Equality : public BindingLiteral {
 
 protected:
   /* Returns the negation of this formula. */
-  virtual const BindingLiteral& negation() const;
+  virtual const Formula& negation() const;
+
+private:
+  /* Constructs an equality with assigned step ids. */
+  Equality(Term term1, size_t id1, Term term2, size_t id2);
 };
 
 
@@ -431,8 +435,11 @@ protected:
  * Inequality formula.
  */
 struct Inequality : public BindingLiteral {
-  /* Constructs an inequality. */
-  Inequality(Term term1, Term term2);
+  /* Returns an inequality of the two terms. */
+  static const Formula& make(Term term1, Term term2);
+
+  /* Returns an inequality of the two terms. */
+  static const Formula& make(Term term1, size_t id1, Term term2, size_t id2);
 
   /* Constructs an inequality with assigned step ids. */
   Inequality(Term term1, size_t id1, Term term2, size_t id2);
@@ -456,7 +463,7 @@ struct Inequality : public BindingLiteral {
 
 protected:
   /* Returns the negation of this formula. */
-  virtual const BindingLiteral& negation() const;
+  virtual const Formula& negation() const;
 };
 
 
@@ -703,13 +710,12 @@ struct Condition {
   }
 
   /* Returns a condition. */
-  static const Condition& make_condition(const Formula& at_start,
-					 const Formula& over_all,
-					 const Formula& at_end);
+  static const Condition& make(const Formula& at_start,
+			       const Formula& over_all,
+			       const Formula& at_end);
 
   /* Returns a condition. */
-  static const Condition& make_condition(const Formula& formula,
-					 FormulaTime when);
+  static const Condition& make(const Formula& formula, FormulaTime when);
 
   /* Deletes this condition. */
   ~Condition();
@@ -729,12 +735,12 @@ struct Condition {
   /* Tests if this condition is a contradiction. */
   bool contradiction() const { return this == &FALSE; }
 
+  /* Returns this condition subject to the given substitutions. */
+  const Condition& substitution(const SubstitutionMap& subst) const;
+
   /* Returns an instantiation of this condition. */
   const Condition& instantiation(const SubstitutionMap& subst,
 				 const Problem& problem) const;
-
-  /* Returns this condition subject to the given substitutions. */
-  const Condition& substitution(const SubstitutionMap& subst) const;
 
   /* Returns the heuristic value of this condition. */
   void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
