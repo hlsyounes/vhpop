@@ -2,7 +2,7 @@
 /*
  * Heuristics.
  *
- * $Id: heuristics.h,v 1.17 2002-01-05 13:51:11 lorens Exp $
+ * $Id: heuristics.h,v 1.18 2002-01-05 17:58:19 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
@@ -200,6 +200,7 @@ struct InvalidHeuristic : public Exception {
  * SUM uses h(p) = |S(p)| + w*SUM_COST.
  * SUMR is like SUM, but tries to take reuse into account.
  * MAX is an admissible heuristic counting parallel cost.
+ * MAXR is like MAX, but thries to take reuse into account.
  */
 struct Heuristic : public gc {
   /* Constructs a heuristic from a name. */
@@ -217,10 +218,12 @@ struct Heuristic : public gc {
 		 const PlanningGraph* planning_graph) const;
 
 private:
+  /* Heuristics. */
   typedef enum { LIFO, FIFO, OC, UC, BUC, S_PLUS_OC, UCPOP,
 		 SUM, SUM_COST, SUM_WORK,
 		 SUMR, SUMR_COST, SUMR_WORK,
-		 MAX, MAX_COST, MAX_WORK } HVal;
+		 MAX, MAX_COST, MAX_WORK,
+		 MAXR, MAXR_COST, MAXR_WORK } HVal;
 
   /* The selected heuristics. */
   vector<HVal> h_;
@@ -240,23 +243,54 @@ struct InvalidFlawSelectionOrder : public Exception {
 
 /*
  * A selection criterion.
+ *
+ * The specification of a selection criterion more or less follows the
+ * notation of (Pollack, Joslin, and Paolucci 1997).  Their LC is here
+ * called LR (least refinements) because we use LC to denote least
+ * heuristic cost.  While not mentioned by Pollack et al., we have
+ * implemented MR and REUSE for completeness.  These are the opposites
+ * of LR and NEW, respectively.  We define four completely new
+ * tie-breaking strategies based on heuristic evaluation functions.
+ * These are LC (least cost), MC (most cost), LW (least work), and MW
+ * (most work).  It is required that a heuristic is specified in
+ * conjunction with the use of any of these four strategies.  Finally,
+ * we introduce two new flaw types.  These are 't' for static open
+ * conditions, and 'l' for local open conditions.  Both select subsets
+ * of 'o', so {l,o} and {t,o} reduce to {o}.
  */
 struct SelectionCriterion {
   /* A selection order. */
-  typedef enum { LIFO, FIFO, RANDOM, LR, MR, NEW, REUSE } OrderType;
+  typedef enum { LIFO, FIFO, RANDOM, LR, MR,
+		 NEW, REUSE, LC, MC, LW, MW } OrderType;
+  /* A heuristic. */
+  typedef enum { SUM, MAX } RankHeuristic;
 
+  /* Whether this criterion applies to non-separable threats. */
   bool non_separable;
+  /* Whether this criterion applies to separable threats. */
   bool separable;
+  /* Whether this criterion applies to open conditions. */
   bool open_cond;
+  /* Whether this criterion applies to local open conditions. */
   bool local_open_cond;
+  /* Whether this criterion applies to static open conditions. */
   bool static_open_cond;
+  /* The maximum number of refinements allowed for a flaw that this
+     criterion applies to. */
   int max_refinements;
+  /* The ordering criterion. */
   OrderType order;
+  /* Heuristic used to rank open conditions (if applicable). */
+  RankHeuristic heuristic;
+  /* Whether the above heuristic should take reuse into account. */
+  bool reuse;
 };
 
 
 /*
  * Flaw selection order.
+ *
+ * This is basically a list of selection criteria.
  */
 struct FlawSelectionOrder : public gc {
   /* Constructs a default flaw selection order. */
@@ -275,9 +309,13 @@ struct FlawSelectionOrder : public gc {
 private:
   /* A flaw selection. */
   struct FlawSelection {
+    /* The selected flaw. */
     const Flaw* flaw;
+    /* Index of criterion used to select this flaw. */
     int criterion;
+    /* Rank of this flaw if selected by a ranking criterion. */
     int rank;
+    /* Counts the length of a streak, for use with random order. */
     int streak;
   };
 

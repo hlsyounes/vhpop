@@ -1,5 +1,5 @@
 /*
- * $Id: heuristics.cc,v 1.21 2002-01-05 13:51:06 lorens Exp $
+ * $Id: heuristics.cc,v 1.22 2002-01-05 17:58:23 lorens Exp $
  */
 #include <set>
 #include <typeinfo>
@@ -15,15 +15,76 @@
 #include "debug.h"
 
 
-/* ====================================================================== */
-/* HeuristicValue */
-
 /* Returns the sum of two integers, avoiding overflow. */
 static int sum(int n, int m) {
   return (INT_MAX - n > m) ? n + m : INT_MAX;
 }
 
-    
+
+/* Computes the heuristic value of the given formula. */
+static HeuristicValue
+formula_value(const Formula& formula, size_t step_id, const Plan& plan,
+	      const Domain& domain, const PlanningGraph& pg,
+	      bool reuse = false) {
+  HeuristicValue h;
+  const Bindings* bindings = plan.bindings();
+  bool has_reuse = false;
+  if (reuse) {
+    const Literal* literal = dynamic_cast<const Literal*>(&formula);
+    if (literal != NULL) {
+      if (!domain.static_predicate(literal->predicate())) {
+	hash_set<size_t> seen_steps;
+	for (const StepChain* sc = plan.steps;
+	     sc != NULL && !has_reuse; sc = sc->tail) {
+	  const Step& step = *sc->head;
+	  if (step.id != 0 && seen_steps.find(step.id) == seen_steps.end()) {
+	    seen_steps.insert(step.id);
+	    if (plan.orderings.possibly_before(step.id, step_id)) {
+	      const EffectList& effs = step.effects;
+	      for (EffectListIter ei = effs.begin();
+		   ei != effs.end() && !has_reuse; ei++) {
+		if (typeid(*literal) == typeid(Atom)) {
+		  const AtomList& adds = (*ei)->add_list;
+		  for (AtomListIter fi = adds.begin();
+		       fi != adds.end() && !has_reuse; fi++) {
+		    if ((bindings != NULL && bindings->unify(*literal, **fi))
+			|| (bindings == NULL
+			    && Bindings::unifiable(*literal, **fi))) {
+		      h = HeuristicValue::ZERO_COST_UNIT_WORK;
+		      has_reuse = true;
+		    }
+		  }
+		} else {
+		  const NegationList& dels = (*ei)->del_list;
+		  for (NegationListIter fi = dels.begin();
+		       fi != dels.end() && !has_reuse; fi++) {
+		    if ((bindings != NULL && bindings->unify(*literal, **fi))
+			|| (bindings == NULL
+			    && Bindings::unifiable(*literal, **fi))) {
+		      h = HeuristicValue::ZERO_COST_UNIT_WORK;
+		      has_reuse = true;
+		    }
+		  }
+		}
+	      }
+	    }
+	  }
+	}
+      }
+    } else {
+      // reuse for disjunctions and conjunctions ?
+    }
+  }
+  if (!has_reuse) {
+    formula.heuristic_value(h, pg, bindings);
+  }
+  return h;
+}
+
+
+/* ====================================================================== */
+/* HeuristicValue */
+
 /* A zero heuristic value. */
 const HeuristicValue HeuristicValue::ZERO = HeuristicValue();
 /* A zero cost, unit work, heuristic value. */
@@ -653,6 +714,15 @@ Heuristic& Heuristic::operator=(const string& name) {
     } else if (strcasecmp(n, "MAX_WORK") == 0) {
       h_.push_back(MAX_WORK);
       needs_pg_ = true;
+    } else if (strcasecmp(n, "MAXR") == 0) {
+      h_.push_back(MAXR);
+      needs_pg_ = true;
+    } else if (strcasecmp(n, "MAXR_COST") == 0) {
+      h_.push_back(MAXR_COST);
+      needs_pg_ = true;
+    } else if (strcasecmp(n, "MAXR_WORK") == 0) {
+      h_.push_back(MAXR_WORK);
+      needs_pg_ = true;
     } else {
       throw InvalidHeuristic(name);
     }
@@ -685,9 +755,12 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
   int sumr_cost = 0;
   int sumr_work = 0;
   bool max_done = false;
-  int max_steps = 0;
   int max_cost = 0;
   int max_work = 0;
+  bool maxr_done = false;
+  int maxr_cost = 0;
+  int maxr_work = 0;
+  int max_steps = 0;
   for (vector<HVal>::const_iterator hi = h_.begin(); hi != h_.end(); hi++) {
     HVal h = *hi;
     switch (h) {
@@ -718,11 +791,12 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
     case SUM_WORK:
       if (!sum_done) {
 	sum_done = true;
-	const Bindings* bindings = plan.bindings();
 	for (const OpenConditionChain* occ = plan.open_conds;
 	     occ != NULL; occ = occ->tail) {
-	  HeuristicValue v;
-	  occ->head->condition().heuristic_value(v, *planning_graph, bindings);
+	  const OpenCondition& open_cond = *occ->head;
+	  HeuristicValue v =
+	    formula_value(open_cond.condition(), open_cond.step_id, plan,
+			  domain, *planning_graph);
 	  sum_cost = sum(sum_cost, v.sum_cost());
 	  sum_work = sum(sum_work, v.sum_work());
 	}
@@ -752,47 +826,14 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
     case SUMR_WORK:
       if (!sumr_done) {
 	sumr_done = true;
-	const Bindings* bindings = plan.bindings();
 	for (const OpenConditionChain* occ = plan.open_conds;
 	     occ != NULL; occ = occ->tail) {
-	  bool reuse = false;
-	  const LiteralOpenCondition* loc =
-	    dynamic_cast<const LiteralOpenCondition*>(occ->head);
-	  if (loc != NULL && !loc->is_static(domain)) {
-	    hash_set<size_t> seen_steps;
-	    for (const StepChain* sc = plan.steps;
-		 sc != NULL && !reuse; sc = sc->tail) {
-	      const Step& step = *sc->head;
-	      if (seen_steps.find(step.id) == seen_steps.end()) {
-		seen_steps.insert(step.id);
-		if (plan.orderings.possibly_before(step.id,
-						   loc->step_id)) {
-		  const EffectList& effs = step.effects;
-		  for (EffectListIter ei = effs.begin();
-		       ei != effs.end() && !reuse; ei++) {
-		    const AtomList& adds = (*ei)->add_list;
-		    for (AtomListIter fi = adds.begin();
-			 fi != adds.end() && !reuse; fi++) {
-		      if ((bindings != NULL
-			   && bindings->unify(loc->literal, **fi))
-			  || (bindings == NULL
-			      && Bindings::unifiable(loc->literal, **fi))) {
-			sumr_work = sum(sumr_work, 1);
-			reuse = true;
-		      }
-		    }
-		  }
-		}
-	      }
-	    }
-	  }
-	  if (!reuse) {
-	    HeuristicValue v;
-	    occ->head->condition().heuristic_value(v, *planning_graph,
-						   bindings);
-	    sumr_cost = sum(sumr_cost, v.sum_cost());
-	    sumr_work = sum(sumr_work, v.sum_work());
-	  }
+	  const OpenCondition& open_cond = *occ->head;
+	  HeuristicValue v =
+	    formula_value(open_cond.condition(), open_cond.step_id, plan,
+			  domain, *planning_graph, true);
+	  sumr_cost = sum(sumr_cost, v.sum_cost());
+	  sumr_work = sum(sumr_work, v.sum_work());
 	}
       }
       if (h == SUMR) {
@@ -822,12 +863,12 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
 	max_done = true;
 	hash_map<size_t, size_t> dist;
 	max_cost = max_steps = plan.orderings.goal_distances(dist);
-	const Bindings* bindings = plan.bindings();
 	for (const OpenConditionChain* occ = plan.open_conds;
 	     occ != NULL; occ = occ->tail) {
 	  const OpenCondition& open_cond = *occ->head;
-	  HeuristicValue v;
-	  open_cond.condition().heuristic_value(v, *planning_graph, bindings);
+	  HeuristicValue v =
+	    formula_value(open_cond.condition(), open_cond.step_id, plan,
+			  domain, *planning_graph);
 	  max_cost = max(max_cost,
 			 int(dist[open_cond.step_id]) + v.max_cost());
 	  max_work = sum(max_work, v.max_work());
@@ -848,6 +889,44 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
       } else {
 	if (max_work < INT_MAX) {
 	  rank.push_back(max_work);
+	} else {
+	  rank.push_back(HUGE_VAL);
+	}
+      }
+      break;
+    case MAXR:
+    case MAXR_COST:
+    case MAXR_WORK:
+      if (!maxr_done) {
+	maxr_done = true;
+	hash_map<size_t, size_t> dist;
+	maxr_cost = max_steps = plan.orderings.goal_distances(dist);
+	for (const OpenConditionChain* occ = plan.open_conds;
+	     occ != NULL; occ = occ->tail) {
+	  const OpenCondition& open_cond = *occ->head;
+	  HeuristicValue v =
+	    formula_value(open_cond.condition(), open_cond.step_id, plan,
+			  domain, *planning_graph, true);
+	  maxr_cost = max(maxr_cost,
+			  int(dist[open_cond.step_id]) + v.max_cost());
+	  maxr_work = sum(maxr_work, v.max_work());
+	}
+      }
+      if (h == MAXR) {
+	if (maxr_cost < INT_MAX) {
+	  rank.push_back(max_steps + weight*(maxr_cost - max_steps));
+	} else {
+	  rank.push_back(HUGE_VAL);
+	}
+      } else if (h == MAXR_COST) {
+	if (maxr_cost < INT_MAX) {
+	  rank.push_back(maxr_cost);
+	} else {
+	  rank.push_back(HUGE_VAL);
+	}
+      } else {
+	if (maxr_work < INT_MAX) {
+	  rank.push_back(maxr_work);
 	} else {
 	  rank.push_back(HUGE_VAL);
 	}
@@ -934,6 +1013,74 @@ ostream& operator<<(ostream& os, const SelectionCriterion& c) {
     break;
   case SelectionCriterion::REUSE:
     os << "REUSE";
+    break;
+  case SelectionCriterion::LC:
+    os << "LC_";
+    switch (c.heuristic) {
+    case SelectionCriterion::SUM:
+      os << "SUM";
+      if (c.reuse) {
+	os << 'R';
+      }
+      break;
+    case SelectionCriterion::MAX:
+      os << "MAX";
+      if (c.reuse) {
+	os << 'R';
+      }
+      break;
+    }
+    break;
+  case SelectionCriterion::MC:
+    os << "MC_";
+    switch (c.heuristic) {
+    case SelectionCriterion::SUM:
+      os << "SUM";
+      if (c.reuse) {
+	os << 'R';
+      }
+      break;
+    case SelectionCriterion::MAX:
+      os << "MAX";
+      if (c.reuse) {
+	os << 'R';
+      }
+      break;
+    }
+    break;
+  case SelectionCriterion::LW:
+    os << "LW_";
+    switch (c.heuristic) {
+    case SelectionCriterion::SUM:
+      os << "SUM";
+      if (c.reuse) {
+	os << 'R';
+      }
+      break;
+    case SelectionCriterion::MAX:
+      os << "MAX";
+      if (c.reuse) {
+	os << 'R';
+      }
+      break;
+    }
+    break;
+  case SelectionCriterion::MW:
+    os << "MW_";
+    switch (c.heuristic) {
+    case SelectionCriterion::SUM:
+      os << "SUM";
+      if (c.reuse) {
+	os << 'R';
+      }
+      break;
+    case SelectionCriterion::MAX:
+      os << "MAX";
+      if (c.reuse) {
+	os << 'R';
+      }
+      break;
+    }
     break;
   }
   return os;
@@ -1091,6 +1238,78 @@ FlawSelectionOrder& FlawSelectionOrder::operator=(const string& name) {
 	criterion.order = SelectionCriterion::NEW;
       } else if (strcasecmp(n, "REUSE") == 0) {
 	criterion.order = SelectionCriterion::REUSE;
+      } else if (strncasecmp(n, "LC_", 3) == 0) {
+	criterion.order = SelectionCriterion::LC;
+	needs_pg_ = true;
+	if (strcasecmp(n + 3, "SUM") == 0) {
+	  criterion.heuristic = SelectionCriterion::SUM;
+	  criterion.reuse = false;
+	} else if (strcasecmp(n + 3, "SUMR") == 0) {
+	  criterion.heuristic = SelectionCriterion::SUM;
+	  criterion.reuse = true;
+	} else if (strcasecmp(n + 3, "MAX") == 0) {
+	  criterion.heuristic = SelectionCriterion::MAX;
+	  criterion.reuse = false;
+	} else if (strcasecmp(n + 3, "MAXR") == 0) {
+	  criterion.heuristic = SelectionCriterion::MAX;
+	  criterion.reuse = true;
+	} else {
+	  throw InvalidFlawSelectionOrder(name);
+	}
+      } else if (strncasecmp(n, "MC_", 3) == 0) {
+	criterion.order = SelectionCriterion::MC;
+	needs_pg_ = true;
+	if (strcasecmp(n + 3, "SUM") == 0) {
+	  criterion.heuristic = SelectionCriterion::SUM;
+	  criterion.reuse = false;
+	} else if (strcasecmp(n + 3, "SUMR") == 0) {
+	  criterion.heuristic = SelectionCriterion::SUM;
+	  criterion.reuse = true;
+	} else if (strcasecmp(n + 3, "MAX") == 0) {
+	  criterion.heuristic = SelectionCriterion::MAX;
+	  criterion.reuse = false;
+	} else if (strcasecmp(n + 3, "MAXR") == 0) {
+	  criterion.heuristic = SelectionCriterion::MAX;
+	  criterion.reuse = true;
+	} else {
+	  throw InvalidFlawSelectionOrder(name);
+	}
+      } else if (strncasecmp(n, "LW_", 3) == 0) {
+	criterion.order = SelectionCriterion::LW;
+	needs_pg_ = true;
+	if (strcasecmp(n + 3, "SUM") == 0) {
+	  criterion.heuristic = SelectionCriterion::SUM;
+	  criterion.reuse = false;
+	} else if (strcasecmp(n + 3, "SUMR") == 0) {
+	  criterion.heuristic = SelectionCriterion::SUM;
+	  criterion.reuse = true;
+	} else if (strcasecmp(n + 3, "MAX") == 0) {
+	  criterion.heuristic = SelectionCriterion::MAX;
+	  criterion.reuse = false;
+	} else if (strcasecmp(n + 3, "MAXR") == 0) {
+	  criterion.heuristic = SelectionCriterion::MAX;
+	  criterion.reuse = true;
+	} else {
+	  throw InvalidFlawSelectionOrder(name);
+	}
+      } else if (strncasecmp(n, "MW_", 3) == 0) {
+	criterion.order = SelectionCriterion::MW;
+	needs_pg_ = true;
+	if (strcasecmp(n + 3, "SUM") == 0) {
+	  criterion.heuristic = SelectionCriterion::SUM;
+	  criterion.reuse = false;
+	} else if (strcasecmp(n + 3, "SUMR") == 0) {
+	  criterion.heuristic = SelectionCriterion::SUM;
+	  criterion.reuse = true;
+	} else if (strcasecmp(n + 3, "MAX") == 0) {
+	  criterion.heuristic = SelectionCriterion::MAX;
+	  criterion.reuse = false;
+	} else if (strcasecmp(n + 3, "MAXR") == 0) {
+	  criterion.heuristic = SelectionCriterion::MAX;
+	  criterion.reuse = true;
+	} else {
+	  throw InvalidFlawSelectionOrder(name);
+	}
       } else {
 	throw InvalidFlawSelectionOrder(name);
       }
@@ -1130,117 +1349,6 @@ FlawSelectionOrder& FlawSelectionOrder::operator=(const string& name) {
 bool FlawSelectionOrder::needs_planning_graph() const {
   return needs_pg_;
 }
-
-
-#if 0
-/* Selects an open condition from the given list. */
-const Flaw&
-FlawSelectionOrder::select(const Plan& plan, const Domain& domain,
-			   const PlanningGraph* pg) const {
-  const UnsafeChain* unsafes = plan.unsafes;
-  const OpenConditionChain* open_conds = plan.open_conds;
-  const Bindings* bindings = plan.bindings();
-  if (open_conds == NULL || (!static_first_ && unsafes != NULL)) {
-    return *unsafes->head;
-  }
-  const OpenCondition* best_oc = open_conds->head;
-  bool best_is_static = best_oc->is_static(domain);
-  if (primary_ == NONE && secondary_ == SEC_LIFO
-      && (!static_first_ || best_is_static)) {
-    return *best_oc;
-  }
-  HeuristicValue best_value;
-  if (pg != NULL) {
-    best_oc->condition().heuristic_value(best_value, *pg, bindings);
-  }
-  if (verbosity > 2) {
-    cout << endl << *best_oc << " with value " << best_value
-	 << " (best)" << endl;
-  }
-  int streak = 1;
-  for (const OpenConditionChain* oci = open_conds->tail;
-       oci != NULL; oci = oci->tail) {
-    const OpenCondition* oc = oci->head;
-    bool is_static = oc->is_static(domain);
-    bool better = false;
-    bool equal = true;
-    HeuristicValue value;
-    if (heuristic_ != UNSPEC && primary_ != NONE) {
-      oc->condition().heuristic_value(value, *pg, bindings);
-      if (heuristic_ == MAX) {
-	if (primary_ == COST) {
-	  better = ((extreme_ == MOST)
-		    ? (value.max_cost() > best_value.max_cost()
-		       || (value.max_cost() == best_value.max_cost()
-			   && value.max_work() > best_value.max_work()))
-		    : (value.max_cost() < best_value.max_cost()
-		       || (value.max_cost() == best_value.max_cost()
-			   && value.max_work() < best_value.max_work())));
-	  equal = (value.max_cost() == best_value.max_cost()
-		   && value.max_work() == best_value.max_work());
-	} else if (primary_ == WORK) {
-	  better = ((extreme_ == MOST)
-		    ? value.max_work() > best_value.max_work()
-		    : value.max_work() < best_value.max_work());
-	  equal = value.max_work() == best_value.max_work();
-	}
-      } else if (heuristic_ == SUM) {
-	if (primary_ == COST) {
-	  better = ((extreme_ == MOST)
-		    ? (value.sum_cost() > best_value.sum_cost()
-		       || (value.sum_cost() == best_value.sum_cost()
-			   && value.sum_work() > best_value.sum_work()))
-		    : (value.sum_cost() < best_value.sum_cost()
-		       || (value.sum_cost() == best_value.sum_cost()
-			   && value.sum_work() < best_value.sum_work())));
-	  equal = (value.sum_cost() == best_value.sum_cost()
-		   && value.sum_work() == best_value.sum_work());
-	} else if (primary_ == WORK) {
-	  better = ((extreme_ == MOST)
-		    ? value.sum_work() > best_value.sum_work()
-		    : value.sum_work() < best_value.sum_work());
-	  equal = value.sum_work() == best_value.sum_work();
-	}
-      }
-    }
-    if (static_first_) {
-      if (is_static && !best_is_static) {
-	better = true;
-	equal = false;
-      } else if (!is_static && best_is_static) {
-	better = false;
-	equal = false;
-      }
-    }
-    if (verbosity > 2) {
-      cout << *oc << " with value " << value;
-    }
-    if (equal) {
-      streak++;
-    } else {
-      streak = 1;
-    }
-    if (better
-	|| (equal && (secondary_ == SEC_FIFO
-		      || (secondary_ == SEC_RANDOM
-			  && rand01ex() < 1.0/streak)))) {
-      if (verbosity > 2) {
-	cout << " (best)" << endl;
-      }
-      best_oc = oc;
-      best_value = value;
-      best_is_static = is_static;
-    } else if (verbosity > 2) {
-      cout << endl;
-    }
-  }
-  if (!best_is_static && unsafes != NULL) {
-    return *unsafes->head;
-  } else {
-    return *best_oc;
-  }
-}
-#endif
 
 
 /* Counts the number of refinements for the given threat, and returns
@@ -1610,6 +1718,82 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 		  cout << " with reuse";
 		}
 		cout << endl;
+	      }
+	    }
+	    break;
+	  case SelectionCriterion::LC:
+	    {
+	      HeuristicValue h =
+		formula_value(open_cond.condition(), open_cond.step_id, plan,
+			      domain, *pg, criterion.reuse);
+	      int rank = ((criterion.heuristic == SelectionCriterion::SUM)
+			  ? h.sum_cost() : h.max_cost());
+	      if (c < selection.criterion || rank < selection.rank) {
+		selection.flaw = &open_cond;
+		selection.criterion = c;
+		selection.rank = rank;
+		last_criterion = (rank == 0) ? c - 1 : c;
+		if (verbosity > 1) {
+		  cout << "selecting " << open_cond << " by criterion "
+		       << criterion << " with rank " << rank << endl;
+		}
+	      }
+	    }
+	    break;
+	  case SelectionCriterion::MC:
+	    {
+	      HeuristicValue h =
+		formula_value(open_cond.condition(), open_cond.step_id, plan,
+			      domain, *pg, criterion.reuse);
+	      int rank = ((criterion.heuristic == SelectionCriterion::SUM)
+			  ? h.sum_cost() : h.max_cost());
+	      if (c < selection.criterion || rank > selection.rank) {
+		selection.flaw = &open_cond;
+		selection.criterion = c;
+		selection.rank = rank;
+		last_criterion = c;
+		if (verbosity > 1) {
+		  cout << "selecting " << open_cond << " by criterion "
+		       << criterion << " with rank " << rank << endl;
+		}
+	      }
+	    }
+	    break;
+	  case SelectionCriterion::LW:
+	    {
+	      HeuristicValue h =
+		formula_value(open_cond.condition(), open_cond.step_id, plan,
+			      domain, *pg, criterion.reuse);
+	      int rank = ((criterion.heuristic == SelectionCriterion::SUM)
+			  ? h.sum_work() : h.max_work());
+	      if (c < selection.criterion || rank < selection.rank) {
+		selection.flaw = &open_cond;
+		selection.criterion = c;
+		selection.rank = rank;
+		last_criterion = (rank == 0) ? c - 1 : c;
+		if (verbosity > 1) {
+		  cout << "selecting " << open_cond << " by criterion "
+		       << criterion << " with rank " << rank << endl;
+		}
+	      }
+	    }
+	    break;
+	  case SelectionCriterion::MW:
+	    {
+	      HeuristicValue h =
+		formula_value(open_cond.condition(), open_cond.step_id, plan,
+			      domain, *pg, criterion.reuse);
+	      int rank = ((criterion.heuristic == SelectionCriterion::SUM)
+			  ? h.sum_work() : h.max_work());
+	      if (c < selection.criterion || rank > selection.rank) {
+		selection.flaw = &open_cond;
+		selection.criterion = c;
+		selection.rank = rank;
+		last_criterion = c;
+		if (verbosity > 1) {
+		  cout << "selecting " << open_cond << " by criterion "
+		       << criterion << " with rank " << rank << endl;
+		}
 	      }
 	    }
 	    break;
