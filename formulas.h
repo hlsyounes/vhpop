@@ -2,7 +2,7 @@
 /*
  * Formulas.
  *
- * $Id: formulas.h,v 1.27 2001-10-25 17:59:07 lorens Exp $
+ * $Id: formulas.h,v 1.28 2001-10-30 16:02:10 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -144,6 +144,30 @@ protected:
 
 
 /*
+ * Instantiated variable.
+ */
+struct StepVar : public Variable {
+  /* The id of the step that this variable belongs to. */
+  const size_t id;
+
+protected:
+  /* Checks if this object equals the given object. */
+  virtual bool equals(const EqualityComparable& o) const;
+
+  /* Prints this object on the given stream. */
+  virtual void print(ostream& os) const;
+
+private:
+  /* Constructs an instantiated variable. */
+  StepVar(const Variable& var, size_t id)
+    : Variable(var), id(id) {
+  }
+
+  friend const Variable& Variable::instantiation(size_t id) const;
+};
+
+
+/*
  * List of terms.
  */
 struct TermList : public Vector<const Term*> {
@@ -252,6 +276,9 @@ struct Formula : public Hashable, public Printable, public gc {
   /* Returns this formula with static predicates assumed true. */
   virtual const Formula& strip_static(const Domain& domain) const = 0;
 
+  /* Returns this formula with equalities/inequalities assumed true. */
+  virtual const Formula& strip_equality() const = 0;
+
   /* Returns the heuristic value of this formula. */
   virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
 					 const Bindings* b = NULL) const = 0;
@@ -342,6 +369,9 @@ struct Atom : public Formula {
   /* Returns this formula with static predicates assumed true. */
   virtual const Formula& strip_static(const Domain& domain) const;
 
+  /* Returns this formula with equalities/inequalities assumed true. */
+  virtual const Formula& strip_equality() const;
+
   /* Returns the heuristic value of this formula. */
   virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
 					 const Bindings* b = NULL) const;
@@ -416,6 +446,9 @@ struct Negation : public Formula {
 
   /* Returns this formula with static predicates assumed true. */
   virtual const Formula& strip_static(const Domain& domain) const;
+
+  /* Returns this formula with equalities/inequalities assumed true. */
+  virtual const Formula& strip_equality() const;
 
   /* Returns the heuristic value of this formula. */
   virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
@@ -495,6 +528,9 @@ struct Equality : public Formula {
   /* Returns this formula with static predicates assumed true. */
   virtual const Formula& strip_static(const Domain& domain) const;
 
+  /* Returns this formula with equalities/inequalities assumed true. */
+  virtual const Formula& strip_equality() const;
+
   /* Returns the heuristic value of this formula. */
   virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
 					 const Bindings* b = NULL) const;
@@ -547,6 +583,9 @@ struct Inequality : public Formula {
   /* Returns this formula with static predicates assumed true. */
   virtual const Formula& strip_static(const Domain& domain) const;
 
+  /* Returns this formula with equalities/inequalities assumed true. */
+  virtual const Formula& strip_equality() const;
+
   /* Returns the heuristic value of this formula. */
   virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
 					 const Bindings* b = NULL) const;
@@ -590,6 +629,9 @@ struct Conjunction : public Formula {
 
   /* Returns this formula with static predicates assumed true. */
   virtual const Formula& strip_static(const Domain& domain) const;
+
+  /* Returns this formula with equalities/inequalities assumed true. */
+  virtual const Formula& strip_equality() const;
 
   /* Returns the heuristic value of this formula. */
   virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
@@ -642,6 +684,9 @@ struct Disjunction : public Formula {
 
   /* Returns this formula with static predicates assumed true. */
   virtual const Formula& strip_static(const Domain& domain) const;
+
+  /* Returns this formula with equalities/inequalities assumed true. */
+  virtual const Formula& strip_equality() const;
 
   /* Returns the heuristic value of this formula. */
   virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
@@ -717,6 +762,9 @@ struct ExistsFormula : public QuantifiedFormula {
   /* Returns this formula with static predicates assumed true. */
   virtual const Formula& strip_static(const Domain& domain) const;
 
+  /* Returns this formula with equalities/inequalities assumed true. */
+  virtual const Formula& strip_equality() const;
+
   /* Checks if this formula is equivalent to the given formula.  Two
      formulas is equivalent if they only differ in the choice of
      variable names. */
@@ -758,6 +806,9 @@ struct ForallFormula : public QuantifiedFormula {
 
   /* Returns this formula with static predicates assumed true. */
   virtual const Formula& strip_static(const Domain& domain) const;
+
+  /* Returns this formula with equalities/inequalities assumed true. */
+  virtual const Formula& strip_equality() const;
 
   /* Checks if this formula is equivalent to the given formula.  Two
      formulas is equivalent if they only differ in the choice of

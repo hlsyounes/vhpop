@@ -1,5 +1,5 @@
 /*
- * $Id: domains.cc,v 1.24 2001-10-25 17:58:25 lorens Exp $
+ * $Id: domains.cc,v 1.25 2001-10-30 16:01:47 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -322,6 +322,14 @@ void ActionSchema::instantiations(GroundActionList& actions,
 const ActionSchema& ActionSchema::strip_static(const Domain& domain) const {
   return *(new ActionSchema(name, parameters,
 			    precondition.strip_static(domain), effects));
+}
+
+
+/* Returns this action schema with all equality/inequality
+   preconditions assumed true. */
+const ActionSchema& ActionSchema::strip_equality() const {
+  return *(new ActionSchema(name, parameters,
+			    precondition.strip_equality(), effects));
 }
 
 

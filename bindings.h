@@ -2,7 +2,7 @@
 /*
  * Binding constraints.
  *
- * $Id: bindings.h,v 1.6 2001-10-18 21:15:30 lorens Exp $
+ * $Id: bindings.h,v 1.7 2001-10-30 16:01:17 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
@@ -252,4 +252,3 @@ private:
 };
 
 #endif /* BINDINGS_H */
-
