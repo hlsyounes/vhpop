@@ -13,10 +13,9 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: parameters.cc,v 3.1 2002-03-18 17:22:49 lorens Exp $
+ * $Id: parameters.cc,v 3.2 2002-03-25 00:33:10 lorens Exp $
  */
 #include "parameters.h"
-#include "heuristics.h"
 
 
 /* ====================================================================== */
