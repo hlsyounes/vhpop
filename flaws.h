@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: flaws.h,v 3.3 2002-03-21 22:49:13 lorens Exp $
+ * $Id: flaws.h,v 3.4 2002-03-23 15:18:15 lorens Exp $
  */
 #ifndef FLAWS_H
 #define FLAWS_H
@@ -40,7 +40,7 @@ struct Link;
 /*
  * Abstract flaw.
  */
-struct Flaw : public Printable, public gc {
+struct Flaw : public Printable {
 };
 
 
@@ -52,19 +52,32 @@ struct Flaw : public Printable, public gc {
  */
 struct OpenCondition : public Flaw {
   /* Constructs an open condition. */
-  OpenCondition(size_t step_id, const Reason& reason);
+  OpenCondition(size_t step_id, const Formula& condition,
+		const Reason& reason);
 
   /* Returns the step id. */
   size_t step_id() const { return step_id_; }
 
+  /* Returns the open condition. */
+  const Formula& condition() const { return *condition_; }
+
   /* Returns the reason. */
   const Reason& reason() const;
 
-  /* Returns the open condition. */
-  virtual const Formula& condition() const = 0;
-
   /* Checks if this is a static open condition. */
-  virtual bool is_static(const Domain& domain) const = 0;
+  bool is_static(const Domain& domain) const;
+
+  /* Returns a literal, or NULL if this is not a literal open
+     condition. */
+  const Literal* literal() const;
+
+  /* Returns a inequality, or NULL if this is not an inequality open
+     condition. */
+  const Inequality* inequality() const;
+
+  /* Returns a disjunction, or NULL if this is not a disjunctive open
+     condition. */
+  const Disjunction* disjunction() const;
 
 protected:
   /* Prints this open condition on the given stream. */
@@ -73,11 +86,16 @@ protected:
 private:
   /* Id of step to which this open condition belongs. */
   size_t step_id_;
+  /* The open condition. */
+  const Formula* condition_;
 #ifdef TRANSFORMATIONAL
   /* Reason for open condition. */
   const Reason* reason_;
 #endif
 };
+
+/* Equality operator for open conditions. */
+bool operator==(const OpenCondition& oc1, const OpenCondition& oc2);
 
 
 /* ====================================================================== */
@@ -86,85 +104,7 @@ private:
 /*
  * Chain of open conditions.
  */
-typedef Chain<const OpenCondition*> OpenConditionChain;
-
-
-/* ====================================================================== */
-/* LiteralOpenCondition */
-
-/*
- * A literal open condition.
- */
-struct LiteralOpenCondition : public OpenCondition {
-  /* Constructs a literal open condition. */
-  LiteralOpenCondition(const Literal& cond, size_t step_id,
-		       const Reason& reason);
-
-  /* Returns the literal. */
-  const Literal& literal() const { return *literal_; }
-
-  /* Returns the open condition. */
-  virtual const Formula& condition() const;
-
-  /* Checks if this is a static open condition. */
-  virtual bool is_static(const Domain& domain) const;
-
-private:
-  /* Literal. */
-  const Literal* literal_;
-};
-
-
-/* ====================================================================== */
-/* InequalityOpenCondition */
-
-/*
- * An inequality open condition.
- */
-struct InequalityOpenCondition : public OpenCondition {
-  /* Constructs an inequality open condition. */
-  InequalityOpenCondition(const Inequality& cond, size_t step_id,
-			  const Reason& reason);
-
-  /* Returns the inequality. */
-  const Inequality& neq() const { return *neq_; }
-
-  /* Returns the open condition. */
-  virtual const Formula& condition() const;
-
-  /* Checks if this is a static open condition. */
-  virtual bool is_static(const Domain& domain) const;
-
-private:
-  /* Inequality. */
-  const Inequality* neq_;
-};
-
-
-/* ====================================================================== */
-/* DisjunctiveOpenCondition */
-
-/*
- * A disjunctive open condition.
- */
-struct DisjunctiveOpenCondition : public OpenCondition {
-  /* Constructs a disjunctive open condition. */
-  DisjunctiveOpenCondition(const Disjunction& cond, size_t step_id,
-			   const Reason& reason);
-
-  /* Returns the disjunction. */
-  const Disjunction& disjunction() const { return *disjunction_; }
-
-  /* Returns the open condition. */
-  virtual const Formula& condition() const;
-
-  /* Checks if this is a static open condition. */
-  virtual bool is_static(const Domain& domain) const;
-
-private:
-  /* Disjunction. */
-  const Disjunction* disjunction_;
-};
+typedef CollectibleChain<OpenCondition> OpenConditionChain;
 
 
 /* ====================================================================== */
@@ -205,6 +145,9 @@ private:
   const Literal* effect_add_;
 };
 
+/* Equality operator for unsafe links. */
+bool operator==(const Unsafe& u1, const Unsafe& u2);
+
 
 /* ====================================================================== */
 /* UnsafeChain */
@@ -212,7 +155,7 @@ private:
 /*
  * Chain of threatened causal links.
  */
-typedef Chain<const Unsafe*> UnsafeChain;
+typedef CollectibleChain<Unsafe> UnsafeChain;
 
 
 #endif /* FLAWS_H */

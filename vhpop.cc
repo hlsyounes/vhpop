@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 3.3 2002-03-12 15:51:58 lorens Exp $
+ * $Id: vhpop.cc,v 3.4 2002-03-23 15:18:22 lorens Exp $
  */
 #include <iostream>
 #include <cstdio>
@@ -69,6 +69,7 @@ static struct option long_options[] = {
   { "weight", required_argument, NULL, 'w' },
   { "warnings", optional_argument, NULL, 'W' },
   { "help", no_argument, NULL, '?' },
+  { "no-gc", no_argument, NULL, 1 },
   { 0, 0, 0, 0 }
 };
 #endif
@@ -151,6 +152,14 @@ static void cleanup() {
 }
 
 
+#ifdef DEBUG
+size_t created_chains = 0;
+size_t deleted_chains = 0;
+size_t created_collectibles = 0;
+size_t deleted_collectibles = 0;
+#endif
+
+
 /* The main program. */
 int main(int argc, char* argv[]) {
   atexit(cleanup);
@@ -177,6 +186,9 @@ int main(int argc, char* argv[]) {
       break;
     }
     switch (c) {
+    case 1:
+      GC_dont_gc = 1;
+      break;
     case 'd':
       params.domain_constraints = true;
       params.keep_static_preconditions = (optarg == NULL || atoi(optarg) != 0);
@@ -317,9 +329,11 @@ int main(int argc, char* argv[]) {
       if (plan != NULL) {
 	if (plan->complete()) {
 	  if (verbosity > 0) {
-	    cout << ";Depth of solution: " << plan->depth << endl;
+#ifdef DEBUG
+	    cout << ";Depth of solution: " << plan->depth() << endl;
+#endif
 	    const BinaryOrderings* binary_ords =
-	      dynamic_cast<const BinaryOrderings*>(&plan->orderings);
+	      dynamic_cast<const BinaryOrderings*>(&plan->orderings());
 	    if (binary_ords != NULL) {
 	      cout << ";Flexibility: " << binary_ords->flexibility() << endl;
 	    }
@@ -329,6 +343,7 @@ int main(int argc, char* argv[]) {
 	  cout << "no plan" << endl;
 	  cout << ";Search limit reached." << endl;
 	}
+	delete plan;
       } else {
 	cout << "no plan" << endl;
 	cout << ";Problem has no solution." << endl;
@@ -341,6 +356,13 @@ int main(int argc, char* argv[]) {
     cerr << PROGRAM_NAME << ": fatal error" << endl;
     return -1;
   }
+
+#ifdef DEBUG
+  cout << "Chains created: " << created_chains << endl;
+  cout << "Chains deleted: " << deleted_chains << endl;
+  cout << "Collectibles created: " << created_collectibles << endl;
+  cout << "Collectibles deleted: " << deleted_collectibles << endl;
+#endif
 
   return 0;
 }

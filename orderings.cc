@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.cc,v 3.3 2002-03-21 22:49:34 lorens Exp $
+ * $Id: orderings.cc,v 3.4 2002-03-23 15:18:30 lorens Exp $
  */
 #include "orderings.h"
 #include "plans.h"
@@ -92,6 +92,16 @@ Orderings::Orderings()
   : size_(0) {
 #ifdef TRANSFORMATIONAL
   orderings_ = NULL;
+#endif
+}
+
+
+/* Constructs a copy of this ordering collection. */
+Orderings::Orderings(const Orderings& orderings)
+  : size_(orderings.size_), id_map1_(orderings.id_map1_),
+    id_map2_(orderings.id_map2_), order_(orderings.order_) {
+#ifdef TRANSFORMATIONAL
+  orderings_ = orderings.orderings_;
 #endif
 }
 
@@ -237,6 +247,7 @@ const Orderings* BinaryOrderings::refine(const Ordering& new_ordering) const {
     if (orderings.fill_transitive(new_ordering)) {
       return &orderings;
     } else {
+      delete &orderings;
       return NULL;
     }
   } else {
@@ -269,6 +280,7 @@ const Orderings* BinaryOrderings::refine(const Ordering& new_ordering,
   if (orderings.fill_transitive(new_ordering)) {
     return &orderings;
   } else {
+    delete &orderings;
     return NULL;
   }
 }
@@ -337,6 +349,12 @@ static void print_distance_matrix(const vector<vector<float> >& d,
 
 /* Constructs an empty ordering collection. */
 TemporalOrderings::TemporalOrderings() {}
+
+
+/* Constructs a copy of this ordering collection. */
+TemporalOrderings::TemporalOrderings(const TemporalOrderings& orderings)
+  : Orderings(orderings), distance_(orderings.distance_) {
+}
 
 
 /* Constructs an ordering collection. */
@@ -416,6 +434,7 @@ TemporalOrderings::refine(const Ordering& new_ordering) const {
     if (orderings.fill_transitive(new_ordering)) {
       return &orderings;
     } else {
+      delete &orderings;
       return NULL;
     }
   } else {
@@ -459,6 +478,7 @@ const Orderings* TemporalOrderings::refine(const Ordering& new_ordering,
   if (orderings.fill_transitive(new_ordering)) {
     return &orderings;
   } else {
+    delete &orderings;
     return NULL;
   }
 }

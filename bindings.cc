@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.cc,v 3.6 2002-03-21 22:48:59 lorens Exp $
+ * $Id: bindings.cc,v 3.7 2002-03-23 15:18:24 lorens Exp $
  */
 #include <typeinfo>
 #include "bindings.h"
@@ -595,7 +595,11 @@ const Bindings* Bindings::make_bindings(const StepChain* steps,
   for (const BindingChain* bc = inequalities; bc != NULL; bc = bc->tail) {
     bindings.push_back(bc->head);
   }
-  return b->add(bindings);
+  const Bindings* new_b = b->add(bindings);
+  if (new_b != b) {
+    delete b;
+  }
+  return new_b;
 }
 
 
@@ -769,7 +773,7 @@ bool Bindings::unify(SubstitutionList& mgu,
       bl.push_back(new EqualityBinding(var1, term2, Reason::DUMMY));
     }
   }
-  if (add(bl) == NULL) {
+  if (add(bl, true) == NULL) {
     /* Unification is inconsistent with current bindings. */
     return false;
   }
@@ -854,7 +858,8 @@ static void add_domain_bindings(BindingList& bindings,
 /* Returns the binding collection obtained by adding the given
    bindings to this binding collection, or NULL if the new bindings
    are inconsistent with the current. */
-const Bindings* Bindings::add(const BindingList& new_bindings) const {
+const Bindings* Bindings::add(const BindingList& new_bindings,
+			      bool test_only) const {
   if (new_bindings.empty()) {
     /* No new bindings. */
     return this;
@@ -1167,8 +1172,12 @@ const Bindings* Bindings::add(const BindingList& new_bindings) const {
     }
   }
   /* New bindings are consistent with the current bindings. */
-  return new Bindings(varsets, high_step, step_domains,
-		      equalities, inequalities);
+  if (test_only) {
+    return this;
+  } else {
+    return new Bindings(varsets, high_step, step_domains,
+			equalities, inequalities);
+  }
 }
 
 
@@ -1176,7 +1185,7 @@ const Bindings* Bindings::add(const BindingList& new_bindings) const {
    associated with the given step to this binding collection, or
    NULL if the new binding collection would be inconsistent. */
 const Bindings* Bindings::add(size_t step_id, const Action* step_action,
-			      const PlanningGraph& pg) const {
+			      const PlanningGraph& pg, bool test_only) const {
   if (step_action == NULL) {
     return this;
   }
@@ -1204,8 +1213,12 @@ const Bindings* Bindings::add(size_t step_id, const Action* step_action,
       high_step = max(high_step, step_id);
     }
   }
-  return new Bindings(varsets, high_step, step_domains,
-		      equalities(), inequalities());
+  if (test_only) {
+    return this;
+  } else {
+    return new Bindings(varsets, high_step, step_domains,
+			equalities(), inequalities());
+  }
 }
 
 

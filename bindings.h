@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.h,v 3.3 2002-03-21 22:49:03 lorens Exp $
+ * $Id: bindings.h,v 3.4 2002-03-23 15:18:26 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
@@ -224,15 +224,15 @@ typedef Chain<const StepDomain*> StepDomainChain;
 /*
  * A collection of variable bindings.
  */
-struct Bindings : public Printable, public gc {
+struct Bindings : public Printable, public Collectible {
   /* Creates a binding collection with parameter constrains if pg is
      not NULL, or an empty binding collection otherwise. */
-  static const Bindings& make_bindings(const Chain<Step>* steps,
+  static const Bindings& make_bindings(const CollectibleChain<Step>* steps,
 				       const PlanningGraph* pg);
 
   /* Creates a collection of variable bindings with the given equality
      and inequality bindings. */
-  static const Bindings* make_bindings(const Chain<Step>* steps,
+  static const Bindings* make_bindings(const CollectibleChain<Step>* steps,
 				       const PlanningGraph* pg,
 				       const BindingChain* equalities,
 				       const BindingChain* inequalities);
@@ -287,13 +287,14 @@ struct Bindings : public Printable, public gc {
   /* Returns the binding collection obtained by adding the given
      bindings to this binding collection, or NULL if the new bindings
      are inconsistent with the current. */
-  const Bindings* add(const BindingList& new_bindings) const;
+  const Bindings* add(const BindingList& new_bindings,
+		      bool test_only = false) const;
 
   /* Returns the binding collection obtained by adding the constraints
      associated with the given step to this binding collection, or
      NULL if the new binding collection would be inconsistent. */
   const Bindings* add(size_t step_id, const Action* step_action,
-		      const PlanningGraph& pg) const;
+		      const PlanningGraph& pg, bool test_only = false) const;
 
 protected:
   /* Prints this object on the given stream. */
