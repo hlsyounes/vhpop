@@ -2,7 +2,7 @@
 /*
  * Formulas.
  *
- * $Id: formulas.h,v 1.7 2001-07-29 17:57:58 lorens Exp $
+ * $Id: formulas.h,v 1.8 2001-08-11 06:17:16 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -91,8 +91,12 @@ protected:
   /* Checks if this term equals the given term. */
   virtual bool equals(const Term& t) const = 0;
 
+  /* Returns the hash value of this term. */
+  virtual size_t hash_value() const;
+
   friend ostream& operator<<(ostream& os, const Term& t);
   friend bool operator==(const Term& t1, const Term& t2);
+  friend struct hash<Term>;
 };
 
 /* Output operator for terms. */
@@ -111,40 +115,40 @@ inline bool operator!=(const Term& t1, const Term& t2) {
   return !(t1 == t2);
 }
 
+/*
+ * Hash function object for terms.
+ */
+struct hash<Term> {
+  size_t operator()(const Term& t) const {
+    return t.hash_value();
+  }
+};
+
 
 /*
  * Name.
  */
 struct Name : public Term {
   /* Constructs a name. */
-  Name(const string& name, const Type& type = SimpleType::OBJECT_TYPE)
+  Name(const string& name, const Type& type = SimpleType::OBJECT)
     : Term(name, type) {
   }
 
   /* Returns an instantiation of this term. */
-  virtual const Name& instantiation(size_t id) const {
-    return *this;
-  }
+  virtual const Name& instantiation(size_t id) const;
 
   /* Returns this term subject to the given substitutions. */
-  virtual const Name& substitution(const SubstitutionList& subst) const {
-    return *this;
-  }
+  virtual const Name& substitution(const SubstitutionList& subst) const;
 
   /* Checks if this term is equivalent to the given term; two terms
      are equivalent if they both are the same name, or if they are
      variables (variable names only matter for equality and not for
      equivalence). */
-  virtual bool equivalent(const Term& t) const {
-    return *this == t;
-  }
+  virtual bool equivalent(const Term& t) const;
 
 protected:
   /* Checks if this term equals the given term. */
-  virtual bool equals(const Term& t) const {
-    const Name* nt = dynamic_cast<const Name*>(&t);
-    return nt != NULL && name == nt->name;
-  }
+  virtual bool equals(const Term& t) const;
 };
 
 
@@ -153,69 +157,23 @@ protected:
  */
 struct Variable : public Term {
   /* Constructs a variable with the given name. */
-  Variable(const string& name, const Type& type = SimpleType::OBJECT_TYPE)
+  Variable(const string& name, const Type& type = SimpleType::OBJECT)
     : Term(name, type) {
   }
 
-  /* Returns an instantiation of this variable. */
+  /* Returns an instantiation of this term. */
   virtual const Variable& instantiation(size_t id) const;
 
-  /* Returns this variable subject to the given substitutions. */
-  virtual const Term& substitution(const SubstitutionList& subst) const {
-    for (SubstitutionList::const_iterator i = subst.begin();
-	 i != subst.end(); i++) {
-      const Substitution& s = **i;
-      if (*this == s.var) {
-	return s.term;
-      }
-    }
-    return *this;
-  }
+  /* Returns this term subject to the given substitutions. */
+  virtual const Term& substitution(const SubstitutionList& subst) const;
 
   /* Checks if this variable is equivalent to the given term. */
-  virtual bool equivalent(const Term& t) const {
-    const Variable* v = dynamic_cast<const Variable*>(&t);
-    return v != NULL;
-  }
+  virtual bool equivalent(const Term& t) const;
 
 protected:
-  /* Checks if this variable equals the given term. */
-  virtual bool equals(const Term& t) const {
-    const Variable* vt = dynamic_cast<const Variable*>(&t);
-    return vt != NULL && name == vt->name;
-  }
+  /* Checks if this term equals the given term. */
+  virtual bool equals(const Term& t) const;
 };
-
-
-/*
- * Instantiated variable.
- */
-struct StepVar : public Variable {
-  /* Construct an instantiated variable. */
-  StepVar(const Variable& var, size_t id)
-    : Variable(var), id_(id) {
-  }
-
-protected:
-  /* Prints this instantiated variable on the given stream. */
-  virtual void print(ostream& os) const;
-
-  /* Checks if this instantiated variable equals the given term. */
-  virtual bool equals(const Term& t) const {
-    const StepVar* vt = dynamic_cast<const StepVar*>(&t);
-    return vt != NULL && name == vt->name && id_ == vt->id_;
-  }
-
-private:
-  /* The id of the step that this variable belongs to. */
-  size_t id_;
-};
-
-
-/* Returns an instantiation of this variable. */
-inline const Variable& Variable::instantiation(size_t id) const {
-  return *(new StepVar(*this, id));
-}
 
 
 /*
@@ -227,56 +185,33 @@ struct TermList : public gc, vector<const Term*, container_alloc> {
   }
 
   /* Returns an instantiation of this term list. */
-  const TermList& instantiation(size_t id) const {
-    TermList& terms = *(new TermList());
-    for (const_iterator i = begin(); i != end(); i++) {
-      terms.push_back(&(*i)->instantiation(id));
-    }
-    return terms;
-  }
+  const TermList& instantiation(size_t id) const;
 
   /* Returns this term list subject to the given substitutions. */
-  const TermList& substitution(const SubstitutionList& subst) const {
-    TermList& terms = *(new TermList());
-    for (const_iterator i = begin(); i != end(); i++) {
-      terms.push_back(&(*i)->substitution(subst));
-    }
-    return terms;
-  }
+  const TermList& substitution(const SubstitutionList& subst) const;
 
   /* Checks if this term list is equivalent to the given term list. */
-  bool equivalent(const TermList& terms) const {
-    if (size() != terms.size()) {
-      return false;
-    } else {
-      for (const_iterator i = begin(), j = terms.begin();
-	   i != end(); i++, j++) {
-	if (!(*i)->equivalent(**j)) {
-	  return false;
-	}
-      }
-      return true;
-    }
-  }
+  bool equivalent(const TermList& terms) const;
 
   /* Equality operator for term lists. */
-  bool operator==(const TermList& terms) const {
-    if (size() != terms.size()) {
-      return false;
-    } else {
-      for (const_iterator i = begin(), j = terms.begin();
-	   i != end(); i++, j++) {
-	if (**i != **j) {
-	  return false;
-	}
-      }
-      return true;
-    }
-  }
+  bool operator==(const TermList& terms) const;
 
   /* Inequality operator for term lists. */
-  bool operator!=(const TermList& terms) const {
-    return !(*this == terms);
+  bool operator!=(const TermList& terms) const;
+};
+
+/*
+ * Hash function object for term lists.
+ */
+struct hash<TermList> {
+  size_t operator()(const TermList& terms) const {
+    hash<Term> h;
+    size_t v = 0;
+    for (TermList::const_iterator ti = terms.begin();
+	 ti != terms.end(); ti++) {
+      v += h(**ti);
+    }
+    return v;
   }
 };
 
@@ -306,52 +241,31 @@ struct VariableList : public gc, vector<const Variable*, container_alloc> {
   }
 
   /* Checks if this variable list contains the given variable. */
-  bool contains(const Variable& v) const {
-    for (const_iterator i = begin(); i != end(); i++) {
-      if (**i == v) {
-	return true;
-      }
-    }
-    return false;
-  }
+  bool contains(const Variable& v) const;
 
   /* Returns an instantiation of this variable list. */
-  const VariableList& instantiation(size_t id) const {
-    VariableList& variables = *(new VariableList());
-    for (const_iterator i = begin(); i != end(); i++) {
-      variables.push_back(&(*i)->instantiation(id));
-    }
-    return variables;
-  }
+  const VariableList& instantiation(size_t id) const;
 
   /* Equality operator for variable lists. */
-  bool operator==(const VariableList& variables) const {
-    if (size() != variables.size()) {
-      return false;
-    } else {
-      for (const_iterator i = begin(), j = variables.begin();
-	   i != end(); i++, j++) {
-	if (**i != **j) {
-	  return false;
-	}
-      }
-      return true;
-    }
-  }
+  bool operator==(const VariableList& variables) const;
 
   /* Inequality operator for variable lists. */
-  bool operator!=(const VariableList& variables) const {
-    return !(*this == variables);
-  }
+  bool operator!=(const VariableList& variables) const;
 };
 
 
 struct Problem;
+struct FormulaList;
 
 /*
  * Abstract formula.
  */
 struct Formula : public gc {
+  /* The true formula. */
+  static const Formula& TRUE;
+  /* The false formula. */
+  static const Formula& FALSE;
+
   /* Deletes this formula. */
   virtual ~Formula() {
   }
@@ -359,11 +273,12 @@ struct Formula : public gc {
   /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(size_t id) const = 0;
 
+  /* Returns an instantiation of this formula. */
+  virtual const Formula& instantiation(const SubstitutionList& subst,
+				       const Problem& problem) const = 0;
+
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const = 0;
-
-  /* Returns a negation of this formula. */
-  virtual const Formula& negation() const = 0;
 
   /* Checks if this formula matches the given formula; two formulas
      matches if they are both atomic formulas, or negations of atomic
@@ -392,8 +307,9 @@ struct Formula : public gc {
      will give rise to. */
   virtual size_t cost() const = 0;
 
-  /* Checks if this formula is consistent. */
-  virtual bool consistent(const Problem& problem) const = 0;
+  /* Fills the provided list with goals achievable by this formula. */
+  virtual void achievable_goals(FormulaList& goals) const {
+  }
 
 protected:
   /* Prints this formula on the given stream. */
@@ -402,8 +318,18 @@ protected:
   /* Checks if this formula equals the given formula. */
   virtual bool equals(const Formula& f) const = 0;
 
+  /* Returns a negation of this formula. */
+  virtual const Formula& negation() const = 0;
+
+  /* Returns the hash value of this formula. */
+  virtual size_t hash_value() const {
+    return 0;
+  }
+
   friend ostream& operator<<(ostream& os, const Formula& f);
   friend bool operator==(const Formula& f1, const Formula& f2);
+  friend const Formula& operator!(const Formula& f);
+  friend struct hash<Formula>;
 };
 
 /* Output operator for formulas. */
@@ -421,6 +347,44 @@ inline bool operator==(const Formula& f1, const Formula& f2) {
 inline bool operator!=(const Formula& f1, const Formula& f2) {
   return !(f1 == f2);
 }
+
+/* Negation operator for formulas. */
+inline const Formula& operator!(const Formula& f) {
+  return f.negation();
+}
+
+/* Conjunction operator for formulas. */
+const Formula& operator&&(const Formula& f1, const Formula& f2);
+
+/* Disjunction operator for formulas. */
+const Formula& operator||(const Formula& f1, const Formula& f2);
+    
+/*
+ * Equality function object for formula pointers.
+ */
+struct equal_to<const Formula*> {
+  bool operator()(const Formula* f1, const Formula* f2) const {
+    return *f1 == *f2;
+  }
+};
+
+/*
+ * Hash function object for formulas.
+ */
+struct hash<Formula> {
+  size_t operator()(const Formula& f) const {
+    return f.hash_value();
+  }
+};
+
+/*
+ * Hash function object for formula pointers.
+ */
+struct hash<const Formula*> {
+  size_t operator()(const Formula* f) const {
+    return hash<Formula>()(*f);
+  }
+};
 
 
 /*
@@ -454,15 +418,6 @@ struct FormulaList : public gc, vector<const Formula*, container_alloc> {
     return formulas;
   }
 
-  /* Returns a negation of this formula list. */
-  const FormulaList& negation() const {
-    FormulaList& formulas = *(new FormulaList());
-    for (const_iterator i = begin(); i != end(); i++) {
-      formulas.push_back(&(*i)->negation());
-    }
-    return formulas;
-  }
-
   /* Checks if any of the formulas in this list matches the given formula. */
   bool matches(const Formula& f) const {
     for (const_iterator i = begin(); i != end(); i++) {
@@ -482,6 +437,14 @@ struct FormulaList : public gc, vector<const Formula*, container_alloc> {
       }
     }
     return false;
+  }
+
+  /* Fills the provided list with goals achievable by the formulas in
+     this list. */
+  void achievable_goals(FormulaList& goals) const {
+    for (const_iterator i = begin(); i != end(); i++) {
+      (*i)->achievable_goals(goals);
+    }
   }
 
   /* Roughly corresponds to the number of open conditions the formulas
@@ -513,6 +476,15 @@ struct FormulaList : public gc, vector<const Formula*, container_alloc> {
   bool operator!=(const FormulaList& formulas) const {
     return !(*this == formulas);
   }
+
+  /* Returns a negation of this formula list. */
+  const FormulaList& operator!() const {
+    FormulaList& formulas = *(new FormulaList());
+    for (const_iterator i = begin(); i != end(); i++) {
+      formulas.push_back(&!**i);
+    }
+    return formulas;
+  }
 };
 
 
@@ -530,19 +502,15 @@ struct AtomicFormula : public Formula {
     : predicate(predicate), terms(terms) {
   }
 
-  /* Returns an instantiation of this atomic formula. */
-  virtual const AtomicFormula& instantiation(size_t id) const {
-    return *(new AtomicFormula(predicate, terms.instantiation(id)));
-  }
+  /* Returns an instantiation of this formula. */
+  virtual const AtomicFormula& instantiation(size_t id) const;
 
-  /* Returns this atomic formula subject to the given substitutions. */
-  virtual const AtomicFormula&
-  substitution(const SubstitutionList& subst) const {
-    return *(new AtomicFormula(predicate, terms.substitution(subst)));
-  }
+  /* Returns an instantiation of this formula. */
+  virtual const Formula& instantiation(const SubstitutionList& subst,
+				       const Problem& problem) const;
 
-  /* Returns a negation of this atomic formula. */
-  virtual const Formula& negation() const;
+  /* Returns this formula subject to the given substitutions. */
+  virtual const Formula& substitution(const SubstitutionList& subst) const;
 
   /* Checks if this atomic formula matches the given formula. */
   virtual bool matches(const Formula& f) const {
@@ -571,8 +539,10 @@ struct AtomicFormula : public Formula {
     return 1;
   }
 
-  /* Checks if this formula is consistent. */
-  virtual bool consistent(const Problem& problem) const;
+  /* Fills the provided list with goals achievable by this formula. */
+  virtual void achievable_goals(FormulaList& goals) const {
+    goals.push_back(this);
+  }
 
 protected:
   /* Prints this atomic formula on the given stream. */
@@ -584,6 +554,14 @@ protected:
     return (atom != NULL &&
 	    predicate == atom->predicate && terms == atom->terms);
   }
+
+  /* Returns a negation of this atomic formula. */
+  virtual const Formula& negation() const;
+
+  /* Returns the hash value of this formula. */
+  virtual size_t hash_value() const {
+    return hash<string>()(predicate) + hash<TermList>()(terms);
+  }
 };
 
 
@@ -594,25 +572,15 @@ struct Negation : public Formula {
   /* The negated atomic formula. */
   const AtomicFormula& atom;
 
-  /* Constructs a negated atomic formula. */
-  Negation(const AtomicFormula& atom)
-    : atom(atom) {
-  }
+  /* Returns an instantiation of this formula. */
+  virtual const Negation& instantiation(size_t id) const;
 
-  /* Returns an instantiation of this negation. */
-  virtual const Negation& instantiation(size_t id) const {
-    return *(new Negation(atom.instantiation(id)));
-  }
+  /* Returns an instantiation of this formula. */
+  virtual const Formula& instantiation(const SubstitutionList& subst,
+				       const Problem& problem) const;
 
-  /* Returns this negation subject to the given substitutions. */
-  virtual const Negation& substitution(const SubstitutionList& subst) const {
-    return *(new Negation(atom.substitution(subst)));
-  }
-
-  /* Returns an atomic formula that this is a negation of. */
-  virtual const AtomicFormula& negation() const {
-    return atom;
-  }
+  /* Returns this formula subject to the given substitutions. */
+  virtual const Formula& substitution(const SubstitutionList& subst) const;
 
   /* Checks if this negation matches the given formula. */
   virtual bool matches(const Formula& f) const {
@@ -642,11 +610,6 @@ struct Negation : public Formula {
     return 1;
   }
 
-  /* Checks if this formula is consistent. */
-  virtual bool consistent(const Problem& problem) const {
-    return !atom.consistent(problem);
-  }
-
 protected:
   /* Prints this negation on the given stream. */
   virtual void print(ostream& os) const;
@@ -656,13 +619,19 @@ protected:
     const Negation* negation = dynamic_cast<const Negation*>(&f);
     return negation != NULL && atom == negation->atom;
   }
+
+  /* Returns an atomic formula that this is a negation of. */
+  virtual const Formula& negation() const;
+
+private:
+  /* Constructs a negated atomic formula. */
+  Negation(const AtomicFormula& atom)
+    : atom(atom) {
+  }
+
+  friend const Formula& AtomicFormula::negation() const;
 };
 
-
-/* Returns a negation of this atomic formula. */
-inline const Formula& AtomicFormula::negation() const {
-  return *(new Negation(*this));
-}
 
 /* Checks if this atomic formula negates the given formula. */
 inline bool AtomicFormula::negates(const Formula& f) const {
@@ -686,19 +655,15 @@ struct Equality : public Formula {
     : term1(term1), term2(term2) {
   }
 
-  /* Returns the instantiation of this equality. */
-  virtual const Equality& instantiation(size_t id) const {
-    return *(new Equality(term1.instantiation(id), term2.instantiation(id)));
-  }
+  /* Returns the instantiation of this formula. */
+  virtual const Equality& instantiation(size_t id) const;
 
-  /* Returns this equality subject to the given substitutions. */
-  virtual const Equality& substitution(const SubstitutionList& subst) const {
-    return *(new Equality(term1.substitution(subst),
-			  term2.substitution(subst)));
-  }
+  /* Returns an instantiation of this formula. */
+  virtual const Formula& instantiation(const SubstitutionList& subst,
+				       const Problem& problem) const;
 
-  /* Returns a negation of this equality. */
-  virtual const Formula& negation() const;
+  /* Returns this formula subject to the given substitutions. */
+  virtual const Formula& substitution(const SubstitutionList& subst) const;
 
   /* Checks if this formula involves the given predicate. */
   virtual bool involves(const string& predicate) const {
@@ -709,11 +674,6 @@ struct Equality : public Formula {
      will give rise to. */
   virtual size_t cost() const {
     return 0;
-  }
-
-  /* Checks if this formula is consistent. */
-  virtual bool consistent(const Problem& problem) const {
-    return term1 == term2;
   }
 
 protected:
@@ -727,6 +687,9 @@ protected:
 	    ((term1 == eq->term1 && term2 == eq->term2) ||
 	     (term1 == eq->term2 && term2 == eq->term1)));
   }
+
+  /* Returns a negation of this equality. */
+  virtual const Formula& negation() const;
 };
 
 
@@ -745,21 +708,15 @@ struct Inequality : public Formula {
     : term1(term1), term2(term2) {
   }
 
-  /* Returns an instantiation of this inequality. */
-  virtual const Inequality& instantiation(size_t id) const {
-    return *(new Inequality(term1.instantiation(id), term2.instantiation(id)));
-  }
+  /* Returns an instantiation of this formula. */
+  virtual const Inequality& instantiation(size_t id) const;
 
-  /* Returns this inequality subject to the given substitutions. */
-  virtual const Inequality& substitution(const SubstitutionList& subst) const {
-    return *(new Inequality(term1.substitution(subst),
-			    term2.substitution(subst)));
-  }
+  /* Returns an instantiation of this formula. */
+  virtual const Formula& instantiation(const SubstitutionList& subst,
+				       const Problem& problem) const;
 
-  /* Returns a negation of this inequality formula. */
-  virtual const Formula& negation() const {
-    return *(new Equality(term1, term2));
-  }
+  /* Returns this formula subject to the given substitutions. */
+  virtual const Formula& substitution(const SubstitutionList& subst) const;
 
   /* Checks if this formula involves the given predicate. */
   virtual bool involves(const string& predicate) const {
@@ -770,11 +727,6 @@ struct Inequality : public Formula {
      will give rise to. */
   virtual size_t cost() const {
     return 0;
-  }
-
-  /* Checks if this formula is consistent. */
-  virtual bool consistent(const Problem& problem) const {
-    return term1 != term2;
   }
 
 protected:
@@ -788,14 +740,13 @@ protected:
 	    ((term1 == neq->term1 && term2 == neq->term2) ||
 	     (term1 == neq->term2 && term2 == neq->term1)));
   }
+
+  /* Returns a negation of this inequality formula. */
+  virtual const Formula& negation() const;
 };
 
 
-/* Returns a negation of this equality. */
-inline const Formula& Equality::negation() const {
-  return *(new Inequality(term1, term2));
-}
-
+struct Disjunction;
 
 /*
  * Conjunction.
@@ -804,24 +755,15 @@ struct Conjunction : public Formula {
   /* The conjuncts. */
   const FormulaList& conjuncts;
 
-  /* Constructs a conjunction. */
-  Conjunction(const FormulaList& conjuncts)
-    : conjuncts(conjuncts) {
-  }
+  /* Returns an instantiation of this formula. */
+  virtual const Conjunction& instantiation(size_t id) const;
 
-  /* Returns an instantiation of this conjunction. */
-  virtual const Conjunction& instantiation(size_t id) const {
-    return *(new Conjunction(conjuncts.instantiation(id)));
-  }
+  /* Returns an instantiation of this formula. */
+  virtual const Formula& instantiation(const SubstitutionList& subst,
+				       const Problem& problem) const;
 
-  /* Returns this conjunction subject to the given substitutions. */
-  virtual const Conjunction&
-  substitution(const SubstitutionList& subst) const {
-    return *(new Conjunction(conjuncts.substitution(subst)));
-  }
-
-  /* Returns the negation of this conjunction. */
-  virtual const Formula& negation() const;
+  /* Returns this formula subject to the given substitutions. */
+  virtual const Formula& substitution(const SubstitutionList& subst) const;
 
   /* Checks if this formula involves the given predicate. */
   virtual bool involves(const string& predicate) const {
@@ -834,15 +776,12 @@ struct Conjunction : public Formula {
     return conjuncts.cost();
   }
 
-  /* Checks if this formula is consistent. */
-  virtual bool consistent(const Problem& problem) const {
+  /* Fills the provided list with goals achievable by this formula. */
+  virtual void achievable_goals(FormulaList& goals) const {
     for (FormulaList::const_iterator c = conjuncts.begin();
 	 c != conjuncts.end(); c++) {
-      if (!(*c)->consistent(problem)) {
-	return false;
-      }
+      goals.push_back(*c);
     }
-    return true;
   }
 
 protected:
@@ -854,6 +793,17 @@ protected:
     const Conjunction* conjunction = dynamic_cast<const Conjunction*>(&f);
     return conjunction != NULL && conjuncts == conjunction->conjuncts;
   }
+
+  /* Returns the negation of this conjunction. */
+  virtual const Formula& negation() const;
+
+private:
+  /* Constructs a conjunction. */
+  Conjunction(const FormulaList& conjuncts)
+    : conjuncts(conjuncts) {
+  }
+
+  friend const Formula& operator&&(const Formula& f1, const Formula& f2);
 };
 
 
@@ -864,26 +814,15 @@ struct Disjunction : public Formula {
   /* The disjuncts. */
   const FormulaList& disjuncts;
 
-  /* Constructs a disjunction. */
-  Disjunction(const FormulaList& disjuncts)
-    : disjuncts(disjuncts) {
-  }
+  /* Returns an instantiation of this formula. */
+  virtual const Disjunction& instantiation(size_t id) const;
 
-  /* Returns an instantiation of this disjunction. */
-  virtual const Disjunction& instantiation(size_t id) const {
-    return *(new Disjunction(disjuncts.instantiation(id)));
-  }
+  /* Returns an instantiation of this formula. */
+  virtual const Formula& instantiation(const SubstitutionList& subst,
+				       const Problem& problem) const;
 
-  /* Returns this disjunction subject to the given substitution. */
-  virtual const Disjunction&
-  substitution(const SubstitutionList& subst) const {
-    return *(new Disjunction(disjuncts.substitution(subst)));
-  }
-
-  /* Returns a negation of this disjunction. */
-  virtual const Formula& negation() const {
-    return *(new Conjunction(disjuncts.negation()));
-  }
+  /* Returns this formula subject to the given substitution. */
+  virtual const Formula& substitution(const SubstitutionList& subst) const;
 
   /* Checks if this formula involves the given predicate. */
   virtual bool involves(const string& predicate) const {
@@ -896,15 +835,12 @@ struct Disjunction : public Formula {
     return 1;
   }
 
-  /* Checks if this formula is consistent. */
-  virtual bool consistent(const Problem& problem) const {
-    for (FormulaList::const_iterator c = disjuncts.begin();
-	 c != disjuncts.end(); c++) {
-      if ((*c)->consistent(problem)) {
-	return true;
-      }
+  /* Fills the provided list with goals achievable by this formula. */
+  virtual void achievable_goals(FormulaList& goals) const {
+    for (FormulaList::const_iterator d = disjuncts.begin();
+	 d != disjuncts.end(); d++) {
+      goals.push_back(*d);
     }
-    return false;
   }
 
 protected:
@@ -916,13 +852,18 @@ protected:
     const Disjunction* disjunction = dynamic_cast<const Disjunction*>(&f);
     return disjunction != NULL && disjuncts == disjunction->disjuncts;
   }
+
+  /* Returns a negation of this disjunction. */
+  virtual const Formula& negation() const;
+
+private:
+  /* Constructs a disjunction. */
+  Disjunction(const FormulaList& disjuncts)
+    : disjuncts(disjuncts) {
+  }
+
+  friend const Formula& operator||(const Formula& f1, const Formula& f2);
 };
-
-
-/* Returns the negation of this conjunction. */
-inline const Formula& Conjunction::negation() const {
-  return *(new Disjunction(conjuncts.negation()));
-}
 
 
 /*
@@ -940,19 +881,14 @@ struct ExistsFormula : public Formula {
   }
 
   /* Returns an instantiation of this formula. */
-  virtual const ExistsFormula& instantiation(size_t id) const {
-    return *(new ExistsFormula(parameters.instantiation(id),
-			       body.instantiation(id)));
-  }
+  virtual const ExistsFormula& instantiation(size_t id) const;
+
+  /* Returns an instantiation of this formula. */
+  virtual const Formula& instantiation(const SubstitutionList& subst,
+				       const Problem& problem) const;
 
   /* Returns this formula subject to the given substitutions. */
-  virtual const ExistsFormula&
-  substitution(const SubstitutionList& subst) const {
-    return *(new ExistsFormula(parameters, body.substitution(subst)));
-  }
-
-  /* Returns a negation of this formula. */
-  virtual const Formula& negation() const;
+  virtual const Formula& substitution(const SubstitutionList& subst) const;
 
   /* Checks if this formula involves the given predicate. */
   virtual bool involves(const string& predicate) const {
@@ -965,9 +901,9 @@ struct ExistsFormula : public Formula {
     return 1;
   }
 
-  /* Checks if this formula is consistent. */
-  virtual bool consistent(const Problem& problem) const {
-    return body.consistent(problem);
+  /* Fills the provided list with goals achievable by this formula. */
+  virtual void achievable_goals(FormulaList& goals) const {
+    body.achievable_goals(goals);
   }
 
 protected:
@@ -980,6 +916,9 @@ protected:
     return (exists != NULL &&
 	    parameters == exists->parameters && body == exists->body);
   }
+
+  /* Returns a negation of this formula. */
+  virtual const Formula& negation() const;
 };
 
 
@@ -998,21 +937,14 @@ struct ForallFormula : public Formula {
   }
 
   /* Returns an instantiation of this formula. */
-  virtual const ForallFormula& instantiation(size_t id) const {
-    return *(new ForallFormula(parameters.instantiation(id),
-			       body.instantiation(id)));
-  }
+  virtual const ForallFormula& instantiation(size_t id) const;
+
+  /* Returns an instantiation of this formula. */
+  virtual const Formula& instantiation(const SubstitutionList& subst,
+				       const Problem& problem) const;
 
   /* Returns this formula subject to the given substitutions. */
-  virtual const ForallFormula&
-  substitution(const SubstitutionList& subst) const {
-    return *(new ForallFormula(parameters, body.substitution(subst)));
-  }
-
-  /* Returns the negation of this formula. */
-  virtual const Formula& negation() const {
-    return *(new ExistsFormula(parameters, body.negation()));
-  }
+  virtual const Formula& substitution(const SubstitutionList& subst) const;
 
   /* Checks if this formula involves the given predicate. */
   virtual bool involves(const string& predicate) const {
@@ -1025,9 +957,9 @@ struct ForallFormula : public Formula {
     return 1;
   }
 
-  /* Checks if this formula is consistent. */
-  virtual bool consistent(const Problem& problem) const {
-    return body.consistent(problem);
+  /* Fills the provided list with goals achievable by this formula. */
+  virtual void achievable_goals(FormulaList& goals) const {
+    body.achievable_goals(goals);
   }
 
 protected:
@@ -1040,12 +972,9 @@ protected:
     return (forall != NULL &&
 	    parameters == forall->parameters && body == forall->body);
   }
+
+  /* Returns the negation of this formula. */
+  virtual const Formula& negation() const;
 };
-
-
-/* Returns a negation of this formula. */
-inline const Formula& ExistsFormula::negation() const {
-  return *(new ForallFormula(parameters, body.negation()));
-}
 
 #endif /* FORMULAS_H */
