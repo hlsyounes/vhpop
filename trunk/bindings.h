@@ -2,7 +2,7 @@
 /*
  * Binding constraints.
  *
- * $Id: bindings.h,v 1.12 2001-12-23 17:36:45 lorens Exp $
+ * $Id: bindings.h,v 1.13 2001-12-26 18:51:45 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
@@ -17,7 +17,7 @@ struct Variable;
 struct Substitution;
 struct SubstitutionList;
 struct NameList;
-struct Formula;
+struct Literal;
 struct Equality;
 struct Inequality;
 struct Reason;
@@ -203,7 +203,7 @@ struct Bindings : public Printable, public gc {
 				       const BindingChain* inequalities);
 
   /* Checks if the given formulas can be unified. */
-  static bool unifiable(const Formula& f1, const Formula& f2);
+  static bool unifiable(const Literal& l1, const Literal& l2);
 
   /* Returns the binding for the given term, or the term itself if it
      is not bound to a single name. */
@@ -214,21 +214,21 @@ struct Bindings : public Printable, public gc {
 
   /* Checks if one of the given formulas is the negation of the other,
      and the atomic formulas can be unified. */
-  bool affects(const Formula& f1, const Formula& f2) const;
+  bool affects(const Literal& l1, const Literal& l2) const;
 
   /* Checks if one of the given formulas is the negation of the other,
      and the atomic formulas can be unified; the most general unifier
      is added to the provided substitution list. */
   bool affects(SubstitutionList& mgu,
-	       const Formula& f1, const Formula& f2) const;
+	       const Literal& l1, const Literal& l2) const;
 
   /* Checks if the given formulas can be unified. */
-  bool unify(const Formula& f1, const Formula& f2) const;
+  bool unify(const Literal& l1, const Literal& l2) const;
 
   /* Checks if the given formulas can be unified; the most general
      unifier is added to the provided substitution list. */
   bool unify(SubstitutionList& mgu,
-	     const Formula& f1, const Formula& f2) const;
+	     const Literal& l1, const Literal& l2) const;
 
   /* Checks if the given equality is consistent with the current
      bindings. */

@@ -1,8 +1,9 @@
 /*
- * $Id: bindings.cc,v 1.10 2001-12-23 17:36:42 lorens Exp $
+ * $Id: bindings.cc,v 1.11 2001-12-26 18:51:43 lorens Exp $
  */
 #include "bindings.h"
 #include "formulas.h"
+#include "heuristics.h"
 #include "plans.h"
 
 
@@ -517,8 +518,8 @@ const Bindings* Bindings::make_bindings(const StepChain* steps,
 
 
 /* Checks if the given formulas can be unified. */
-bool Bindings::unifiable(const Formula& f1, const Formula& f2) {
-  return Bindings(NULL, NULL, NULL, 0, NULL).unify(f1, f2);
+bool Bindings::unifiable(const Literal& l1, const Literal& l2) {
+  return Bindings(NULL, NULL, NULL, 0, NULL).unify(l1, l2);
 }
 
 
@@ -545,9 +546,9 @@ const NameSet* Bindings::domain(const Variable& v) const {
 
 /* Checks if one of the given formulas is the negation of the other,
    and the atomic formulas can be unified. */
-bool Bindings::affects(const Formula& f1, const Formula& f2) const {
+bool Bindings::affects(const Literal& l1, const Literal& l2) const {
   SubstitutionList dummy;
-  return affects(dummy, f1, f2);
+  return affects(dummy, l1, l2);
 }
 
 
@@ -555,14 +556,14 @@ bool Bindings::affects(const Formula& f1, const Formula& f2) const {
    and the atomic formulas can be unified; the most general unifier
    is added to the provided substitution list. */
 bool Bindings::affects(SubstitutionList& mgu,
-		       const Formula& f1, const Formula& f2) const {
-  const Negation* negation = dynamic_cast<const Negation*>(&f1);
+		       const Literal& l1, const Literal& l2) const {
+  const Negation* negation = dynamic_cast<const Negation*>(&l1);
   if (negation != NULL) {
-    return unify(mgu, f2, negation->atom);
+    return unify(mgu, l2, negation->atom);
   } else {
-    negation = dynamic_cast<const Negation*>(&f2);
+    negation = dynamic_cast<const Negation*>(&l2);
     if (negation != NULL) {
-      return unify(mgu, negation->atom, f1);
+      return unify(mgu, negation->atom, l1);
     } else {
       return false;
     }
@@ -571,49 +572,32 @@ bool Bindings::affects(SubstitutionList& mgu,
 
 
 /* Checks if the given formulas can be unified. */
-bool Bindings::unify(const Formula& f1, const Formula& f2) const {
+bool Bindings::unify(const Literal& l1, const Literal& l2) const {
   SubstitutionList dummy;
-  return unify(dummy, f1, f2);
+  return unify(dummy, l1, l2);
 }
 
 /* Checks if the given formulas can be unified; the most general
    unifier is added to the provided substitution list. */
 bool Bindings::unify(SubstitutionList& mgu,
-		     const Formula& f1, const Formula& f2) const {
-  const Atom* atom1;
-  const Atom* atom2;
-
-  /*
-   * Extract the atomic formulas if the given formulas are negations.
-   */
-  const Negation* negation1 = dynamic_cast<const Negation*>(&f1);
-  const Negation* negation2 = dynamic_cast<const Negation*>(&f2);
-  if (negation1 != NULL && negation2 != NULL) {
-    atom1 = &negation1->atom;
-    atom2 = &negation2->atom;
-  } else if (negation1 == NULL && negation2 == NULL) {
-    atom1 = dynamic_cast<const Atom*>(&f1);
-    atom2 = dynamic_cast<const Atom*>(&f2);
-    if (atom1 == NULL || atom2 == NULL) {
-      return false;
-    }
-  } else {
-    /* One is negation, but not the other. */
+		     const Literal& l1, const Literal& l2) const {
+  if (typeid(l1) != typeid(l2)) {
+    /* Not the same type of literal. */
     return false;
   }
 
-  if (atom1->predicate != atom2->predicate) {
+  if (l1.predicate() != l2.predicate()) {
     /* The predicates do not match. */
     return false;
   }
 
   /*
-   * Try to unify the terms of the atomic formulas.
+   * Try to unify the terms of the literals.
    */
-  /* Terms of the first atom. */
-  const TermList& terms1 = atom1->terms;
-  /* Terms of the second atom. */
-  const TermList& terms2 = atom2->terms;
+  /* Terms of the first literal. */
+  const TermList& terms1 = l1.terms();
+  /* Terms of the second literal. */
+  const TermList& terms2 = l2.terms();
   if (terms1.size() != terms2.size()) {
     /* Term lists of different size. */
     return false;

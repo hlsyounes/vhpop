@@ -2,7 +2,7 @@
 /*
  * Formulas.
  *
- * $Id: formulas.h,v 1.31 2001-12-25 20:10:56 lorens Exp $
+ * $Id: formulas.h,v 1.32 2001-12-26 18:51:51 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -12,12 +12,13 @@
 #include <hash_map>
 #include <hash_set>
 #include "support.h"
-#include "heuristics.h"
 
 struct Type;
 struct Domain;
 struct Problem;
 struct Bindings;
+struct HeuristicValue;
+struct PlanningGraph;
 
 
 struct Term;
@@ -173,9 +174,6 @@ struct TermList : public Vector<const Term*> {
 
   /* Returns this term list subject to the given substitutions. */
   const TermList& substitution(const SubstitutionList& subst) const;
-
-  /* Checks if this term list is equivalent to the given term list. */
-  bool equivalent(const TermList& terms) const;
 };
 
 /* Term list iterator. */
@@ -220,11 +218,20 @@ typedef VariableList::const_iterator VarListIter;
 /*
  * Abstract formula.
  */
-struct Formula : public Hashable, public Printable, public gc {
+struct Formula : public Printable, public gc {
   /* The true formula. */
   static const Formula& TRUE;
   /* The false formula. */
   static const Formula& FALSE;
+
+  /* Checks if this formula is a tautology. */
+  bool tautology() const;
+
+  /* Checks if this formula is a contradiction. */
+  bool contradiction() const;
+
+  /* Checks if this formula is either a tautology or contradiction. */
+  bool constant() const;
 
   /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(size_t id) const = 0;
@@ -246,8 +253,8 @@ struct Formula : public Hashable, public Printable, public gc {
   virtual const Formula& strip_equality() const = 0;
 
   /* Returns the heuristic value of this formula. */
-  virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
-					 const Bindings* b = NULL) const = 0;
+  virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
+			       const Bindings* b = NULL) const = 0;
 
   /* Checks if this formula is equivalent to the given formula.  Two
      formulas are equivalent if they only differ in the choice of
@@ -255,11 +262,6 @@ struct Formula : public Hashable, public Printable, public gc {
   virtual bool equivalent(const Formula& f) const = 0;
 
 protected:
-  /* Returns the hash value of this object. */
-  virtual size_t hash_value() const {
-    return 0;
-  }
-
   /* Returns the negation of this formula. */
   virtual const Formula& negation() const = 0;
 
@@ -283,21 +285,16 @@ const Formula& operator||(const Formula& f1, const Formula& f2);
  */
 struct FormulaList : public Vector<const Formula*> {
   /* Constructs an empty formula list. */
-  FormulaList() {}
+  FormulaList();
 
   /* Constructs a formula list with a single formula. */
-  FormulaList(const Formula* formula) {
-    push_back(formula);
-  }
+  explicit FormulaList(const Formula* formula);
 
   /* Returns an instantiation of this formula list. */
   const FormulaList& instantiation(size_t id) const;
 
-  /* Checks if this formula list is equivalent to the given formula list. */
-  bool equivalent(const FormulaList& formulas) const;
-
   /* Returns the negation of this formula list. */
-  const FormulaList& operator!() const;
+  const FormulaList& negation() const;
 };
 
 /* A formula list const iterator. */
@@ -305,17 +302,128 @@ typedef FormulaList::const_iterator FormulaListIter;
 
 
 /*
+ * A formula with a constant truth value.
+ */
+struct Constant : public Formula {
+  /* Returns an instantiation of this formula. */
+  virtual const Constant& instantiation(size_t id) const;
+
+  /* Returns an instantiation of this formula. */
+  virtual const Constant& instantiation(const Bindings& bindings) const;
+
+  /* Returns an instantiation of this formula. */
+  virtual const Constant& instantiation(const SubstitutionList& subst,
+					const Problem& problem) const;
+
+  /* Returns this formula subject to the given substitutions. */
+  virtual const Constant& substitution(const SubstitutionList& subst) const;
+
+  /* Returns this formula with static predicates assumed true. */
+  virtual const Constant& strip_static(const Domain& domain) const;
+
+  /* Returns this formula with equalities/inequalities assumed true. */
+  virtual const Constant& strip_equality() const;
+
+  /* Returns the heuristic value of this formula. */
+  virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
+			       const Bindings* b) const;
+
+  /* Checks if this formula is equivalent to the given formula.  Two
+     formulas are equivalent if they only differ in the choice of
+     variable names. */
+  virtual bool equivalent(const Formula& f) const;
+
+protected:
+  /* Prints this object on the given stream. */
+  virtual void print(ostream& os) const;
+
+  /* Returns a negation of this formula. */
+  virtual const Formula& negation() const;
+
+private:
+  /* Value of this constant. */
+  const bool value;
+
+  /* Constructs a constant formula. */
+  Constant(bool value);
+
+  friend struct Formula;
+};
+
+
+/*
+ * An abstract literal.
+ */
+struct Literal : public Formula {
+  /* Returns the predicate of this literal. */
+  virtual const string& predicate() const = 0;
+
+  /* Returns the terms of this literal. */
+  virtual const TermList& terms() const = 0;
+
+protected:
+  /* Checks if this object equals the given object. */
+  virtual bool equals(const Literal& o) const = 0;
+
+  /* Returns the hash value of this object. */
+  virtual size_t hash_value() const = 0;
+
+  friend bool operator==(const Literal& l1, const Literal& l2);
+  friend struct hash<Literal>;
+  friend struct hash<const Literal*>;
+};
+
+/* Equality operator for literals. */
+inline bool operator==(const Literal& l1, const Literal& l2) {
+  return l1.equals(l2);
+}
+
+/* Inequality operator for literals. */
+inline bool operator!=(const Literal& l1, const Literal& l2) {
+  return !(l1 == l2);
+}
+
+/*
+ * Equality function object for literal pointers.
+ */
+struct equal_to<const Literal*>
+  : public binary_function<const Literal*, const Literal*, bool> {
+  bool operator()(const Literal* l1, const Literal* l2) const {
+    return *l1 == *l2;
+  }
+};
+
+/*
+ * Hash function object for literals.
+ */
+struct hash<Literal> {
+  size_t operator()(const Literal& l) const {
+    return l.hash_value();
+  }
+};
+
+/*
+ * Hash function object for literal pointers.
+ */
+struct hash<const Literal*> {
+  size_t operator()(const Literal* l) const {
+    return l->hash_value();
+  }
+};
+
+
+/*
  * An atom.
  */
-struct Atom : public Formula {
-  /* Predicate of this atomic formula. */
-  const string predicate;
-  /* Terms of this atomic formula. */
-  const TermList& terms;
-
+struct Atom : public Literal {
   /* Constructs an atomic formula. */
-  Atom(const string& predicate, const TermList& terms)
-    : predicate(predicate), terms(terms) {}
+  Atom(const string& predicate, const TermList& terms);
+
+  /* Returns the predicate of this literal. */
+  virtual const string& predicate() const;
+
+  /* Returns the terms of this literal. */
+  virtual const TermList& terms() const;
 
   /* Returns an instantiation of this formula. */
   virtual const Atom& instantiation(size_t id) const;
@@ -337,17 +445,17 @@ struct Atom : public Formula {
   virtual const Atom& strip_equality() const;
 
   /* Returns the heuristic value of this formula. */
-  virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
-					 const Bindings* b = NULL) const;
+  virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
+			       const Bindings* b = NULL) const;
 
   /* Checks if this formula is equivalent to the given formula.  Two
-     formulas is equivalent if they only differ in the choice of
+     formulas are equivalent if they only differ in the choice of
      variable names. */
   virtual bool equivalent(const Formula& f) const;
 
 protected:
   /* Checks if this object equals the given object. */
-  virtual bool equals(const EqualityComparable& o) const;
+  virtual bool equals(const Literal& o) const;
 
   /* Returns the hash value of this object. */
   virtual size_t hash_value() const;
@@ -357,41 +465,30 @@ protected:
 
   /* Returns the negation of this formula. */
   virtual const Formula& negation() const;
+
+private:
+  /* Predicate of this atom. */
+  const string predicate_;
+  /* Terms of this atom. */
+  const TermList& terms_;
 };
-
-
-/*
- * List of atoms.
- */
-struct AtomList : public Vector<const Atom*> {
-  /* Constructs an empty atom list. */
-  AtomList() {}
-
-  /* Constructs an atom list with a single atom. */
-  AtomList(const Atom* atom) {
-    push_back(atom);
-  }
-
-  /* Returns an instantiation of this atom list. */
-  const AtomList& instantiation(size_t id) const;
-
-  /* Returns this atom list subject to the given substitutions. */
-  const AtomList& substitution(const SubstitutionList& subst) const;
-};
-
-typedef AtomList::const_iterator AtomListIter;
 
 
 /*
  * A negated atom.
  */
-struct Negation : public Formula {
+struct Negation : public Literal {
   /* The negated atom. */
   const Atom& atom;
 
   /* Constructs a negated atom. */
-  Negation(const Atom& atom)
-    : atom(atom) {}
+  Negation(const Atom& atom);
+
+  /* Returns the predicate of this literal. */
+  virtual const string& predicate() const;
+
+  /* Returns the terms of this literal. */
+  virtual const TermList& terms() const;
 
   /* Returns an instantiation of this formula. */
   virtual const Negation& instantiation(size_t id) const;
@@ -413,17 +510,17 @@ struct Negation : public Formula {
   virtual const Negation& strip_equality() const;
 
   /* Returns the heuristic value of this formula. */
-  virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
-					 const Bindings* b = NULL) const;
+  virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
+			       const Bindings* b = NULL) const;
 
   /* Checks if this formula is equivalent to the given formula.  Two
-     formulas is equivalent if they only differ in the choice of
+     formulas are equivalent if they only differ in the choice of
      variable names. */
   virtual bool equivalent(const Formula& f) const;
 
 protected:
   /* Checks if this object equals the given object. */
-  virtual bool equals(const EqualityComparable& o) const;
+  virtual bool equals(const Literal& o) const;
 
   /* Returns the hash value of this object. */
   virtual size_t hash_value() const;
@@ -437,28 +534,6 @@ protected:
 
 
 /*
- * List of negated atoms.
- */
-struct NegationList : public Vector<const Negation*> {
-  /* Constructs an empty negation list. */
-  NegationList() {}
-
-  /* Constructs a negation list with a single negated atom. */
-  NegationList(const Atom* atom) {
-    push_back(new Negation(*atom));
-  }
-
-  /* Returns an instantiation of this negation list. */
-  const NegationList& instantiation(size_t id) const;
-
-  /* Returns this negation list subject to the given substitutions. */
-  const NegationList& substitution(const SubstitutionList& subst) const;
-};
-
-typedef NegationList::const_iterator NegationListIter;
-
-
-/*
  * Equality formula.
  * This represents an atomic formula with an equality predicate.
  */
@@ -469,8 +544,7 @@ struct Equality : public Formula {
   const Term& term2;
 
   /* Constructs an equality. */
-  Equality(const Term& term1, const Term& term2)
-    : term1(term1), term2(term2) {}
+  Equality(const Term& term1, const Term& term2);
 
   /* Returns the instantiation of this formula. */
   virtual const Equality& instantiation(size_t id) const;
@@ -492,18 +566,15 @@ struct Equality : public Formula {
   virtual const Formula& strip_equality() const;
 
   /* Returns the heuristic value of this formula. */
-  virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
-					 const Bindings* b = NULL) const;
+  virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
+			       const Bindings* b = NULL) const;
 
   /* Checks if this formula is equivalent to the given formula.  Two
-     formulas is equivalent if they only differ in the choice of
+     formulas are equivalent if they only differ in the choice of
      variable names. */
   virtual bool equivalent(const Formula& f) const;
 
 protected:
-  /* Checks if this object equals the given object. */
-  virtual bool equals(const EqualityComparable& o) const;
-
   /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
 
@@ -523,8 +594,7 @@ struct Inequality : public Formula {
   const Term& term2;
 
   /* Constructs an inequality. */
-  Inequality(const Term& term1, const Term& term2)
-    : term1(term1), term2(term2) {}
+  Inequality(const Term& term1, const Term& term2);
 
   /* Returns an instantiation of this formula. */
   virtual const Inequality& instantiation(size_t id) const;
@@ -546,18 +616,15 @@ struct Inequality : public Formula {
   virtual const Formula& strip_equality() const;
 
   /* Returns the heuristic value of this formula. */
-  virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
-					 const Bindings* b = NULL) const;
+  virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
+			       const Bindings* b = NULL) const;
 
   /* Checks if this formula is equivalent to the given formula.  Two
-     formulas is equivalent if they only differ in the choice of
+     formulas are equivalent if they only differ in the choice of
      variable names. */
   virtual bool equivalent(const Formula& f) const;
 
 protected:
-  /* Checks if this object equals the given object. */
-  virtual bool equals(const EqualityComparable& o) const;
-
   /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
 
@@ -593,18 +660,15 @@ struct Conjunction : public Formula {
   virtual const Formula& strip_equality() const;
 
   /* Returns the heuristic value of this formula. */
-  virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
-					 const Bindings* b = NULL) const;
+  virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
+			       const Bindings* b = NULL) const;
 
   /* Checks if this formula is equivalent to the given formula.  Two
-     formulas is equivalent if they only differ in the choice of
+     formulas are equivalent if they only differ in the choice of
      variable names. */
   virtual bool equivalent(const Formula& f) const;
 
 protected:
-  /* Checks if this object equals the given object. */
-  virtual bool equals(const EqualityComparable& o) const;
-
   /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
 
@@ -613,8 +677,7 @@ protected:
 
 private:
   /* Constructs a conjunction. */
-  Conjunction(const FormulaList& conjuncts)
-    : conjuncts(conjuncts) {}
+  Conjunction(const FormulaList& conjuncts);
 
   friend const Formula& operator&&(const Formula& f1, const Formula& f2);
 };
@@ -647,18 +710,15 @@ struct Disjunction : public Formula {
   virtual const Formula& strip_equality() const;
 
   /* Returns the heuristic value of this formula. */
-  virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
-					 const Bindings* b = NULL) const;
+  virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
+			       const Bindings* b = NULL) const;
 
   /* Checks if this formula is equivalent to the given formula.  Two
-     formulas is equivalent if they only differ in the choice of
+     formulas are equivalent if they only differ in the choice of
      variable names. */
   virtual bool equivalent(const Formula& f) const;
 
 protected:
-  /* Checks if this object equals the given object. */
-  virtual bool equals(const EqualityComparable& o) const;
-
   /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
 
@@ -667,8 +727,7 @@ protected:
 
 private:
   /* Constructs a disjunction. */
-  Disjunction(const FormulaList& disjuncts)
-    : disjuncts(disjuncts) {}
+  Disjunction(const FormulaList& disjuncts);
 
   friend const Formula& operator||(const Formula& f1, const Formula& f2);
 };
@@ -684,12 +743,12 @@ struct QuantifiedFormula : public Formula {
   const Formula& body;
 
   /* Returns the heuristic value of this formula. */
-  virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
-					 const Bindings* b = NULL) const;
+  virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
+			       const Bindings* b = NULL) const;
 
 protected:
-  QuantifiedFormula(const VariableList& parameters, const Formula& body)
-    : parameters(parameters), body(body) {}
+  /* Constructs a quantified formula. */
+  QuantifiedFormula(const VariableList& parameters, const Formula& body);
 };
 
 
@@ -698,8 +757,7 @@ protected:
  */
 struct ExistsFormula : public QuantifiedFormula {
   /* Constructs an existentially quantified formula. */
-  ExistsFormula(const VariableList& parameters, const Formula& body)
-    : QuantifiedFormula(parameters, body) {}
+  ExistsFormula(const VariableList& parameters, const Formula& body);
 
   /* Returns an instantiation of this formula. */
   virtual const ExistsFormula& instantiation(size_t id) const;
@@ -721,14 +779,11 @@ struct ExistsFormula : public QuantifiedFormula {
   virtual const Formula& strip_equality() const;
 
   /* Checks if this formula is equivalent to the given formula.  Two
-     formulas is equivalent if they only differ in the choice of
+     formulas are equivalent if they only differ in the choice of
      variable names. */
   virtual bool equivalent(const Formula& f) const;
 
 protected:
-  /* Checks if this object equals the given object. */
-  virtual bool equals(const EqualityComparable& o) const;
-
   /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
 
@@ -742,8 +797,7 @@ protected:
  */
 struct ForallFormula : public QuantifiedFormula {
   /* Constructs a universally quantified formula. */
-  ForallFormula(const VariableList& parameters, const Formula& body)
-    : QuantifiedFormula(parameters, body) {}
+  ForallFormula(const VariableList& parameters, const Formula& body);
 
   /* Returns an instantiation of this formula. */
   virtual const ForallFormula& instantiation(size_t id) const;
@@ -765,20 +819,59 @@ struct ForallFormula : public QuantifiedFormula {
   virtual const Formula& strip_equality() const;
 
   /* Checks if this formula is equivalent to the given formula.  Two
-     formulas is equivalent if they only differ in the choice of
+     formulas are equivalent if they only differ in the choice of
      variable names. */
   virtual bool equivalent(const Formula& f) const;
 
 protected:
-  /* Checks if this object equals the given object. */
-  virtual bool equals(const EqualityComparable& o) const;
-
   /* Prints this object on the given stream. */
   virtual void print(ostream& os) const;
 
   /* Returns the negation of this formula. */
   virtual const Formula& negation() const;
 };
+
+
+/*
+ * List of atoms.
+ */
+struct AtomList : public Vector<const Atom*> {
+  /* Constructs an empty atom list. */
+  AtomList();
+
+  /* Constructs an atom list with a single atom. */
+  explicit AtomList(const Atom* atom);
+
+  /* Returns an instantiation of this atom list. */
+  const AtomList& instantiation(size_t id) const;
+
+  /* Returns this atom list subject to the given substitutions. */
+  const AtomList& substitution(const SubstitutionList& subst) const;
+};
+
+/* Atom list iterator. */
+typedef AtomList::const_iterator AtomListIter;
+
+
+/*
+ * List of negated atoms.
+ */
+struct NegationList : public Vector<const Negation*> {
+  /* Constructs an empty negation list. */
+  NegationList();
+
+  /* Constructs a negation list with a single negated atom. */
+  NegationList(const Atom* atom);
+
+  /* Returns an instantiation of this negation list. */
+  const NegationList& instantiation(size_t id) const;
+
+  /* Returns this negation list subject to the given substitutions. */
+  const NegationList& substitution(const SubstitutionList& subst) const;
+};
+
+/* Negation list iterator */
+typedef NegationList::const_iterator NegationListIter;
 
 
 #endif /* FORMULAS_H */

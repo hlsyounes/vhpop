@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.26 2001-12-25 20:11:16 lorens Exp $
+ * $Id: plans.h,v 1.27 2001-12-26 18:51:38 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -47,17 +47,19 @@ struct Flaw : public Printable, public gc {
  * Open condition.
  */
 struct OpenCondition : public Flaw {
-  /* Open condition. */
-  const Formula& condition;
   /* Id of step to which this open condition belongs. */
   const size_t step_id;
   /* Reason for open condition. */
   const Reason& reason;
 
   /* Constructs an open condition. */
-  OpenCondition(const Formula& condition, size_t step_id, const Reason& reason)
-    : condition(condition), step_id(step_id), reason(reason) {
-  }
+  OpenCondition(size_t step_id, const Reason& reason);
+
+  /* Returns the open condition. */
+  virtual const Formula& condition() const = 0;
+
+  /* Checks if this is a static open condition. */
+  virtual bool is_static(const Domain& domain) const = 0;
 
 protected:
   /* Prints this open condition on the given stream. */
@@ -72,21 +74,41 @@ typedef Chain<const OpenCondition*> OpenConditionChain;
 
 
 /*
- * A predicate open condition.
+ * A literal open condition.
  */
-struct PredicateOpenCondition : public OpenCondition {
-  /* Predicate. */
-  const string& predicate;
-  /* Whether the predicate is negated. */
-  const bool negated;
+struct LiteralOpenCondition : public OpenCondition {
+  /* Literal. */
+  const Literal& literal;
 
-  /* Constructs an open condition. */
-  PredicateOpenCondition(const Formula& condition, size_t step_id,
-			 const Reason& reason, const string& predicate,
-			 bool negated = false)
-    : OpenCondition(condition, step_id, reason),
-      predicate(predicate), negated(negated) {
-  }
+  /* Constructs a literal open condition. */
+  LiteralOpenCondition(const Literal& condition, size_t step_id,
+		       const Reason& reason);
+
+  /* Returns the open condition. */
+  virtual const Formula& condition() const;
+
+  /* Checks if this is a static open condition. */
+  virtual bool is_static(const Domain& domain) const;
+};
+
+
+/*
+ * A formula open condition.
+ */
+struct FormulaOpenCondition : public OpenCondition {
+  /* Constructs a formula open condition. */
+  FormulaOpenCondition(const Formula& condition, size_t step_id,
+		       const Reason& reason);
+
+  /* Returns the open condition. */
+  virtual const Formula& condition() const;
+
+  /* Checks if this is a static open condition. */
+  virtual bool is_static(const Domain& domain) const;
+
+private:
+  /* The open condition. */
+  const Formula& condition_;
 };
 
 
@@ -103,11 +125,11 @@ struct Unsafe : public Flaw {
   /* Threatening effect. */
   const Effect& effect;
   /* Specific part of effect that threatens link. */
-  const Formula& effect_add;
+  const Literal& effect_add;
 
   /* Constructs a threatened causal link. */
   Unsafe(const Link& link, size_t step_id, const Effect& effect,
-	 const Formula& effect_add)
+	 const Literal& effect_add)
     : link(link), step_id(step_id), effect(effect), effect_add(effect_add) {
   }
 
@@ -132,14 +154,14 @@ struct Link : public Printable, public gc {
   /* Id of step that link goes to. */
   const size_t to_id;
   /* Condition satisfied by link. */
-  const Formula& condition;
+  const Literal& condition;
   /* Reason for link. */
   const Reason& reason;
 
   /* Constructs a causal link. */
-  Link(size_t from_id, const OpenCondition& open_cond)
+  Link(size_t from_id, const LiteralOpenCondition& open_cond)
     : from_id(from_id), to_id(open_cond.step_id),
-      condition(open_cond.condition), reason(open_cond.reason) {
+      condition(open_cond.literal), reason(open_cond.reason) {
   }
 
 protected:
@@ -443,23 +465,23 @@ private:
 			 const OpenCondition& open_cond) const;
 
   void add_step(PlanList& new_plans,
-		const PredicateOpenCondition& open_cond) const;
+		const LiteralOpenCondition& open_cond) const;
 
   void link_preconditions(PlanList& new_plans) const;
 
   void reuse_step(PlanList& new_plans,
-		  const PredicateOpenCondition& open_cond) const;
+		  const LiteralOpenCondition& open_cond) const;
 
   bool new_link(PlanList& new_plans, const Step& step,
-		const PredicateOpenCondition& open_cond, const Link& link,
+		const LiteralOpenCondition& open_cond, const Link& link,
 		const Reason& establish_reason) const;
 
   void new_cw_link(PlanList& new_plans, const Step& step,
-		   const PredicateOpenCondition& open_cond, const Link& link,
+		   const LiteralOpenCondition& open_cond, const Link& link,
 		   const Reason& establish_reason) const;
 
   const Plan* make_link(const Step& step, const Effect& effect,
-			const PredicateOpenCondition& open_cond,
+			const LiteralOpenCondition& open_cond,
 			const Link& link, const Reason& establish_reason,
 			const SubstitutionList& unifier) const;
 

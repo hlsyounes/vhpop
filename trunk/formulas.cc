@@ -1,5 +1,5 @@
 /*
- * $Id: formulas.cc,v 1.28 2001-12-25 20:10:51 lorens Exp $
+ * $Id: formulas.cc,v 1.29 2001-12-26 18:51:47 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -17,6 +17,30 @@ struct Substitutes
   /* Checks if the given substitution involves the given variable. */
   bool operator()(const Substitution* s, const Variable* v) const {
     return s->var == *v;
+  }
+};
+
+
+/*
+ * An equivalent terms binary predicate.
+ */
+struct EquivalentTerms
+  : public binary_function<const Term*, const Term*, bool> {
+  /* Checks if the two terms are equivalent. */
+  bool operator()(const Term* t1, const Term* t2) const {
+    return t1->equivalent(*t2);
+  }
+};
+
+
+/*
+ * An equivalent formulas binary predicate.
+ */
+struct EquivalentFormulas
+  : public binary_function<const Formula*, const Formula*, bool> {
+  /* Checks if the two formulas are equivalent. */
+  bool operator()(const Formula* f1, const Formula* f2) const {
+    return f1->equivalent(*f2);
   }
 };
 
@@ -207,22 +231,6 @@ const TermList& TermList::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Checks if this term list is equivalent to the given term list. */
-bool TermList::equivalent(const TermList& terms) const {
-  if (size() != terms.size()) {
-    return false;
-  } else {
-    for (const_iterator ti = begin(), tj = terms.begin();
-	 ti != end(); ti++, tj++) {
-      if (!(*ti)->equivalent(**tj)) {
-	return false;
-      }
-    }
-    return true;
-  }
-}
-
-
 /* ====================================================================== */
 /* VariableList */
 
@@ -241,85 +249,6 @@ const VariableList& VariableList::instantiation(size_t id) const {
 
 
 /* ====================================================================== */
-/* Constant */
-
-/*
- * A formula with a constant truth value.
- */
-struct Constant : public Formula {
-  /* Returns an instantiation of this formula. */
-  virtual const Constant& instantiation(size_t id) const {
-    return *this;
-  }
-
-  /* Returns an instantiation of this formula. */
-  virtual const Constant& instantiation(const Bindings& bindings) const {
-    return *this;
-  }
-
-  /* Returns an instantiation of this formula. */
-  virtual const Constant& instantiation(const SubstitutionList& subst,
-					const Problem& problem) const {
-    return *this;
-  }
-
-  /* Returns this formula subject to the given substitutions. */
-  virtual const Constant& substitution(const SubstitutionList& subst) const {
-    return *this;
-  }
-
-  /* Returns this formula with static predicates assumed true. */
-  virtual const Constant& strip_static(const Domain& domain) const {
-    return *this;
-  }
-
-  /* Returns this formula with equalities/inequalities assumed true. */
-  virtual const Constant& strip_equality() const {
-    return *this;
-  }
-
-  /* Returns the heuristic value of this formula. */
-  virtual HeuristicValue heuristic_value(const PlanningGraph& pg,
-					 const Bindings* b) const {
-    return HeuristicValue::ZERO;
-  }
-
-  /* Checks if this formula is equivalent to the given formula.  Two
-     formulas is equivalent if they only differ in the choice of
-     variable names. */
-  virtual bool equivalent(const Formula& f) const {
-    return equals(f);
-  }
-
-protected:
-  /* Checks if this object equals the given object. */
-  virtual bool equals(const EqualityComparable& o) const {
-    return this == &o;
-  }
-
-  /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const {
-    os << (value ? "TRUE" : "FALSE");
-  }
-
-  /* Returns a negation of this formula. */
-  virtual const Formula& negation() const {
-    return value ? FALSE : TRUE;
-  }
-
-private:
-  /* Value of this constant. */
-  const bool value;
-
-  /* Constructs a constant formula. */
-  Constant(bool value)
-    : value(value) {}
-
-  friend struct Formula;
-};
-
-
-/* ====================================================================== */
 /* Formula */
 
 /* The true formula. */
@@ -328,13 +257,31 @@ const Formula& Formula::TRUE = *(new Constant(true));
 const Formula& Formula::FALSE = *(new Constant(false));
 
 
+/* Checks if this formula is a tautology. */
+bool Formula::tautology() const {
+  return this == &TRUE;
+}
+
+
+/* Checks if this formula is a contradiction. */
+bool Formula::contradiction() const {
+  return this == &FALSE;
+}
+
+
+/* Checks if this formula is either a tautology or contradiction. */
+bool Formula::constant() const {
+  return tautology() || contradiction();
+}
+
+
 /* Conjunction operator for formulas. */
 const Formula& operator&&(const Formula& f1, const Formula& f2) {
-  if (f1 == Formula::FALSE || f2 == Formula::FALSE) {
+  if (f1.contradiction() || f2.contradiction()) {
     return Formula::FALSE;
-  } else if (f1 == Formula::TRUE) {
+  } else if (f1.tautology()) {
     return f2;
-  } else if (f2 == Formula::TRUE) {
+  } else if (f2.tautology()) {
     return f1;
   } else {
     FormulaList& conjuncts = *(new FormulaList());
@@ -359,11 +306,11 @@ const Formula& operator&&(const Formula& f1, const Formula& f2) {
 
 /* Disjunction operator for formulas. */
 const Formula& operator||(const Formula& f1, const Formula& f2) {
-  if (f1 == Formula::TRUE || f2 == Formula::TRUE) {
+  if (f1.tautology() || f2.tautology()) {
     return Formula::TRUE;
-  } else if (f1 == Formula::FALSE) {
+  } else if (f1.contradiction()) {
     return f2;
-  } else if (f2 == Formula::FALSE) {
+  } else if (f2.contradiction()) {
     return f1;
   } else {
     FormulaList& disjuncts = *(new FormulaList());
@@ -386,6 +333,18 @@ const Formula& operator||(const Formula& f1, const Formula& f2) {
 }
 
 
+/* ====================================================================== */
+/* FormulaList */
+
+/* Constructs an empty formula list. */
+FormulaList::FormulaList() {}
+
+
+/* Constructs a formula list with a single formula. */
+FormulaList::FormulaList(const Formula* formula)
+  : Vector<const Formula*>(1, formula) {}
+
+
 /* Returns an instantiation of this formula list. */
 const FormulaList& FormulaList::instantiation(size_t id) const {
   FormulaList& formulas = *(new FormulaList());
@@ -396,24 +355,8 @@ const FormulaList& FormulaList::instantiation(size_t id) const {
 }
 
 
-/* Checks if this formula list is equivalent to the given formula list. */
-bool FormulaList::equivalent(const FormulaList& formulas) const {
-  if (size() != formulas.size()) {
-    return false;
-  } else {
-    for (const_iterator i = begin(), j = formulas.begin();
-	 i != end(); i++, j++) {
-      if (!(*i)->equivalent(**j)) {
-	return false;
-      }
-    }
-    return true;
-  }
-}
-
-
 /* Returns the negation of this formula list. */
-const FormulaList& FormulaList::operator!() const {
+const FormulaList& FormulaList::negation() const {
   FormulaList& formulas = *(new FormulaList());
   for (const_iterator i = begin(); i != end(); i++) {
     formulas.push_back(&!**i);
@@ -422,15 +365,100 @@ const FormulaList& FormulaList::operator!() const {
 }
 
 
+/* ====================================================================== */
+/* Constant */
+
+/* Constructs a constant formula. */
+Constant::Constant(bool value)
+  : value(value) {}
+
+
+/* Returns an instantiation of this formula. */
+const Constant& Constant::instantiation(size_t id) const {
+  return *this;
+}
+
+
+/* Returns an instantiation of this formula. */
+const Constant& Constant::instantiation(const Bindings& bindings) const {
+  return *this;
+}
+
+
+/* Returns an instantiation of this formula. */
+const Constant& Constant::instantiation(const SubstitutionList& subst,
+					const Problem& problem) const {
+  return *this;
+}
+
+
+/* Returns this formula subject to the given substitutions. */
+const Constant& Constant::substitution(const SubstitutionList& subst) const {
+  return *this;
+}
+
+
+/* Returns this formula with static predicates assumed true. */
+const Constant& Constant::strip_static(const Domain& domain) const {
+  return *this;
+}
+
+
+/* Returns this formula with equalities/inequalities assumed true. */
+const Constant& Constant::strip_equality() const {
+  return *this;
+}
+
+
+/* Checks if this formula is equivalent to the given formula.  Two
+   formulas are equivalent if they only differ in the choice of
+   variable names. */
+bool Constant::equivalent(const Formula& f) const {
+  return &f == this;
+}
+
+
+/* Prints this object on the given stream. */
+void Constant::print(ostream& os) const {
+  os << (value ? "TRUE" : "FALSE");
+}
+
+
+/* Returns a negation of this formula. */
+const Formula& Constant::negation() const {
+  return value ? FALSE : TRUE;
+}
+
+
+/* ====================================================================== */
+/* Atom */
+
+/* Constructs an atomic formula. */
+Atom::Atom(const string& predicate, const TermList& terms)
+  : predicate_(predicate), terms_(terms) {}
+
+
+/* Returns the predicate of this literal. */
+const string& Atom::predicate() const {
+  return predicate_;
+}
+
+
+/* Returns the terms of this literal. */
+const TermList& Atom::terms() const {
+  return terms_;
+}
+
+
 /* Returns an instantiation of this formula. */
 const Atom& Atom::instantiation(size_t id) const {
-  return *(new Atom(predicate, terms.instantiation(id)));
+  return *(new Atom(predicate_, terms_.instantiation(id)));
 }
 
 
 /* Returns an instantiation of this formula. */
 const Formula& Atom::instantiation(const Bindings& bindings) const {
-  return *(new Atom(predicate, terms.instantiation(bindings)));
+  return *(new Atom(predicate_, terms_.instantiation(bindings)));
 }
 
 
@@ -438,7 +466,7 @@ const Formula& Atom::instantiation(const Bindings& bindings) const {
 const Formula& Atom::instantiation(const SubstitutionList& subst,
 				   const Problem& problem) const {
   const Atom& f = substitution(subst);
-  if (problem.domain.static_predicate(predicate)) {
+  if (problem.domain.static_predicate(predicate_)) {
     const AtomList& adds = problem.init.add_list;
     for (AtomListIter gi = adds.begin(); gi != adds.end(); gi++) {
       if (f == **gi) {
@@ -449,9 +477,9 @@ const Formula& Atom::instantiation(const SubstitutionList& subst,
     }
     return FALSE;
   } else {
-    const Type* type = problem.domain.find_type(predicate);
+    const Type* type = problem.domain.find_type(predicate_);
     if (type != NULL) {
-      return f.terms[0]->type.subtype(*type) ? TRUE : FALSE;
+      return f.terms_[0]->type.subtype(*type) ? TRUE : FALSE;
     } else {
       return f;
     }
@@ -461,14 +489,14 @@ const Formula& Atom::instantiation(const SubstitutionList& subst,
 
 /* Returns this formula subject to the given substitutions. */
 const Atom& Atom::substitution(const SubstitutionList& subst) const {
-  return *(new Atom(predicate, terms.substitution(subst)));
+  return *(new Atom(predicate_, terms_.substitution(subst)));
 }
 
 
 /* Returns this formula with static predicates assumed true. */
 const Formula& Atom::strip_static(const Domain& domain) const {
-  if (domain.static_predicate(predicate)
-      || domain.find_type(predicate) != NULL) {
+  if (domain.static_predicate(predicate_)
+      || domain.find_type(predicate_) != NULL) {
     return TRUE;
   } else {
     return *this;
@@ -483,29 +511,42 @@ const Atom& Atom::strip_equality() const {
 
 
 /* Checks if this formula is equivalent to the given formula.  Two
-   formulas is equivalent if they only differ in the choice of
+   formulas are equivalent if they only differ in the choice of
    variable names. */
 bool Atom::equivalent(const Formula& f) const {
   const Atom* atom = dynamic_cast<const Atom*>(&f);
-  return (atom != NULL && predicate == atom->predicate
-	  && terms.equivalent(atom->terms));
+  return (atom != NULL && predicate_ == atom->predicate_
+	  && terms_.size() == atom->terms_.size()
+	  && equal(terms_.begin(), terms_.end(), atom->terms_.begin(),
+		   EquivalentTerms()));
 }
 
 
 /* Checks if this object equals the given object. */
-bool Atom::equals(const EqualityComparable& o) const {
+bool Atom::equals(const Literal& o) const {
   const Atom* atom = dynamic_cast<const Atom*>(&o);
-  return (atom != NULL && predicate == atom->predicate
-	  && terms.size() == atom->terms.size()
-	  && equal(terms.begin(), terms.end(), atom->terms.begin(),
+  return (atom != NULL && predicate_ == atom->predicate_
+	  && terms_.size() == atom->terms_.size()
+	  && equal(terms_.begin(), terms_.end(), atom->terms_.begin(),
 		   equal_to<const EqualityComparable*>()));
+}
+
+
+/* Returns the hash value of this object. */
+size_t Atom::hash_value() const {
+  hash<Hashable> h;
+  size_t val = hash<string>()(predicate_);
+  for (TermListIter ti = terms_.begin(); ti != terms_.end(); ti++) {
+    val = 5*val + h(**ti);
+  }
+  return val;
 }
 
 
 /* Prints this object on the given stream. */
 void Atom::print(ostream& os) const {
-  os << '(' << predicate;
-  for (TermListIter ti = terms.begin(); ti != terms.end(); ti++) {
+  os << '(' << predicate_;
+  for (TermListIter ti = terms_.begin(); ti != terms_.end(); ti++) {
     os << ' ' << **ti;
   }
   os << ')';
@@ -518,34 +559,23 @@ const Formula& Atom::negation() const {
 }
 
 
-/* Returns the hash value of this object. */
-size_t Atom::hash_value() const {
-  hash<Hashable> h;
-  size_t val = hash<string>()(predicate);
-  for (TermListIter ti = terms.begin(); ti != terms.end(); ti++) {
-    val = 5*val + h(**ti);
-  }
-  return val;
+/* ====================================================================== */
+/* Negation */
+
+/* Constructs a negated atom. */
+Negation::Negation(const Atom& atom)
+  : atom(atom) {}
+
+
+/* Returns the predicate of this literal. */
+const string& Negation::predicate() const {
+  return atom.predicate();
 }
 
 
-/* Returns an instantiation of this atom list. */
-const AtomList& AtomList::instantiation(size_t id) const {
-  AtomList& atoms = *(new AtomList());
-  for (const_iterator i = begin(); i != end(); i++) {
-    atoms.push_back(&(*i)->instantiation(id));
-  }
-  return atoms;
-}
-
-
-/* Returns this atom list subject to the given substitutions. */
-const AtomList& AtomList::substitution(const SubstitutionList& subst) const {
-  AtomList& atoms = *(new AtomList());
-  for (const_iterator i = begin(); i != end(); i++) {
-    atoms.push_back(&(*i)->substitution(subst));
-  }
-  return atoms;
+/* Returns the terms of this literal. */
+const TermList& Negation::terms() const {
+  return atom.terms();
 }
 
 
@@ -576,8 +606,8 @@ const Negation& Negation::substitution(const SubstitutionList& subst) const {
 
 /* Returns this formula with static predicates assumed true. */
 const Formula& Negation::strip_static(const Domain& domain) const {
-  if (domain.static_predicate(atom.predicate)
-      || domain.find_type(atom.predicate) != NULL) {
+  if (domain.static_predicate(predicate())
+      || domain.find_type(predicate()) != NULL) {
     return FALSE;
   } else {
     return *this;
@@ -592,7 +622,7 @@ const Negation& Negation::strip_equality() const {
 
 
 /* Checks if this formula is equivalent to the given formula.  Two
-   formulas is equivalent if they only differ in the choice of
+   formulas are equivalent if they only differ in the choice of
    variable names. */
 bool Negation::equivalent(const Formula& f) const {
   const Negation* negation = dynamic_cast<const Negation*>(&f);
@@ -601,9 +631,15 @@ bool Negation::equivalent(const Formula& f) const {
 
 
 /* Checks if this object equals the given object. */
-bool Negation::equals(const EqualityComparable& o) const {
+bool Negation::equals(const Literal& o) const {
   const Negation* negation = dynamic_cast<const Negation*>(&o);
   return negation != NULL && atom == negation->atom;
+}
+
+
+/* Returns the hash value of this object. */
+size_t Negation::hash_value() const {
+  return 5*hash<Literal>()(atom);
 }
 
 
@@ -619,31 +655,12 @@ const Formula& Negation::negation() const {
 }
 
 
-/* Returns the hash value of this object. */
-size_t Negation::hash_value() const {
-  return 5*hash<Hashable>()(atom);
-}
+/* ====================================================================== */
+/* Equality */
 
-
-/* Returns an instantiation of this negation list. */
-const NegationList& NegationList::instantiation(size_t id) const {
-  NegationList& negations = *(new NegationList());
-  for (const_iterator i = begin(); i != end(); i++) {
-    negations.push_back(&(*i)->instantiation(id));
-  }
-  return negations;
-}
-
-
-/* Returns this negation list subject to the given substitutions. */
-const NegationList&
-NegationList::substitution(const SubstitutionList& subst) const {
-  NegationList& negations = *(new NegationList());
-  for (const_iterator i = begin(); i != end(); i++) {
-    negations.push_back(&(*i)->substitution(subst));
-  }
-  return negations;
-}
+/* Constructs an equality. */
+Equality::Equality(const Term& term1, const Term& term2)
+  : term1(term1), term2(term2) {}
 
 
 /* Returns the instantiation of this formula. */
@@ -698,19 +715,12 @@ const Formula& Equality::strip_equality() const {
 
 
 /* Checks if this formula is equivalent to the given formula.  Two
-   formulas is equivalent if they only differ in the choice of
+   formulas are equivalent if they only differ in the choice of
    variable names. */
 bool Equality::equivalent(const Formula& f) const {
   const Equality* eq = dynamic_cast<const Equality*>(&f);
   return (eq != NULL
 	  && term1.equivalent(eq->term1) && term2.equivalent(eq->term2));
-}
-
-
-/* Checks if this object equals the given object. */
-bool Equality::equals(const EqualityComparable& o) const {
-  const Equality* eq = dynamic_cast<const Equality*>(&o);
-  return eq != NULL && term1 == eq->term1 && term2 == eq->term2;
 }
 
 
@@ -724,6 +734,14 @@ void Equality::print(ostream& os) const {
 const Formula& Equality::negation() const {
   return *(new Inequality(term1, term2));
 }
+
+
+/* ====================================================================== */
+/* Inequality */
+
+/* Constructs an inequality. */
+Inequality::Inequality(const Term& term1, const Term& term2)
+  : term1(term1), term2(term2) {}
 
 
 /* Returns an instantiation of this formula. */
@@ -780,19 +798,12 @@ const Formula& Inequality::strip_equality() const {
 
 
 /* Checks if this formula is equivalent to the given formula.  Two
-   formulas is equivalent if they only differ in the choice of
+   formulas are equivalent if they only differ in the choice of
    variable names. */
 bool Inequality::equivalent(const Formula& f) const {
   const Inequality* neq = dynamic_cast<const Inequality*>(&f);
   return (neq != NULL
 	  && term1.equivalent(neq->term1) && term2.equivalent(neq->term2));
-}
-
-
-/* Checks if this object equals the given object. */
-bool Inequality::equals(const EqualityComparable& o) const {
-  const Inequality* neq = dynamic_cast<const Inequality*>(&o);
-  return neq != NULL && term1 == neq->term1 && term2 == neq->term2;
 }
 
 
@@ -808,6 +819,14 @@ const Formula& Inequality::negation() const {
 }
 
 
+/* ====================================================================== */
+/* Conjunction */
+
+/* Constructs a conjunction. */
+Conjunction::Conjunction(const FormulaList& conjuncts)
+  : conjuncts(conjuncts) {}
+
+
 /* Returns an instantiation of this formula. */
 const Conjunction& Conjunction::instantiation(size_t id) const {
   return *(new Conjunction(conjuncts.instantiation(id)));
@@ -817,7 +836,8 @@ const Conjunction& Conjunction::instantiation(size_t id) const {
 /* Returns an instantiation of this formula. */
 const Formula& Conjunction::instantiation(const Bindings& bindings) const {
   const Formula* c = &TRUE;
-  for (FormulaListIter fi = conjuncts.begin(); fi != conjuncts.end(); fi++) {
+  for (FormulaListIter fi = conjuncts.begin();
+       fi != conjuncts.end() && !c->contradiction(); fi++) {
     c = &(*c && (*fi)->instantiation(bindings));
   }
   return *c;
@@ -828,14 +848,9 @@ const Formula& Conjunction::instantiation(const Bindings& bindings) const {
 const Formula& Conjunction::instantiation(const SubstitutionList& subst,
 					  const Problem& problem) const {
   const Formula* c = &TRUE;
-  for (FormulaListIter fi = conjuncts.begin(); fi != conjuncts.end(); fi++) {
+  for (FormulaListIter fi = conjuncts.begin();
+       fi != conjuncts.end() && !c->contradiction(); fi++) {
     const Formula& ci = (*fi)->instantiation(subst, problem);
-    const Conjunction* conj = dynamic_cast<const Conjunction*>(c);
-    if (conj != NULL
-	&& member_if(conj->conjuncts.begin(), conj->conjuncts.end(),
-		     bind1st(equal_to<const EqualityComparable*>(), &!ci))) {
-      return FALSE;
-    }
     c = &(*c && ci);
   }
   return *c;
@@ -845,7 +860,8 @@ const Formula& Conjunction::instantiation(const SubstitutionList& subst,
 /* Returns this formula subject to the given substitutions. */
 const Formula& Conjunction::substitution(const SubstitutionList& subst) const {
   const Formula* c = &TRUE;
-  for (FormulaListIter fi = conjuncts.begin(); fi != conjuncts.end(); fi++) {
+  for (FormulaListIter fi = conjuncts.begin();
+       fi != conjuncts.end() && !c->contradiction(); fi++) {
     c = &(*c && (*fi)->substitution(subst));
   }
   return *c;
@@ -855,7 +871,8 @@ const Formula& Conjunction::substitution(const SubstitutionList& subst) const {
 /* Returns this formula with static predicates assumed true. */
 const Formula& Conjunction::strip_static(const Domain& domain) const {
   const Formula* c = &TRUE;
-  for (FormulaListIter fi = conjuncts.begin(); fi != conjuncts.end(); fi++) {
+  for (FormulaListIter fi = conjuncts.begin();
+       fi != conjuncts.end() && !c->contradiction(); fi++) {
     c = &(*c && (*fi)->strip_static(domain));
   }
   return *c;
@@ -865,7 +882,8 @@ const Formula& Conjunction::strip_static(const Domain& domain) const {
 /* Returns this formula with equalities/inequalities assumed true. */
 const Formula& Conjunction::strip_equality() const {
   const Formula* c = &TRUE;
-  for (FormulaListIter fi = conjuncts.begin(); fi != conjuncts.end(); fi++) {
+  for (FormulaListIter fi = conjuncts.begin();
+       fi != conjuncts.end() && !c->contradiction(); fi++) {
     c = &(*c && (*fi)->strip_equality());
   }
   return *c;
@@ -873,20 +891,13 @@ const Formula& Conjunction::strip_equality() const {
 
 
 /* Checks if this formula is equivalent to the given formula.  Two
-   formulas is equivalent if they only differ in the choice of
+   formulas are equivalent if they only differ in the choice of
    variable names. */
 bool Conjunction::equivalent(const Formula& f) const {
-  const Conjunction* conjunction = dynamic_cast<const Conjunction*>(&f);
-  return conjunction != NULL && conjuncts.equivalent(conjunction->conjuncts);
-}
-
-
-/* Checks if this object equals the given object. */
-bool Conjunction::equals(const EqualityComparable& o) const {
-  const Conjunction* conj = dynamic_cast<const Conjunction*>(&o);
-  return (conj != NULL && conjuncts.size() == conj->conjuncts.size()
+  const Conjunction* conj = dynamic_cast<const Conjunction*>(&f);
+  return (conj != NULL  && conjuncts.size() == conj->conjuncts.size()
 	  && equal(conjuncts.begin(), conjuncts.end(), conj->conjuncts.begin(),
-		   equal_to<const EqualityComparable*>()));
+		   EquivalentFormulas()));
 }
 
 
@@ -903,11 +914,20 @@ void Conjunction::print(ostream& os) const {
 /* Returns the negation of this formula. */
 const Formula& Conjunction::negation() const {
   const Formula* d = &FALSE;
-  for (FormulaListIter fi = conjuncts.begin(); fi != conjuncts.end(); fi++) {
+  for (FormulaListIter fi = conjuncts.begin();
+       fi != conjuncts.end() && !d->tautology(); fi++) {
     d = &(*d || !**fi);
   }
   return *d;
 }
+
+
+/* ====================================================================== */
+/* Disjunction */
+
+/* Constructs a disjunction. */
+Disjunction::Disjunction(const FormulaList& disjuncts)
+  : disjuncts(disjuncts) {}
 
 
 /* Returns an instantiation of this formula. */
@@ -919,7 +939,8 @@ const Disjunction& Disjunction::instantiation(size_t id) const {
 /* Returns an instantiation of this formula. */
 const Formula& Disjunction::instantiation(const Bindings& bindings) const {
   const Formula* d = &FALSE;
-  for (FormulaListIter fi = disjuncts.begin(); fi != disjuncts.end(); fi++) {
+  for (FormulaListIter fi = disjuncts.begin();
+       fi != disjuncts.end() && !d->tautology(); fi++) {
     d = &(*d || (*fi)->instantiation(bindings));
   }
   return *d;
@@ -930,7 +951,8 @@ const Formula& Disjunction::instantiation(const Bindings& bindings) const {
 const Formula& Disjunction::instantiation(const SubstitutionList& subst,
 					  const Problem& problem) const {
   const Formula* d = &TRUE;
-  for (FormulaListIter fi = disjuncts.begin(); fi != disjuncts.end(); fi++) {
+  for (FormulaListIter fi = disjuncts.begin();
+       fi != disjuncts.end() && !d->tautology(); fi++) {
     d = &(*d || (*fi)->instantiation(subst, problem));
   }
   return *d;
@@ -940,7 +962,8 @@ const Formula& Disjunction::instantiation(const SubstitutionList& subst,
 /* Returns this formula subject to the given substitutions. */
 const Formula& Disjunction::substitution(const SubstitutionList& subst) const {
   const Formula* d = &FALSE;
-  for (FormulaListIter fi = disjuncts.begin(); fi != disjuncts.end(); fi++) {
+  for (FormulaListIter fi = disjuncts.begin();
+       fi != disjuncts.end() && d->tautology(); fi++) {
     d = &(*d || (*fi)->substitution(subst));
   }
   return *d;
@@ -950,7 +973,8 @@ const Formula& Disjunction::substitution(const SubstitutionList& subst) const {
 /* Returns this formula with static predicates assumed true. */
 const Formula& Disjunction::strip_static(const Domain& domain) const {
   const Formula* d = &FALSE;
-  for (FormulaListIter fi = disjuncts.begin(); fi != disjuncts.end(); fi++) {
+  for (FormulaListIter fi = disjuncts.begin();
+       fi != disjuncts.end() && !d->tautology(); fi++) {
     d = &(*d || (*fi)->strip_static(domain));
   }
   return *d;
@@ -960,7 +984,8 @@ const Formula& Disjunction::strip_static(const Domain& domain) const {
 /* Returns this formula with equalities/inequalities assumed true. */
 const Formula& Disjunction::strip_equality() const {
   const Formula* d = &FALSE;
-  for (FormulaListIter fi = disjuncts.begin(); fi != disjuncts.end(); fi++) {
+  for (FormulaListIter fi = disjuncts.begin();
+       fi != disjuncts.end() && !d->tautology(); fi++) {
     d = &(*d || (*fi)->strip_equality());
   }
   return *d;
@@ -968,20 +993,13 @@ const Formula& Disjunction::strip_equality() const {
 
 
 /* Checks if this formula is equivalent to the given formula.  Two
-   formulas is equivalent if they only differ in the choice of
+   formulas are equivalent if they only differ in the choice of
    variable names. */
 bool Disjunction::equivalent(const Formula& f) const {
-  const Disjunction* disjunction = dynamic_cast<const Disjunction*>(&f);
-  return disjunction != NULL && disjuncts.equivalent(disjunction->disjuncts);
-}
-
-
-/* Checks if this object equals the given object. */
-bool Disjunction::equals(const EqualityComparable& o) const {
-  const Disjunction* disj = dynamic_cast<const Disjunction*>(&o);
+  const Disjunction* disj = dynamic_cast<const Disjunction*>(&f);
   return (disj != NULL && disjuncts.size() == disj->disjuncts.size()
 	  && equal(disjuncts.begin(), disjuncts.end(), disj->disjuncts.begin(),
-		   equal_to<const EqualityComparable*>()));
+		   EquivalentFormulas()));
 }
 
 
@@ -998,11 +1016,30 @@ void Disjunction::print(ostream& os) const {
 /* Returns the negation of this formula. */
 const Formula& Disjunction::negation() const {
   const Formula* c = &TRUE;
-  for (FormulaListIter fi = disjuncts.begin(); fi != disjuncts.end(); fi++) {
+  for (FormulaListIter fi = disjuncts.begin();
+       fi != disjuncts.end() && !c->contradiction(); fi++) {
     c = &(*c && !**fi);
   }
   return *c;
 }
+
+
+/* ====================================================================== */
+/* QuantifiedFormula */
+
+/* Constructs a quantified formula. */
+QuantifiedFormula::QuantifiedFormula(const VariableList& parameters,
+				     const Formula& body)
+  : parameters(parameters), body(body) {}
+
+
+/* ====================================================================== */
+/* ExistsFormula */
+
+/* Constructs an existentially quantified formula. */
+ExistsFormula::ExistsFormula(const VariableList& parameters,
+			     const Formula& body)
+  : QuantifiedFormula(parameters, body) {}
 
 
 /* Returns an instantiation of this formula. */
@@ -1015,7 +1052,7 @@ const ExistsFormula& ExistsFormula::instantiation(size_t id) const {
 /* Returns an instantiation of this formula. */
 const Formula& ExistsFormula::instantiation(const Bindings& bindings) const {
   const Formula& b = body.instantiation(bindings);
-  return (b == FALSE || b == TRUE) ? b : *(new ExistsFormula(parameters, b));
+  return b.constant() ? b : *(new ExistsFormula(parameters, b));
 }
 
 
@@ -1023,7 +1060,7 @@ const Formula& ExistsFormula::instantiation(const Bindings& bindings) const {
 const Formula& ExistsFormula::instantiation(const SubstitutionList& subst,
 					    const Problem& problem) const {
   const Formula& b = body.instantiation(subst, problem);
-  return (b == FALSE || b == TRUE) ? b : *(new ExistsFormula(parameters, b));
+  return b.constant() ? b : *(new ExistsFormula(parameters, b));
 }
 
 
@@ -1031,41 +1068,31 @@ const Formula& ExistsFormula::instantiation(const SubstitutionList& subst,
 const Formula&
 ExistsFormula::substitution(const SubstitutionList& subst) const {
   const Formula& b = body.substitution(subst);
-  return (b == FALSE || b == TRUE) ? b : *(new ExistsFormula(parameters, b));
+  return b.constant() ? b : *(new ExistsFormula(parameters, b));
 }
 
 
 /* Returns this formula with static predicates assumed true. */
 const Formula& ExistsFormula::strip_static(const Domain& domain) const {
   const Formula& b = body.strip_static(domain);
-  return (b == FALSE || b == TRUE) ? b : *(new ExistsFormula(parameters, b));
+  return b.constant() ? b : *(new ExistsFormula(parameters, b));
 }
 
 
 /* Returns this formula with equalities/inequalities assumed true. */
 const Formula& ExistsFormula::strip_equality() const {
-  return *this;
+  const Formula& b = body.strip_equality();
+  return b.constant() ? b : *(new ExistsFormula(parameters, b));
 }
 
 
 /* Checks if this formula is equivalent to the given formula.  Two
-   formulas is equivalent if they only differ in the choice of
+   formulas are equivalent if they only differ in the choice of
    variable names. */
 bool ExistsFormula::equivalent(const Formula& f) const {
   const ExistsFormula* exists = dynamic_cast<const ExistsFormula*>(&f);
   return (exists != NULL && parameters.size() == exists->parameters.size()
 	  && body.equivalent(exists->body));
-}
-
-
-/* Checks if this object equals the given object. */
-bool ExistsFormula::equals(const EqualityComparable& o) const {
-  const ExistsFormula* exists = dynamic_cast<const ExistsFormula*>(&o);
-  return (exists != NULL && parameters.size() == exists->parameters.size()
-	  && equal(parameters.begin(), parameters.end(),
-		   exists->parameters.begin(),
-		   equal_to<const EqualityComparable*>())
-	  && body == exists->body);
 }
 
 
@@ -1091,6 +1118,15 @@ const Formula& ExistsFormula::negation() const {
 }
 
 
+/* ====================================================================== */
+/* ForallFormula */
+
+/* Constructs a universally quantified formula. */
+ForallFormula::ForallFormula(const VariableList& parameters,
+			     const Formula& body)
+  : QuantifiedFormula(parameters, body) {}
+
+
 /* Returns an instantiation of this formula. */
 const ForallFormula& ForallFormula::instantiation(size_t id) const {
   return *(new ForallFormula(parameters.instantiation(id),
@@ -1101,7 +1137,7 @@ const ForallFormula& ForallFormula::instantiation(size_t id) const {
 /* Returns an instantiation of this formula. */
 const Formula& ForallFormula::instantiation(const Bindings& bindings) const {
   const Formula& b = body.instantiation(bindings);
-  return (b == FALSE || b == TRUE) ? b : *(new ForallFormula(parameters, b));
+  return b.constant() ? b : *(new ForallFormula(parameters, b));
 }
 
 
@@ -1109,7 +1145,7 @@ const Formula& ForallFormula::instantiation(const Bindings& bindings) const {
 const Formula& ForallFormula::instantiation(const SubstitutionList& subst,
 					    const Problem& problem) const {
   const Formula& b = body.instantiation(subst, problem);
-  return (b == FALSE || b == TRUE) ? b : *(new ForallFormula(parameters, b));
+  return b.constant() ? b : *(new ForallFormula(parameters, b));
 }
 
 
@@ -1117,41 +1153,31 @@ const Formula& ForallFormula::instantiation(const SubstitutionList& subst,
 const Formula&
 ForallFormula::substitution(const SubstitutionList& subst) const {
   const Formula& b = body.substitution(subst);
-  return (b == FALSE || b == TRUE) ? b : *(new ForallFormula(parameters, b));
+  return b.constant() ? b : *(new ForallFormula(parameters, b));
 }
 
 
 /* Returns this formula with static predicates assumed true. */
 const Formula& ForallFormula::strip_static(const Domain& domain) const {
   const Formula& b = body.strip_static(domain);
-  return (b == FALSE || b == TRUE) ? b : *(new ForallFormula(parameters, b));
+  return b.constant() ? b : *(new ForallFormula(parameters, b));
 }
 
 
 /* Returns this formula with equalities/inequalities assumed true. */
 const Formula& ForallFormula::strip_equality() const {
-  return *this;
+  const Formula& b = body.strip_equality();
+  return b.constant() ? b : *(new ForallFormula(parameters, b));
 }
 
 
 /* Checks if this formula is equivalent to the given formula.  Two
-   formulas is equivalent if they only differ in the choice of
+   formulas are equivalent if they only differ in the choice of
    variable names. */
 bool ForallFormula::equivalent(const Formula& f) const {
   const ForallFormula* forall = dynamic_cast<const ForallFormula*>(&f);
   return (forall != NULL && parameters.size() == forall->parameters.size()
 	  && body.equivalent(forall->body));
-}
-
-
-/* Checks if this object equals the given object. */
-bool ForallFormula::equals(const EqualityComparable& o) const {
-  const ForallFormula* forall = dynamic_cast<const ForallFormula*>(&o);
-  return (forall != NULL && parameters.size() == forall->parameters.size()
-	  && equal(parameters.begin(), parameters.end(),
-		   forall->parameters.begin(),
-		   equal_to<const EqualityComparable*>())
-	  && body == forall->body);
 }
 
 
@@ -1174,4 +1200,69 @@ void ForallFormula::print(ostream& os) const {
 /* Returns the negation of this formula. */
 const Formula& ForallFormula::negation() const {
   return *(new ExistsFormula(parameters, !body));
+}
+
+
+/* ====================================================================== */
+/* AtomList */
+
+/* Constructs an empty atom list. */
+AtomList::AtomList() {}
+
+
+/* Constructs an atom list with a single atom. */
+AtomList::AtomList(const Atom* atom)
+  : Vector<const Atom*>(1, atom) {}
+
+
+/* Returns an instantiation of this atom list. */
+const AtomList& AtomList::instantiation(size_t id) const {
+  AtomList& atoms = *(new AtomList());
+  for (const_iterator i = begin(); i != end(); i++) {
+    atoms.push_back(&(*i)->instantiation(id));
+  }
+  return atoms;
+}
+
+
+/* Returns this atom list subject to the given substitutions. */
+const AtomList& AtomList::substitution(const SubstitutionList& subst) const {
+  AtomList& atoms = *(new AtomList());
+  for (const_iterator i = begin(); i != end(); i++) {
+    atoms.push_back(&(*i)->substitution(subst));
+  }
+  return atoms;
+}
+
+
+/* ====================================================================== */
+/* NegationList */
+
+/* Constructs an empty negation list. */
+NegationList::NegationList() {}
+
+
+/* Constructs a negation list with a single negated atom. */
+NegationList::NegationList(const Atom* atom)
+  : Vector<const Negation*>(1, new Negation(*atom)) {}
+
+
+/* Returns an instantiation of this negation list. */
+const NegationList& NegationList::instantiation(size_t id) const {
+  NegationList& negations = *(new NegationList());
+  for (const_iterator i = begin(); i != end(); i++) {
+    negations.push_back(&(*i)->instantiation(id));
+  }
+  return negations;
+}
+
+
+/* Returns this negation list subject to the given substitutions. */
+const NegationList&
+NegationList::substitution(const SubstitutionList& subst) const {
+  NegationList& negations = *(new NegationList());
+  for (const_iterator i = begin(); i != end(); i++) {
+    negations.push_back(&(*i)->substitution(subst));
+  }
+  return negations;
 }
