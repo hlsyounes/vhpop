@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.h,v 3.9 2002-07-02 16:42:29 lorens Exp $
+ * $Id: plans.h,v 4.1 2002-09-18 02:41:05 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -397,9 +397,6 @@ private:
 
   /* Checks if this plan is a duplicate of a previous plan. */
   bool duplicate() const;
-
-  /* Checks if this plan is equivalent to the given plan. */
-  bool equivalent(const Plan& p) const;
 
   friend bool operator<(const Plan& p1, const Plan& p2);
   friend ostream& operator<<(ostream& os, const Plan& p);
