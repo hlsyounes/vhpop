@@ -1,5 +1,5 @@
 /*
- * $Id: bindings.cc,v 1.9 2001-11-07 19:21:50 lorens Exp $
+ * $Id: bindings.cc,v 1.10 2001-12-23 17:36:42 lorens Exp $
  */
 #include "bindings.h"
 #include "formulas.h"
@@ -558,11 +558,11 @@ bool Bindings::affects(SubstitutionList& mgu,
 		       const Formula& f1, const Formula& f2) const {
   const Negation* negation = dynamic_cast<const Negation*>(&f1);
   if (negation != NULL) {
-    return unify(mgu, negation->atom, f2);
+    return unify(mgu, f2, negation->atom);
   } else {
     negation = dynamic_cast<const Negation*>(&f2);
     if (negation != NULL) {
-      return unify(mgu, f1, negation->atom);
+      return unify(mgu, negation->atom, f1);
     } else {
       return false;
     }
@@ -580,28 +580,28 @@ bool Bindings::unify(const Formula& f1, const Formula& f2) const {
    unifier is added to the provided substitution list. */
 bool Bindings::unify(SubstitutionList& mgu,
 		     const Formula& f1, const Formula& f2) const {
+  const Atom* atom1;
+  const Atom* atom2;
+
   /*
    * Extract the atomic formulas if the given formulas are negations.
    */
-  const Formula* fp1 = &f1;
-  const Formula* fp2 = &f2;
-  const Negation* negation1 = dynamic_cast<const Negation*>(fp1);
-  if (negation1 != NULL) {
-    const Negation* negation2 = dynamic_cast<const Negation*>(fp2);
-    if (negation2 == NULL) {
-      /* One is negation, but not the other. */
+  const Negation* negation1 = dynamic_cast<const Negation*>(&f1);
+  const Negation* negation2 = dynamic_cast<const Negation*>(&f2);
+  if (negation1 != NULL && negation2 != NULL) {
+    atom1 = &negation1->atom;
+    atom2 = &negation2->atom;
+  } else if (negation1 == NULL && negation2 == NULL) {
+    atom1 = dynamic_cast<const Atom*>(&f1);
+    atom2 = dynamic_cast<const Atom*>(&f2);
+    if (atom1 == NULL || atom2 == NULL) {
       return false;
-    } else {
-      /* Both are negations. */
-      fp1 = negation1;
-      fp2 = negation2;
     }
-  }
-  const Atom* atom1 = dynamic_cast<const Atom*>(fp1);
-  const Atom* atom2 = dynamic_cast<const Atom*>(fp2);
-  if (atom1 == NULL || atom2 == NULL) {
+  } else {
+    /* One is negation, but not the other. */
     return false;
   }
+
   if (atom1->predicate != atom2->predicate) {
     /* The predicates do not match. */
     return false;
@@ -628,10 +628,16 @@ bool Bindings::unify(SubstitutionList& mgu,
     /*
      * Try to unify a pair of terms.
      */
-    const Name* name1 = dynamic_cast<const Name*>(*i);
+    const Term& term1 = **i;
+    const Term& term2 = **j;
+    if (!term2.type.subtype(term1.type)) {
+      /* Incompatible term types. */
+      return false;
+    }
+    const Name* name1 = dynamic_cast<const Name*>(&term1);
     if (name1 != NULL) {
       /* The first term is a name. */
-      const Name* name2 = dynamic_cast<const Name*>(*j);
+      const Name* name2 = dynamic_cast<const Name*>(&term2);
       if (name2 != NULL) {
 	/*
 	 * Both terms are names.
@@ -644,14 +650,13 @@ bool Bindings::unify(SubstitutionList& mgu,
 	/*
 	 * The first term is a name and the second is a variable.
 	 */
-	const Variable& var2 = dynamic_cast<const Variable&>(**j);
+	const Variable& var2 = dynamic_cast<const Variable&>(term2);
 	bl.push_back(new EqualityBinding(var2, *name1,
 					 *(new DummyReason())));
       }
     } else {
       /* The first term is a variable. */
-      const Variable& var1 = dynamic_cast<const Variable&>(**i);
-      const Term& term2 = **j;
+      const Variable& var1 = dynamic_cast<const Variable&>(term1);
       bl.push_back(new EqualityBinding(var1, term2, *(new DummyReason())));
     }
   }
@@ -659,7 +664,7 @@ bool Bindings::unify(SubstitutionList& mgu,
     /* Unification is inconsistent with current bindings. */
     return false;
   }
-  for (BindingList::const_iterator bi = bl.begin(); bi != bl.end(); bi++) {
+  for (BindingListIter bi = bl.begin(); bi != bl.end(); bi++) {
     /* Add unification to most general unifier. */
     const Binding& b = **bi;
     mgu.push_back(new Substitution(b.variable, b.term));
