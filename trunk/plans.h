@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.7 2001-07-29 18:00:29 lorens Exp $
+ * $Id: plans.h,v 1.8 2001-08-11 06:17:43 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -50,13 +50,12 @@ struct OpenCondition : public Flaw {
   /* Open condition. */
   const Formula& condition;
   /* Id of step to which this open condition belongs. */
-  const unsigned int step_id;
+  const size_t step_id;
   /* Reason for open condition. */
   const Reason& reason;
 
   /* Constructs an open condition. */
-  OpenCondition(const Formula& condition, unsigned int step_id,
-		const Reason& reason)
+  OpenCondition(const Formula& condition, size_t step_id, const Reason& reason)
     : condition(condition), step_id(step_id), reason(reason) {
   }
 
@@ -81,14 +80,14 @@ struct Unsafe : public Flaw {
   /* Threatened link. */
   const Link& link;
   /* Id of threatening step. */
-  const unsigned int step_id;
+  const size_t step_id;
   /* Threatening effect. */
   const Effect& effect;
   /* Specific part of effect that threatens link. */
   const Formula& effect_add;
 
   /* Constructs a threatened causal link. */
-  Unsafe(const Link& link, unsigned int step_id, const Effect& effect,
+  Unsafe(const Link& link, size_t step_id, const Effect& effect,
 	 const Formula& effect_add)
     : link(link), step_id(step_id), effect(effect), effect_add(effect_add) {
   }
@@ -110,16 +109,16 @@ typedef Chain<const Unsafe*> UnsafeChain;
  */
 struct Link : public gc {
   /* Id of step that link goes from. */
-  const unsigned int from_id;
+  const size_t from_id;
   /* Id of step that link goes to. */
-  const unsigned int to_id;
+  const size_t to_id;
   /* Condition satisfied by link. */
   const Formula& condition;
   /* Reason for link. */
   const Reason& reason;
 
   /* Constructs a causal link. */
-  Link(unsigned int from_id, const OpenCondition& open_cond)
+  Link(size_t from_id, const OpenCondition& open_cond)
     : from_id(from_id), to_id(open_cond.step_id),
       condition(open_cond.condition), reason(open_cond.reason) {
   }
@@ -149,30 +148,27 @@ typedef Chain<const Link*> LinkChain;
  */
 struct Step : public gc {
   /* Step id. */
-  const unsigned int id;
+  const size_t id;
   /* Action formula, or NULL if step is not instantiated from an action. */
   const AtomicFormula* const action;
   /* Precondition of step, or NULL if step has no precondition. */
-  const Formula* const precondition;
+  const Formula& precondition;
   /* List of effects. */
   const EffectList& effects;
   /* Reason for step. */
   const Reason& reason;
 
   /* Constructs a step. */
-  Step(unsigned int id, const Formula* precondition, const EffectList& effects,
+  Step(size_t id, const Formula& precondition, const EffectList& effects,
        const Reason& reason)
-    : id(id), action(NULL),
-      precondition((precondition != NULL) ?
-		   &precondition->instantiation(id) : NULL),
+    : id(id), action(NULL), precondition(precondition.instantiation(id)),
       effects(effects.instantiation(id)), reason(reason) {
   }
 
   /* Constructs a step instantiated from an action. */
-  Step(unsigned int id, const Action& action, const Reason& reason)
+  Step(size_t id, const Action& action, const Reason& reason)
     : id(id), action(&action.action_formula(id)),
-      precondition((action.precondition != NULL) ?
-		   &action.precondition->instantiation(id) : NULL),
+      precondition(action.precondition.instantiation(id)),
       effects(action.effects.instantiation(id)), reason(reason) {
   }
 
@@ -183,9 +179,8 @@ struct Step : public gc {
 
 private:
   /* Constructs a step. */
-  Step(unsigned int id, const AtomicFormula* action,
-       const Formula* precondition, const EffectList& effects,
-       const Reason& reason)
+  Step(size_t id, const AtomicFormula* action, const Formula& precondition,
+       const EffectList& effects, const Reason& reason)
     : id(id), action(action), precondition(precondition), effects(effects),
       reason(reason) {
   }
@@ -203,14 +198,14 @@ typedef Chain<const Step*> StepChain;
  */
 struct Ordering : public gc {
   /* Preceeding step. */
-  const unsigned int before_id;
+  const size_t before_id;
   /* Succeeding step. */
-  const unsigned int after_id;
+  const size_t after_id;
   /* Reason for ordering constraint. */
   const Reason& reason;
 
   /* Constructs an ordering constraint. */
-  Ordering(unsigned int before_id, unsigned int after_id, const Reason& reason)
+  Ordering(size_t before_id, size_t after_id, const Reason& reason)
     : before_id(before_id), after_id(after_id), reason(reason) {
   }
 
@@ -247,16 +242,16 @@ struct Orderings : public gc {
   Orderings(const StepChain* steps, const OrderingChain* orderings);
 
   /* Checks if the first step is ordered before the second step. */
-  bool before(unsigned int id1, unsigned int id2) const;
+  bool before(size_t id1, size_t id2) const;
 
   /* Checks if the first step is ordered after the second step. */
-  bool after(unsigned int id1, unsigned int id2) const;
+  bool after(size_t id1, size_t id2) const;
 
   /* Checks if the first step could be ordered before the second step. */
-  bool possibly_before(unsigned int id1, unsigned int id2) const;
+  bool possibly_before(size_t id1, size_t id2) const;
 
   /* Checks if the first step could be ordered after the second step. */
-  bool possibly_after(unsigned int id1, unsigned int id2) const;
+  bool possibly_after(size_t id1, size_t id2) const;
 
   /* Returns the the ordering collection with the given additions. */
   const Orderings& refine(const Ordering& new_ordering,
@@ -269,16 +264,16 @@ struct Orderings : public gc {
 
 private:
   /* A step id map. */
-  typedef hash_map<unsigned int, unsigned int> IdMap;
+  typedef hash_map<size_t, size_t> IdMap;
 
   /* The ordering constraints making up this collection. */
   const OrderingChain* orderings_;
   /* Number of steps. */
-  unsigned int size_;
+  size_t size_;
   /* Maps step ids to positions in the matrix below. */
   IdMap id_map1_;
   /* Maps positions in the matrix below to step ids */
-  vector<unsigned int> id_map2_;
+  vector<size_t> id_map2_;
   /* Matrix representing the transitive closure of the ordering constraints. */
   vector<vector<bool> > order_;
 
@@ -319,12 +314,11 @@ private:
  */
 struct Plan : public gc {
   /* Id of goal step. */
-  static const unsigned int GOAL_ID;
+  static const size_t GOAL_ID;
 
   /* Returns plan for given problem. */
-  static const Plan* plan(const Problem& problem, Heuristic heuristic,
-			  unsigned int early_linking, bool transformations,
-			  unsigned int limit, unsigned int verbosity);
+  static const Plan* plan(const Problem& problem, Heuristic h, int e, bool g,
+			  bool t, size_t limit, int v);
 
   /* Checks if this plan is complete. */
   bool complete() const;
@@ -352,16 +346,6 @@ private:
   /* Type of plan. */
   typedef enum { NORMAL_PLAN, INTERMEDIATE_PLAN, TRANSFORMED_PLAN } PlanType;
 
-  /* Heristic to use for estimating cost of plan. */
-  static Heuristic heuristic;
-  /* Whether to allow early linking. */
-  static unsigned int early_linking;
-  /* Whether to allow transformational plan operators. */
-  static bool transformations;
-  /* Verbosity. */
-  static unsigned int verbosity;
-  /* Number of visited plans. */
-  static size_t num_visited_plans;
   /* Number of generated plans. */
   static size_t num_generated_plans;
 
@@ -369,17 +353,17 @@ private:
      in plan for more than one reason). */
   const StepChain* const steps_;
   /* Number of unique steps in plan. */
-  const unsigned int num_steps_;
+  const size_t num_steps_;
   /* Highest step id that has been used so far. */
-  const unsigned int high_step_id_;
+  const size_t high_step_id_;
   /* Chain of causal links. */
   const LinkChain* const links_;
   /* Number of causal links. */
-  const unsigned int num_links_;
+  const size_t num_links_;
   /* Chain of potentially threatened links. */
   const UnsafeChain* const unsafes_;
   /* Number of potentially threatened links. */
-  const unsigned int num_unsafes_;
+  const size_t num_unsafes_;
   /* Chain of open conditions. */
   const OpenConditionChain* const open_conds_;
   /* Number of open conditions. */
@@ -407,9 +391,9 @@ private:
   static const Plan* make_initial_plan(const Problem& problem);
 
   /* Constructs a plan. */
-  Plan(const StepChain* steps, unsigned int num_steps, unsigned int high_id,
-       const LinkChain* links, unsigned int num_links,
-       const UnsafeChain* unsafes, unsigned int num_unsafes,
+  Plan(const StepChain* steps, size_t num_steps, size_t high_id,
+       const LinkChain* links, size_t num_links,
+       const UnsafeChain* unsafes, size_t num_unsafes,
        const OpenConditionChain* open_conds, size_t num_open_conds,
        size_t num_static_open_conds, const OpenConditionChain* old_open_conds,
        const Bindings& bindings, const Orderings& orderings,
@@ -501,7 +485,7 @@ private:
 		   const Action& pred, size_t step_id) const;
 
   size_t make_node(CostGraph& cg,
-		   hash_map<unsigned int, size_t>& step_nodes,
+		   hash_map<size_t, size_t>& step_nodes,
 		   hash_map<const Action*, size_t>& pred_nodes,
 		   const Formula& condition, size_t step_id) const;
 

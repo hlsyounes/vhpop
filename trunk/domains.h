@@ -2,7 +2,7 @@
 /*
  * Domain descriptions.
  *
- * $Id: domains.h,v 1.6 2001-07-29 17:43:56 lorens Exp $
+ * $Id: domains.h,v 1.7 2001-08-11 06:16:40 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -106,6 +106,9 @@ struct Effect : public gc {
      predicate. */
   bool involves(const string& predicate) const;
 
+  /* Fills the provided list with goals achievable by this effect. */
+  void achievable_goals(FormulaList& goals) const;
+
 private:
   /* Prints this effect on the given stream. */
   void print(ostream& os) const;
@@ -172,6 +175,14 @@ struct EffectList : public gc, vector<const Effect*, container_alloc> {
     }
     return false;
   }
+
+  /* Fills the provided list with goals achievable by the effect in
+     this list. */
+  void achievable_goals(FormulaList& goals) const {
+    for (const_iterator i = begin(); i != end(); i++) {
+      (*i)->achievable_goals(goals);
+    }
+  }
 };
 
 
@@ -182,8 +193,8 @@ struct Problem;
  * Abstract action definition.
  */
 struct Action : public gc {
-  /* Action precondition, or NULL if this action lacks preconditions. */
-  const Formula* const precondition;
+  /* Action precondition. */
+  const Formula& precondition;
   /* List of action effects. */
   const EffectList& effects;
   /* Roughly corresponds to the number of open conditions this action
@@ -207,9 +218,14 @@ struct Action : public gc {
   virtual void instantiations(ActionList& actions,
 			      const Problem& problem) const = 0;
 
+  /* Fills the provided list with goals achievable by this action. */
+  void achievable_goals(FormulaList& goals) const {
+    effects.achievable_goals(goals);
+  }
+
 protected:
   /* Constructs an action. */
-  Action(const Formula* precondition, const EffectList& effects);
+  Action(const Formula& precondition, const EffectList& effects);
 
   /* Tests if this action equals the given action. */
   virtual bool equals(const Action& a) const = 0;
@@ -222,7 +238,7 @@ protected:
 
 private:
   friend bool operator==(const Action& a1, const Action& a2);
-  friend struct hash<const Action*>;
+  friend struct hash<Action>;
   friend ostream& operator<<(ostream& os, const Action& a);
 };
 
@@ -240,17 +256,26 @@ inline bool operator!=(const Action& a1, const Action& a2) {
  * Equality function object for action pointers.
  */
 struct equal_to<const Action*> {
-  bool operator()(const Action* a1, const Action* a2) {
+  bool operator()(const Action* a1, const Action* a2) const {
     return *a1 == *a2;
   }
 };
 
 /*
- * Hash function object for actions pointers.
+ * Hash function object for actions.
+ */
+struct hash<Action> {
+  size_t operator()(const Action& a) const {
+    return a.hash_value();
+  }
+};
+
+/*
+ * Hash function object for action pointers.
  */
 struct hash<const Action*> {
   size_t operator()(const Action* a) const {
-    return a->hash_value();
+    return hash<Action>()(*a);
   }
 };
 
@@ -265,6 +290,16 @@ inline ostream& operator<<(ostream& os, const Action& a) {
  * List of action definitions.
  */
 struct ActionList : public gc, vector<const Action*, container_alloc> {
+  /* Fills the provided action list with actions that can achive the
+     give goal. */
+  void applicable_actions(ActionList& actions, const Formula& goal) const {
+    for (const_iterator i = begin(); i != end(); i++) {
+      const Action& a = **i;
+      if (a.applicable(goal)) {
+	actions.push_back(&a);
+      }
+    }
+  }
 };
 
 
@@ -287,7 +322,7 @@ struct ActionSchema : public Action {
   const VariableList& parameters;
 
   ActionSchema(const string& name, const VariableList& parameters,
-	       const Formula* precondition, const EffectList& effects)
+	       const Formula& precondition, const EffectList& effects)
     : Action(precondition, effects), name(name), parameters(parameters) {
   }
 
@@ -322,7 +357,7 @@ protected:
 struct GroundAction : public Action {
   /* Constructs a ground action, assuming arguments are names. */
   GroundAction(const string& name, const TermList& arguments,
-	       const Formula* precondition, const EffectList& effects);
+	       const Formula& precondition, const EffectList& effects);
 
   /* Returns a formula representing this action. */
   virtual const AtomicFormula& action_formula(size_t id) const {
@@ -430,23 +465,11 @@ struct Domain : public gc {
   /* Fills the provided name list with constants that are compatible
      with the given type. */
   void compatible_constants(NameList& constants,
-			    const Type& t = SimpleType::OBJECT_TYPE) const;
+			    const Type& t = SimpleType::OBJECT) const;
 
   /* Tests if the given predicate is static. */
   bool static_predicate(const string& predicate) const {
     return (static_predicates_.find(predicate) != static_predicates_.end());
-  }
-
-  /* Fills the provided action list with actions that can achive the
-     give goal. */
-  void applicable_actions(ActionList& actions, const Formula& goal) const {
-    for (ActionMap::const_iterator i = this->actions.begin();
-	 i != this->actions.end(); i++) {
-      const Action& a = *(*i).second;
-      if (a.applicable(goal)) {
-	actions.push_back(&a);
-      }
-    }
   }
 
 private:

@@ -2,7 +2,7 @@
 /*
  * Problem descriptions.
  *
- * $Id: problems.h,v 1.3 2001-07-29 18:10:25 lorens Exp $
+ * $Id: problems.h,v 1.4 2001-08-11 06:18:02 lorens Exp $
  */
 #ifndef PROBLEMS_H
 #define PROBLEMS_H
@@ -83,7 +83,7 @@ struct Problem : public gc {
      declared in the domain) that are compatible with the given
      type. */
   void compatible_objects(NameList& objects,
-			  const Type& t = SimpleType::OBJECT_TYPE) const;
+			  const Type& t = SimpleType::OBJECT) const;
 
   /* Fills the provided action list with ground actions instantiated
      from the action schemas of the domain. */
