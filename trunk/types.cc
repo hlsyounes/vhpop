@@ -1,5 +1,5 @@
 /*
- * $Id: types.cc,v 1.6 2001-10-06 23:02:50 lorens Exp $
+ * $Id: types.cc,v 1.7 2001-12-22 19:48:56 lorens Exp $
  */
 #include "types.h"
 
@@ -34,6 +34,11 @@ bool Type::object() const {
 
 /* The object type. */
 const SimpleType& SimpleType::OBJECT = *(new SimpleType("object"));
+
+
+/* Constructs a simple type with the given name. */
+SimpleType::SimpleType(const string& name, const Type& supertype)
+  : name(name), supertype(name == "object" ? *this : supertype) {}
 
 
 /* Checks if this type is a subtype of the given type. */
@@ -92,6 +97,12 @@ const Type& SimpleType::add(const Type& t) const {
 const Type& SimpleType::subtract(const Type& t) const {
   return subtype(t) ? OBJECT : *this;
 }
+
+
+/* Constructs the type that is the union of the given types.
+   N.B. Assumes type list is sorted. */
+UnionType::UnionType(const TypeList& types)
+  : types(types) {}
 
 
 /* Checks if this type is a subtype of the given type. */
