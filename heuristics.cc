@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 3.3 2002-03-11 13:15:58 lorens Exp $
+ * $Id: heuristics.cc,v 3.4 2002-03-18 10:11:07 lorens Exp $
  */
 #include <set>
 #include <typeinfo>
@@ -1003,7 +1003,7 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
 	     occ != NULL; occ = occ->tail) {
 	  const OpenCondition& open_cond = *occ->head;
 	  HeuristicValue v =
-	    formula_value(open_cond.condition(), open_cond.step_id, plan,
+	    formula_value(open_cond.condition(), open_cond.step_id(), plan,
 			  domain, *planning_graph);
 	  add_cost = sum(add_cost, v.add_cost());
 	  add_work = sum(add_work, v.add_work());
@@ -1038,7 +1038,7 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
 	     occ != NULL; occ = occ->tail) {
 	  const OpenCondition& open_cond = *occ->head;
 	  HeuristicValue v =
-	    formula_value(open_cond.condition(), open_cond.step_id, plan,
+	    formula_value(open_cond.condition(), open_cond.step_id(), plan,
 			  domain, *planning_graph, true);
 	  addr_cost = sum(addr_cost, v.add_cost());
 	  addr_work = sum(addr_work, v.add_work());
@@ -1077,10 +1077,10 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
 	     occ != NULL; occ = occ->tail) {
 	  const OpenCondition& open_cond = *occ->head;
 	  HeuristicValue v =
-	    formula_value(open_cond.condition(), open_cond.step_id, plan,
+	    formula_value(open_cond.condition(), open_cond.step_id(), plan,
 			  domain, *planning_graph);
 	  max_cost = max(max_cost,
-			 int(start_dist[open_cond.step_id] + 0.5)
+			 int(start_dist[open_cond.step_id()] + 0.5)
 			 + v.max_cost());
 	  max_work = sum(max_work, v.max_work());
 	}
@@ -1118,10 +1118,10 @@ void Heuristic::plan_rank(vector<double>& rank, const Plan& plan,
 	     occ != NULL; occ = occ->tail) {
 	  const OpenCondition& open_cond = *occ->head;
 	  HeuristicValue v =
-	    formula_value(open_cond.condition(), open_cond.step_id, plan,
+	    formula_value(open_cond.condition(), open_cond.step_id(), plan,
 			  domain, *planning_graph, true);
 	  maxr_cost = max(maxr_cost,
-			  int(start_dist[open_cond.step_id] + 0.5)
+			  int(start_dist[open_cond.step_id()] + 0.5)
 			  + v.max_cost());
 	  maxr_work = sum(maxr_work, v.max_work());
 	}
@@ -1867,9 +1867,9 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
       cout << "(considering " << open_cond << ")" << endl;
     }
     if (local_id == 0) {
-      local_id = open_cond.step_id;
+      local_id = open_cond.step_id();
     }
-    bool local = (open_cond.step_id == local_id);
+    bool local = (open_cond.step_id() == local_id);
     int is_static = -1;
     int is_unsafe = -1;
     int refinements = -1;
@@ -2028,7 +2028,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 	  case SelectionCriterion::LC:
 	    {
 	      HeuristicValue h =
-		formula_value(open_cond.condition(), open_cond.step_id, plan,
+		formula_value(open_cond.condition(), open_cond.step_id(), plan,
 			      domain, *pg, criterion.reuse);
 	      int rank = ((criterion.heuristic == SelectionCriterion::ADD)
 			  ? h.add_cost() : h.max_cost());
@@ -2047,7 +2047,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 	  case SelectionCriterion::MC:
 	    {
 	      HeuristicValue h =
-		formula_value(open_cond.condition(), open_cond.step_id, plan,
+		formula_value(open_cond.condition(), open_cond.step_id(), plan,
 			      domain, *pg, criterion.reuse);
 	      int rank = ((criterion.heuristic == SelectionCriterion::ADD)
 			  ? h.add_cost() : h.max_cost());
@@ -2066,7 +2066,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 	  case SelectionCriterion::LW:
 	    {
 	      HeuristicValue h =
-		formula_value(open_cond.condition(), open_cond.step_id, plan,
+		formula_value(open_cond.condition(), open_cond.step_id(), plan,
 			      domain, *pg, criterion.reuse);
 	      int rank = ((criterion.heuristic == SelectionCriterion::ADD)
 			  ? h.add_work() : h.max_work());
@@ -2085,7 +2085,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 	  case SelectionCriterion::MW:
 	    {
 	      HeuristicValue h =
-		formula_value(open_cond.condition(), open_cond.step_id, plan,
+		formula_value(open_cond.condition(), open_cond.step_id(), plan,
 			      domain, *pg, criterion.reuse);
 	      int rank = ((criterion.heuristic == SelectionCriterion::ADD)
 			  ? h.add_work() : h.max_work());
