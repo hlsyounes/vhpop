@@ -16,15 +16,13 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: types.h,v 3.11 2002-09-22 22:07:37 lorens Exp $
+ * $Id: types.h,v 3.12 2002-11-05 04:43:16 lorens Exp $
  */
 #ifndef TYPES_H
 #define TYPES_H
 
 #include <string>
 #include <set>
-
-using namespace std;
 
 
 /* ====================================================================== */
@@ -34,6 +32,9 @@ using namespace std;
  * Abstract type.
  */
 struct Type {
+  /* The object type. */
+  static const Type& OBJECT;
+
   /* Checks if this type is the object type. */
   bool object() const;
 
@@ -45,10 +46,10 @@ protected:
   virtual bool equals(const Type& t) const = 0;
 
   /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const = 0;
+  virtual void print(std::ostream& os) const = 0;
 
   friend bool operator==(const Type& t1, const Type& t2);
-  friend ostream& operator<<(ostream& os, const Type& t);
+  friend std::ostream& operator<<(std::ostream& os, const Type& t);
 };
 
 /* Equality operator for types. */
@@ -62,7 +63,7 @@ inline bool operator!=(const Type& t1, const Type& t2) {
 }
 
 /* Output operator for types. */
-ostream& operator<<(ostream& os, const Type& t);
+std::ostream& operator<<(std::ostream& os, const Type& t);
 
 
 /* ====================================================================== */
@@ -72,14 +73,15 @@ ostream& operator<<(ostream& os, const Type& t);
  * Simple type.
  */
 struct SimpleType : public Type {
-  /* The object type. */
-  static const SimpleType OBJECT;
-
   /* Constructs a simple type with the given name. */
-  explicit SimpleType(const string& name, const Type& supertype = OBJECT);
+  explicit SimpleType(const std::string& name, const Type& supertype = OBJECT);
+
+  /* Attemts to add the given supertype to this type.  Returns false
+     if the intended supertype is a subtype of this type. */
+  bool add_supertype(const Type& supertype);
 
   /* Returns the name of this simple type. */
-  const string& name() const { return name_; }
+  const std::string& name() const { return name_; }
 
   /* Returns the supertype of this simple type. */
   const Type& supertype() const { return *supertype_; }
@@ -92,13 +94,18 @@ protected:
   virtual bool equals(const Type& t) const;
 
   /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const;
+  virtual void print(std::ostream& os) const;
 
 private:
+  /* The object type. */
+  static const SimpleType OBJECT_;
+
   /* Name of type. */
-  string name_;
+  std::string name_;
   /* Supertype */
   const Type* supertype_;
+
+  friend struct Type;
 };
 
 
@@ -106,7 +113,7 @@ private:
 /* TypeSet */
 
 /* Set of simple types. */
-struct TypeSet : public set<const SimpleType*> {
+struct TypeSet : public std::set<const SimpleType*> {
 };
 
 /* Iterator for type lists. */
@@ -125,14 +132,17 @@ struct UnionType : public Type {
   /* Returns the union of two types. */
   static const Type& add(const Type& t1, const Type& t2);
 
+  /* Constructs an empty union type. */
+  UnionType();
+
   /* Constructs a singleton union type. */
   explicit UnionType(const SimpleType& type);
 
-  /* Returns the constituent types of this union type. */
-  const TypeSet& types() const { return types_; }
-
   /* Adds the given simple type to this union. */
   void add(const SimpleType& t);
+
+  /* Returns the constituent types of this union type. */
+  const TypeSet& types() const { return types_; }
 
   /* Checks if this type is a subtype of the given type. */
   virtual bool subtype(const Type& t) const;
@@ -142,7 +152,7 @@ protected:
   virtual bool equals(const Type& t) const;
 
   /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const;
+  virtual void print(std::ostream& os) const;
 
 private:
   /* Constituent types. */

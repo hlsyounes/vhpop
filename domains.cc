@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.cc,v 4.5 2002-09-24 17:32:29 lorens Exp $
+ * $Id: domains.cc,v 4.6 2002-11-05 04:41:44 lorens Exp $
  */
 #include <stack>
 #include "bindings.h"
@@ -705,13 +705,13 @@ const ActionSchemaMap& Domain::actions() const {
 
 
 /* Adds a type to this domain. */
-void Domain::add_type(const SimpleType& type) {
+void Domain::add_type(SimpleType& type) {
   types_.insert(make_pair(type.name(), &type));
 }
 
 
 /* Adds a constant to this domain. */
-void Domain::add_constant(const Name& constant) {
+void Domain::add_constant(Name& constant) {
   constants_[constant.name()] = &constant;
 }
 
@@ -737,9 +737,25 @@ void Domain::add_action(const ActionSchema& action) {
 
 /* Returns the type with the given name, or NULL if it is
    undefined. */
+SimpleType* Domain::find_type(const string& name) {
+  TypeMapIter ti = types_.find(name);
+  return (ti != types_.end()) ? (*ti).second : NULL;
+}
+
+
+/* Returns the type with the given name, or NULL if it is
+   undefined. */
 const SimpleType* Domain::find_type(const string& name) const {
   TypeMapIter ti = types_.find(name);
   return (ti != types_.end()) ? (*ti).second : NULL;
+}
+
+
+/* Returns the constant with the given name, or NULL if it is
+   undefined. */
+Name* Domain::find_constant(const string& name) {
+  NameMapIter ni = constants_.find(name);
+  return (ni != constants_.end()) ? (*ni).second : NULL;
 }
 
 

@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.h,v 4.5 2002-09-24 17:32:21 lorens Exp $
+ * $Id: domains.h,v 4.6 2002-11-05 04:41:53 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -25,6 +25,7 @@
 #include "requirements.h"
 #include "types.h"
 #include "formulas.h"
+#include <map>
 
 struct Problem;
 
@@ -70,7 +71,7 @@ private:
 /*
  * Hash function object for predicates.
  */
-namespace std {
+namespace __gnu_cxx {
 struct hash<const Predicate*> {
   size_t operator()(const Predicate* p) const {
     return size_t(p);
@@ -419,7 +420,7 @@ typedef GroundActionList::const_iterator GroundActionListIter;
 /*
  * Table of simple types.
  */
-struct TypeMap : hash_map<string, const SimpleType*> {
+struct TypeMap : map<string, SimpleType*> {
 };
 
 /* Iterator for type tables. */
@@ -468,10 +469,10 @@ struct Domain {
   const ActionSchemaMap& actions() const;
 
   /* Adds a type to this domain. */
-  void add_type(const SimpleType& type);
+  void add_type(SimpleType& type);
 
   /* Adds a constant to this domain. */
-  void add_constant(const Name& constant);
+  void add_constant(Name& constant);
 
   /* Adds a predicate to this domain. */
   void add_predicate(const Predicate& predicate);
@@ -481,7 +482,15 @@ struct Domain {
 
   /* Returns the type with the given name, or NULL if it is
      undefined. */
+  SimpleType* find_type(const string& name);
+
+  /* Returns the type with the given name, or NULL if it is
+     undefined. */
   const SimpleType* find_type(const string& name) const;
+
+  /* Returns the constant with the given name, or NULL if it is
+     undefined. */
+  Name* find_constant(const string& name);
 
   /* Returns the constant with the given name, or NULL if it is
      undefined. */

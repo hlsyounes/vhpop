@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: problems.h,v 3.3 2002-06-13 23:02:48 lorens Exp $
+ * $Id: problems.h,v 3.4 2002-11-05 04:42:09 lorens Exp $
  */
 #ifndef PROBLEMS_H
 #define PROBLEMS_H
@@ -70,13 +70,17 @@ struct Problem {
   const Domain& domain() const { return *domain_; }
 
   /* Adds an object to this problem. */
-  void add_object(const Name& object);
+  void add_object(Name& object);
 
   /* Sets the initial conditions of this problem. */
   void set_init(const Effect& effect);
 
   /* Sets the goal of this problem. */
   void set_goal(const Formula& goal);
+
+  /* Returns the object with the given name, or NULL if it is
+     undefined. */
+  Name* find_object(const string& name);
 
   /* Returns the object with the given name, or NULL if it is
      undefined. */

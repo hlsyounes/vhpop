@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: problems.cc,v 3.5 2002-06-13 23:02:54 lorens Exp $
+ * $Id: problems.cc,v 3.6 2002-11-05 04:42:06 lorens Exp $
  */
 #include "problems.h"
 #include "domains.h"
@@ -81,7 +81,7 @@ Problem::~Problem() {
 
 
 /* Adds an object to this problem. */
-void Problem::add_object(const Name& object) {
+void Problem::add_object(Name& object) {
   objects_[object.name()] = &object;
 }
 
@@ -95,6 +95,14 @@ void Problem::set_init(const Effect& effect) {
 /* Sets the goal of this problem. */
 void Problem::set_goal(const Formula& goal) {
   goal_ = &goal;
+}
+
+
+/* Returns the object with the given name, or NULL if it is
+   undefined. */
+Name* Problem::find_object(const string& name) {
+  NameMapIter ni = objects_.find(name);
+  return (ni != objects_.end()) ? (*ni).second : NULL;
 }
 
 

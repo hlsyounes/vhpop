@@ -15,14 +15,17 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 3.25 2002-09-20 16:36:37 lorens Exp $
+ * $Id: vhpop.cc,v 3.26 2002-11-05 04:42:32 lorens Exp $
  */
+#include <config.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cerrno>
 #include <sys/time.h>
 #if HAVE_GETOPT_LONG
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include <getopt.h>
 #else
 #include "getopt.h"
