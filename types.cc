@@ -13,171 +13,159 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: types.cc,v 4.7 2003-03-01 18:53:58 lorens Exp $
+ * $Id: types.cc,v 6.1 2003-03-23 10:42:18 lorens Exp $
  */
 #include "types.h"
-#include <algorithm>
-#include <iostream>
-
-
-/*
- * A subtype binary predicate.
- */
-struct Subtype : public std::binary_function<const Type*, const Type*, bool> {
-  /* Checks if the first type is a subtype of the second type. */
-  bool operator()(const Type* t1, const Type* t2) const {
-    return t1->subtype(*t2);
-  }
-};
 
 
 /* ====================================================================== */
-/* Type */
+/* TypeTable */
 
-/* The object type. */
-const Type& Type::OBJECT = SimpleType::OBJECT_;
-
-
-/* Checks if this type is the object type. */
-bool Type::object() const {
-  return this == &Type::OBJECT;
+/* Adds a simple type with the given name to this table and returns
+   the type. */
+Type TypeTable::add_type(const std::string& name) {
+  Type type = size();
+  names_.push_back(name);
+  types_.insert(std::make_pair(name, type));
+  subtype_.push_back(std::vector<bool>(2*type, false));
+  subtype_[type - 1][2*type - 1] = true;
+  return type;
 }
 
 
-/* Output operator for types. */
-std::ostream& operator<<(std::ostream& os, const Type& t) {
-  t.print(os);
-  return os;
-}
-
-
-/* ====================================================================== */
-/* SimpleType */
-
-/* The object type. */
-const SimpleType SimpleType::OBJECT_("object", Type::OBJECT);
-
-
-/* Constructs a simple type with the given name. */
-SimpleType::SimpleType(const std::string& name, const Type& supertype)
-  : name_(name),
-    supertype_(name == "object" ? (const Type*) this : &supertype) {}
-
-
-/* Attemts to add the given supertype to this type.  Returns false
-   if the intended supertype is a subtype of this type. */
-bool SimpleType::add_supertype(const Type& supertype) {
-  if (supertype.subtype(*this)) {
-    return false;
+/* Adds the union of the given types to this table and returns the
+   type. */
+Type TypeTable::add_type(const TypeSet& types) {
+  if (types.empty()) {
+    return OBJECT_TYPE;
+  } else if (types.size() == 1) {
+    return *types.begin();
   } else {
-    const Type& new_supertype = UnionType::add(*supertype_, supertype);
-    const UnionType* ut = dynamic_cast<const UnionType*>(supertype_);
-    if (ut != NULL) {
-      delete ut;
-    }
-    supertype_ = &new_supertype;
-    return true;
+    Type type = utypes_.size();
+    utypes_.push_back(types);
+    return -type - 1;
   }
 }
 
 
-/* Checks if this type is a subtype of the given type. */
-bool SimpleType::subtype(const Type& t) const {
-  if (this == &t || t.object()) {
-    return true;
+/* Returns the type with the given name.  If no type with the given
+   name exists, false is returned in the second part of the
+   result. */
+std::pair<Type, bool> TypeTable::find_type(const std::string& name) const {
+  if (name == OBJECT_NAME) {
+    return std::make_pair(OBJECT_TYPE, true);
   } else {
-    const SimpleType* st = dynamic_cast<const SimpleType*>(&t);
-    if (st != NULL) {
-      return !object() && supertype().subtype(t);
+    std::map<std::string, Type>::const_iterator ti = types_.find(name);
+    if (ti != types_.end()) {
+      return std::make_pair((*ti).second, true);
     } else {
-      const UnionType& ut = dynamic_cast<const UnionType&>(t);
-      return find_if(ut.types().begin(), ut.types().end(),
-		     bind1st(Subtype(), this)) != ut.types().end();
+      return std::make_pair(0, false);
     }
   }
 }
 
 
-/* Prints this object on the given stream. */
-void SimpleType::print(std::ostream& os) const {
-  os << name();
-}
-
-
-/* ====================================================================== */
-/* UnionType */
-
-/* Simplifies the given union type. */
-const Type& UnionType::simplify(const UnionType& t) {
-  const Type* new_type;
-  if (t.types().empty()) {
-    new_type = &Type::OBJECT;
-    delete &t;
-  } else if (t.types().size() == 1) {
-    new_type = *t.types().begin();
-    delete &t;
-  } else {
-    new_type = &t;
+/* Adds the second type as a supertype of the first type.  Returns
+   false if the intended supertype is a subtype of the first
+   type. */
+bool TypeTable::add_supertype(Type type1, Type type2) {
+  if (type2 < 0) {
+    /*
+     * Add all component types of type2 as supertypes of type1.
+     */
+    const TypeSet& types = utypes_[-type2 - 1];
+    for (TypeSet::const_iterator ti = types.begin(); ti != types.end(); ti++) {
+      if (!add_supertype(type1, *ti)) {
+	return false;
+      }
+    }
+    return true;
   }
-  return *new_type;
-}
 
-
-/* Returns the union of two types. */
-const Type& UnionType::add(const Type& t1, const Type& t2) {
-  UnionType* t;
-  const SimpleType* st1 = dynamic_cast<const SimpleType*>(&t1);
-  if (st1 != NULL) {
-    t = new UnionType(*st1);
-  } else {
-    const UnionType& ut1 = dynamic_cast<const UnionType&>(t1);
-    t = new UnionType(ut1);
+  if (subtype(type1, type2)) {
+    /* The first type is already a subtype of the second type. */
+    return true;
   }
-  const SimpleType* st2 = dynamic_cast<const SimpleType*>(&t2);
-  if (st2 != NULL) {
-    t->add(*st2);
-  } else {
-    const UnionType& ut2 = dynamic_cast<const UnionType&>(t2);
-    for (SimpleTypeListIter ti = ut2.types().begin();
-	 ti != ut2.types().end(); ti++) {
-      t->add(**ti);
+
+  if (subtype(type2, type1)) {
+    /* The second type is already a subtype of the first type. */
+    return false;
+  }
+
+  /*
+   * Make all subtypes of type1 subtypes of all supertypes of type2.
+   */
+  Type n = size();
+  for (Type k = 1; k < n; k++) {
+    if (subtype(k, type1) && !subtype(k, type2)) {
+      for (Type l = 1; l < n; l++) {
+	if (subtype(type2, l)) {
+	  if (k > l) {
+	    subtype_[k - 1][2*k - l - 1] = true;
+	  } else {
+	    subtype_[l - 1][k] = true;
+	  }
+	}
+      }
     }
   }
-  return simplify(*t);
+  return true;
 }
 
 
-/* Constructs an empty union type. */
-UnionType::UnionType() {
-}
-
-
-/* Constructs a singleton union type. */
-UnionType::UnionType(const SimpleType& t) {
-  types_.push_back(&t);
-}
-
-
-/* Adds the given simple type to this union type. */
-void UnionType::add(const SimpleType& t) {
-  if (!subtype(t)) {
-    types_.push_back(&t);
+/* Checks if the first type is a subtype of the second type. */
+bool TypeTable::subtype(Type type1, Type type2) const {
+  if (type1 == type2) {
+    /* Same types. */
+    return true;
+  } else if (type1 < 0) {
+    /* Every component type of type1 must be a subtype of type2. */
+    const TypeSet& types = utypes_[-type1 - 1];
+    for (TypeSet::const_iterator ti = types.begin(); ti != types.end(); ti++) {
+      if (!subtype(*ti, type2)) {
+	return false;
+      }
+    }
+    return true;
+  } else if (type2 < 0) {
+    /* type1 one must be a subtype of some component type of type2. */
+    const TypeSet& types = utypes_[-type2 - 1];
+    for (TypeSet::const_iterator ti = types.begin(); ti != types.end(); ti++) {
+      if (subtype(type1, *ti)) {
+	return true;
+      }
+    }
+    return false;
+  } else if (type1 > type2) {
+    return subtype_[type1 - 1][2*type1 - type2 - 1];
+  } else {
+    return subtype_[type2 - 1][type1];
   }
 }
 
 
-/* Checks if this type is a subtype of the given type. */
-bool UnionType::subtype(const Type& t) const {
-  return (find_if(types().begin(), types().end(), bind2nd(Subtype(), &t))
-	  != types().end());
+/* Fills the provided set with the components of the given type. */
+void TypeTable::components(TypeSet& components, Type type) const {
+  if (type < 0) {
+    components = utypes_[-type - 1];
+  } else if (type != OBJECT_TYPE) {
+    components.insert(type);
+  }
 }
 
 
-/* Prints this object on the given stream. */
-void UnionType::print(std::ostream& os) const {
-  os << "(either";
-  for (SimpleTypeListIter ti = types().begin(); ti != types().end(); ti++) {
-    os << ' ' << **ti;
+/* Prints the name of the given type of the given stream. */
+void TypeTable::print_name(std::ostream& os, Type type) const {
+  if (type < 0) {
+    const TypeSet& types = utypes_[-type - 1];
+    os << "(either";
+    for (TypeSet::const_iterator ti = types.begin(); ti != types.end(); ti++) {
+      os << ' ' << names_[*ti];
+    }
+    os << ")";
+  } else if (type == OBJECT_TYPE) {
+    os << OBJECT_NAME;
+  } else {
+    os << names_[type];
   }
-  os << ")";
 }
