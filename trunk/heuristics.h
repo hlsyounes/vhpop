@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.h,v 4.5 2003-03-01 18:51:19 lorens Exp $
+ * $Id: heuristics.h,v 6.1 2003-07-13 16:02:29 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
@@ -171,7 +171,7 @@ private:
 
   /* Mapping of predicate names to ground atoms. */
   struct PredicateAtomsMap
-    : public hashing::hash_multimap<const Predicate*, const Atom*> {
+    : public hashing::hash_multimap<Predicate, const Atom*> {
   };
 
   /* Iterator for PredicateAtomsMap. */
