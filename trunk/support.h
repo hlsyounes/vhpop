@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  * 
- * $Id: support.h,v 3.9 2002-09-22 23:20:53 lorens Exp $
+ * $Id: support.h,v 3.10 2002-09-23 04:06:36 lorens Exp $
  */
 #ifndef SUPPORT_H
 #define SUPPORT_H
@@ -136,23 +136,8 @@ struct hash<string> {
 
 
 /*
- * A printable object.
+ * An ostream iterator outputting a space before each object.
  */
-struct Printable {
-  virtual ~Printable() {}
-
-protected:
-  /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const = 0;
-
-  friend ostream& operator<<(ostream& os, const Printable& o);
-};
-
-/* Output operator for printable objects. */
-ostream& operator<<(ostream& os, const Printable& o);
-
-
-/* An ostream iterator outputting a space before each object. */
 template <typename T>
 struct pre_ostream_iterator {
   typedef output_iterator_tag iterator_category;
@@ -190,18 +175,19 @@ private:
 /*
  * Run-time exception.
  */
-struct Exception : public Printable {
+struct Exception {
   /* Constructs an exception with the given message. */
   Exception(const string& message);
-
-protected:
-  /* Prints this object on the given stream. */
-  void print(ostream& os) const;
 
 private:
   /* Message. */
   string message;
+
+  friend ostream& operator<<(ostream& os, const Exception& e);
 };
+
+/* Output operator for exceptions. */
+ostream& operator<<(ostream& os, const Exception& e);
 
 
 /*
