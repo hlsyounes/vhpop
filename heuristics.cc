@@ -1,5 +1,5 @@
 /*
- * $Id: heuristics.cc,v 1.23 2002-01-07 19:48:18 lorens Exp $
+ * $Id: heuristics.cc,v 1.24 2002-01-09 16:58:11 lorens Exp $
  */
 #include <set>
 #include <typeinfo>
@@ -1712,16 +1712,18 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 	      } else {
 		has_new = (addable > 0);
 	      }
-	      selection.flaw = &open_cond;
-	      selection.criterion = c;
-	      last_criterion = has_new ? c - 1 : c;
-	      if (verbosity > 1) {
-		cout << "selecting " << open_cond << " by criterion "
-		     << criterion;
-		if (has_new) {
-		  cout << " with new";
+	      if (has_new || c < selection.criterion) {
+		selection.flaw = &open_cond;
+		selection.criterion = c;
+		last_criterion = has_new ? c - 1 : c;
+		if (verbosity > 1) {
+		  cout << "selecting " << open_cond << " by criterion "
+		       << criterion;
+		  if (has_new) {
+		    cout << " with new";
+		  }
+		  cout << endl;
 		}
-		cout << endl;
 	      }
 	    }
 	    break;
@@ -1737,16 +1739,18 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 	      } else {
 		has_reuse = (reusable > 0);
 	      }
-	      selection.flaw = &open_cond;
-	      selection.criterion = c;
-	      last_criterion = has_reuse ? c - 1 : c;
-	      if (verbosity > 1) {
-		cout << "selecting " << open_cond << " by criterion "
-		     << criterion;
-		if (has_reuse) {
-		  cout << " with reuse";
+	      if (has_reuse || c < selection.criterion) {
+		selection.flaw = &open_cond;
+		selection.criterion = c;
+		last_criterion = has_reuse ? c - 1 : c;
+		if (verbosity > 1) {
+		  cout << "selecting " << open_cond << " by criterion "
+		       << criterion;
+		  if (has_reuse) {
+		    cout << " with reuse";
+		  }
+		  cout << endl;
 		}
-		cout << endl;
 	      }
 	    }
 	    break;
