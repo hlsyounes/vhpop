@@ -1,5 +1,5 @@
 /*
- * $Id: formulas.cc,v 1.31 2001-12-27 19:58:20 lorens Exp $
+ * $Id: formulas.cc,v 1.32 2001-12-29 15:52:21 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -554,7 +554,7 @@ void Atom::print(ostream& os) const {
 
 
 /* Returns the negation of this formula. */
-const Formula& Atom::negation() const {
+const Literal& Atom::negation() const {
   return *(new Negation(*this));
 }
 
@@ -650,9 +650,17 @@ void Negation::print(ostream& os) const {
 
 
 /* Returns the negation of this formula. */
-const Formula& Negation::negation() const {
+const Literal& Negation::negation() const {
   return atom;
 }
+
+
+/* ====================================================================== */
+/* BindingLiteral */
+
+/* Constructs a binding literal. */
+BindingLiteral::BindingLiteral(const Term& term1, const Term& term2)
+  : term1(term1), term2(term2) {}
 
 
 /* ====================================================================== */
@@ -660,7 +668,7 @@ const Formula& Negation::negation() const {
 
 /* Constructs an equality. */
 Equality::Equality(const Term& term1, const Term& term2)
-  : term1(term1), term2(term2) {}
+  : BindingLiteral(term1, term2) {}
 
 
 /* Returns the instantiation of this formula. */
@@ -677,8 +685,12 @@ const Formula& Equality::instantiation(const Bindings& bindings) const {
   const Term& t2 = term2.instantiation(bindings);
   if (typeid(t1) == typeid(Name) && typeid(t2) == typeid(Name)) {
     return (t1 == t2) ? TRUE : FALSE;
+  } else if (&t1 == &term1 && &t2 == &term2) {
+    return *this;
+  } else if (t1.type.subtype(t2.type) || t2.type.subtype(t1.type)) {
+    return *(new Equality(t1, t2));
   } else {
-    return (&t1 == &term1 && &t2 == &term2) ? *this : *(new Equality(t1, t2));
+    return FALSE;
   }
 }
 
@@ -731,7 +743,7 @@ void Equality::print(ostream& os) const {
 
 
 /* Returns the negation of this formula. */
-const Formula& Equality::negation() const {
+const BindingLiteral& Equality::negation() const {
   return *(new Inequality(term1, term2));
 }
 
@@ -741,7 +753,7 @@ const Formula& Equality::negation() const {
 
 /* Constructs an inequality. */
 Inequality::Inequality(const Term& term1, const Term& term2)
-  : term1(term1), term2(term2) {}
+  : BindingLiteral(term1, term2) {}
 
 
 /* Returns an instantiation of this formula. */
@@ -758,9 +770,12 @@ const Formula& Inequality::instantiation(const Bindings& bindings) const {
   const Term& t2 = term2.instantiation(bindings);
   if (typeid(t1) == typeid(Name) && typeid(t2) == typeid(Name)) {
     return (t1 != t2) ? TRUE : FALSE;
+  } else if (&t1 == &term1 && &t2 == &term2) {
+    return *this;
+  } else if (t1.type.subtype(t2.type) || t2.type.subtype(t1.type)) {
+    return *(new Inequality(t1, t2));
   } else {
-    return ((&t1 == &term1 && &t2 == &term2)
-	    ? *this : *(new Inequality(t1, t2)));
+    return TRUE;
   }
 }
 
@@ -814,7 +829,7 @@ void Inequality::print(ostream& os) const {
 
 
 /* Returns the negation of this formula. */
-const Formula& Inequality::negation() const {
+const BindingLiteral& Inequality::negation() const {
   return *(new Equality(term1, term2));
 }
 
@@ -1113,7 +1128,7 @@ void ExistsFormula::print(ostream& os) const {
 
 
 /* Returns the negation of this formula. */
-const Formula& ExistsFormula::negation() const {
+const QuantifiedFormula& ExistsFormula::negation() const {
   return *(new ForallFormula(parameters, !body));
 }
 
@@ -1198,7 +1213,7 @@ void ForallFormula::print(ostream& os) const {
 
 
 /* Returns the negation of this formula. */
-const Formula& ForallFormula::negation() const {
+const QuantifiedFormula& ForallFormula::negation() const {
   return *(new ExistsFormula(parameters, !body));
 }
 

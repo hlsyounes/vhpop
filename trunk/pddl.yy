@@ -2,7 +2,7 @@
 /*
  * PDDL parser.
  *
- * $Id: pddl.yy,v 1.24 2001-12-28 17:55:29 lorens Exp $
+ * $Id: pddl.yy,v 1.25 2001-12-29 15:51:27 lorens Exp $
  */
 %{
 #include <typeinfo>
@@ -522,7 +522,13 @@ formula : atomic_term_formula
 			+ string(($3->size() == 1) ? "" : "s")
 			+ " passed to predicate `=' expecting 2");
 	      }
-	      $$ = new Equality(*(*$3)[0], *(*$3)[1]);
+	      const Term& t1 = *(*$3)[0];
+	      const Term& t2 = *(*$3)[1];
+	      if (t1.type.subtype(t2.type) || t2.type.subtype(t1.type)) {
+		$$ = new Equality(t1, t2);
+	      } else {
+		$$ = &Formula::FALSE;
+	      }
 	    }
         | '(' NOT formula ')'
             {

@@ -1,5 +1,5 @@
 /*
- * $Id: bindings.cc,v 1.13 2001-12-28 19:59:06 lorens Exp $
+ * $Id: bindings.cc,v 1.14 2001-12-29 15:52:05 lorens Exp $
  */
 #include <typeinfo>
 #include "bindings.h"
@@ -597,10 +597,6 @@ bool Bindings::unify(SubstitutionList& mgu,
     /* Term lists of different size. */
     return false;
   }
-
-  /*
-   * Unify one pair of terms at a time.
-   */
   BindingList bl;
   for (TermListIter i = terms1.begin(), j = terms2.begin();
        i != terms1.end(); i++, j++) {
@@ -638,7 +634,7 @@ bool Bindings::unify(SubstitutionList& mgu,
       bl.push_back(new EqualityBinding(var1, term2, Reason::DUMMY));
     }
   }
-  if (!bl.empty() && add(bl) == NULL) {
+  if (add(bl) == NULL) {
     /* Unification is inconsistent with current bindings. */
     return false;
   }
@@ -724,6 +720,11 @@ static void add_domain_bindings(BindingList& bindings,
    bindings to this binding collection, or NULL if the new bindings
    are inconsistent with the current. */
 const Bindings* Bindings::add(const BindingList& new_bindings) const {
+  if (new_bindings.empty()) {
+    /* No new bindings. */
+    return this;
+  }
+
   /* Equality bindings for new binding collection. */
   const BindingChain* equalities = this->equalities;
   /* Inequality bindings for new binding collection. */
