@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 3.1 2002-03-10 14:35:18 lorens Exp $
+ * $Id: plans.cc,v 3.2 2002-03-12 22:19:13 lorens Exp $
  */
 #include <queue>
 #include <algorithm>
@@ -879,9 +879,9 @@ int Plan::separable(const Unsafe& unsafe) const {
     const VariableList& effect_forall = unsafe.effect.forall;
     const Formula* goal = &Formula::FALSE;
     for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
-      const Substitution& subst = **si;
-      if (!member(effect_forall.begin(), effect_forall.end(), &subst.var)) {
-	const Inequality& neq = *new Inequality(subst.var, subst.term);
+      const Substitution& subst = *si;
+      if (!member(effect_forall.begin(), effect_forall.end(), subst.var)) {
+	const Inequality& neq = *new Inequality(*subst.var, *subst.term);
 	if (bindings_.consistent_with(neq)) {
 	  goal = &(*goal || neq);
 	}
@@ -892,9 +892,9 @@ int Plan::separable(const Unsafe& unsafe) const {
       if (!effect_forall.empty()) {
 	SubstitutionList forall_subst;
 	for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
-	  const Substitution& subst = **si;
-	  if (member(effect_forall.begin(), effect_forall.end(), &subst.var)) {
-	    forall_subst.push_back(&subst);
+	  const Substitution& subst = *si;
+	  if (member(effect_forall.begin(), effect_forall.end(), subst.var)) {
+	    forall_subst.push_back(subst);
 	  }
 	}
 	goal = &(*goal || !effect_cond.substitution(forall_subst));
@@ -927,9 +927,9 @@ void Plan::separate(PlanList& plans, const Unsafe& unsafe) const {
   const VariableList& effect_forall = unsafe.effect.forall;
   const Formula* goal = &Formula::FALSE;
   for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
-    const Substitution& subst = **si;
-    if (!member(effect_forall.begin(), effect_forall.end(), &subst.var)) {
-      const Inequality& neq = *new Inequality(subst.var, subst.term);
+    const Substitution& subst = *si;
+    if (!member(effect_forall.begin(), effect_forall.end(), subst.var)) {
+      const Inequality& neq = *new Inequality(*subst.var, *subst.term);
       if (bindings_.consistent_with(neq)) {
 	goal = &(*goal || neq);
       }
@@ -940,9 +940,9 @@ void Plan::separate(PlanList& plans, const Unsafe& unsafe) const {
     if (!effect_forall.empty()) {
       SubstitutionList forall_subst;
       for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
-	const Substitution& subst = **si;
-	if (member(effect_forall.begin(), effect_forall.end(), &subst.var)) {
-	  forall_subst.push_back(&subst);
+	const Substitution& subst = *si;
+	if (member(effect_forall.begin(), effect_forall.end(), subst.var)) {
+	  forall_subst.push_back(subst);
 	}
       }
       goal = &(*goal || !effect_cond.substitution(forall_subst));
@@ -1436,8 +1436,8 @@ int Plan::cw_link_possible(const EffectList& effects,
 	}
 	const Formula* binds = &Formula::FALSE;
 	for (SubstListIter si = mgu.begin(); si != mgu.end(); si++) {
-	  const Substitution& subst = **si;
-	  binds = &(*binds || *(new Inequality(subst.var, subst.term)));
+	  const Substitution& subst = *si;
+	  binds = &(*binds || *(new Inequality(*subst.var, *subst.term)));
 	}
 	goals = &(*goals && *binds);
       }
@@ -1478,8 +1478,8 @@ void Plan::new_cw_link(PlanList& plans, const Step& step,
 	}
 	const Formula* binds = &Formula::FALSE;
 	for (SubstListIter si = mgu.begin(); si != mgu.end(); si++) {
-	  const Substitution& subst = **si;
-	  binds = &(*binds || *(new Inequality(subst.var, subst.term)));
+	  const Substitution& subst = *si;
+	  binds = &(*binds || *(new Inequality(*subst.var, *subst.term)));
 	}
 	goals = &(*goals && *binds);
       }
@@ -1520,8 +1520,8 @@ int Plan::link_possible(const Formula& precondition, const Effect& effect,
   const VariableList& effect_forall = effect.forall;
   BindingList new_bindings;
   for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
-    const Substitution& subst = **si;
-    if (!member(effect_forall.begin(), effect_forall.end(), &subst.var)) {
+    const Substitution& subst = *si;
+    if (!member(effect_forall.begin(), effect_forall.end(), subst.var)) {
       new_bindings.push_back(new EqualityBinding(subst, Reason::DUMMY));
     }
   }
@@ -1536,9 +1536,9 @@ int Plan::link_possible(const Formula& precondition, const Effect& effect,
     if (!effect_forall.empty()) {
       SubstitutionList forall_subst;
       for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
-	const Substitution& subst = **si;
-	if (member(effect_forall.begin(), effect_forall.end(), &subst.var)) {
-	  forall_subst.push_back(&subst);
+	const Substitution& subst = *si;
+	if (member(effect_forall.begin(), effect_forall.end(), subst.var)) {
+	  forall_subst.push_back(subst);
 	}
       }
       cond_goal = &effect.condition.substitution(forall_subst);
@@ -1584,8 +1584,8 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
   const VariableList& effect_forall = effect.forall;
   BindingList new_bindings;
   for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
-    const Substitution& subst = **si;
-    if (!member(effect_forall.begin(), effect_forall.end(), &subst.var)) {
+    const Substitution& subst = *si;
+    if (!member(effect_forall.begin(), effect_forall.end(), subst.var)) {
       new_bindings.push_back(new EqualityBinding(subst, reason));
     }
   }
@@ -1600,9 +1600,9 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
     if (!effect_forall.empty()) {
       SubstitutionList forall_subst;
       for (SubstListIter si = unifier.begin(); si != unifier.end(); si++) {
-	const Substitution& subst = **si;
-	if (member(effect_forall.begin(), effect_forall.end(), &subst.var)) {
-	  forall_subst.push_back(&subst);
+	const Substitution& subst = *si;
+	if (member(effect_forall.begin(), effect_forall.end(), subst.var)) {
+	  forall_subst.push_back(subst);
 	}
       }
       cond_goal = &effect.condition.substitution(forall_subst);

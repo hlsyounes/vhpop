@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.cc,v 3.4 2002-03-12 19:44:58 lorens Exp $
+ * $Id: domains.cc,v 3.5 2002-03-12 22:19:05 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -108,9 +108,9 @@ void Effect::instantiations(EffectList& effects, const SubstitutionList& subst,
   } else {
     SubstitutionList args;
     for (SubstListIter si = subst.begin(); si != subst.end(); si++) {
-      const Substitution& s = **si;
-      if (!member(forall.begin(), forall.end(), &s.var)) {
-	args.push_back(&s);
+      const Substitution& s = *si;
+      if (!member(forall.begin(), forall.end(), s.var)) {
+	args.push_back(s);
       }
     }
     Vector<NameList*> arguments;
@@ -125,7 +125,7 @@ void Effect::instantiations(EffectList& effects, const SubstitutionList& subst,
     }
     size_t n = forall.size();
     for (size_t i = 0; i < n; ) {
-      args.push_back(new Substitution(*forall[i], **next_arg[i]));
+      args.push_back(Substitution(*forall[i], **next_arg[i]));
       const Formula& new_condition = condition.instantiation(args, problem);
       if (i + 1 == n || new_condition.contradiction()) {
 	if (!new_condition.contradiction()) {
@@ -167,9 +167,9 @@ const Effect& Effect::substitution(const SubstitutionList& subst) const {
   } else {
     SubstitutionList eff_subst;
     for (SubstListIter si = subst.begin(); si != subst.end(); si++) {
-      const Substitution& s = **si;
-      if (!member(forall.begin(), forall.end(), &s.var)) {
-	eff_subst.push_back(&s);
+      const Substitution& s = *si;
+      if (!member(forall.begin(), forall.end(), s.var)) {
+	eff_subst.push_back(s);
       }
     }
     return *(new Effect(forall, condition.substitution(eff_subst),
@@ -377,11 +377,9 @@ void ActionSchema::instantiations(GroundActionList& actions,
   preconds.push(&precondition);
   SubstitutionList args;
   for (size_t i = 0; i < n; ) {
-    const Substitution* subst =
-      new Substitution(*parameters[i], **next_arg[i]);
-    args.push_back(subst);
+    args.push_back(Substitution(*parameters[i], **next_arg[i]));
     SubstitutionList pargs;
-    pargs.push_back(subst);
+    pargs.push_back(Substitution(*parameters[i], **next_arg[i]));
     const Formula& new_precond = preconds.top()->instantiation(pargs, problem);
     preconds.push(&new_precond);
     if (i + 1 == n || new_precond.contradiction()) {
@@ -391,7 +389,7 @@ void ActionSchema::instantiations(GroundActionList& actions,
 	  /* consistent instantiation */
 	  NameList& names = *(new NameList());
 	  for (SubstListIter si = args.begin(); si != args.end(); si++) {
-	    const Name& name = dynamic_cast<const Name&>((*si)->term);
+	    const Name& name = dynamic_cast<const Name&>(*(*si).term);
 	    names.push_back(&name);
 	  }
 	  if (durative) {

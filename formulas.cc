@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.cc,v 3.3 2002-03-11 11:55:08 lorens Exp $
+ * $Id: formulas.cc,v 3.4 2002-03-12 22:19:17 lorens Exp $
  */
 #include <typeinfo>
 #include "formulas.h"
@@ -27,10 +27,10 @@
  * A substitutes binary predicate.
  */
 struct Substitutes
-  : public binary_function<const Substitution*, const Variable*, bool> {
+  : public binary_function<Substitution, const Variable*, bool> {
   /* Checks if the given substitution involves the given variable. */
-  bool operator()(const Substitution* s, const Variable* v) const {
-    return s->var == *v;
+  bool operator()(const Substitution& s, const Variable* v) const {
+    return *s.var == *v;
   }
 };
 
@@ -64,12 +64,12 @@ struct EquivalentFormulas
 
 /* Constructs a substitution. */
 Substitution::Substitution(const Variable& var, const Term& term)
-  : var(var), term(term) {}
+  : var(&var), term(&term) {}
 
 
 /* Prints this object on the given stream. */
 void Substitution::print(ostream& os) const {
-  os << '[' << var << '/' << term << ']';
+  os << '[' << *var << '/' << *term << ']';
 }
 
 
@@ -168,7 +168,7 @@ const Variable& Variable::instantiation(size_t id) const {
 const Term& Variable::substitution(const SubstitutionList& subst) const {
   SubstListIter si = find_if(subst.begin(), subst.end(),
 			     bind2nd(Substitutes(), this));
-  return (si != subst.end()) ? (*si)->term : *this;
+  return (si != subst.end()) ? *(*si).term : *this;
 }
 
 
@@ -1098,7 +1098,7 @@ const Formula& ExistsFormula::instantiation(const SubstitutionList& subst,
   disjuncts.push(&b);
   for (size_t i = 0; i < n; ) {
     SubstitutionList pargs;
-    pargs.push_back(new Substitution(*parameters[i], **next_arg[i]));
+    pargs.push_back(Substitution(*parameters[i], **next_arg[i]));
     const Formula& disjunct = disjuncts.top()->instantiation(pargs, problem);
     disjuncts.push(&disjunct);
     if (i + 1 == n) {
@@ -1222,7 +1222,7 @@ const Formula& ForallFormula::instantiation(const SubstitutionList& subst,
   conjuncts.push(&b);
   for (size_t i = 0; i < n; ) {
     SubstitutionList pargs;
-    pargs.push_back(new Substitution(*parameters[i], **next_arg[i]));
+    pargs.push_back(Substitution(*parameters[i], **next_arg[i]));
     const Formula& conjunct = conjuncts.top()->instantiation(pargs, problem);
     conjuncts.push(&conjunct);
     if (i + 1 == n) {
