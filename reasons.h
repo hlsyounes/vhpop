@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: reasons.h,v 3.1 2002-05-26 11:04:07 lorens Exp $
+ * $Id: reasons.h,v 3.2 2002-09-23 03:07:57 lorens Exp $
  */
 #ifndef REASONS_H
 #define REASONS_H
@@ -28,10 +28,13 @@ struct Link;
 struct Step;
 
 
+/* ====================================================================== */
+/* Reason
+
 /*
  * Abstract reason.
  */
-struct Reason : public Collectible, public Printable {
+struct Reason : public Collectible {
   /* A dummy reason. */
   static const Reason& DUMMY;
 
@@ -43,8 +46,20 @@ struct Reason : public Collectible, public Printable {
 
   /* Checks if this reason involves the given step. */
   virtual bool involves(const Step& step) const;
+
+protected:
+  /* Prints this reason on the given stream. */
+  virtual void print(ostream& os) const = 0;
+
+  friend ostream& operator<<(ostream& os, const Reason& r);
 };
 
+/* Output operator for reasons. */
+ostream& operator<<(ostream& os, const Reason& r);
+
+
+/* ====================================================================== */
+/* InitReason */
 
 /*
  * Reason attached to elements of the initial plan.
@@ -63,6 +78,9 @@ private:
   InitReason();
 };
 
+
+/* ====================================================================== */
+/* AddStepReason */
 
 /*
  * Reason attached to elements added along with a step.
@@ -88,6 +106,9 @@ private:
 };
 
 
+/* ====================================================================== */
+/* EstablishReason */
+
 /*
  * Reason attached to elements needed to establish a link.
  */
@@ -111,6 +132,9 @@ private:
   EstablishReason(const Link& link);
 };
 
+
+/* ====================================================================== */
+/* ProtectReason */
 
 /*
  * Reason attached to elements needed to protect a link.

@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: reasons.cc,v 3.3 2002-05-26 11:20:18 lorens Exp $
+ * $Id: reasons.cc,v 3.4 2002-09-23 03:08:01 lorens Exp $
  */
 #include "reasons.h"
 #include "plans.h"
@@ -61,6 +61,13 @@ bool Reason::involves(const Link& link) const {
 /* Checks if this reason involves the given step. */
 bool Reason::involves(const Step& step) const {
   return false;
+}
+
+
+/* Output operator for reasons. */
+ostream& operator<<(ostream& os, const Reason& r) {
+  r.print(os);
+  return os;
 }
 
 
