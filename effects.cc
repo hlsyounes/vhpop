@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: effects.cc,v 6.2 2003-08-27 16:59:18 lorens Exp $
+ * $Id: effects.cc,v 6.3 2003-08-28 15:32:33 lorens Exp $
  */
 #include "effects.h"
 #include "bindings.h"
@@ -178,10 +178,10 @@ void Effect::print(std::ostream& os, const PredicateTable& predicates,
     break;
   }
   os << '[';
-  condition().print(os, predicates, terms, 0, Bindings());
+  condition().print(os, predicates, terms, 0, Bindings::EMPTY);
   os << ',';
-  link_condition().print(os, predicates, terms, 0, Bindings());
+  link_condition().print(os, predicates, terms, 0, Bindings::EMPTY);
   os << "->";
-  literal().print(os, predicates, terms, 0, Bindings());
+  literal().print(os, predicates, terms, 0, Bindings::EMPTY);
   os << ']' << ')';
 }
