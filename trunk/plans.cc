@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.5 2001-05-04 15:39:22 lorens Exp $
+ * $Id: plans.cc,v 1.6 2001-05-15 13:51:19 lorens Exp $
  */
 #include <queue>
 #include <hash_set>
@@ -154,19 +154,16 @@ protected:
 
 
 struct less<const Plan*> {
+  /* Should return true if p1 is worse than p2 */
   bool operator()(const Plan* p1, const Plan* p2) {
     int d = p1->primary_rank() - p2->primary_rank();
     if (d == 0) {
-#if 0
       d = p1->secondary_rank() - p2->secondary_rank();
       if (d == 0) {
-	return p1->num_open_conds() > p2->num_open_conds();
+	return p1->tertiary_rank() > p2->tertiary_rank();
       } else {
 	return d > 0;
       }
-#else
-      return p1->secondary_rank() > p2->secondary_rank();
-#endif
     } else {
       return d > 0;
     }
@@ -445,7 +442,7 @@ bool Plan::complete() const {
 int Plan::primary_rank() const {
   if (rank1_ < 0) {
     if (heuristic == UCPOP_HEURISTIC) {
-      rank1_ = num_steps_ + num_unsafes_ + num_open_conds_;
+      rank1_ = num_steps_ + num_open_conds_ + num_unsafes_;
     } else {
       h_rank();
     }
@@ -467,6 +464,17 @@ int Plan::secondary_rank() const {
     }
   }
   return rank2_;
+}
+
+
+/* Returns the tertiary rank of this plan, where a lower rank
+   signifies a better plan. */
+int Plan::tertiary_rank() const {
+#if 0
+  return num_unsafes_;
+#else
+  return 0;
+#endif
 }
 
 
@@ -1608,7 +1616,7 @@ void Plan::h_rank() const {
   hash_map<string, unsigned int> pred_nodes;
   unsigned int goal_node = make_node(cg, oc_nodes, step_nodes, pred_nodes,
 				     GOAL_ID);
-  if (heuristic == SUMMAX_HEURISTIC || heuristic == MAX_HEURISTIC) {
+  if (heuristic == MAX_HEURISTIC) {
     for (const OrderingChain* ords = orderings_.orderings();
 	 ords != NULL; ords = ords->tail) {
       cg.set_distance(step_nodes[ords->head->after_id],
@@ -1620,18 +1628,18 @@ void Plan::h_rank() const {
     cg.cost(goal_node);
     cout << "@@@@cost graph:" << endl << cg << endl;
   }
-  rank1_ = cg.cost(goal_node);
-  rank2_ = 0;
+  pair<int, int> cost = cg.cost(goal_node);
+  rank1_ = cost.first;
+  rank2_ = cost.second + num_open_conds_;
   int high_cost = -1;
   for (const OpenConditionChain* oc = open_conds_; oc != NULL; oc = oc->tail) {
-    int cost = cg.cost(oc_nodes[oc->head]);
-    rank2_ += cost;
+    int cost = cg.cost(oc_nodes[oc->head]).first;
     if (cost > high_cost) {
       hardest_open_cond_ = oc->head;
       high_cost = cost;
     }
   }
-#if 1
+#if 0
   rank2_ = num_open_conds_ - num_static_open_conds_;
 #endif
 }
@@ -1653,18 +1661,12 @@ Plan::make_node(CostGraph& cg,
       node_type = CostGraph::MAX_NODE;
       break;
     case SUM_HEURISTIC:
-    case SUMMAX_HEURISTIC:
       node_type = CostGraph::SUM_NODE;
       break;
     }
     unsigned int step_node = cg.add_node(node_type);
     unsigned int step_node2;
-    if (heuristic == SUMMAX_HEURISTIC) {
-      step_node2 = cg.add_node(CostGraph::MAX_NODE);
-      cg.set_distance(step_node, step_node2, 0);
-    } else {
-      step_node2 = step_node;
-    }
+    step_node2 = step_node;
     const Step* step = NULL;
     for (const StepChain* steps = steps_; steps != NULL; steps = steps->tail) {
       if (steps->head->id == step_id) {
@@ -1724,11 +1726,10 @@ unsigned int Plan::make_node(CostGraph& cg,
       node_type = CostGraph::MAX_NODE;
       break;
     case SUM_HEURISTIC:
-    case SUMMAX_HEURISTIC:
       node_type = CostGraph::SUM_NODE;
       break;
     }
-    unsigned int pred_node = cg.add_node(node_type);
+    unsigned int pred_node = cg.add_node(node_type, pred.cost);
     pred_nodes[pred.name] = pred_node;
     if (verbosity > 3) {
       cout << "predicate '" << pred.name << "' is node " << pred_node << endl;
@@ -1758,7 +1759,6 @@ unsigned int Plan::make_node(CostGraph& cg,
       node_type = CostGraph::MAX_NODE;
       break;
     case SUM_HEURISTIC:
-    case SUMMAX_HEURISTIC:
       node_type = CostGraph::SUM_NODE;
       break;
     }
