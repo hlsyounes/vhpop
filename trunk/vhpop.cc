@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 3.12 2002-04-04 17:07:22 lorens Exp $
+ * $Id: vhpop.cc,v 3.13 2002-05-26 10:52:02 lorens Exp $
  */
 #include "plans.h"
 #include "parameters.h"
@@ -284,22 +284,22 @@ int main(int argc, char* argv[]) {
       /*
        * Display domains and problems.
        */
-      cout << ";----------------------------------------"<< endl
-	   << ";domains:" << endl;
+      cerr << "----------------------------------------"<< endl
+	   << "domains:" << endl;
       for (Domain::DomainMapIter di = Domain::begin();
 	   di != Domain::end(); di++) {
-	cout << ';' << endl << ';' << *(*di).second << endl;
+	cerr << endl << *(*di).second << endl;
       }
-      cout << ";----------------------------------------"<< endl
-	   << ";problems:" << endl;
+      cerr << "----------------------------------------"<< endl
+	   << "problems:" << endl;
       for (Problem::ProblemMapIter pi = Problem::begin();
 	   pi != Problem::end(); pi++) {
-	cout << ';' << endl << ';' << *(*pi).second << endl;
+	cerr << endl << *(*pi).second << endl;
       }
-      cout << ";----------------------------------------"<< endl;
+      cerr << "----------------------------------------"<< endl;
     }
 
-    cout.setf(ios::unitbuf);
+    cerr.setf(ios::unitbuf);
 
     /*
      * Solve the problems.
@@ -320,23 +320,12 @@ int main(int argc, char* argv[]) {
 #else
       const Plan* plan = Plan::plan(problem, params, pi == Problem::end());
 #endif
-#ifdef PROFILING
-      getitimer(ITIMER_VIRTUAL, &timer);
-#else
-      getitimer(ITIMER_PROF, &timer);
-#endif
-      /* Planning time. */
-      double t = 1000000.9
-	- (timer.it_value.tv_sec + timer.it_value.tv_usec*1e-6);
-      cout << "Time: " << max(0, int(1000.0*t + 0.5)) << endl;
       if (plan != NULL) {
 	if (plan->complete()) {
 	  if (verbosity > 0) {
 #ifdef DEBUG
-	    cout << ";Depth of solution: " << plan->depth() << endl;
+	    cerr << "Depth of solution: " << plan->depth() << endl;
 #endif
-	    cout << ";Flexibility: " << plan->orderings().flexibility()
-		 << endl;
 	  }
 	  cout << *plan << endl;
 	} else {
@@ -348,6 +337,15 @@ int main(int argc, char* argv[]) {
 	cout << "no plan" << endl;
 	cout << ";Problem has no solution." << endl;
       }
+#ifdef PROFILING
+      getitimer(ITIMER_VIRTUAL, &timer);
+#else
+      getitimer(ITIMER_PROF, &timer);
+#endif
+      /* Planning time. */
+      double t = 1000000.9
+	- (timer.it_value.tv_sec + timer.it_value.tv_usec*1e-6);
+      cout << "Time: " << max(0, int(1000.0*t + 0.5)) << endl;
     }
   } catch (const Exception& e) {
     cerr << PROGRAM_NAME << ": " << e << endl;
@@ -358,12 +356,12 @@ int main(int argc, char* argv[]) {
   }
 
 #ifdef DEBUG_MEMORY
-  cout << ";Plans created: " << created_plans << endl;
-  cout << ";Plans deleted: " << deleted_plans << endl;
-  cout << ";Chains created: " << created_chains << endl;
-  cout << ";Chains deleted: " << deleted_chains << endl;
-  cout << ";Collectibles created: " << created_collectibles << endl;
-  cout << ";Collectibles deleted: " << deleted_collectibles << endl;
+  cerr << "Plans created: " << created_plans << endl;
+  cerr << "Plans deleted: " << deleted_plans << endl;
+  cerr << "Chains created: " << created_chains << endl;
+  cerr << "Chains deleted: " << deleted_chains << endl;
+  cerr << "Collectibles created: " << created_collectibles << endl;
+  cerr << "Collectibles deleted: " << deleted_collectibles << endl;
 #endif
 
   return 0;
