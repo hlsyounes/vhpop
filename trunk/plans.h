@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.6 2001-05-15 13:54:22 lorens Exp $
+ * $Id: plans.h,v 1.7 2001-07-29 18:00:29 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -170,7 +170,7 @@ struct Step : public gc {
 
   /* Constructs a step instantiated from an action. */
   Step(unsigned int id, const Action& action, const Reason& reason)
-    : id(id), action(&action_formula(id, action)),
+    : id(id), action(&action.action_formula(id)),
       precondition((action.precondition != NULL) ?
 		   &action.precondition->instantiation(id) : NULL),
       effects(action.effects.instantiation(id)), reason(reason) {
@@ -182,18 +182,6 @@ struct Step : public gc {
   }
 
 private:
-  /* Returns an action formula for the given action. */
-  static const AtomicFormula& action_formula(unsigned int id,
-					     const Action& action) {
-    TermList& terms = *(new TermList());
-    const VariableList& parameters = action.parameters;
-    for (VariableList::const_iterator i = parameters.begin();
-	 i != parameters.end(); i++) {
-      terms.push_back(&(*i)->instantiation(id));
-    }
-    return *(new AtomicFormula(action.name, terms));
-  }
-
   /* Constructs a step. */
   Step(unsigned int id, const AtomicFormula* action,
        const Formula* precondition, const EffectList& effects,
@@ -501,22 +489,21 @@ private:
 
   void h_rank() const;
 
-  unsigned int
-  make_node(CostGraph& cg,
-	    hash_map<const OpenCondition*, unsigned int>& oc_nodes,
-	    hash_map<unsigned int, unsigned int>& step_nodes,
-	    hash_map<string, unsigned int>& pred_nodes,
-	    unsigned int step_id) const;
+  size_t make_node(CostGraph& cg,
+		   hash_map<const OpenCondition*, size_t>& oc_nodes,
+		   hash_map<size_t, size_t>& step_nodes,
+		   hash_map<const Action*, size_t>& pred_nodes,
+		   size_t step_id) const;
 
-  unsigned int make_node(CostGraph& cg,
-			 hash_map<unsigned int, unsigned int>& step_nodes,
-			 hash_map<string, unsigned int>& pred_nodes,
-			 const Action& pred) const;
+  size_t make_node(CostGraph& cg,
+		   hash_map<size_t, size_t>& step_nodes,
+		   hash_map<const Action*, size_t>& pred_nodes,
+		   const Action& pred, size_t step_id) const;
 
-  unsigned int make_node(CostGraph& cg,
-			 hash_map<unsigned int, unsigned int>& step_nodes,
-			 hash_map<string, unsigned int>& pred_nodes,
-			 const Formula& condition) const;
+  size_t make_node(CostGraph& cg,
+		   hash_map<unsigned int, size_t>& step_nodes,
+		   hash_map<const Action*, size_t>& pred_nodes,
+		   const Formula& condition, size_t step_id) const;
 
   friend ostream& operator<<(ostream& os, const Plan& p);
 };
