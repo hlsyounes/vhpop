@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 4.7 2002-09-23 18:24:49 lorens Exp $
+ * $Id: formulas.h,v 4.8 2002-09-24 17:32:00 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -282,9 +282,6 @@ struct Formula {
   virtual const Formula& substitution(const SubstitutionList& subst,
 				      size_t step_id) const = 0;
 
-  /* Returns this formula with static literals assumed true. */
-  virtual const Formula& strip_static(const Domain& domain) const = 0;
-
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
 			       size_t step_id,
@@ -365,9 +362,6 @@ struct Constant : public Formula {
   virtual const Constant& substitution(const SubstitutionList& subst,
 				       size_t step_id) const;
 
-  /* Returns this formula with static literals assumed true. */
-  virtual const Constant& strip_static(const Domain& domain) const;
-
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
 			       size_t step_id, const Bindings* b) const;
@@ -423,9 +417,6 @@ struct Literal : public Formula {
   /* Returns a formula that separates the given literal from anything
      definitely asserted by this formula. */
   virtual const Formula& separate(const Literal& literal) const;
-
-  /* Returns this formula with static literals assumed true. */
-  virtual const Formula& strip_static(const Domain& domain) const;
 
 protected:
   /* Constructs a literal. */
@@ -658,9 +649,6 @@ struct Equality : public BindingLiteral {
   virtual const Formula& substitution(const SubstitutionList& subst,
 				      size_t step_id) const;
 
-  /* Returns this formula with static literals assumed true. */
-  virtual const Formula& strip_static(const Domain& domain) const;
-
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
 			       size_t step_id, const Bindings* b) const;
@@ -703,9 +691,6 @@ struct Inequality : public BindingLiteral {
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst,
 				      size_t step_id) const;
-
-  /* Returns this formula with static literals assumed true. */
-  virtual const Formula& strip_static(const Domain& domain) const;
 
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
@@ -750,9 +735,6 @@ struct Conjunction : public Formula {
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst,
 				      size_t step_id) const;
-
-  /* Returns this formula with static literals assumed true. */
-  virtual const Formula& strip_static(const Domain& domain) const;
 
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
@@ -806,9 +788,6 @@ struct Disjunction : public Formula {
   /* Returns this formula subject to the given substitution. */
   virtual const Formula& substitution(const SubstitutionList& subst,
 				      size_t step_id) const;
-
-  /* Returns this formula with static literals assumed true. */
-  virtual const Formula& strip_static(const Domain& domain) const;
 
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
@@ -888,9 +867,6 @@ struct ExistsFormula : public QuantifiedFormula {
   virtual const Formula& substitution(const SubstitutionList& subst,
 				      size_t step_id) const;
 
-  /* Returns this formula with static literals assumed true. */
-  virtual const Formula& strip_static(const Domain& domain) const;
-
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
 			       size_t step_id, const Bindings* b) const;
@@ -930,9 +906,6 @@ struct ForallFormula : public QuantifiedFormula {
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst,
 				      size_t step_id) const;
-
-  /* Returns this formula with static literals assumed true. */
-  virtual const Formula& strip_static(const Domain& domain) const;
 
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
