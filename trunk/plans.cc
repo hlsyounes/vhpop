@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 6.5 2003-07-28 01:39:37 lorens Exp $
+ * $Id: plans.cc,v 6.6 2003-07-28 21:38:48 lorens Exp $
  */
 #include "mathport.h"
 #include "plans.h"
@@ -319,7 +319,8 @@ static void link_threats(const Chain<Unsafe>*& unsafes, size_t& num_unsafes,
 	    && orderings.possibly_after(link.to_id(), lt2,
 					s.id(), STEP_START))) {
       const EffectList& effects = s.action().effects();
-      for (EffectListIter ei = effects.begin(); ei != effects.end(); ei++) {
+      for (EffectList::const_iterator ei = effects.begin();
+	   ei != effects.end(); ei++) {
 	const Effect& e = **ei;
 	if (!domain->requirements.durative_actions
 	    && e.link_condition().contradiction()) {
@@ -330,26 +331,18 @@ static void link_threats(const Chain<Unsafe>*& unsafes, size_t& num_unsafes,
 	    || orderings.possibly_before(link.from_id(), lt1, s.id(), et)
 	    || orderings.possibly_after(link.to_id(), lt2, s.id(), et)) {
 	  if (typeid(link.condition()) == typeid(Negation)) {
-	    const AtomList& adds = e.add_list();
-	    for (AtomListIter fi = adds.begin(); fi != adds.end(); fi++) {
-	      const Atom& atom = **fi;
-	      if (bindings.affects(atom, s.id(),
-				   link.condition(), link.to_id())) {
-		unsafes = new Chain<Unsafe>(Unsafe(link, s.id(), e, atom),
-					    unsafes);
-		num_unsafes++;
-	      }
+	    if (bindings.affects(e.literal(), s.id(),
+				 link.condition(), link.to_id())) {
+	      unsafes = new Chain<Unsafe>(Unsafe(link, s.id(), e, e.literal()),
+					  unsafes);
+	      num_unsafes++;
 	    }
 	  } else if (!(link.from_id() == s.id() && lt1 == et)) {
-	    const NegationList& dels = e.del_list();
-	    for (NegationListIter fi = dels.begin(); fi != dels.end(); fi++) {
-	      const Negation& neg = **fi;
-	      if (bindings.affects(neg, s.id(),
-				   link.condition(), link.to_id())) {
-		unsafes = new Chain<Unsafe>(Unsafe(link, s.id(), e, neg),
-					    unsafes);
-		num_unsafes++;
-	      }
+	    if (bindings.affects(e.literal(), s.id(),
+				 link.condition(), link.to_id())) {
+	      unsafes = new Chain<Unsafe>(Unsafe(link, s.id(), e, e.literal()),
+					  unsafes);
+	      num_unsafes++;
 	    }
 	  }
 	}
@@ -371,7 +364,8 @@ static void step_threats(const Chain<Unsafe>*& unsafes, size_t& num_unsafes,
     if (orderings.possibly_before(l.from_id(), lt1, step.id(), STEP_END)
 	&& orderings.possibly_after(l.to_id(), lt2, step.id(), STEP_START)) {
       const EffectList& effects = step.action().effects();
-      for (EffectListIter ei = effects.begin(); ei != effects.end(); ei++) {
+      for (EffectList::const_iterator ei = effects.begin();
+	   ei != effects.end(); ei++) {
 	const Effect& e = **ei;
 	if (!domain->requirements.durative_actions
 	    && e.link_condition().contradiction()) {
@@ -380,28 +374,11 @@ static void step_threats(const Chain<Unsafe>*& unsafes, size_t& num_unsafes,
 	StepTime et = end_time(e);
 	if (orderings.possibly_before(l.from_id(), lt1, step.id(), et)
 	    && orderings.possibly_after(l.to_id(), lt2, step.id(), et)) {
-	  if (typeid(l.condition()) == typeid(Negation)) {
-	    const AtomList& adds = e.add_list();
-	    for (AtomListIter fi = adds.begin(); fi != adds.end(); fi++) {
-	      const Atom& atom = **fi;
-	      if (bindings.affects(atom, step.id(),
-				   l.condition(), l.to_id())) {
-		unsafes = new Chain<Unsafe>(Unsafe(l, step.id(), e, atom),
-					    unsafes);
-		num_unsafes++;
-	      }
-	    }
-	  } else {
-	    const NegationList& dels = e.del_list();
-	    for (NegationListIter fi = dels.begin(); fi != dels.end(); fi++) {
-	      const Negation& neg = **fi;
-	      if (bindings.affects(neg, step.id(),
-				   l.condition(), l.to_id())) {
-		unsafes = new Chain<Unsafe>(Unsafe(l, step.id(), e, neg),
-					    unsafes);
-		num_unsafes++;
-	      }
-	    }
+	  if (bindings.affects(e.literal(), step.id(),
+			       l.condition(), l.to_id())) {
+	    unsafes = new Chain<Unsafe>(Unsafe(l, step.id(), e, e.literal()),
+					unsafes);
+	    num_unsafes++;
 	  }
 	}
       }
@@ -924,13 +901,11 @@ int Plan::separable(const Unsafe& unsafe) const {
       && bindings_->affects(unifier,
 			    unsafe.effect_add(), unsafe.step_id(),
 			    link.condition(), link.to_id())) {
-    const VariableList& effect_forall = unsafe.effect().forall();
     const Condition* goal = &Condition::FALSE;
     for (BindingList::const_iterator si = unifier.begin();
 	 si != unifier.end(); si++) {
       const Binding& subst = *si;
-      if (find(effect_forall.begin(), effect_forall.end(), subst.var())
-	  == effect_forall.end()) {
+      if (!unsafe.effect().quantifies(subst.var())) {
 	const Inequality& neq = *new Inequality(subst.var(), subst.var_id(),
 						subst.term(), subst.term_id());
 	if (bindings_->consistent_with(neq, 0)) {
@@ -941,24 +916,48 @@ int Plan::separable(const Unsafe& unsafe) const {
 	}
       }
     }
-    const Condition& effect_cond =
-      unsafe.effect().condition() && unsafe.effect().link_condition();
-    Condition::register_use(&effect_cond);
+    const Condition& effect_cond = unsafe.effect().condition();
     if (!effect_cond.tautology()) {
-      if (!effect_forall.empty()) {
-	SubstitutionMap forall_subst;
-	for (VariableList::const_iterator vi = effect_forall.begin();
-	     vi != effect_forall.end(); vi++) {
-	  Variable subst_v = problem->new_variable(problem->terms().type(*vi));
-	  forall_subst.insert(std::make_pair(*vi, subst_v));
+      size_t n = unsafe.effect().arity();
+      if (n > 0) {
+	Forall* forall_s = new Forall();
+	Forall* forall_i = new Forall();
+	Forall* forall_e = new Forall();
+	for (size_t i = 0; i < n; i++) {
+	  Variable vi = unsafe.effect().parameter(i);
+	  forall_s->add_parameter(vi);
+	  forall_i->add_parameter(vi);
+	  forall_e->add_parameter(vi);
 	}
-	goal = &(*goal
-		 || !effect_cond.substitution(forall_subst));
+	forall_s->set_body(!effect_cond.at_start());
+	forall_i->set_body(!effect_cond.over_all());
+	forall_e->set_body(!effect_cond.at_end());
+	const Formula* at_start;
+	if (forall_s->body().tautology() || forall_s->body().contradiction()) {
+	  at_start = &forall_s->body();
+	  delete forall_s;
+	} else {
+	  at_start = forall_s;
+	}
+	const Formula* over_all;
+	if (forall_i->body().tautology() || forall_i->body().contradiction()) {
+	  over_all = &forall_i->body();
+	  delete forall_i;
+	} else {
+	  over_all = forall_i;
+	}
+	const Formula* at_end;
+	if (forall_e->body().tautology() || forall_e->body().contradiction()) {
+	  at_end = &forall_e->body();
+	  delete forall_e;
+	} else {
+	  at_end = forall_e;
+	}
+	goal = &(*goal || Condition::make(*at_start, *over_all, *at_end));
       } else {
 	goal = &(*goal || !effect_cond);
       }
     }
-    Condition::unregister_use(&effect_cond);
     const Chain<OpenCondition>* new_open_conds = NULL;
     size_t new_num_open_conds = 0;
     BindingList new_bindings;
@@ -983,13 +982,11 @@ void Plan::separate(PlanList& plans, const Unsafe& unsafe) const {
   BindingList unifier;
   bindings_->affects(unifier, unsafe.effect_add(), unsafe.step_id(),
 		     unsafe.link().condition(), unsafe.link().to_id());
-  const VariableList& effect_forall = unsafe.effect().forall();
   const Condition* goal = &Condition::FALSE;
   for (BindingList::const_iterator si = unifier.begin();
        si != unifier.end(); si++) {
     const Binding& subst = *si;
-    if (find(effect_forall.begin(), effect_forall.end(), subst.var())
-	== effect_forall.end()) {
+    if (!unsafe.effect().quantifies(subst.var())) {
       const Inequality& neq = *new Inequality(subst.var(), subst.var_id(),
 					      subst.term(), subst.term_id());
       if (bindings_->consistent_with(neq, 0)) {
@@ -1000,24 +997,51 @@ void Plan::separate(PlanList& plans, const Unsafe& unsafe) const {
       }
     }
   }
-  const Condition& effect_cond =
-    unsafe.effect().condition() && unsafe.effect().link_condition();
-  Condition::register_use(&effect_cond);
+  const Condition& effect_cond = unsafe.effect().condition();
   if (!effect_cond.tautology()) {
-    if (!effect_forall.empty()) {
+    size_t n = unsafe.effect().arity();
+    if (n > 0) {
+      Forall* forall_s = new Forall();
+      Forall* forall_i = new Forall();
+      Forall* forall_e = new Forall();
       SubstitutionMap forall_subst;
-      for (VariableList::const_iterator vi = effect_forall.begin();
-	   vi != effect_forall.end(); vi++) {
-	Variable subst_v  = problem->new_variable(problem->terms().type(*vi));
-	forall_subst.insert(std::make_pair(*vi, subst_v));
+      for (size_t i = 0; i < n; i++) {
+	Variable vi = unsafe.effect().parameter(i);
+	Variable v = problem->new_variable(problem->terms().type(vi));
+	forall_s->add_parameter(v);
+	forall_i->add_parameter(v);
+	forall_e->add_parameter(v);
+	forall_subst.insert(std::make_pair(vi, v));
       }
-      goal = &(*goal
-	       || !effect_cond.substitution(forall_subst));
+      forall_s->set_body(!effect_cond.at_start().substitution(forall_subst));
+      forall_i->set_body(!effect_cond.over_all().substitution(forall_subst));
+      forall_e->set_body(!effect_cond.at_end().substitution(forall_subst));
+      const Formula* at_start;
+      if (forall_s->body().tautology() || forall_s->body().contradiction()) {
+	at_start = &forall_s->body();
+	delete forall_s;
+      } else {
+	at_start = forall_s;
+      }
+      const Formula* over_all;
+      if (forall_i->body().tautology() || forall_i->body().contradiction()) {
+	over_all = &forall_i->body();
+	delete forall_i;
+      } else {
+	over_all = forall_i;
+      }
+      const Formula* at_end;
+      if (forall_e->body().tautology() || forall_e->body().contradiction()) {
+	at_end = &forall_e->body();
+	delete forall_e;
+      } else {
+	at_end = forall_e;
+      }
+      goal = &(*goal || Condition::make(*at_start, *over_all, *at_end));
     } else {
       goal = &(*goal || !effect_cond);
     }
   }
-  Condition::unregister_use(&effect_cond);
   const Chain<OpenCondition>* new_open_conds = open_conds();
   size_t new_num_open_conds = num_open_conds();
   BindingList new_bindings;
@@ -1107,28 +1131,15 @@ bool Plan::unsafe_open_condition(const OpenCondition& open_cond) const {
       if (orderings().possibly_before(s.id(), STEP_START,
 				      open_cond.step_id(), gt)) {
 	const EffectList& effects = s.action().effects();
-	for (EffectListIter ei = effects.begin(); ei != effects.end(); ei++) {
+	for (EffectList::const_iterator ei = effects.begin();
+	     ei != effects.end(); ei++) {
 	  const Effect& e = **ei;
 	  StepTime et = end_time(e);
 	  if (orderings().possibly_before(s.id(), et,
 					  open_cond.step_id(), gt)) {
-	    if (typeid(goal) == typeid(Negation)) {
-	      const AtomList& adds = e.add_list();
-	      for (AtomListIter fi = adds.begin(); fi != adds.end(); fi++) {
-		if (bindings_->affects(**fi, s.id(),
-				       goal, open_cond.step_id())) {
-		  return true;
-		}
-	      }
-	    } else {
-	      const NegationList& dels = e.del_list();
-	      for (NegationListIter fi = dels.begin();
-		   fi != dels.end(); fi++) {
-		if (bindings_->affects(**fi, s.id(),
-				       goal, open_cond.step_id())) {
-		  return true;
-		}
-	      }
+	    if (bindings_->affects(e.literal(), s.id(),
+				   goal, open_cond.step_id())) {
+	      return true;
 	    }
 	  }
 	}
@@ -1396,32 +1407,17 @@ bool Plan::count_new_links(int& count, size_t step_id, const Action& action,
   const Literal& goal = literal;
   StepTime gt = start_time(when);
   const EffectList& effects = action.effects();
-  for (EffectListIter ei = effects.begin(); ei != effects.end(); ei++) {
+  for (EffectList::const_iterator ei = effects.begin();
+       ei != effects.end(); ei++) {
     const Effect& effect = **ei;
     StepTime et = end_time(effect);
     if (step_id > high_step_id_
 	|| orderings().possibly_before(step_id, et, oc_step_id, gt)) {
-      if (typeid(goal) == typeid(Atom)) {
-	const AtomList& adds = effect.add_list();
-	for (AtomListIter gi = adds.begin(); gi != adds.end(); gi++) {
-	  BindingList mgu;
-	  if (bindings_->unify(mgu, goal, oc_step_id, **gi, step_id)) {
-	    count += link_possible(step_id, action, effect, mgu);
-	    if (count > limit) {
-	      return false;
-	    }
-	  }
-	}
-      } else {
-	const NegationList& dels = effect.del_list();
-	for (NegationListIter gi = dels.begin(); gi != dels.end(); gi++) {
-	  BindingList mgu;
-	  if (bindings_->unify(mgu, goal, oc_step_id, **gi, step_id)) {
-	    count += link_possible(step_id, action, effect, mgu);
-	    if (count > limit) {
-	      return false;
-	    }
-	  }
+      BindingList mgu;
+      if (bindings_->unify(mgu, goal, oc_step_id, effect.literal(), step_id)) {
+	count += link_possible(step_id, action, effect, mgu);
+	if (count > limit) {
+	  return false;
 	}
       }
     }
@@ -1440,7 +1436,7 @@ void Plan::new_link(PlanList& plans, const Step& step, const Literal& literal,
   const Literal& goal = literal;
   StepTime gt = start_time(open_cond.when());
   const EffectList& effs = step.action().effects();
-  for (EffectListIter ei = effs.begin(); ei != effs.end(); ei++) {
+  for (EffectList::const_iterator ei = effs.begin(); ei != effs.end(); ei++) {
     const Effect& effect = **ei;
     StepTime et = end_time(effect);
     if (step.id() > high_step_id_
@@ -1449,31 +1445,13 @@ void Plan::new_link(PlanList& plans, const Step& step, const Literal& literal,
       const Chain<Link>* new_links =
 	new Chain<Link>(Link(step.id(), et, open_cond), links());
       Chain<Link>::register_use(new_links);
-      if (typeid(goal) == typeid(Atom)) {
-	const AtomList& adds = effect.add_list();
-	for (AtomListIter gi = adds.begin(); gi != adds.end(); gi++) {
-	  BindingList mgu;
-	  if (bindings_->unify(mgu,
-			       goal, open_cond.step_id(), **gi, step.id())) {
-	    const Plan* new_plan = make_link(step, effect, literal, open_cond,
-					     new_links, mgu);
-	    if (new_plan != NULL) {
-	      plans.push_back(new_plan);
-	    }
-	  }
-	}
-      } else {
-	const NegationList& dels = effect.del_list();
-	for (NegationListIter gi = dels.begin(); gi != dels.end(); gi++) {
-	  BindingList mgu;
-	  if (bindings_->unify(mgu,
-			       goal, open_cond.step_id(), **gi, step.id())) {
-	    const Plan* new_plan = make_link(step, effect, literal, open_cond,
-					     new_links, mgu);
-	    if (new_plan != NULL) {
-	      plans.push_back(new_plan);
-	    }
-	  }
+      BindingList mgu;
+      if (bindings_->unify(mgu, goal, open_cond.step_id(),
+			   effect.literal(), step.id())) {
+	const Plan* new_plan = make_link(step, effect, literal, open_cond,
+					 new_links, mgu);
+	if (new_plan != NULL) {
+	  plans.push_back(new_plan);
 	}
       }
       Chain<Link>::unregister_use(new_links);
@@ -1488,25 +1466,23 @@ int Plan::cw_link_possible(const EffectList& effects,
 			   const Negation& negation, size_t step_id) const {
   const Atom& goal = negation.atom();
   const Formula* goals = &Formula::TRUE;
-  for (EffectListIter ei = effects.begin(); ei != effects.end(); ei++) {
+  for (EffectList::const_iterator ei = effects.begin();
+       ei != effects.end(); ei++) {
     const Effect& effect = **ei;
-    const AtomList& adds = effect.add_list();
-    for (AtomListIter gi = adds.begin(); gi != adds.end(); gi++) {
-      BindingList mgu;
-      if (bindings_->unify(mgu, goal, step_id, **gi, 0)) {
-	if (mgu.empty()) {
-	  /* Impossible to separate goal and initial condition. */
-	  return 0;
-	}
-	const Formula* binds = &Formula::FALSE;
-	for (BindingList::const_iterator si = mgu.begin();
-	     si != mgu.end(); si++) {
-	  const Binding& subst = *si;
-	  binds = &(*binds || Inequality::make(subst.var(), subst.var_id(),
-					       subst.term(), subst.term_id()));
-	}
-	goals = &(*goals && *binds);
+    BindingList mgu;
+    if (bindings_->unify(mgu, goal, step_id, effect.literal(), 0)) {
+      if (mgu.empty()) {
+	/* Impossible to separate goal and initial condition. */
+	return 0;
       }
+      const Formula* binds = &Formula::FALSE;
+      for (BindingList::const_iterator si = mgu.begin();
+	   si != mgu.end(); si++) {
+	const Binding& subst = *si;
+	binds = &(*binds || Inequality::make(subst.var(), subst.var_id(),
+					     subst.term(), subst.term_id()));
+      }
+      goals = &(*goals && *binds);
     }
   }
   BindingList new_bindings;
@@ -1534,25 +1510,23 @@ void Plan::new_cw_link(PlanList& plans, const Step& step,
   const Atom& goal = negation.atom();
   const Formula* goals = &Formula::TRUE;
   const EffectList& effs = step.action().effects();
-  for (EffectListIter ei = effs.begin(); ei != effs.end(); ei++) {
+  for (EffectList::const_iterator ei = effs.begin(); ei != effs.end(); ei++) {
     const Effect& effect = **ei;
-    const AtomList& adds = effect.add_list();
-    for (AtomListIter gi = adds.begin(); gi != adds.end(); gi++) {
-      BindingList mgu;
-      if (bindings_->unify(mgu, goal, open_cond.step_id(), **gi, 0)) {
-	if (mgu.empty()) {
-	  /* Impossible to separate goal and initial condition. */
-	  return;
-	}
-	const Formula* binds = &Formula::FALSE;
-	for (BindingList::const_iterator si = mgu.begin();
-	     si != mgu.end(); si++) {
-	  const Binding& subst = *si;
-	  binds = &(*binds || Inequality::make(subst.var(), subst.var_id(),
-					       subst.term(), subst.term_id()));
-	}
-	goals = &(*goals && *binds);
+    BindingList mgu;
+    if (bindings_->unify(mgu, goal, open_cond.step_id(),
+			 effect.literal(), 0)) {
+      if (mgu.empty()) {
+	/* Impossible to separate goal and initial condition. */
+	return;
       }
+      const Formula* binds = &Formula::FALSE;
+      for (BindingList::const_iterator si = mgu.begin();
+	   si != mgu.end(); si++) {
+	const Binding& subst = *si;
+	binds = &(*binds || Inequality::make(subst.var(), subst.var_id(),
+					     subst.term(), subst.term_id()));
+      }
+      goals = &(*goals && *binds);
     }
   }
   const Chain<Link>* new_links =
@@ -1594,16 +1568,7 @@ int Plan::link_possible(size_t step_id, const Action& action,
   /*
    * Add bindings needed to unify effect and goal.
    */
-  const VariableList& effect_forall = effect.forall();
-  BindingList new_bindings;
-  for (BindingList::const_iterator si = unifier.begin();
-       si != unifier.end(); si++) {
-    const Binding& subst = *si;
-    if (find(effect_forall.begin(), effect_forall.end(), subst.var())
-	== effect_forall.end()) {
-      new_bindings.push_back(subst);
-    }
-  }
+  BindingList new_bindings(unifier);
 
   /*
    * If the effect is conditional, add condition as goal.
@@ -1613,20 +1578,6 @@ int Plan::link_possible(size_t step_id, const Action& action,
   const Condition* cond_goal =
     &(effect.condition() && effect.link_condition());
   if (!cond_goal->tautology()) {
-    if (!effect_forall.empty()) {
-      SubstitutionMap forall_subst;
-      for (VariableList::const_iterator vi = effect_forall.begin();
-	   vi != effect_forall.end(); vi++) {
-	Variable subst_v = problem->new_variable(problem->terms().type(*vi));
-	forall_subst.insert(std::make_pair(*vi, subst_v));
-      }
-      const Condition* old_cond_goal = cond_goal;
-      cond_goal = &cond_goal->substitution(forall_subst);
-      if (old_cond_goal != cond_goal) {
-	Condition::register_use(old_cond_goal);
-	Condition::unregister_use(old_cond_goal);
-      }
-    }
     bool added = add_goal(new_open_conds, new_num_open_conds, new_bindings,
 			  *cond_goal, step_id, true);
     Condition::register_use(cond_goal);
@@ -1670,13 +1621,17 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
   /*
    * Add bindings needed to unify effect and goal.
    */
-  const VariableList& effect_forall = effect.forall();
   BindingList new_bindings;
+  SubstitutionMap forall_subst;
   for (BindingList::const_iterator si = unifier.begin();
        si != unifier.end(); si++) {
     const Binding& subst = *si;
-    if (find(effect_forall.begin(), effect_forall.end(), subst.var())
-	== effect_forall.end()) {
+    if (effect.quantifies(subst.var())) {
+      Variable v = problem->new_variable(problem->terms().type(subst.var()));
+      forall_subst.insert(std::make_pair(subst.var(), v));
+      new_bindings.push_back(Binding(v, subst.var_id(),
+				     subst.term(), subst.term_id(), true));
+    } else {
       new_bindings.push_back(subst);
     }
   }
@@ -1689,12 +1644,14 @@ const Plan* Plan::make_link(const Step& step, const Effect& effect,
   const Condition* cond_goal =
     &(effect.condition() && effect.link_condition());
   if (!cond_goal->tautology()) {
-    if (!effect_forall.empty()) {
-      SubstitutionMap forall_subst;
-      for (VariableList::const_iterator vi = effect_forall.begin();
-	   vi != effect_forall.end(); vi++) {
-	Variable subst_v = problem->new_variable(problem->terms().type(*vi));
-	forall_subst.insert(std::make_pair(*vi, subst_v));
+    size_t n = effect.arity();
+    if (n > 0) {
+      for (size_t i = 0; i < n; i++) {
+	Variable vi = effect.parameter(i);
+	if (forall_subst.find(vi) == forall_subst.end()) {
+	  Variable v = problem->new_variable(problem->terms().type(vi));
+	  forall_subst.insert(std::make_pair(vi, v));
+	}
       }
       const Condition* old_cond_goal = cond_goal;
       cond_goal = &cond_goal->substitution(forall_subst);
@@ -1853,7 +1810,7 @@ disable_interference(const std::vector<const Step*>& ordered_steps,
 	  if (l.to_id() == sj.id()) {
 	    // is effect of si interfering with link condition?
 	    const EffectList& effects = si.action().effects();
-	    for (EffectListIter ei = effects.begin();
+	    for (EffectList::const_iterator ei = effects.begin();
 		 ei != effects.end() && !interference; ei++) {
 	      const Effect& e = **ei;
 	      if (e.link_condition().contradiction()) {
@@ -1861,26 +1818,9 @@ disable_interference(const std::vector<const Step*>& ordered_steps,
 		StepTime et = end_time(e);
 		if (new_orderings->possibly_concurrent(si.id(), et,
 						       l.to_id(), lt)) {
-		  if (typeid(l.condition()) == typeid(Negation)) {
-		    const AtomList& adds = e.add_list();
-		    for (AtomListIter fi = adds.begin();
-			 fi != adds.end() && !interference; fi++) {
-		      const Atom& atom = **fi;
-		      if (bindings.affects(atom, si.id(),
-					   l.condition(), l.to_id())) {
-			interference = true;
-		      }
-		    }
-		  } else {
-		    const NegationList& dels = e.del_list();
-		    for (NegationListIter fi = dels.begin();
-			 fi != dels.end() && !interference; fi++) {
-		      const Negation& neg = **fi;
-		      if (bindings.affects(neg, si.id(),
-					   l.condition(), l.to_id())) {
-			interference = true;
-		      }
-		    }
+		  if (bindings.affects(e.literal(), si.id(),
+				       l.condition(), l.to_id())) {
+		    interference = true;
 		  }
 		}
 	      }
@@ -1888,7 +1828,7 @@ disable_interference(const std::vector<const Step*>& ordered_steps,
 	  } else if (l.to_id() == si.id()) {
 	    // is effect of sj interfering with link condition?
 	    const EffectList& effects = sj.action().effects();
-	    for (EffectListIter ei = effects.begin();
+	    for (EffectList::const_iterator ei = effects.begin();
 		 ei != effects.end() && !interference; ei++) {
 	      const Effect& e = **ei;
 	      if (e.link_condition().contradiction()) {
@@ -1896,26 +1836,9 @@ disable_interference(const std::vector<const Step*>& ordered_steps,
 		StepTime et = end_time(e);
 		if (new_orderings->possibly_concurrent(sj.id(), et,
 						       l.to_id(), lt)) {
-		  if (typeid(l.condition()) == typeid(Negation)) {
-		    const AtomList& adds = e.add_list();
-		    for (AtomListIter fi = adds.begin();
-			 fi != adds.end() && !interference; fi++) {
-		      const Atom& atom = **fi;
-		      if (bindings.affects(atom, sj.id(),
-					   l.condition(), l.to_id())) {
-			interference = true;
-		      }
-		    }
-		  } else {
-		    const NegationList& dels = e.del_list();
-		    for (NegationListIter fi = dels.begin();
-			 fi != dels.end() && !interference; fi++) {
-		      const Negation& neg = **fi;
-		      if (bindings.affects(neg, sj.id(),
-					   l.condition(), l.to_id())) {
-			interference = true;
-		      }
-		    }
+		  if (bindings.affects(e.literal(), sj.id(),
+				       l.condition(), l.to_id())) {
+		    interference = true;
 		  }
 		}
 	      }
@@ -2004,13 +1927,11 @@ std::ostream& operator<<(std::ostream& os, const Plan& p) {
   } else {
     os << "Initial  :";
     const EffectList& effects = init->action().effects();
-    for (EffectListIter ei = effects.begin(); ei != effects.end(); ei++) {
-      const AtomList& atoms = (*ei)->add_list();
-      for (AtomListIter ai = atoms.begin(); ai != atoms.end(); ai++) {
-	os << ' ';
-	(*ai)->print(os, problem->domain().predicates(),
-		     problem->terms(), 0, *bindings);
-      }
+    for (EffectList::const_iterator ei = effects.begin();
+	 ei != effects.end(); ei++) {
+      os << ' ';
+      (*ei)->literal().print(os, problem->domain().predicates(),
+			     problem->terms(), 0, *bindings);
     }
     ordered_steps.push_back(goal);
     for (std::vector<const Step*>::const_iterator si = ordered_steps.begin();
