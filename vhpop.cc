@@ -15,7 +15,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: vhpop.cc,v 3.15 2002-05-27 11:34:19 lorens Exp $
+ * $Id: vhpop.cc,v 3.16 2002-06-13 23:05:15 lorens Exp $
  */
 #include "plans.h"
 #include "reasons.h"
@@ -317,7 +317,7 @@ int main(int argc, char* argv[]) {
 	 pi != Problem::end(); ) {
       const Problem& problem = *(*pi).second;
       pi++;
-      cout << ';' << problem.name << endl;
+      cout << ';' << problem.name() << endl;
       struct itimerval timer = { { 1000000, 900000 }, { 1000000, 900000 } };
 #ifdef PROFILING
       setitimer(ITIMER_VIRTUAL, &timer, NULL);

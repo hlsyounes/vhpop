@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: problems.cc,v 3.4 2002-05-28 22:19:12 lorens Exp $
+ * $Id: problems.cc,v 3.5 2002-06-13 23:02:54 lorens Exp $
  */
 #include "problems.h"
 #include "domains.h"
@@ -60,7 +60,7 @@ void Problem::clear() {
 
 /* Constructs a problem. */
 Problem::Problem(const string& name, const Domain& domain)
-  : name(name), domain(domain),
+  : name_(name), domain_(&domain),
     init_(new Effect(AtomList::EMPTY, NegationList::EMPTY, Effect::AT_END)),
     goal_(&Formula::TRUE) {
   const Problem* p = find(name);
@@ -73,7 +73,7 @@ Problem::Problem(const string& name, const Domain& domain)
 
 /* Deletes a problem. */
 Problem::~Problem() {
-  problems.erase(name);
+  problems.erase(name());
   for (NameMapIter ni = objects_.begin(); ni != objects_.end(); ni++) {
     delete (*ni).second;
   }
@@ -109,7 +109,7 @@ const Name* Problem::find_object(const string& name) const {
 /* Fills the provided name list with objects (including constants
    declared in the domain) that are compatible with the given type. */
 void Problem::compatible_objects(NameList& objects, const Type& t) const {
-  domain.compatible_constants(objects, t);
+  domain().compatible_constants(objects, t);
   for (NameMapIter ni = this->objects_.begin();
        ni != this->objects_.end(); ni++) {
     const Name& name = *(*ni).second;
@@ -123,21 +123,22 @@ void Problem::compatible_objects(NameList& objects, const Type& t) const {
 /* Fills the provided action list with ground actions instantiated
    from the action schemas of the domain. */
 void Problem::instantiated_actions(GroundActionList& actions) const {
-  for (ActionSchemaMapIter ai = domain.actions().begin();
-       ai != domain.actions().end(); ai++) {
+  for (ActionSchemaMapIter ai = domain().actions().begin();
+       ai != domain().actions().end(); ai++) {
     (*ai).second->instantiations(actions, *this);
   }
 }
 
 
-/* Prints this object on the given stream. */
-void Problem::print(ostream& os) const {
-  os << "name: " << name;
-  os << endl << "domain: " << domain.name;
+/* Output operator for problems. */
+ostream& operator<<(ostream& os, const Problem& p) {
+  os << "name: " << p.name();
+  os << endl << "domain: " << p.domain().name();
   os << endl << "objects:";
-  for (NameMapIter ni = objects_.begin(); ni != objects_.end(); ni++) {
+  for (NameMapIter ni = p.objects_.begin(); ni != p.objects_.end(); ni++) {
     os << ' ' << *(*ni).second << " - " << (*ni).second->type();
   }
-  os << endl << "initial condition: " << init_;
-  os << endl << "goal: " << goal_;
+  os << endl << "initial condition: " << p.init();
+  os << endl << "goal: " << p.goal();
+  return os;
 }

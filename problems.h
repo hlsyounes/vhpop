@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: problems.h,v 3.2 2002-05-28 22:19:10 lorens Exp $
+ * $Id: problems.h,v 3.3 2002-06-13 23:02:48 lorens Exp $
  */
 #ifndef PROBLEMS_H
 #define PROBLEMS_H
@@ -37,18 +37,13 @@ struct NameList;
 /*
  * Problem definition.
  */
-struct Problem : public Printable {
+struct Problem {
   /* Table of problem definitions. */
   struct ProblemMap : public hash_map<string, const Problem*> {
   };
 
   /* Iterator for problem tables. */
   typedef ProblemMap::const_iterator ProblemMapIter;
-
-  /* Name of problem. */
-  const string name;
-  /* Problem domain. */
-  const Domain& domain;
 
   /* Returns a const_iterator pointing to the first problem. */
   static ProblemMapIter begin();
@@ -66,7 +61,13 @@ struct Problem : public Printable {
   Problem(const string& name, const Domain& domain);
 
   /* Deletes a problem. */
-  virtual ~Problem();
+  ~Problem();
+
+  /* Returns the name of this problem. */
+  const string& name() const { return name_; }
+
+  /* Returns the domain of this problem. */
+  const Domain& domain() const { return *domain_; }
 
   /* Adds an object to this problem. */
   void add_object(const Name& object);
@@ -96,21 +97,26 @@ struct Problem : public Printable {
      from the action schemas of the domain. */
   void instantiated_actions(GroundActionList& actions) const;
 
-protected:
-  /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const;
-
 private:
   /* Table of defined problems. */
   static ProblemMap problems;
 
+  /* Name of problem. */
+  string name_;
+  /* Problem domain. */
+  const Domain* domain_;
   /* Problem objects. */
   NameMap objects_;
   /* Initial condition of problem. */
   const Effect* init_;
   /* Goal of problem. */
   const Formula* goal_;
+
+  friend ostream& operator<<(ostream& os, const Problem& p);
 };
+
+/* Output operator for problems. */
+ostream& operator<<(ostream& os, const Problem& p);
 
 
 #endif /* PROBLEMS_H */
