@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.20 2001-10-06 00:35:10 lorens Exp $
+ * $Id: plans.cc,v 1.21 2001-10-06 00:55:24 lorens Exp $
  */
 #include <queue>
 #include <hash_set>
@@ -408,44 +408,47 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p, int v) {
       /* Search limit reached. */
       break;
     }
-    if (!(params.transformational && current_plan->duplicate())) {
-      /*
-       * This is a new plan.
-       */
-      num_visited_plans++;
-      if (verbosity > 1) {
-	cout << endl << "!!!!CURRENT PLAN (id " << current_plan->id << ")"
-	     << " with rank " << current_plan->primary_rank() << ','
-	     << current_plan->secondary_rank() << endl;
-	cout << *current_plan << endl;
-      }
-      /* List of children to current plan. */
-      PlanList refinements;
-      /* Get plan refinements. */
-      current_plan->refinements(refinements);
-      /* Add children to queue of pending plans. */
-      for (PlanList::const_iterator i = refinements.begin();
-	   i != refinements.end(); i++) {
-	if ((*i)->primary_rank() < INT_MAX) {
-	  (*i)->id = num_generated_plans;
-	  plans.push(*i);
-	  num_generated_plans++;
-	  if (verbosity > 2) {
-	    cout << endl << "####CHILD (id " << (*i)->id << ")"
-		 << " with rank " << (*i)->primary_rank()
-		 << ',' << (*i)->secondary_rank() << ':' << endl
-		 << **i << endl;
-	  }
+    /*
+     * This is a new plan.
+     */
+    num_visited_plans++;
+    if (verbosity > 1) {
+      cout << endl << "!!!!CURRENT PLAN (id " << current_plan->id << ")"
+	   << " with rank " << current_plan->primary_rank() << ','
+	   << current_plan->secondary_rank() << endl;
+      cout << *current_plan << endl;
+    }
+    /* List of children to current plan. */
+    PlanList refinements;
+    /* Get plan refinements. */
+    current_plan->refinements(refinements);
+    /* Add children to queue of pending plans. */
+    for (PlanList::const_iterator i = refinements.begin();
+	 i != refinements.end(); i++) {
+      if ((*i)->primary_rank() < INT_MAX) {
+	(*i)->id = num_generated_plans;
+	plans.push(*i);
+	num_generated_plans++;
+	if (verbosity > 2) {
+	  cout << endl << "####CHILD (id " << (*i)->id << ")"
+	       << " with rank " << (*i)->primary_rank()
+	       << ',' << (*i)->secondary_rank() << ':' << endl
+	       << **i << endl;
 	}
       }
     }
-    if (plans.empty()) {
-      /* Problem lacks solution. */
-      current_plan = NULL;
-    } else {
-      /* Process next plan. */
-      current_plan = plans.top();
-      plans.pop();
+    /* Process next plan. */
+    do {
+      if (plans.empty()) {
+	/* Problem lacks solution. */
+	current_plan = NULL;
+      } else {
+	current_plan = plans.top();
+	plans.pop();
+      }
+    } while (current_plan != NULL && current_plan->duplicate());
+    if (params.transformational) {
+      plans = priority_queue<const Plan*, PlanList>();
     }
   }
   if (verbosity > 0) {
@@ -622,13 +625,19 @@ void Plan::handle_unsafe(PlanList& new_plans, const Unsafe& unsafe) const {
 	if (verbosity > 2) {
 	  cout << endl << "++++DEAD END:" << endl << *this << endl;
 	}
-	relink(new_plans, unsafe);
+#if 1
+	relink(new_plans, unsafe.link);
 	if (verbosity > 2) {
 	  for (size_t i = num_prev_plans; i < new_plans.size(); i++) {
 	    cout << "^^^^Transformed plan" << endl << *new_plans[i] << endl;
 	    new_plans[i]->duplicate();
 	  }
 	}
+#else
+	for (const LinkChain* l = links_; l != NULL; l = l->tail) {
+	  relink(new_plans, *l->head);
+	}
+#endif
       }
     }
   } else {
@@ -768,15 +777,13 @@ valid_open_condition(const OpenCondition& open_cond,
   }
 }
 
-void Plan::relink(PlanList& new_plans, const Unsafe& unsafe) const {
-  if (unsafe.link.from_id == 0 || unsafe.link.to_id == GOAL_ID) {
-    pair<const Plan*, const OpenCondition*> p = unlink(unsafe.link);
-    if (verbosity > 2) {
-      cout << "!!!!!!!!!!!!!!!!! Unlinked plan !!!!!!!!!!!!!!!!" << endl;
-      cout << *p.first << endl;
-    }
-    p.first->handle_open_condition(new_plans, *p.second);
+void Plan::relink(PlanList& new_plans, const Link& link) const {
+  pair<const Plan*, const OpenCondition*> p = unlink(link);
+  if (verbosity > 2) {
+    cout << "!!!!!!!!!!!!!!!!! Unlinked plan !!!!!!!!!!!!!!!!" << endl;
+    cout << *p.first << endl;
   }
+  p.first->handle_open_condition(new_plans, *p.second);
 }
 
 
@@ -1007,13 +1014,27 @@ pair<const Plan*, const OpenCondition*> Plan::unlink(const Link& link) const {
       unsafes = remove_unsafes(unsafes, num_unsafes, l);
       open_conds = remove_open_conditions(open_conds, num_open_conds, l);
       /* add open condition, if still valid */
-      const OpenCondition& open_cond =
-	*(new OpenCondition(l.condition, l.to_id, l.reason));
-      if (&l == &link) {
-	link_cond = &open_cond;
+      const OpenCondition* open_cond;
+      const Atom* atom = dynamic_cast<const Atom*>(&l.condition);
+      if (atom != NULL) {
+	open_cond = new PredicateOpenCondition(l.condition, l.to_id, l.reason,
+					       atom->predicate);
+      } else {
+	const Negation* negation = dynamic_cast<const Negation*>(&l.condition);
+	if (negation != NULL) {
+	  open_cond = new PredicateOpenCondition(l.condition, l.to_id,
+						 l.reason,
+						 negation->atom.predicate,
+						 true);
+	} else {
+	  open_cond = new OpenCondition(l.condition, l.to_id, l.reason);
+	}
       }
-      if (valid_open_condition(open_cond, steps, links)) {
-	open_conds = new OpenConditionChain(&open_cond, open_conds);
+      if (&l == &link) {
+	link_cond = open_cond;
+      }
+      if (valid_open_condition(*open_cond, steps, links)) {
+	open_conds = new OpenConditionChain(open_cond, open_conds);
 	num_open_conds++;
       }
       /* remove any reason involving link for steps */
@@ -1165,7 +1186,7 @@ void Plan::reuse_step(PlanList& new_plans,
 }
 
 bool Plan::new_link(PlanList& new_plans, const Step& step,
-		    const OpenCondition& open_cond, const Link& link,
+		    const PredicateOpenCondition& open_cond, const Link& link,
 		    const Reason& reason) const {
   size_t prev_num_plans = new_plans.size();
   if (step.id == 0 &&
@@ -1192,7 +1213,8 @@ bool Plan::new_link(PlanList& new_plans, const Step& step,
 }
 
 void Plan::new_cw_link(PlanList& new_plans, const Step& step,
-		       const OpenCondition& open_cond, const Link& link,
+		       const PredicateOpenCondition& open_cond,
+		       const Link& link,
 		       const Reason& establish_reason) const {
   const Negation& negation =
     dynamic_cast<const Negation&>(open_cond.condition);
@@ -1246,8 +1268,8 @@ void Plan::new_cw_link(PlanList& new_plans, const Step& step,
 }
 
 const Plan* Plan::make_link(const Step& step, const Effect& effect,
-			    const OpenCondition& open_cond, const Link& link,
-			    const Reason& establish_reason,
+			    const PredicateOpenCondition& open_cond,
+			    const Link& link, const Reason& establish_reason,
 			    const SubstitutionList& unifier) const {
   const LinkChain* links = new LinkChain(&link, links_);
   const VariableList& effect_forall = effect.forall;
@@ -1476,21 +1498,19 @@ bool Plan::duplicate() const {
 typedef hash_map<size_t, const Formula*, hash<size_t>,
   equal_to<size_t>, container_alloc> FormulaMap;
 
-static bool
-matching_plans(FormulaMap& steps1, FormulaMap& steps2,
-	       FormulaMap::const_iterator s1,
-	       hash_map<size_t, size_t>& step_map) {
-  for (FormulaMap::const_iterator s2 =
-	 steps2.begin(); s2 != steps2.end(); s2++) {
-    if (step_map.find((*s2).first) == step_map.end()) {
-#if 0
+static bool matching_plans(hash_map<size_t, size_t>& step_map,
+			   const FormulaMap& steps1, const FormulaMap& steps2,
+			   FormulaMap::const_iterator s1) {
+  if (s1 == steps1.end()) {
+    // try to match orderings, links, and bindings given step_map
+    return true; // true if matches
+  }
+  for (FormulaMap::const_iterator s2 = steps2.begin();
+       s2 != steps2.end(); s2++) {
+    if (step_map.find((*s2).first) == step_map.end()
 	&& (*s1).second->equivalent(*(*s2).second)) {
-#endif
       step_map[(*s2).first] = (*s1).first;
-      if (++s1 == steps1.end()) {
-	// try to match orderings, links, and bindings given step_map
-	return true; // true if matches
-      } else if (matching_plans(steps1, steps2, s1, step_map)) {
+      if (matching_plans(step_map, steps1, steps2, ++s1)) {
 	return true;
       }
       step_map.erase((*s2).first);
@@ -1509,20 +1529,28 @@ bool Plan::equivalent(const Plan& p) const {
     FormulaMap steps1;
     for (const StepChain* s = steps_; s != NULL; s = s->tail) {
       size_t id = s->head->id;
-      if (id != 0 && id != GOAL_ID && steps1.find(id) == steps1.end()) {
-	steps1[id] = &bindings_.instantiation(*s->head->action);
+      if (s->head->action != NULL && steps1.find(id) == steps1.end()) {
+	if (params.ground_actions) {
+	  steps1[id] = s->head->action;
+	} else {
+	  steps1[id] = &bindings_.instantiation(*s->head->action);
+	}
       }
     }
     FormulaMap steps2;
     for (const StepChain* s = p.steps_; s != NULL; s = s->tail) {
       size_t id = s->head->id;
-      if (id != 0 && id != GOAL_ID && steps2.find(id) == steps1.end()) {
-	steps2[id] = &p.bindings_.instantiation(*s->head->action);
+      if (s->head->action != NULL && steps2.find(id) == steps2.end()) {
+	if (params.ground_actions) {
+	  steps2[id] = s->head->action;
+	} else {
+	  steps2[id] = &p.bindings_.instantiation(*s->head->action);
+	}
       }
     }
     // try to find mapping between steps so that bindings and orderings match
     hash_map<size_t, size_t> step_map;
-    return matching_plans(steps1, steps2, steps1.begin(), step_map);
+    return matching_plans(step_map, steps1, steps2, steps1.begin());
   }
   return false;
 }
