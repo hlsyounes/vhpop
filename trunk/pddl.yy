@@ -2,7 +2,7 @@
 /*
  * PDDL parser.
  *
- * $Id: pddl.yy,v 1.19 2001-12-22 21:23:42 lorens Exp $
+ * $Id: pddl.yy,v 1.20 2001-12-23 17:27:19 lorens Exp $
  */
 %{
 #include <utility>
@@ -229,7 +229,11 @@ require_keys : require_key
 require_key : STRIPS
                 { requirements->strips = true; }
             | TYPING
-                { requirements->typing = true; }
+                {
+		  requirements->typing = true;
+		  domain_types->insert(make_pair(SimpleType::OBJECT.name,
+						 &SimpleType::OBJECT));
+		}
             | DISJUNCTIVE_PRECONDITIONS
                 { requirements->disjunctive_preconditions = true; }
 	    | EQUALITY
@@ -249,6 +253,8 @@ require_key : STRIPS
 types_def : TYPES
               {
 		if (!requirements->typing) {
+		  domain_types->insert(make_pair(SimpleType::OBJECT.name,
+						 &SimpleType::OBJECT));
 		  yywarning("assuming `:typing' requirement.");
 		}
 		name_map_type = "type";
