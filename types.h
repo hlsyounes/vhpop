@@ -2,7 +2,7 @@
 /*
  * Types.
  *
- * $Id: types.h,v 1.6 2001-12-22 19:48:59 lorens Exp $
+ * $Id: types.h,v 1.7 2001-12-23 17:27:25 lorens Exp $
  */
 #ifndef TYPES_H
 #define TYPES_H
@@ -95,10 +95,6 @@ typedef TypeList::const_iterator TypeListIter;
  * Table of simple types.
  */
 struct TypeMap : HashMap<string, const SimpleType*> {
-  /* Constructs an empty type table. */
-  TypeMap() {
-    (*this)[SimpleType::OBJECT.name] = &SimpleType::OBJECT;
-  }
 };
 
 typedef TypeMap::const_iterator TypeMapIter;
