@@ -2,7 +2,7 @@
 /*
  * Types, terms, and formulas.
  *
- * $Id: formulas.h,v 1.5 2001-05-11 22:12:23 lorens Exp $
+ * $Id: formulas.h,v 1.6 2001-05-15 13:53:33 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -171,7 +171,7 @@ struct Term : public gc {
   }
 
   /* Returns an instantiation of this term. */
-  virtual const Term& instantiation(unsigned int id) const {
+  virtual const Term& instantiation(size_t id) const {
     return *this;
   }
 
@@ -244,7 +244,7 @@ struct Variable : public Term {
   }
 
   /* Returns an instantiation of this variable. */
-  virtual const Variable& instantiation(unsigned int id) const;
+  virtual const Variable& instantiation(size_t id) const;
 
   /* Returns this variable subject to the given substitutions. */
   virtual const Term& substitution(const SubstitutionList& subst) const {
@@ -278,7 +278,7 @@ protected:
  */
 struct StepVar : public Variable {
   /* Construct an instantiated variable. */
-  StepVar(const Variable& var, unsigned int id)
+  StepVar(const Variable& var, size_t id)
     : Variable(var), id_(id) {
   }
 
@@ -294,12 +294,12 @@ protected:
 
 private:
   /* The id of the step that this variable belongs to. */
-  unsigned int id_;
+  size_t id_;
 };
 
 
 /* Returns an instantiation of this variable. */
-inline const Variable& Variable::instantiation(unsigned int id) const {
+inline const Variable& Variable::instantiation(size_t id) const {
   return *(new StepVar(*this, id));
 }
 
@@ -313,7 +313,7 @@ struct TermList : public gc, public vector<const Term*, container_alloc> {
   }
 
   /* Returns an instantiation of this term list. */
-  const TermList& instantiation(unsigned int id) const {
+  const TermList& instantiation(size_t id) const {
     TermList& terms = *(new TermList());
     for (const_iterator i = begin(); i != end(); i++) {
       terms.push_back(&(*i)->instantiation(id));
@@ -321,7 +321,7 @@ struct TermList : public gc, public vector<const Term*, container_alloc> {
     return terms;
   }
 
-  /* Returns this term list subject to the given sunstitutions. */
+  /* Returns this term list subject to the given substitutions. */
   const TermList& substitution(const SubstitutionList& subst) const {
     TermList& terms = *(new TermList());
     for (const_iterator i = begin(); i != end(); i++) {
@@ -400,7 +400,7 @@ struct VariableList : public gc,
   }
 
   /* Returns an instantiation of this variable list. */
-  const VariableList& instantiation(unsigned int id) const {
+  const VariableList& instantiation(size_t id) const {
     VariableList& variables = *(new VariableList());
     for (const_iterator i = begin(); i != end(); i++) {
       variables.push_back(&(*i)->instantiation(id));
@@ -439,7 +439,7 @@ struct Formula : public gc {
   }
 
   /* Returns an instantiation of this formula. */
-  virtual const Formula& instantiation(unsigned int id) const = 0;
+  virtual const Formula& instantiation(size_t id) const = 0;
 
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionList& subst) const = 0;
@@ -469,6 +469,10 @@ struct Formula : public gc {
 
   /* Checks if this formula involves the given predicate. */
   virtual bool involves(const string& predicate) const = 0;
+
+  /* Roughly corresponds to the number of open conditions this formula
+     will give rise to. */
+  virtual size_t cost() const = 0;
 
   /* Checks if this formula is consistent. */
   virtual bool consistent() const {
@@ -518,7 +522,7 @@ struct FormulaList : public gc,
   }
 
   /* Returns an instantiation of this formula list. */
-  const FormulaList& instantiation(unsigned int id) const {
+  const FormulaList& instantiation(size_t id) const {
     FormulaList& formulas = *(new FormulaList());
     for (const_iterator i = begin(); i != end(); i++) {
       formulas.push_back(&(*i)->instantiation(id));
@@ -565,6 +569,16 @@ struct FormulaList : public gc,
     return false;
   }
 
+  /* Roughly corresponds to the number of open conditions the formulas
+     in this list will give rise to. */
+  size_t cost() const {
+    size_t n = 0;
+    for (const_iterator i = begin(); i != end(); i++) {
+      n += (*i)->cost();
+    }
+    return n;
+  }
+
   /* Equality operator for formula lists. */
   bool operator==(const FormulaList& formulas) const {
     if (size() != formulas.size()) {
@@ -602,7 +616,7 @@ struct AtomicFormula : public Formula {
   }
 
   /* Returns an instantiation of this atomic formula. */
-  virtual const AtomicFormula& instantiation(unsigned int id) const {
+  virtual const AtomicFormula& instantiation(size_t id) const {
     return *(new AtomicFormula(predicate, terms.instantiation(id)));
   }
 
@@ -636,6 +650,12 @@ struct AtomicFormula : public Formula {
     return this->predicate == predicate;
   }
 
+  /* Roughly corresponds to the number of open conditions this formula
+     will give rise to. */
+  virtual size_t cost() const {
+    return 1;
+  }
+
 protected:
   /* Prints this atomic formula on the given stream. */
   virtual void print(ostream& os) const;
@@ -662,7 +682,7 @@ struct Negation : public Formula {
   }
 
   /* Returns an instantiation of this negation. */
-  virtual const Negation& instantiation(unsigned int id) const {
+  virtual const Negation& instantiation(size_t id) const {
     return *(new Negation(atom.instantiation(id)));
   }
 
@@ -696,6 +716,12 @@ struct Negation : public Formula {
   /* Checks if this formula involves the given predicate. */
   virtual bool involves(const string& predicate) const {
     return atom.involves(predicate);
+  }
+
+  /* Roughly corresponds to the number of open conditions this formula
+     will give rise to. */
+  virtual size_t cost() const {
+    return 1;
   }
 
 protected:
@@ -738,7 +764,7 @@ struct Equality : public Formula {
   }
 
   /* Returns the instantiation of this equality. */
-  virtual const Equality& instantiation(unsigned int id) const {
+  virtual const Equality& instantiation(size_t id) const {
     return *(new Equality(term1.instantiation(id), term2.instantiation(id)));
   }
 
@@ -754,6 +780,12 @@ struct Equality : public Formula {
   /* Checks if this formula involves the given predicate. */
   virtual bool involves(const string& predicate) const {
     return "=" == predicate;
+  }
+
+  /* Roughly corresponds to the number of open conditions this formula
+     will give rise to. */
+  virtual size_t cost() const {
+    return 0;
   }
 
   /* Checks if this formula is consistent. */
@@ -791,7 +823,7 @@ struct Inequality : public Formula {
   }
 
   /* Returns an instantiation of this inequality. */
-  virtual const Inequality& instantiation(unsigned int id) const {
+  virtual const Inequality& instantiation(size_t id) const {
     return *(new Inequality(term1.instantiation(id), term2.instantiation(id)));
   }
 
@@ -809,6 +841,12 @@ struct Inequality : public Formula {
   /* Checks if this formula involves the given predicate. */
   virtual bool involves(const string& predicate) const {
     return "=" == predicate;
+  }
+
+  /* Roughly corresponds to the number of open conditions this formula
+     will give rise to. */
+  virtual size_t cost() const {
+    return 0;
   }
 
   /* Checks if this formula is consistent. */
@@ -849,7 +887,7 @@ struct Conjunction : public Formula {
   }
 
   /* Returns an instantiation of this conjunction. */
-  virtual const Conjunction& instantiation(unsigned int id) const {
+  virtual const Conjunction& instantiation(size_t id) const {
     return *(new Conjunction(conjuncts.instantiation(id)));
   }
 
@@ -865,6 +903,12 @@ struct Conjunction : public Formula {
   /* Checks if this formula involves the given predicate. */
   virtual bool involves(const string& predicate) const {
     return conjuncts.involves(predicate);
+  }
+
+  /* Roughly corresponds to the number of open conditions this formula
+     will give rise to. */
+  virtual size_t cost() const {
+    return conjuncts.cost();
   }
 
 protected:
@@ -892,7 +936,7 @@ struct Disjunction : public Formula {
   }
 
   /* Returns an instantiation of this disjunction. */
-  virtual const Disjunction& instantiation(unsigned int id) const {
+  virtual const Disjunction& instantiation(size_t id) const {
     return *(new Disjunction(disjuncts.instantiation(id)));
   }
 
@@ -912,6 +956,11 @@ struct Disjunction : public Formula {
     return disjuncts.involves(predicate);
   }
 
+  /* Roughly corresponds to the number of open conditions this formula
+     will give rise to. */
+  virtual size_t cost() const {
+    return 1;
+  }
 protected:
   /* Prints this disjunction on the given stream. */
   virtual void print(ostream& os) const;
@@ -945,7 +994,7 @@ struct ExistsFormula : public Formula {
   }
 
   /* Returns an instantiation of this formula. */
-  virtual const ExistsFormula& instantiation(unsigned int id) const {
+  virtual const ExistsFormula& instantiation(size_t id) const {
     return *(new ExistsFormula(parameters.instantiation(id),
 			       body.instantiation(id)));
   }
@@ -964,6 +1013,11 @@ struct ExistsFormula : public Formula {
     return body.involves(predicate);
   }
 
+  /* Roughly corresponds to the number of open conditions this formula
+     will give rise to. */
+  virtual size_t cost() const {
+    return 1;
+  }
 protected:
   /* Prints this formula on the given stream. */
   virtual void print(ostream& os) const;
@@ -992,7 +1046,7 @@ struct ForallFormula : public Formula {
   }
 
   /* Returns an instantiation of this formula. */
-  virtual const ForallFormula& instantiation(unsigned int id) const {
+  virtual const ForallFormula& instantiation(size_t id) const {
     return *(new ForallFormula(parameters.instantiation(id),
 			       body.instantiation(id)));
   }
@@ -1013,6 +1067,11 @@ struct ForallFormula : public Formula {
     return body.involves(predicate);
   }
 
+  /* Roughly corresponds to the number of open conditions this formula
+     will give rise to. */
+  virtual size_t cost() const {
+    return 1;
+  }
 protected:
   /* Prints this formula on the given stream. */
   virtual void print(ostream& os) const;
