@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.49 2002-01-04 21:08:39 lorens Exp $
+ * $Id: plans.cc,v 1.50 2002-01-05 13:34:45 lorens Exp $
  */
 #include <queue>
 #include <algorithm>
@@ -211,6 +211,29 @@ static bool add_goal(const OpenConditionChain*& open_conds,
     }
   }
   return true;
+}
+
+
+/* Fills the provided list with actions that achieves the given
+   literal. */
+static void applicable_actions(ActionList& actions, const Literal& literal) {
+ if (params->ground_actions) {
+    planning_graph->achieves_formula(actions, literal);
+  } else if (typeid(literal) == typeid(Atom)) {
+    pair<PredicateActionsMapIter, PredicateActionsMapIter> bounds =
+      achieves_pred.equal_range(literal.predicate());
+    for (PredicateActionsMapIter pai = bounds.first;
+	 pai != bounds.second; pai++) {
+      actions.push_back((*pai).second);
+    }
+  } else {
+    pair<PredicateActionsMapIter, PredicateActionsMapIter> bounds =
+      achieves_neg_pred.equal_range(literal.predicate());
+    for (PredicateActionsMapIter pai = bounds.first;
+	 pai != bounds.second; pai++) {
+      actions.push_back((*pai).second);
+    }
+  }
 }
 
 
@@ -994,23 +1017,7 @@ bool Plan::addable_steps(int& refinements,
 			 int limit) const {
   int count = 0;
   ActionList actions;
-  if (params->ground_actions) {
-    planning_graph->achieves_formula(actions, open_cond.literal);
-  } else if (typeid(open_cond.literal) == typeid(Atom)) {
-    pair<PredicateActionsMapIter, PredicateActionsMapIter> bounds =
-      achieves_pred.equal_range(open_cond.literal.predicate());
-    for (PredicateActionsMapIter pai = bounds.first;
-	 pai != bounds.second; pai++) {
-      actions.push_back((*pai).second);
-    }
-  } else {
-    pair<PredicateActionsMapIter, PredicateActionsMapIter> bounds =
-      achieves_neg_pred.equal_range(open_cond.literal.predicate());
-    for (PredicateActionsMapIter pai = bounds.first;
-	 pai != bounds.second; pai++) {
-      actions.push_back((*pai).second);
-    }
-  }
+  applicable_actions(actions, open_cond.literal);
   if (!actions.empty()) {
     for (ActionListIter ai = actions.begin(); ai != actions.end(); ai++) {
       const Action& action = **ai;
@@ -1029,23 +1036,7 @@ bool Plan::addable_steps(int& refinements,
 void Plan::add_step(PlanList& plans,
 		    const LiteralOpenCondition& open_cond) const {
   ActionList actions;
-  if (params->ground_actions) {
-    planning_graph->achieves_formula(actions, open_cond.literal);
-  } else if (typeid(open_cond.literal) == typeid(Atom)) {
-    pair<PredicateActionsMapIter, PredicateActionsMapIter> bounds =
-      achieves_pred.equal_range(open_cond.literal.predicate());
-    for (PredicateActionsMapIter pai = bounds.first;
-	 pai != bounds.second; pai++) {
-      actions.push_back((*pai).second);
-    }
-  } else {
-    pair<PredicateActionsMapIter, PredicateActionsMapIter> bounds =
-      achieves_neg_pred.equal_range(open_cond.literal.predicate());
-    for (PredicateActionsMapIter pai = bounds.first;
-	 pai != bounds.second; pai++) {
-      actions.push_back((*pai).second);
-    }
-  }
+  applicable_actions(actions, open_cond.literal);
   if (!actions.empty()) {
     size_t step_id = high_step_id_ + 1;
     const Link& link = *(new Link(step_id, open_cond));
