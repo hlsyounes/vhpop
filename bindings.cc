@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.cc,v 4.3 2002-09-22 19:42:35 lorens Exp $
+ * $Id: bindings.cc,v 4.4 2002-09-22 23:20:38 lorens Exp $
  */
 #include <typeinfo>
 #include "bindings.h"
@@ -30,15 +30,6 @@
 /* StepVariable */
 
 typedef pair<const Variable*, size_t> StepVariable;
-
-namespace std {
-struct less<StepVariable> {
-  bool operator()(const StepVariable& sv1, const StepVariable& sv2) const {
-    return (*sv1.first < *sv2.first
-	    || (*sv1.first == *sv2.first && sv1.second < sv2.second));
-  }
-};
-}
 
 
 /* ====================================================================== */
@@ -353,9 +344,7 @@ struct StepDomain {
   /* Returns the index of the variable in this step domain, or -1 if
      the variable is not included. */
   int index_of(const Variable& v) const {
-    VarListIter i = find_if(parameters().begin(), parameters().end(),
-			    bind1st(equal_to<const EqualityComparable*>(),
-				    &v));
+    VarListIter i = find(parameters().begin(), parameters().end(), &v);
     return (i != parameters().end()) ? i - parameters().begin() : -1;
   }
 
@@ -1163,8 +1152,7 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 		    set_intersection(intersection->begin(),
 				     intersection->end(),
 				     set2.begin(), set2.end(),
-				     inserter(*cut, cut->begin()),
-				     less<const LessThanComparable*>());
+				     inserter(*cut, cut->begin()));
 		    intersection = cut;
 		    if (intersection->empty()) {
 		      /* Domain became empty. */
@@ -1390,10 +1378,9 @@ void Bindings::print(ostream& os) const {
     const Varset& vs = vsc->head;
     if (vs.cd_set() != NULL) {
       const VariableChain* vc = vs.cd_set();
-      if (member_if(seen_vars[vc->head.second].begin(),
-		    seen_vars[vc->head.second].end(),
-		    bind1st(equal_to<const EqualityComparable*>(),
-			    vc->head.first))) {
+      if (member(seen_vars[vc->head.second].begin(),
+		 seen_vars[vc->head.second].end(),
+		 vc->head.first)) {
 	continue;
       }
       os << endl << "{";
@@ -1409,8 +1396,7 @@ void Bindings::print(ostream& os) const {
     }
     if (vs.constant() != NULL) {
       const Name& name = *vs.constant();
-      if (member_if(seen_names.begin(), seen_names.end(),
-		    bind1st(equal_to<const EqualityComparable*>(), &name))) {
+      if (member(seen_names.begin(), seen_names.end(), &name)) {
 	continue;
       }
       if (vs.cd_set() == NULL) {

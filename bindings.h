@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.h,v 4.1 2002-09-20 16:44:39 lorens Exp $
+ * $Id: bindings.h,v 4.2 2002-09-22 23:20:41 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
@@ -124,7 +124,7 @@ typedef CollectibleChain<Binding> BindingChain;
 /*
  * A set of names.
  */
-struct NameSet : public set<const Name*, less<const LessThanComparable*> > {
+struct NameSet : public set<const Name*> {
 };
 
 /* Iterator for name sets. */

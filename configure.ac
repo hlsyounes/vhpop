@@ -14,10 +14,10 @@
 # SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
 # ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
 #
-# $Id: configure.ac,v 1.5 2002-09-22 01:40:47 lorens Exp $
+# $Id: configure.ac,v 1.6 2002-09-22 23:21:48 lorens Exp $
 
-AC_INIT(VHPOP, 2.1, lorens@cs.cmu.edu)
-AM_INIT_AUTOMAKE(VHPOP, 2.1)
+AC_INIT(VHPOP, 2.2, lorens@cs.cmu.edu)
+AM_INIT_AUTOMAKE(VHPOP, 2.2)
 AC_CONFIG_SRCDIR([vhpop.cc])
 
 # Checks for programs.
