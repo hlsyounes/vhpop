@@ -1,5 +1,5 @@
 /*
- * $Id: domains.cc,v 1.11 2001-08-20 04:06:03 lorens Exp $
+ * $Id: domains.cc,v 1.12 2001-09-03 20:05:08 lorens Exp $
  */
 #include "domains.h"
 #include "problems.h"
@@ -103,9 +103,10 @@ const Effect& Effect::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Fills the provided list with goals achievable by this effect. */
-void Effect::achievable_goals(FormulaList& goals) const {
-  add_list.achievable_goals(goals);
+/* Fills the provided lists with goals achievable by this effect. */
+void Effect::achievable_goals(FormulaList& goals,
+			      FormulaList& neg_goals) const {
+  add_list.achievable_goals(goals, neg_goals);
 }
 
 
@@ -172,11 +173,12 @@ EffectList::substitution(const SubstitutionList& subst) const {
 }
 
 
-/* Fills the provided list with goals achievable by the effect in
+/* Fills the provided lists with goals achievable by the effect in
    this list. */
-void EffectList::achievable_goals(FormulaList& goals) const {
+void EffectList::achievable_goals(FormulaList& goals,
+				  FormulaList& neg_goals) const {
   for (const_iterator i = begin(); i != end(); i++) {
-    (*i)->achievable_goals(goals);
+    (*i)->achievable_goals(goals, neg_goals);
   }
 }
 
@@ -197,9 +199,10 @@ Action::Action(const Formula& precondition, const EffectList& effects)
 }
 
 
-/* Fills the provided list with goals achievable by this action. */
-void Action::achievable_goals(FormulaList& goals) const {
-  effects.achievable_goals(goals);
+/* Fills the provided lists with goals achievable by this action. */
+void Action::achievable_goals(FormulaList& goals,
+			      FormulaList& neg_goals) const {
+  effects.achievable_goals(goals, neg_goals);
 }
 
 
