@@ -27,7 +27,7 @@
 
 
 #ifndef INFINITY
-#define INFINITY 1.0f/0.0f;
+#define INFINITY (float(HUGE_VAL))
 #endif
 
 #if !HAVE_ISINF
