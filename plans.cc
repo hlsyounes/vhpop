@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.2 2001-05-04 00:17:50 lorens Exp $
+ * $Id: plans.cc,v 1.3 2001-05-04 03:20:57 lorens Exp $
  */
 #include <queue>
 #include <hash_set>
@@ -21,6 +21,10 @@ bool Plan::transformations = false;
 unsigned int Plan::verbosity = 0;
 /* Domain of problem currently being solved. */
 const Domain* Plan::domain = NULL;
+/* Number of visited plans. */
+size_t Plan::num_visited_plans = 0;
+/* Number of generated plans. */
+size_t Plan::num_generated_plans = 0;
 
 
 /*
@@ -351,14 +355,15 @@ const Plan* Plan::plan(const Problem& problem, Heuristic heuristic,
   Plan::verbosity = verbosity;
   /* Set current domain. */
   Plan::domain = &problem.domain;
+  /* Reset number of visited plan. */
+  Plan::num_visited_plans = 0;
+  /* Reset number of generated plans. */
+  Plan::num_generated_plans = 0;
+
   /* Queue of pending plans. */
   priority_queue<const Plan*, PlanList> plans;
   /* Construct the initial plan. */
   const Plan* current_plan = make_initial_plan(problem);
-  /* Number of visited plan. */
-  unsigned int num_visited_plans = 0;
-  /* Number of generated plans. */
-  unsigned int num_generated_plans = 1;
   /*
    * Search for complete plan.
    */
@@ -383,7 +388,6 @@ const Plan* Plan::plan(const Problem& problem, Heuristic heuristic,
       for (PlanList::const_iterator i = refinements.begin();
 	   i != refinements.end(); i++) {
 	plans.push(*i);
-	num_generated_plans += 1 + (*i)->early_cost_;
 	if (verbosity > 2) {
 	  cout << endl << "####CHILD with rank " << (*i)->primary_rank()
 	       << ',' << (*i)->secondary_rank() << ':' << endl
@@ -1164,9 +1168,11 @@ void Plan::link_preconditions(PlanList& new_plans) const {
       if (generated_plans.size() == 1) {
 	// only add if no threats are introduced?
 	new_plan = generated_plans.back();
+	early_cost++;
       }
     }
     if (new_plan != plan) {
+      new_plan->early_cost_ = early_cost;
       new_plans.push_back(new_plan);
     }
   }
