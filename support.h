@@ -2,7 +2,7 @@
 /*
  * Auxiliary types and functions.
  *
- * $Id: support.h,v 1.6 2001-10-06 22:55:32 lorens Exp $
+ * $Id: support.h,v 1.7 2001-10-11 21:14:11 lorens Exp $
  */
 #ifndef SUPPORT_H
 #define SUPPORT_H
@@ -129,9 +129,21 @@ inline ostream& operator<<(ostream& os, const Printable& o) {
 
 
 /*
- * Abstract exception.
+ * Run-time exception.
  */
 struct Exception : public Printable {
+  /* Constructs an exception with the given message. */
+  Exception(const string& message)
+    : message(message) {
+  }
+
+protected:
+  /* Prints this object on the given stream. */
+  void print(ostream& os) const;
+
+private:
+  /* Message. */
+  string message;
 };
 
 
@@ -141,16 +153,8 @@ struct Exception : public Printable {
 struct Unimplemented : public Exception {
   /* Constructs an unimplemented exception. */
   Unimplemented(const string& message)
-    : message(message) {
+    : Exception(message) {
   }
-
-protected:
-  /* Prints this exception on the given stream. */
-  virtual void print(ostream& os) const;
-
-private:
-  /* Message. */
-  string message;
 };
 
 
