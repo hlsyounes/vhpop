@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: actions.cc,v 6.2 2003-08-27 16:59:04 lorens Exp $
+ * $Id: actions.cc,v 6.3 2003-08-28 15:26:40 lorens Exp $
  */
 #include "actions.h"
 #include "bindings.h"
@@ -286,7 +286,7 @@ void ActionSchema::print(std::ostream& os, const PredicateTable& predicates,
   }
   os << ") ";
   if (!condition().tautology()) {
-    condition().print(os, predicates, terms, 0, Bindings());
+    condition().print(os, predicates, terms, 0, Bindings::EMPTY);
   } else {
     os << "nil";
   }
