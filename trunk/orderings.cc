@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: orderings.cc,v 6.2 2003-07-21 02:22:17 lorens Exp $
+ * $Id: orderings.cc,v 6.3 2003-07-21 18:12:22 lorens Exp $
  */
 #include "orderings.h"
 #include "plans.h"
@@ -271,7 +271,7 @@ BinaryOrderings::refine(const Ordering& new_ordering) const {
       && new_ordering.after_id() != Plan::GOAL_ID
       && possibly_after(new_ordering.before_id(), new_ordering.before_time(),
 			new_ordering.after_id(), new_ordering.after_time())) {
-    BinaryOrderings& orderings = *(new BinaryOrderings(*this));
+    BinaryOrderings& orderings = *new BinaryOrderings(*this);
     hashing::hash_map<size_t, BoolVector*> own_data;
     orderings.fill_transitive(own_data, new_ordering);
     return &orderings;
@@ -285,7 +285,7 @@ BinaryOrderings::refine(const Ordering& new_ordering) const {
 const BinaryOrderings* BinaryOrderings::refine(const Ordering& new_ordering,
 					       const Step& new_step) const {
   if (new_step.id() != 0 && new_step.id() != Plan::GOAL_ID) {
-    BinaryOrderings& orderings = *(new BinaryOrderings(*this));
+    BinaryOrderings& orderings = *new BinaryOrderings(*this);
     hashing::hash_map<size_t, BoolVector*> own_data;
     if (new_step.id() > before_.size() + 1) {
       if (new_step.id() > 1) {
@@ -490,7 +490,7 @@ TemporalOrderings::refine(const Ordering& new_ordering) const {
       && new_ordering.after_id() != Plan::GOAL_ID
       && possibly_after(new_ordering.before_id(), new_ordering.before_time(),
 			new_ordering.after_id(), new_ordering.after_time())) {
-    TemporalOrderings& orderings = *(new TemporalOrderings(*this));
+    TemporalOrderings& orderings = *new TemporalOrderings(*this);
     hashing::hash_map<size_t, FloatVector*> own_data;
     if (orderings.fill_transitive(own_data, new_ordering)) {
       return &orderings;
@@ -509,7 +509,7 @@ const TemporalOrderings*
 TemporalOrderings::refine(const Ordering& new_ordering,
 			  const Step& new_step) const {
   if (new_step.id() != 0 && new_step.id() != Plan::GOAL_ID) {
-    TemporalOrderings& orderings = *(new TemporalOrderings(*this));
+    TemporalOrderings& orderings = *new TemporalOrderings(*this);
     hashing::hash_map<size_t, FloatVector*> own_data;
     if (new_step.id() > distance_.size()/2) {
       FloatVector* fv = new FloatVector(4*new_step.id() - 2, INFINITY);

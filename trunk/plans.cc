@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.cc,v 6.3 2003-07-21 02:23:30 lorens Exp $
+ * $Id: plans.cc,v 6.4 2003-07-21 18:16:52 lorens Exp $
  */
 #include "mathport.h"
 #include "plans.h"
@@ -403,12 +403,10 @@ const Plan* Plan::make_initial_plan(const Problem& problem) {
     goal_action = new GroundAction("", false);
     const Formula& goal_formula =
       problem.goal().instantiation(SubstitutionMap(), problem);
-    goal_action->set_condition(Condition::make_condition(goal_formula,
-							 AT_START));
+    goal_action->set_condition(Condition::make(goal_formula, AT_START));
   } else {
     goal_action = new ActionSchema("", false);
-    goal_action->set_condition(Condition::make_condition(problem.goal(),
-							 AT_START));
+    goal_action->set_condition(Condition::make(problem.goal(), AT_START));
   }
   /* Chain of open conditions. */
   const Chain<OpenCondition>* open_conds = NULL;
@@ -429,7 +427,7 @@ const Plan* Plan::make_initial_plan(const Problem& problem) {
     new Chain<Step>(Step(GOAL_ID, *goal_action),
 		    new Chain<Step>(Step(0, problem.init_action()), NULL));
   /* Variable bindings. */
-  const Bindings* bindings = Bindings::make_bindings(steps, planning_graph);
+  const Bindings* bindings = Bindings::make(steps, planning_graph);
   if (bindings == NULL) {
     /* Bindings are inconsistent. */
     Chain<OpenCondition>::register_use(open_conds);
@@ -916,11 +914,10 @@ int Plan::separable(const Unsafe& unsafe) const {
       const Binding& subst = *si;
       if (find(effect_forall.begin(), effect_forall.end(), subst.var())
 	  == effect_forall.end()) {
-	const Inequality& neq =
-	  *(new Inequality(subst.var(), subst.var_id(),
-			   subst.term(), subst.term_id()));
+	const Inequality& neq = *new Inequality(subst.var(), subst.var_id(),
+						subst.term(), subst.term_id());
 	if (bindings_->consistent_with(neq, 0)) {
-	  goal = &(*goal || Condition::make_condition(neq, AT_START));
+	  goal = &(*goal || Condition::make(neq, AT_START));
 	} else {
 	  Formula::register_use(&neq);
 	  Formula::unregister_use(&neq);
@@ -976,10 +973,10 @@ void Plan::separate(PlanList& plans, const Unsafe& unsafe) const {
     const Binding& subst = *si;
     if (find(effect_forall.begin(), effect_forall.end(), subst.var())
 	== effect_forall.end()) {
-      const Inequality& neq = *(new Inequality(subst.var(), subst.var_id(),
-					       subst.term(), subst.term_id()));
+      const Inequality& neq = *new Inequality(subst.var(), subst.var_id(),
+					      subst.term(), subst.term_id());
       if (bindings_->consistent_with(neq, 0)) {
-	goal = &(*goal || Condition::make_condition(neq, AT_START));
+	goal = &(*goal || Condition::make(neq, AT_START));
       } else {
 	Formula::register_use(&neq);
 	Formula::unregister_use(&neq);
@@ -1488,9 +1485,8 @@ int Plan::cw_link_possible(const EffectList& effects,
 	for (BindingList::const_iterator si = mgu.begin();
 	     si != mgu.end(); si++) {
 	  const Binding& subst = *si;
-	  binds = &(*binds
-		    || *(new Inequality(subst.var(), subst.var_id(),
-					subst.term(), subst.term_id())));
+	  binds = &(*binds || Inequality::make(subst.var(), subst.var_id(),
+					       subst.term(), subst.term_id()));
 	}
 	goals = &(*goals && *binds);
       }
@@ -1535,9 +1531,8 @@ void Plan::new_cw_link(PlanList& plans, const Step& step,
 	for (BindingList::const_iterator si = mgu.begin();
 	     si != mgu.end(); si++) {
 	  const Binding& subst = *si;
-	  binds = &(*binds
-		    || *(new Inequality(subst.var(), subst.var_id(),
-					subst.term(), subst.term_id())));
+	  binds = &(*binds || Inequality::make(subst.var(), subst.var_id(),
+					       subst.term(), subst.term_id()));
 	}
 	goals = &(*goals && *binds);
       }
