@@ -13,11 +13,10 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: flaws.cc,v 3.7 2003-03-01 18:55:33 lorens Exp $
+ * $Id: flaws.cc,v 6.1 2003-07-13 15:59:02 lorens Exp $
  */
 #include "flaws.h"
 #include "plans.h"
-#include "reasons.h"
 #include "domains.h"
 #include "formulas.h"
 
@@ -35,14 +34,9 @@ std::ostream& operator<<(std::ostream& os, const Flaw& f) {
 /* OpenCondition */
 
 /* Constructs an open condition. */
-OpenCondition::OpenCondition(size_t step_id, const Formula& condition,
-			     const Reason& reason)
+OpenCondition::OpenCondition(size_t step_id, const Formula& condition)
   : step_id_(step_id), condition_(&condition) {
   Formula::register_use(condition_);
-#ifdef TRANSFORMATIONAL
-  reason_ = &reason;
-  Reason::register_use(reason_);
-#endif
 }
 
 
@@ -50,29 +44,12 @@ OpenCondition::OpenCondition(size_t step_id, const Formula& condition,
 OpenCondition::OpenCondition(const OpenCondition& oc)
   : step_id_(oc.step_id_), condition_(oc.condition_) {
   Formula::register_use(condition_);
-#ifdef TRANSFORMATIONAL
-  reason_ = oc.reason_;
-  Reason::register_use(reason_);
-#endif
 }
 
 
 /* Deletes this open condition. */
 OpenCondition::~OpenCondition() {
   Formula::unregister_use(condition_);
-#ifdef TRANSFORMATIONAL
-  Reason::unregister_use(reason_);
-#endif
-}
-
-
-/* Returns the reason. */
-const Reason& OpenCondition::reason() const {
-#ifdef TRANSFORMATIONAL
-  return *reason_;
-#else
-  return Reason::DUMMY;
-#endif
 }
 
 
@@ -80,7 +57,7 @@ const Reason& OpenCondition::reason() const {
 bool OpenCondition::is_static(const Domain& domain) const {
   const Literal* lit = literal();
   return (lit != NULL && step_id() != Plan::GOAL_ID
-	  && domain.static_predicate(lit->predicate()));
+	  && domain.predicates().static_predicate(lit->predicate()));
 }
 
 
