@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 6.1 2003-07-13 16:01:29 lorens Exp $
+ * $Id: formulas.h,v 6.2 2003-07-21 01:25:07 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -51,9 +51,6 @@ struct Literal;
  * Abstract formula.
  */
 struct Formula {
-  /* Possible temporal annotations for formulas. */
-  typedef enum { AT_START, AT_END, OVER_ALL } FormulaTime;
-
   /* The true formula. */
   static const Formula& TRUE;
   /* The false formula. */
@@ -79,39 +76,31 @@ struct Formula {
   /* Deletes this formula. */
   virtual ~Formula();
 
-  /* Checks if this formula is a tautology. */
+  /* Tests if this formula is a tautology. */
   bool tautology() const { return this == &TRUE; }
 
-  /* Checks if this formula is a contradiction. */
+  /* Tests if this formula is a contradiction. */
   bool contradiction() const { return this == &FALSE; }
-
-  /* Checks if this formula is either a tautology or contradiction. */
-  bool constant() const { return tautology() || contradiction(); }
 
   /* Returns a formula that separates the given literal from anything
      definitely asserted by this formula. */
-  virtual const Formula& separate(const Literal& literal) const = 0;
+  virtual const Formula& separator(const Literal& literal) const = 0;
+
+  /* Returns this formula subject to the given substitutions. */
+  virtual const Formula& substitution(const SubstitutionMap& subst) const = 0;
 
   /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionMap& subst,
 				       const Problem& problem) const = 0;
 
-  /* Returns this formula subject to the given substitutions. */
-  virtual const Formula& substitution(const SubstitutionMap& subst,
-				      size_t step_id) const = 0;
-
   /* Returns the heuristic value of this formula. */
-  virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
-			       size_t step_id,
-			       const Bindings* b = NULL) const = 0;
-
-  /* Returns the heuristic value of this formula. */
-  virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
+  virtual void heuristic_value(HeuristicValue& h,
 			       const PlanningGraph& pg, size_t step_id,
 			       const Bindings* b = NULL) const = 0;
 
   /* Prints this formula on the given stream with the given bindings. */
-  virtual void print(std::ostream& os, size_t step_id, const Problem& problem,
+  virtual void print(std::ostream& os, const PredicateTable& predicates,
+		     const TermTable& terms, size_t step_id,
 		     const Bindings& bindings) const = 0;
 
 protected:
@@ -121,14 +110,11 @@ protected:
   /* Returns the negation of this formula. */
   virtual const Formula& negation() const = 0;
 
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const = 0;
-
 private:
+  /* Reference counter. */
   mutable size_t ref_count_;
 
   friend const Formula& operator!(const Formula& f);
-  friend std::ostream& operator<<(std::ostream& os, const Formula& f);
 };
 
 /* Negation operator for formulas. */
@@ -140,9 +126,6 @@ const Formula& operator&&(const Formula& f1, const Formula& f2);
 /* Disjunction operator for formulas. */
 const Formula& operator||(const Formula& f1, const Formula& f2);
 
-/* Output operator for formulas. */
-std::ostream& operator<<(std::ostream& os, const Formula& f);
-
 
 /* ====================================================================== */
 /* FormulaList */
@@ -152,9 +135,6 @@ std::ostream& operator<<(std::ostream& os, const Formula& f);
  */
 struct FormulaList : public std::vector<const Formula*> {
 };
-
-/* A formula list const iterator. */
-typedef FormulaList::const_iterator FormulaListIter;
 
 
 /* ====================================================================== */
@@ -166,35 +146,28 @@ typedef FormulaList::const_iterator FormulaListIter;
 struct Constant : public Formula {
   /* Returns a formula that separates the given literal from anything
      definitely asserted by this formula. */
-  virtual const Formula& separate(const Literal& literal) const;
+  virtual const Formula& separator(const Literal& literal) const;
+
+  /* Returns this formula subject to the given substitutions. */
+  virtual const Constant& substitution(const SubstitutionMap& subst) const;
 
   /* Returns an instantiation of this formula. */
   virtual const Constant& instantiation(const SubstitutionMap& subst,
 					const Problem& problem) const;
 
-  /* Returns this formula subject to the given substitutions. */
-  virtual const Constant& substitution(const SubstitutionMap& subst,
-				       size_t step_id) const;
-
   /* Returns the heuristic value of this formula. */
-  virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
-			       size_t step_id, const Bindings* b) const;
-
-  /* Returns the heuristic value of this formula. */
-  virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
+  virtual void heuristic_value(HeuristicValue& h,
 			       const PlanningGraph& pg, size_t step_id,
 			       const Bindings* b) const;
 
   /* Prints this formula on the given stream with the given bindings. */
-  virtual void print(std::ostream& os, size_t step_id, const Problem& problem,
+  virtual void print(std::ostream& os, const PredicateTable& predicates,
+		     const TermTable& terms, size_t step_id,
 		     const Bindings& bindings) const;
 
 protected:
   /* Returns a negation of this formula. */
   virtual const Formula& negation() const;
-
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const;
 
 private:
   /* Constant representing true. */
@@ -219,78 +192,19 @@ private:
  * An abstract literal.
  */
 struct Literal : public Formula {
-  /* Returns the temporal annotation for this formula. */
-  FormulaTime when() const { return when_; }
-
   /* Returns the predicate of this literal. */
   virtual Predicate predicate() const = 0;
 
-  /* Returns the terms of this literal. */
-  virtual const TermList& terms() const = 0;
+  /* Returns the number of terms of this literal. */
+  virtual size_t arity() const = 0;
+
+  /* Returns the ith term of this literal. */
+  virtual Term term(size_t i) const = 0;
 
   /* Returns a formula that separates the given literal from anything
      definitely asserted by this formula. */
-  virtual const Formula& separate(const Literal& literal) const;
-
-protected:
-  /* Constructs a literal. */
-  explicit Literal(FormulaTime when);
-
-  /* Checks if this object equals the given object. */
-  virtual bool equals(const Literal& o) const = 0;
-
-  /* Returns the hash value of this object. */
-  virtual size_t hash_value() const = 0;
-
-private:
-  /* Temporal annotation for this formula. */
-  FormulaTime when_;
-
-  friend bool operator==(const Literal& l1, const Literal& l2);
-  friend struct hashing::hash<const Literal*>;
+  virtual const Formula& separator(const Literal& literal) const;
 };
-
-/* Equality operator for literals. */
-inline bool operator==(const Literal& l1, const Literal& l2) {
-  return l1.equals(l2);
-}
-
-/* Inequality operator for literals. */
-inline bool operator!=(const Literal& l1, const Literal& l2) {
-  return !(l1 == l2);
-}
-
-/*
- * Equality function object for literal pointers.
- */
-namespace std {
-struct equal_to<const Literal*>
-  : public binary_function<const Literal*, const Literal*, bool> {
-  bool operator()(const Literal* l1, const Literal* l2) const {
-    return *l1 == *l2;
-  }
-};
-}
-
-/*
- * Hash function object for literal pointers.
- */
-#if defined __GNUC__ && __GNUC__ >= 3
-# if __GNUC_MINOR__ == 0
-namespace std
-# else
-namespace __gnu_cxx
-# endif
-{
-#endif
-  struct hash<const Literal*> {
-    size_t operator()(const Literal* l) const {
-      return l->hash_value();
-    }
-  };
-#if defined __GNUC__ && __GNUC__ >= 3
-}
-#endif
 
 
 /* ====================================================================== */
@@ -300,57 +214,67 @@ namespace __gnu_cxx
  * An atom.
  */
 struct Atom : public Literal {
-  /* Constructs an atomic formula with the given predicate. */
-  Atom(Predicate predicate, FormulaTime when);
+  /* Returns an atomic formula with the given predicate and terms. */
+  static const Atom& make_atom(Predicate predicate, const TermList& terms);
 
-  /* Adds a term to this atomic formula. */
-  void add_term(Term term);
+  /* Deletes this atomic formula. */
+  virtual ~Atom();
 
   /* Returns the predicate of this literal. */
   virtual Predicate predicate() const { return predicate_; }
 
-  /* Returns the terms of this literal. */
-  virtual const TermList& terms() const { return terms_; }
+  /* Returns the number of terms of this literal. */
+  virtual size_t arity() const { return terms_.size(); }
+
+  /* Returns the ith term of this literal. */
+  virtual Term term(size_t i) const { return terms_[i]; }
+
+  /* Returns this formula subject to the given substitutions. */
+  virtual const Atom& substitution(const SubstitutionMap& subst) const;
 
   /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionMap& subst,
 				       const Problem& problem) const;
 
-  /* Returns this formula subject to the given substitutions. */
-  virtual const Atom& substitution(const SubstitutionMap& subst,
-				   size_t step_id) const;
-
   /* Returns the heuristic value of this formula. */
-  virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
-			       size_t step_id, const Bindings* b) const;
-
-  /* Returns the heuristic value of this formula. */
-  virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
+  virtual void heuristic_value(HeuristicValue& h,
 			       const PlanningGraph& pg, size_t step_id,
 			       const Bindings* b) const;
 
   /* Prints this formula on the given stream with the given bindings. */
-  virtual void print(std::ostream& os, size_t step_id, const Problem& problem,
+  virtual void print(std::ostream& os, const PredicateTable& predicates,
+		     const TermTable& terms, size_t step_id,
 		     const Bindings& bindings) const;
 
 protected:
-  /* Checks if this object equals the given object. */
-  virtual bool equals(const Literal& o) const;
-
-  /* Returns the hash value of this object. */
-  virtual size_t hash_value() const;
-
   /* Returns the negation of this formula. */
   virtual const Literal& negation() const;
 
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const;
-
 private:
+  /* Less-than comparison function object for atoms. */
+  struct AtomLess
+    : public std::binary_function<const Atom*, const Atom*, bool> {
+    /* Comparison function. */
+    bool operator()(const Atom* a1, const Atom* a2) const;
+  };
+
+  /* A table of atomic formulas. */
+  struct AtomTable : std::set<const Atom*, AtomLess> {
+  };
+
+  /* Table of atomic formulas. */
+  static AtomTable atoms;
+
   /* Predicate of this atom. */
   Predicate predicate_;
   /* Terms of this atom. */
   TermList terms_;
+
+  /* Constructs an atomic formula with the given predicate. */
+  Atom(Predicate predicate);
+
+  /* Adds a term to this atomic formula. */
+  void add_term(Term term) { terms_.push_back(term); }
 };
 
 
@@ -361,8 +285,8 @@ private:
  * A negated atom.
  */
 struct Negation : public Literal {
-  /* Constructs a negated atom. */
-  explicit Negation(const Atom& atom);
+  /* Returns a negation of the given atom. */
+  static const Negation& make_negation(const Atom& atom);
 
   /* Deletes this negated atom. */
   virtual ~Negation();
@@ -373,46 +297,53 @@ struct Negation : public Literal {
   /* Returns the predicate of this literal. */
   virtual Predicate predicate() const { return atom().predicate(); }
 
-  /* Returns the terms of this literal. */
-  virtual const TermList& terms() const { return atom().terms(); }
+  /* Returns the number of terms of this literal. */
+  virtual size_t arity() const { return atom().arity(); }
+
+  /* Returns the ith term of this literal. */
+  virtual Term term(size_t i) const { return atom().term(i); }
+
+  /* Returns this formula subject to the given substitutions. */
+  virtual const Negation& substitution(const SubstitutionMap& subst) const;
 
   /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionMap& subst,
 				       const Problem& problem) const;
 
-  /* Returns this formula subject to the given substitutions. */
-  virtual const Negation& substitution(const SubstitutionMap& subst,
-				       size_t step_id) const;
-
   /* Returns the heuristic value of this formula. */
-  virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
-			       size_t step_id, const Bindings* b) const;
-
-  /* Returns the heuristic value of this formula. */
-  virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
+  virtual void heuristic_value(HeuristicValue& h,
 			       const PlanningGraph& pg, size_t step_id,
 			       const Bindings* b) const;
 
   /* Prints this formula on the given stream with the given bindings. */
-  virtual void print(std::ostream& os, size_t step_id, const Problem& problem,
+  virtual void print(std::ostream& os, const PredicateTable& predicates,
+		     const TermTable& terms, size_t step_id,
 		     const Bindings& bindings) const;
 
 protected:
-  /* Checks if this object equals the given object. */
-  virtual bool equals(const Literal& o) const;
-
-  /* Returns the hash value of this object. */
-  virtual size_t hash_value() const;
-
   /* Returns the negation of this formula. */
   virtual const Literal& negation() const;
 
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const;
-
 private:
+  /* Less-than comparison function object for negated atoms. */
+  struct NegationLess
+    : public std::binary_function<const Negation*, const Negation*, bool> {
+    /* Comparison function. */
+    bool operator()(const Negation* n1, const Negation* n2) const;
+  };
+
+  /* A table of negated atoms. */
+  struct NegationTable : std::set<const Negation*, NegationLess> {
+  };
+
+  /* Table of negated atoms. */
+  static NegationTable negations;
+
   /* The negated atom. */
   const Atom* atom_;
+
+  /* Constructs a negated atom. */
+  explicit Negation(const Atom& atom);
 };
 
 
@@ -439,7 +370,7 @@ struct BindingLiteral : public Formula {
 
   /* Returns a formula that separates the given literal from anything
      definitely asserted by this formula. */
-  virtual const Formula& separate(const Literal& literal) const;
+  virtual const Formula& separator(const Literal& literal) const;
 
 protected:
   /* Constructs a binding literal. */
@@ -470,33 +401,26 @@ struct Equality : public BindingLiteral {
   /* Constructs an equality with assigned step ids. */
   Equality(Term term1, size_t id1, Term term2, size_t id2);
 
+  /* Returns this formula subject to the given substitutions. */
+  virtual const Formula& substitution(const SubstitutionMap& subst) const;
+
   /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionMap& subst,
 				       const Problem& problem) const;
 
-  /* Returns this formula subject to the given substitutions. */
-  virtual const Formula& substitution(const SubstitutionMap& subst,
-				      size_t step_id) const;
-
   /* Returns the heuristic value of this formula. */
-  virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
-			       size_t step_id, const Bindings* b) const;
-
-  /* Returns the heuristic value of this formula. */
-  virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
+  virtual void heuristic_value(HeuristicValue& h,
 			       const PlanningGraph& pg, size_t step_id,
 			       const Bindings* b) const;
 
   /* Prints this formula on the given stream with the given bindings. */
-  virtual void print(std::ostream& os, size_t step_id, const Problem& problem,
+  virtual void print(std::ostream& os, const PredicateTable& predicates,
+		     const TermTable& terms, size_t step_id,
 		     const Bindings& bindings) const;
 
 protected:
   /* Returns the negation of this formula. */
   virtual const BindingLiteral& negation() const;
-
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const;
 };
 
 
@@ -513,33 +437,26 @@ struct Inequality : public BindingLiteral {
   /* Constructs an inequality with assigned step ids. */
   Inequality(Term term1, size_t id1, Term term2, size_t id2);
 
+  /* Returns this formula subject to the given substitutions. */
+  virtual const Formula& substitution(const SubstitutionMap& subst) const;
+
   /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionMap& subst,
 				       const Problem& problem) const;
 
-  /* Returns this formula subject to the given substitutions. */
-  virtual const Formula& substitution(const SubstitutionMap& subst,
-				      size_t step_id) const;
-
   /* Returns the heuristic value of this formula. */
-  virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
-			       size_t step_id, const Bindings* b) const;
-
-  /* Returns the heuristic value of this formula. */
-  virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
+  virtual void heuristic_value(HeuristicValue& h,
 			       const PlanningGraph& pg, size_t step_id,
 			       const Bindings* b) const;
 
   /* Prints this formula on the given stream with the given bindings. */
-  virtual void print(std::ostream& os, size_t step_id, const Problem& problem,
+  virtual void print(std::ostream& os, const PredicateTable& predicates,
+		     const TermTable& terms, size_t step_id,
 		     const Bindings& bindings) const;
 
 protected:
   /* Returns the negation of this formula. */
   virtual const BindingLiteral& negation() const;
-
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const;
 };
 
 
@@ -564,35 +481,28 @@ struct Conjunction : public Formula {
 
   /* Returns a formula that separates the given literal from anything
      definitely asserted by this formula. */
-  virtual const Formula& separate(const Literal& literal) const;
+  virtual const Formula& separator(const Literal& literal) const;
+
+  /* Returns this formula subject to the given substitutions. */
+  virtual const Formula& substitution(const SubstitutionMap& subst) const;
 
   /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionMap& subst,
 				       const Problem& problem) const;
 
-  /* Returns this formula subject to the given substitutions. */
-  virtual const Formula& substitution(const SubstitutionMap& subst,
-				      size_t step_id) const;
-
   /* Returns the heuristic value of this formula. */
-  virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
-			       size_t step_id, const Bindings* b) const;
-
-  /* Returns the heuristic value of this formula. */
-  virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
+  virtual void heuristic_value(HeuristicValue& h,
 			       const PlanningGraph& pg, size_t step_id,
 			       const Bindings* b) const;
 
   /* Prints this formula on the given stream with the given bindings. */
-  virtual void print(std::ostream& os, size_t step_id, const Problem& problem,
+  virtual void print(std::ostream& os, const PredicateTable& predicates,
+		     const TermTable& terms, size_t step_id,
 		     const Bindings& bindings) const;
 
 protected:
   /* Returns the negation of this formula. */
   virtual const Formula& negation() const;
-
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const;
 
 private:
   /* The conjuncts. */
@@ -621,35 +531,28 @@ struct Disjunction : public Formula {
 
   /* Returns a formula that separates the given literal from anything
      definitely asserted by this formula. */
-  virtual const Formula& separate(const Literal& literal) const;
+  virtual const Formula& separator(const Literal& literal) const;
+
+  /* Returns this formula subject to the given substitution. */
+  virtual const Formula& substitution(const SubstitutionMap& subst) const;
 
   /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionMap& subst,
 				       const Problem& problem) const;
 
-  /* Returns this formula subject to the given substitution. */
-  virtual const Formula& substitution(const SubstitutionMap& subst,
-				      size_t step_id) const;
-
   /* Returns the heuristic value of this formula. */
-  virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
-			       size_t step_id, const Bindings* b) const;
-
-  /* Returns the heuristic value of this formula. */
-  virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
+  virtual void heuristic_value(HeuristicValue& h,
 			       const PlanningGraph& pg, size_t step_id,
 			       const Bindings* b) const;
 
   /* Prints this formula on the given stream with the given bindings. */
-  virtual void print(std::ostream& os, size_t step_id, const Problem& problem,
+  virtual void print(std::ostream& os, const PredicateTable& predicates,
+		     const TermTable& terms, size_t step_id,
 		     const Bindings& bindings) const;
 
 protected:
   /* Returns the negation of this formula. */
   virtual const Formula& negation() const;
-
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const;
 
 private:
   /* The disjuncts. */
@@ -681,7 +584,7 @@ struct QuantifiedFormula : public Formula {
 
   /* Returns a formula that separates the given literal from anything
      definitely asserted by this formula. */
-  virtual const Formula& separate(const Literal& literal) const;
+  virtual const Formula& separator(const Literal& literal) const;
 
 protected:
   /* Constructs a quantified formula. */
@@ -696,83 +599,179 @@ private:
 
 
 /* ====================================================================== */
-/* ExistsFormula */
+/* Exists */
 
 /*
  * Existentially quantified formula.
  */
-struct ExistsFormula : public QuantifiedFormula {
+struct Exists : public QuantifiedFormula {
   /* Constructs an existentially quantified formula. */
-  ExistsFormula();
+  Exists();
+
+  /* Returns this formula subject to the given substitutions. */
+  virtual const Formula& substitution(const SubstitutionMap& subst) const;
 
   /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionMap& subst,
 				       const Problem& problem) const;
 
-  /* Returns this formula subject to the given substitutions. */
-  virtual const Formula& substitution(const SubstitutionMap& subst,
-				      size_t step_id) const;
-
   /* Returns the heuristic value of this formula. */
-  virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
-			       size_t step_id, const Bindings* b) const;
-
-  /* Returns the heuristic value of this formula. */
-  virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
+  virtual void heuristic_value(HeuristicValue& h,
 			       const PlanningGraph& pg, size_t step_id,
 			       const Bindings* b) const;
 
   /* Prints this formula on the given stream with the given bindings. */
-  virtual void print(std::ostream& os, size_t step_id, const Problem& problem,
+  virtual void print(std::ostream& os, const PredicateTable& predicates,
+		     const TermTable& terms, size_t step_id,
 		     const Bindings& bindings) const;
 
 protected:
   /* Returns the negation of this formula. */
   virtual const QuantifiedFormula& negation() const;
-
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const;
 };
 
 
 /* ====================================================================== */
-/* ForallFormula */
+/* Forall */
 
 /*
  * Universally quantified formula.
  */
-struct ForallFormula : public QuantifiedFormula {
+struct Forall : public QuantifiedFormula {
   /* Constructs a universally quantified formula. */
-  ForallFormula();
+  Forall();
+
+  /* Returns this formula subject to the given substitutions. */
+  virtual const Formula& substitution(const SubstitutionMap& subst) const;
 
   /* Returns an instantiation of this formula. */
   virtual const Formula& instantiation(const SubstitutionMap& subst,
 				       const Problem& problem) const;
 
-  /* Returns this formula subject to the given substitutions. */
-  virtual const Formula& substitution(const SubstitutionMap& subst,
-				      size_t step_id) const;
-
   /* Returns the heuristic value of this formula. */
-  virtual void heuristic_value(HeuristicValue& h, const PlanningGraph& pg,
-			       size_t step_id, const Bindings* b) const;
-
-  /* Returns the heuristic value of this formula. */
-  virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
+  virtual void heuristic_value(HeuristicValue& h,
 			       const PlanningGraph& pg, size_t step_id,
 			       const Bindings* b) const;
 
   /* Prints this formula on the given stream with the given bindings. */
-  virtual void print(std::ostream& os, size_t step_id, const Problem& problem,
+  virtual void print(std::ostream& os, const PredicateTable& predicates,
+		     const TermTable& terms, size_t step_id,
 		     const Bindings& bindings) const;
 
 protected:
   /* Returns the negation of this formula. */
   virtual const QuantifiedFormula& negation() const;
-
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os) const;
 };
+
+
+/* ====================================================================== */
+/* FormulaTime */
+
+/*
+ * A formula time.
+ */
+typedef enum { AT_START, OVER_ALL, AT_END } FormulaTime;
+
+
+/* ====================================================================== */
+/* Condition */
+
+/*
+ * An action or effect condition.
+ */
+struct Condition {
+  /* The true condition. */
+  static const Condition TRUE;
+  /* The false condition. */
+  static const Condition FALSE;
+
+  /* Register use of the given condition. */
+  static void register_use(const Condition* c) {
+    if (c != NULL) {
+      c->ref_count_++;
+    }
+  }
+
+  /* Unregister use of the given condition. */
+  static void unregister_use(const Condition* c) {
+    if (c != NULL) {
+      c->ref_count_--;
+      if (c->ref_count_ == 0) {
+	delete c;
+      }
+    }
+  }
+
+  /* Returns a condition. */
+  static const Condition& make_condition(const Formula& at_start,
+					 const Formula& over_all,
+					 const Formula& at_end);
+
+  /* Returns a condition. */
+  static const Condition& make_condition(const Formula& formula,
+					 FormulaTime when);
+
+  /* Deletes this condition. */
+  ~Condition();
+
+  /* Returns the start condition. */
+  const Formula& at_start() const { return *at_start_; }
+
+  /* Returns the interval condition. */
+  const Formula& over_all() const { return *over_all_; }
+
+  /* Returns the end condition. */
+  const Formula& at_end() const { return *at_end_; }
+
+  /* Tests if this condition is a tautology. */
+  bool tautology() const { return this == &TRUE; }
+
+  /* Tests if this condition is a contradiction. */
+  bool contradiction() const { return this == &FALSE; }
+
+  /* Returns an instantiation of this condition. */
+  const Condition& instantiation(const SubstitutionMap& subst,
+				 const Problem& problem) const;
+
+  /* Returns this condition subject to the given substitutions. */
+  const Condition& substitution(const SubstitutionMap& subst) const;
+
+  /* Returns the heuristic value of this condition. */
+  void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
+		       const PlanningGraph& pg, size_t step_id,
+		       const Bindings* b = NULL) const;
+
+  /* Prints this condition on the given stream with the given bindings. */
+  void print(std::ostream& os, const PredicateTable& predicates,
+	     const TermTable& terms, size_t step_id,
+	     const Bindings& bindings) const;
+
+private:
+  /* Start condition. */
+  const Formula* at_start_;
+  /* Interval condition. */
+  const Formula* over_all_;
+  /* End condition. */
+  const Formula* at_end_;
+  /* Reference counter. */
+  mutable size_t ref_count_;
+
+  /* Constructs a Boolean condition. */
+  Condition(bool b);
+
+  /* Constructs a condition. */
+  Condition(const Formula& at_start, const Formula& over_all,
+	    const Formula& at_end);
+};
+
+/* Negation operator for conditions. */
+const Condition& operator!(const Condition& c);
+
+/* Conjunction operator for conditions. */
+const Condition& operator&&(const Condition& c1, const Condition& c2);
+
+/* Disjunction operator for conditions. */
+const Condition& operator||(const Condition& c1, const Condition& c2);
 
 
 /* ====================================================================== */
