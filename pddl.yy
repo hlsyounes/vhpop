@@ -2,7 +2,7 @@
 /*
  * PDDL parser.
  *
- * $Id: pddl.yy,v 1.11 2001-10-06 00:35:12 lorens Exp $
+ * $Id: pddl.yy,v 1.12 2001-10-06 04:07:03 lorens Exp $
  */
 %{
 #include <utility>
@@ -32,8 +32,7 @@ static void add_names(const vector<string>& names,
 static void add_predicate(const string& name, const VariableList& parameters);
 static void add_action(const ActionSchema& action);
 static void add_variable(const Variable& var);
-static const Formula& make_atomic_formula(const string& predicate,
-					  const TermList& terms);
+static const Atom& make_atom(const string& predicate, const TermList& terms);
 static TermList& add_name(TermList& terms, const string& name);
 static const Type& make_type(const string& name);
 
@@ -115,7 +114,7 @@ static bool unique_variables = true;
 %token PDOMAIN OBJECTS INIT GOAL
 %token WHEN NOT AND OR IMPLY EXISTS FORALL
 %token EITHER
-%token NAME VARIABLE
+%token EQUALS NAME VARIABLE
 %token ILLEGAL_TOKEN
 
 %union {
@@ -149,7 +148,7 @@ static bool unique_variables = true;
 %type <formula> goal
 %type <formulas> formulas
 %type <formula> formula
-%type <formula> atomic_term_formula
+%type <atom> atomic_term_formula
 %type <str> predicate
 %type <terms> terms
 %type <variables> opt_variables variables
@@ -180,7 +179,7 @@ domain : '(' DEFINE '(' DOMAIN NAME ')'
            {
 	     pdomain = NULL;
 	     domain_name = *$5;
-	     context = " in domain '" + domain_name + "'";
+	     context = " in domain `" + domain_name + "'";
 	     requirements = new Requirements();
 	     domain_types = new TypeMap();
 	     domain_constants = new NameMap();
@@ -251,7 +250,7 @@ require_key : STRIPS
 types_def : TYPES
               {
 		if (!requirements->typing) {
-		  yywarning("assuming ':typing' requirement.");
+		  yywarning("assuming `:typing' requirement.");
 		}
 		name_map_type = "type";
 	      }
@@ -291,7 +290,7 @@ action_def : '(' ACTION NAME PARAMETERS
                { free_variables.push_frame(); }
              '(' opt_variables ')'
                {
-		 context = (" in action '" + *$3 + "' of domain '"
+		 context = (" in action `" + *$3 + "' of domain `"
 			    + domain_name + "'");
 	       }
              action_body ')'
@@ -331,7 +330,7 @@ one_eff_formula : term_literal
                 | '(' WHEN formula atomic_effs ')'
                     {
 		      if (!requirements->conditional_effects) {
-			yywarning("assuming ':conditional-effects' "
+			yywarning("assuming `:conditional-effects' "
 				  "requirement.");
 		      }
 		      $$ = new Effect(*$3, *$4);
@@ -339,7 +338,7 @@ one_eff_formula : term_literal
                 | '(' FORALL 
                     {
 		      if (!requirements->conditional_effects) {
-			yywarning("assuming ':conditional-effects' "
+			yywarning("assuming `:conditional-effects' "
 				  "requirement.");
 		      }
 		      free_variables.push_frame();
@@ -386,7 +385,7 @@ problem : '(' DEFINE '(' PROBLEM NAME ')' '(' PDOMAIN NAME ')'
             {
 	      pdomain = Domain::find(*$9);
 	      problem_name = *$5;
-	      context = " in problem '" + problem_name + "'";
+	      context = " in problem `" + problem_name + "'";
 	      if (pdomain != NULL) {
 		requirements = new Requirements(pdomain->requirements);
 	      } else {
@@ -424,7 +423,7 @@ object_decl : OBJECTS
 init : INIT
          {
 	   context =
-	     " in initial conditions of problem '" + problem_name + "'";
+	     " in initial conditions of problem `" + problem_name + "'";
 	 }
        atomic_name_formulas ')'
          { $$ = new Effect(*$3); }
@@ -439,7 +438,7 @@ atomic_name_formulas : atomic_name_formula
 atomic_name_formula : '(' predicate
                         { current_predicate = *$2; }
                       names ')'
-                        { $$ = &make_atomic_formula(*$2, *$4); }
+                        { $$ = &make_atom(*$2, *$4); }
                     ;
 
 names : /* empty */
@@ -462,7 +461,7 @@ goal_list : goal           { $$ = new FormulaList($1); }
           ;
 
 goal : '(' GOAL
-         { context = " in goal of problem '" + problem_name + "'"; }
+         { context = " in goal of problem `" + problem_name + "'"; }
        formula ')'
          { $$ = $4; }
      ;
@@ -478,11 +477,23 @@ formulas : formula          { $$ = new FormulaList($1); }
 
 formula : atomic_term_formula
             { $$ = $1 }
+        | '(' EQUALS terms ')'
+            {
+	      if (!requirements->equality) {
+		yywarning("assuming `:equality' requirement.");
+	      }
+	      if ($3->size() != 2) {
+		yyerror(tostring($3->size()) + " parameter"
+			+ string(($3->size() == 1) ? "" : "s")
+			+ " passed to predicate `=' expecting 2");
+	      }
+	      $$ = new Equality(*(*$3)[0], *(*$3)[1]);
+	    }
         | '(' NOT formula ')'
             {
 	      if (!requirements->disjunctive_preconditions
 		  && dynamic_cast<const Equality*>($3) == NULL) {
-		yywarning("assuming ':disjunctive-preconditions' "
+		yywarning("assuming `:disjunctive-preconditions' "
 			  "requirement.");
 	      }
 	      $$ = &!*$3;
@@ -498,7 +509,7 @@ formula : atomic_term_formula
         | '(' OR formulas formula ')'
             {
 	      if (!requirements->disjunctive_preconditions) {
-		yywarning("assuming ':disjunctive-preconditions' "
+		yywarning("assuming `:disjunctive-preconditions' "
 			  "requirement.");
 	      }
 	      $$ = &Formula::FALSE;
@@ -510,7 +521,7 @@ formula : atomic_term_formula
         | '(' IMPLY formula formula ')'
             {
 	      if (!requirements->disjunctive_preconditions) {
-		yywarning("assuming ':disjunctive-preconditions' "
+		yywarning("assuming `:disjunctive-preconditions' "
 			  "requirement.");
 	      }
 	      $$ = &(!*$3 || *$4);
@@ -518,7 +529,7 @@ formula : atomic_term_formula
         | '(' EXISTS
             {
 	      if (!requirements->existential_preconditions) {
-		yywarning("assuming ':existential-preconditions' "
+		yywarning("assuming `:existential-preconditions' "
 			  "requirement.");
 	      }
 	      free_variables.push_frame();
@@ -531,7 +542,7 @@ formula : atomic_term_formula
         | '(' FORALL
             {
 	      if (!requirements->universal_preconditions) {
-		yywarning("assuming ':universal-preconditions' requirement.");
+		yywarning("assuming `:universal-preconditions' requirement.");
 	      }
 	      free_variables.push_frame();
 	    }
@@ -545,7 +556,7 @@ formula : atomic_term_formula
 atomic_term_formula : '(' predicate
                         { current_predicate = *$2; }
                       terms ')'
-                        { $$ = &make_atomic_formula(*$2, *$4); }
+                        { $$ = &make_atom(*$2, *$4); }
                     ;
 
 predicate : NAME
@@ -559,7 +570,7 @@ terms : /* empty */
           {
 	    const Variable* v = free_variables.find(*$2);
 	    if (v == NULL) {
-	      yyerror("free variable '" + *$2 + "'");
+	      yyerror("free variable `" + *$2 + "'");
 	      v = new Variable(*$2);
 	    }
 	    $1->push_back(v);
@@ -728,7 +739,7 @@ static void add_names(const vector<string>& names, const Type& type) {
 	(*domain_types)[s] = new SimpleType(s, type);
       } else {
 	yywarning("ignoring repeated declaration of " + name_map_type
-		  + " '" + s + "'");
+		  + " `" + s + "'");
       }
     } else {
       NameMap::const_iterator ni = name_map->find(s);
@@ -749,8 +760,8 @@ static void add_predicate(const string& name, const VariableList& parameters) {
   if (find_predicate(name) == NULL) {
     (*domain_predicates)[name] = new Predicate(name, parameters);
   } else {
-    yywarning("ignoring repeated declaration of predicate '" + name
-	      + "' in domain '" + domain_name + "'");
+    yywarning("ignoring repeated declaration of predicate `" + name
+	      + "' in domain `" + domain_name + "'");
   }
 }
 
@@ -760,8 +771,8 @@ static void add_predicate(const string& name, const VariableList& parameters) {
  */
 static void add_action(const ActionSchema& action) {
   if (domain_actions->find(action.name) != domain_actions->end()) {
-    yywarning("ignoring repeated declaration of action '" + action.name
-	      + "' in domain '" + domain_name + "'");
+    yywarning("ignoring repeated declaration of action `" + action.name
+	      + "' in domain `" + domain_name + "'");
   } else {
     (*domain_actions)[action.name] = &action;
   }
@@ -774,9 +785,9 @@ static void add_action(const ActionSchema& action) {
 static void add_variable(const Variable& var) {
   if (unique_variables) {
     if (free_variables.shallow_find(var.name) != NULL) {
-      yyerror("repetition of parameter '" + var.name + "'");
+      yyerror("repetition of parameter `" + var.name + "'");
     } else if (free_variables.find(var.name) != NULL) {
-      yyerror("shadowing parameter '" + var.name + "'");
+      yyerror("shadowing parameter `" + var.name + "'");
     }
     free_variables.insert(&var);
   }
@@ -787,38 +798,24 @@ static void add_variable(const Variable& var) {
 /*
  * Creates a formula (predicate terms[0] ...).
  */
-static const Formula& make_atomic_formula(const string& predicate,
-					  const TermList& terms) {
-  if (predicate == "=") {
-    if (!requirements->equality) {
-      yywarning("assuming ':equality' requirement.");
-    }
-    if (terms.size() == 2) {
-      return *(new Equality(*terms[0], *terms[1]));
-    } else {
-      yyerror(tostring(terms.size()) + " parameter"
-	      + string((terms.size() == 1) ? "" : "s")
-	      + " passed to predicate '=' expecting 2");
-    }
-  } else {
-    const Predicate* p = find_predicate(predicate);
-    if (p == NULL) {
-      if (domain_predicates != NULL) {
-	VariableList& params = *(new VariableList());
-	for (size_t i = 0; i < terms.size(); i++) {
-	  params.push_back(new Variable("?x" + tostring(i + 1)));
-	}
-	(*domain_predicates)[predicate] = new Predicate(predicate, params);
-	yywarning("implicit declaration of predicate '" + predicate + "'");
-      } else {
-	yyerror("undeclared predicate '" + predicate + "' used");
+static const Atom& make_atom(const string& predicate, const TermList& terms) {
+  const Predicate* p = find_predicate(predicate);
+  if (p == NULL) {
+    if (domain_predicates != NULL) {
+      VariableList& params = *(new VariableList());
+      for (size_t i = 0; i < terms.size(); i++) {
+	params.push_back(new Variable("?x" + tostring(i + 1)));
       }
-    } else if (p->arity() != terms.size()) {
-      yyerror(tostring(terms.size()) + " parameter"
-	      + string((terms.size() == 1) ? "" : "s")
-	      + " passed to predicate '" + predicate
-	      + "' expecting " + tostring(p->arity()));
+      (*domain_predicates)[predicate] = new Predicate(predicate, params);
+      yywarning("implicit declaration of predicate `" + predicate + "'");
+    } else {
+      yyerror("undeclared predicate `" + predicate + "' used");
     }
+  } else if (p->arity() != terms.size()) {
+    yyerror(tostring(terms.size()) + " parameter"
+	    + string((terms.size() == 1) ? "" : "s")
+	    + " passed to predicate `" + predicate
+	    + "' expecting " + tostring(p->arity()));
   }
   return *(new Atom(predicate, terms));
 }
@@ -838,10 +835,10 @@ static TermList& add_name(TermList& terms, const string& name) {
     }
     if (domain_constants != NULL) {
       (*domain_constants)[name] = c;
-      yywarning("implicit declaration of constant '" + name + "'");
+      yywarning("implicit declaration of constant `" + name + "'");
     } else {
       (*problem_objects)[name] = c;
-      yywarning("implicit declaration of object '" + name + "'");
+      yywarning("implicit declaration of object `" + name + "'");
     }
   }
   terms.push_back(c);
@@ -855,9 +852,9 @@ static const Type& make_type(const string& name) {
     const SimpleType& st = *(new SimpleType(name));
     if (domain_types != NULL) {
       (*domain_types)[name] = &st;
-      yywarning("implicit declaration of type '" + name + "'");
+      yywarning("implicit declaration of type `" + name + "'");
     } else {
-      yyerror("undeclared type '" + name + "' used");
+      yyerror("undeclared type `" + name + "' used");
     }
     return st;
   } else {
