@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: pddl.yy,v 6.4 2003-07-28 21:37:41 lorens Exp $
+ * $Id: pddl.yy,v 6.5 2003-09-01 19:34:21 lorens Exp $
  */
 %{
 #include "requirements.h"
@@ -94,10 +94,10 @@ int warning_level;
 static bool success = true;
 /* Domain being parsed, or NULL if no domain is being parsed. */
 static Domain* domain;
+/* Domains. */
+static std::map<std::string, Domain*> domains;
 /* Problem being parsed, or NULL if no problem is being parsed. */
 static Problem* problem;
-/* Domain of problem being parsed, or NULL if no problem is being parsed. */
-static const Domain* pdomain;
 /* Current requirements. */
 static Requirements* requirements;
 /* Predicate being parsed. */
@@ -122,23 +122,15 @@ VariableList quantified;
 static Context context; 
 /* Predicate for atomic formula being parsed. */
 static Predicate atom_predicate;
+/* Whether the predicate of the currently parsed atom was undeclared. */
+static bool undeclared_atom_predicate;
 /* Kind of name map being parsed. */
-static enum { TYPE_MAP, CONSTANT_MAP, OBJECT_MAP, NOTHING } name_map_kind;
+static enum { TYPE_KIND, CONSTANT_KIND, OBJECT_KIND, VOID_KIND } name_kind;
 
 /* Outputs an error message. */
 static void yyerror(const std::string& s); 
 /* Outputs a warning message. */
 static void yywarning(const std::string& s);
-/* Returns the type with the given name.  If no type with the given
-   name exists, false is returned in the second part of the
-   result. */
-static std::pair<Type, bool> find_type(const std::string& name);
-/* Returns the predicate with the given name.  If no predicate with
-   the given name exists, false is returned in the second part of the
-   result. */
-static std::pair<Predicate, bool> find_predicate(const std::string& name);
-/* Returns the constant with the given name, or NULL if undefined. */
-static std::pair<Object, bool> find_constant(const std::string& name);
 /* Creates an empty domain with the given name. */
 static void make_domain(const std::string* name);
 /* Creates an empty problem with the given name. */
@@ -146,6 +138,8 @@ static void make_problem(const std::string* name,
 			 const std::string* domain_name);
 /* Adds :typing to the requirements. */
 static void require_typing();
+/* Adds :disjunctive-preconditions to the requirements. */
+static void require_disjunction();
 /* Adds :duration-inequalities to the requirements. */
 static void require_duration_inequalities();
 /* Returns a simple type with the given name. */
@@ -158,16 +152,27 @@ static void make_predicate(const std::string* name);
 static Term make_term(const std::string* name);
 /* Creates an action with the given name. */
 static void make_action(const std::string* name, bool durative);
+/* Adds the current action to the current domain. */ 
+static void add_action();
 /* Prepares for the parsing of a universally quantified effect. */ 
 static void prepare_forall_effect();
 /* Prepares for the parsing of a conditional effect. */ 
 static void prepare_conditional_effect(const Condition& condition);
+/* Adds types, constants, or objects to the current domain or problem. */
+static void add_names(const std::vector<const std::string*>* names, Type type);
+/* Adds variables to the current variable list. */
+static void add_variables(const std::vector<const std::string*>* names,
+			  Type type);
+/* Prepares for the parsning of an atomic formula. */ 
+static void prepare_atom(const std::string* name);
+/* Adds a term with the given name to the current atomic formula. */
+static void add_term(const std::string* name);
+/* Creates the atomic formula just parsed. */
+static const Atom* make_atom();
 /* Creates an equality formula. */
 static const Formula* make_equality(const Term& t1, const Term& t2);
 /* Creates a negation. */
 static const Formula* make_negation(const Formula& f);
-/* Prepares for the parsing of a disjunction. */
-static void prepare_disjunction();
 /* Prepares for the parsing of an existentially quantified formula. */
 static void prepare_exists();
 /* Prepares for the parsing of a universally quantified formula. */
@@ -176,22 +181,10 @@ static void prepare_forall();
 static const Formula* make_exists(const Formula& body);
 /* Creates a universally quantified formula. */
 static const Formula* make_forall(const Formula& body);
-/* Adds types, constants, or objects to the current domain or problem. */
-static void add_names(const std::vector<std::string>* names, Type type);
-/* Adds variables to the current variable list. */
-static void add_variables(const std::vector<std::string>* names, Type type);
-/* Adds the current action to the current domain. */ 
-static void add_action();
 /* Adds the given literal as an effect to the currect action. */
 static void add_effect(const Literal& literal);
 /* Pops the top-most universally quantified variables. */
 static void pop_forall_effect();
-/* Prepares for the parsning of an atomic formula. */ 
-static void prepare_atom(const std::string* name);
-/* Adds a term with the given name to the current atomic formula. */
-static void add_term(const std::string* name);
-/* Creates the atomic formula just parsed. */
-static const Atom* make_atom();
 %}
 
 %token DEFINE DOMAIN_TOKEN PROBLEM
@@ -215,7 +208,7 @@ static const Atom* make_atom();
   const Formula* formula;
   const Atom* atom;
   const std::string* str;
-  std::vector<std::string>* strs;
+  std::vector<const std::string*>* strs;
   Term term;
   Type type;
   TypeSet* types;
@@ -318,11 +311,11 @@ require_key : STRIPS { requirements->strips = true; }
             ;
 
 types_def : '(' TYPES { require_typing(); } name_map ')'
-              { name_map_kind = NOTHING; }
+              { name_kind = VOID_KIND; }
           ;
 
-constants_def : '(' CONSTANTS { name_map_kind = CONSTANT_MAP; } name_map ')'
-                  { name_map_kind = NOTHING; }
+constants_def : '(' CONSTANTS { name_kind = CONSTANT_KIND; } name_map ')'
+                  { name_kind = VOID_KIND; }
               ;
 
 predicates_def : '(' PREDICATES atomic_formula_skeletons ')'
@@ -492,7 +485,7 @@ problem_body3 : init goal_spec
               | goal_spec
               ;
 
-object_decl : '(' OBJECTS { name_map_kind = OBJECT_MAP; } name_map ')'
+object_decl : '(' OBJECTS { name_kind = OBJECT_KIND; } name_map ')'
             ;
 
 init : '(' INIT name_literals ')'
@@ -502,7 +495,7 @@ name_literals : name_literal
               | name_literals name_literal
               ;
 
-name_literal : atomic_name_formula { problem->add_init(*$1); }
+name_literal : atomic_name_formula { problem->add_init_atom(*$1); }
              | '(' not atomic_name_formula ')'
              ;
 
@@ -549,8 +542,8 @@ formula : atomic_term_formula { $$ = $1; }
         | '(' '=' term term ')' { $$ = make_equality($3, $4); }
         | '(' not formula ')' { $$ = make_negation(*$3); }
         | '(' and conjuncts ')' { $$ = $3; }
-        | '(' or { prepare_disjunction(); } disjuncts ')' { $$ = $4; }
-        | '(' imply { prepare_disjunction(); } formula formula ')'
+        | '(' or { require_disjunction(); } disjuncts ')' { $$ = $4; }
+        | '(' imply { require_disjunction(); } formula formula ')'
             { $$ = &(!*$4 || *$5); }
         | '(' exists { prepare_exists(); } '(' opt_variables ')' formula ')'
             { $$ = make_exists(*$7); }
@@ -596,9 +589,9 @@ opt_variables : /* empty */
               ;
 
 variable_seq : variable
-                 { $$ = new std::vector<std::string>(1, *$1); delete $1; }
+                 { $$ = new std::vector<const std::string*>(1, $1); }
              | variable_seq variable
-                 { $$ = $1; $$->push_back(*$2); delete $2; }
+                 { $$ = $1; $$->push_back($2); }
              ;
 
 typed_names : name_seq { add_names($1, OBJECT_TYPE); }
@@ -609,8 +602,8 @@ opt_typed_names : /* empty */
                 | typed_names
                 ;
 
-name_seq : name { $$ = new std::vector<std::string>(1, *$1); delete $1; }
-         | name_seq name { $$ = $1; $$->push_back(*$2); delete $2; }
+name_seq : name { $$ = new std::vector<const std::string*>(1, $1); }
+         | name_seq name { $$ = $1; $$->push_back($2); }
          ;
 
 type_spec : '-' type { $$ = $2; }
@@ -729,52 +722,12 @@ static void yywarning(const std::string& s) {
 }
 
 
-/* Returns the type with the given name.  If no type with the given
-   name exists, false is returned in the second part of the
-   result. */
-static std::pair<Type, bool> find_type(const std::string& name) {
-  if (domain != NULL) {
-    return domain->types().find_type(name);
-  } else { /* pdomain != NULL */
-    return pdomain->types().find_type(name);
-  }
-}
-
-
-/* Returns the predicate with the given name.  If no predicate with
-   the given name exists, false is returned in the second part of the
-   result. */
-static std::pair<Predicate, bool> find_predicate(const std::string& name) {
-  if (domain != NULL) {
-    return domain->predicates().find_predicate(name);
-  } else { /* pdomain != NULL */
-    return pdomain->predicates().find_predicate(name);
-  }
-}
-
-
-/* Returns the constant with the given name, or NULL if undefined.  */
-static std::pair<Object, bool> find_constant(const std::string& name) {
-  std::pair<Object, bool> c(0, false);
-  if (pdomain != NULL) {
-    c = pdomain->terms().find_object(name);
-  }
-  if (!c.second && domain != NULL) {
-    c = domain->terms().find_object(name);
-  }
-  if (!c.second && problem != NULL) {
-    c = problem->terms().find_object(name);
-  }
-  return c;
-}
-
-
 /* Creates an empty domain with the given name. */
 static void make_domain(const std::string* name) {
-  pdomain = NULL;
-  problem = NULL;
   domain = new Domain(*name);
+  domains[*name] = domain;
   requirements = &domain->requirements;
+  problem = NULL;
   delete name;
 }
 
@@ -782,16 +735,17 @@ static void make_domain(const std::string* name) {
 /* Creates an empty problem with the given name. */
 static void make_problem(const std::string* name,
 			 const std::string* domain_name) {
-  domain = NULL;
-  pdomain = Domain::find(*domain_name);
-  if (pdomain != NULL) {
-    requirements = new Requirements(pdomain->requirements);
+  std::map<std::string, Domain*>::const_iterator di =
+    domains.find(*domain_name);
+  if (di != domains.end()) {
+    domain = (*di).second;
   } else {
-    pdomain = new Domain(*domain_name);
-    requirements = new Requirements();
+    domain = new Domain(*domain_name);
+    domains[*domain_name] = domain;
     yyerror("undeclared domain `" + *domain_name + "' used");
   }
-  problem = new Problem(*name, *pdomain);
+  requirements = new Requirements(domain->requirements);
+  problem = new Problem(*name, *domain);
   delete name;
   delete domain_name;
 }
@@ -804,7 +758,15 @@ static void require_typing() {
     yywarning("assuming `:typing' requirement");
     requirements->typing = true;
   }
-  name_map_kind = TYPE_MAP;
+}
+
+
+/* Adds :disjunctive-preconditions to the requirements. */
+static void require_disjunction() {
+  if (!requirements->disjunctive_preconditions) {
+    yywarning("assuming `:disjunctive-preconditions' requirement");
+    requirements->disjunctive_preconditions = true;
+  }
 }
 
 
@@ -819,16 +781,11 @@ static void require_duration_inequalities() {
 
 /* Returns a simple type with the given name. */
 static Type make_type(const std::string* name) {
-  std::pair<Type, bool> t = find_type(*name);
+  std::pair<Type, bool> t = domain->types().find_type(*name);
   if (!t.second) {
-    if (domain != NULL) {
-      t.first = domain->types().add_type(*name);
-      if (name_map_kind != TYPE_MAP) {
-	yywarning("implicit declaration of type `" + *name + "'");
-      }
-    } else {
-      t.first = pdomain->types().add_type(*name);
-      yyerror("undeclared type `" + *name + "' used");
+    t.first = domain->types().add_type(*name);
+    if (name_kind != TYPE_KIND) {
+      yywarning("implicit declaration of type `" + *name + "'");
     }
   }
   delete name;
@@ -838,15 +795,48 @@ static Type make_type(const std::string* name) {
 
 /* Returns the union of the given types. */
 static Type make_type(const TypeSet& types) {
-  const Domain& d = *((domain != NULL) ? domain : pdomain);
-  return d.types().add_type(types);
+  return domain->types().add_type(types);
+}
+
+
+/* Returns a simple term with the given name. */
+static Term make_term(const std::string* name) {
+  if ((*name)[0] == '?') {
+    std::pair<Variable, bool> v = context.find(*name);
+    if (!v.second) {
+      if (problem != NULL) {
+	v.first = problem->terms().add_variable(OBJECT_TYPE);
+      } else {
+	v.first = domain->terms().add_variable(OBJECT_TYPE);
+      }
+      context.insert(*name, v.first);
+      yyerror("free variable `" + *name + "' used");
+    }
+    delete name;
+    return v.first;
+  } else {
+    TermTable& terms = (problem != NULL) ? problem->terms() : domain->terms();
+    const PredicateTable& predicates = domain->predicates();
+    std::pair<Object, bool> o = terms.find_object(*name);
+    if (!o.second) {
+      size_t n = term_parameters.size();
+      if (parsing_atom && predicates.arity(atom_predicate) > n) {
+	o.first = terms.add_object(*name,
+				   predicates.parameter(atom_predicate, n));
+      } else {
+	o.first = terms.add_object(*name, OBJECT_TYPE);
+      }
+    }
+    delete name;
+    return o.first;
+  }
 }
 
 
 /* Creates a predicate with the given name. */
 static void make_predicate(const std::string* name) {
   repeated_predicate = false;
-  std::pair<Predicate, bool> p = find_predicate(*name);
+  std::pair<Predicate, bool> p = domain->predicates().find_predicate(*name);
   if (!p.second) {
     p.first = domain->predicates().add_predicate(*name);
   } else {
@@ -856,52 +846,6 @@ static void make_predicate(const std::string* name) {
   predicate = p.first;
   parsing_predicate = true;
   delete name;
-}
-
-
-/* Returns a simple term with the given name. */
-static Term make_term(const std::string* name) {
-  if ((*name)[0] == '?') {
-    std::pair<Variable, bool> var = context.find(*name);
-    if (!var.second) {
-      if (domain != NULL) {
-	var.first = domain->terms().add_variable(OBJECT_TYPE);
-      } else {
-	var.first = problem->terms().add_variable(OBJECT_TYPE);
-      }
-      context.insert(*name, var.first);
-      yyerror("free variable `" + *name + "' used");
-    }
-    delete name;
-    return var.first;
-  } else {
-    std::pair<Object, bool> c = find_constant(*name);
-    if (!c.second) {
-      size_t n = term_parameters.size();
-      const Domain& d = *((domain != NULL) ? domain : pdomain);
-      if (parsing_atom && d.predicates().arity(atom_predicate) > n) {
-	if (domain != NULL) {
-	  c.first =
-	    domain->terms().add_object(*name,
-				       d.predicates().parameter(atom_predicate,
-								n));
-	} else {
-	  c.first =
-	    problem->terms().add_object(*name,
-				       d.predicates().parameter(atom_predicate,
-								n));
-	}
-      } else {
-	if (domain != NULL) {
-	  c.first = domain->terms().add_object(*name, OBJECT_TYPE);
-	} else {
-	  c.first = problem->terms().add_object(*name, OBJECT_TYPE);
-	}
-      }
-    }
-    delete name;
-    return c.first;
-  }
 }
 
 
@@ -916,6 +860,21 @@ static void make_action(const std::string* name, bool durative) {
   context.push_frame();
   action = new ActionSchema(*name, durative);
   delete name;
+}
+
+
+/* Adds the current action to the current domain. */
+static void add_action() {
+  context.pop_frame();
+  if (domain->find_action(action->name()) == NULL) {
+    action->strengthen_effects();
+    domain->add_action(*action);
+  } else {
+    yywarning("ignoring repeated declaration of action `"
+	      + action->name() + "'");
+    delete action;
+  }
+  action = NULL;
 }
 
 
@@ -940,16 +899,159 @@ static void prepare_conditional_effect(const Condition& condition) {
 }
 
 
+/* Adds types, constants, or objects to the current domain or problem. */
+static void add_names(const std::vector<const std::string*>* names,
+		      Type type) {
+  for (std::vector<const std::string*>::const_iterator si = names->begin();
+       si != names->end(); si++) {
+    const std::string* s = *si;
+    if (name_kind == TYPE_KIND) {
+      if (*s == OBJECT_NAME) {
+	yywarning("ignoring declaration of reserved type `object'");
+      } else {
+	std::pair<Type, bool> t = domain->types().find_type(*s);
+	if (!t.second) {
+	  t.first = domain->types().add_type(*s);
+	}
+	if (!domain->types().add_supertype(t.first, type)) {
+	  yyerror("cyclic type hierarchy");
+	}
+      }
+    } else if (name_kind == CONSTANT_KIND) {
+      std::pair<Object, bool> o = domain->terms().find_object(*s);
+      if (!o.second) {
+	domain->terms().add_object(*s, type);
+      } else {
+	TypeSet components;
+	domain->types().components(components, domain->terms().type(o.first));
+	components.insert(type);
+	domain->terms().set_type(o.first, make_type(components));
+      }
+    } else { /* name_kind == OBJECT_KIND */
+      if (domain->terms().find_object(*s).second) {
+	yywarning("ignoring declaration of object `" + *s
+		  + "' previously declared as constant");
+      } else {
+	std::pair<Object, bool> o = problem->terms().find_object(*s);
+	if (!o.second) {
+	  problem->terms().add_object(*s, type);
+	} else {
+	  TypeSet components;
+	  domain->types().components(components,
+				     problem->terms().type(o.first));
+	  components.insert(type);
+	  problem->terms().set_type(o.first, make_type(components));
+	}
+      }
+    }
+    delete s;
+  }
+  delete names;
+}
+
+
+/* Adds variables to the current variable list. */
+static void add_variables(const std::vector<const std::string*>* names,
+			  Type type) {
+  for (std::vector<const std::string*>::const_iterator si = names->begin();
+       si != names->end(); si++) {
+    const std::string* s = *si;
+    if (parsing_predicate) {
+      if (!repeated_predicate) {
+	domain->predicates().add_parameter(predicate, type);
+      }
+    } else {
+      if (context.shallow_find(*s).second) {
+	yyerror("repetition of parameter `" + *s + "'");
+      } else if (context.find(*s).second) {
+	yyerror("shadowing parameter `" + *s + "'");
+      }
+      Variable var;
+      if (problem != NULL) {
+	var = problem->terms().add_variable(type);
+      } else {
+	var = domain->terms().add_variable(type);
+      }
+      context.insert(*s, var);
+      if (!quantified.empty()) {
+	quantified.push_back(var);
+      } else { /* action != NULL */
+	action->add_parameter(var);
+      }
+    }
+    delete s;
+  }
+  delete names;
+}
+
+
+/* Prepares for the parsning of an atomic formula. */ 
+static void prepare_atom(const std::string* name) {
+  std::pair<Predicate, bool> p = domain->predicates().find_predicate(*name);
+  if (!p.second) {
+    atom_predicate = domain->predicates().add_predicate(*name);
+    undeclared_atom_predicate = true;
+    if (problem != NULL) {
+      yywarning("undeclared predicate `" + *name + "' used");
+    } else {
+      yywarning("implicit declaration of predicate `" + *name + "'");
+    }
+  } else {
+    atom_predicate = p.first;
+    undeclared_atom_predicate = false;
+  }
+  term_parameters.clear();
+  parsing_atom = true;
+  delete name;
+}
+
+
+/* Adds a term with the given name to the current atomic formula. */
+static void add_term(const std::string* name) {
+  Term term = make_term(name);
+  const TermTable& terms =
+    (problem != NULL) ? problem->terms() : domain->terms();
+  if (parsing_atom) {
+    PredicateTable& predicates = domain->predicates();
+    size_t n = term_parameters.size();
+    if (undeclared_atom_predicate) {
+      predicates.add_parameter(atom_predicate, terms.type(term));
+    } else if (predicates.arity(atom_predicate) > n
+	       && !domain->types().subtype(terms.type(term),
+					   predicates.parameter(atom_predicate,
+								n))) {
+      yyerror("type mismatch");
+    }
+  }
+  term_parameters.push_back(term);
+}
+
+
+/* Creates the atomic formula just parsed. */
+static const Atom* make_atom() {
+  size_t n = term_parameters.size();
+  if (domain->predicates().arity(atom_predicate) < n) {
+    yyerror("too many parameters passed to predicate `"
+	    + domain->predicates().name(atom_predicate) + "'");
+  } else if (domain->predicates().arity(atom_predicate) > n) {
+    yyerror("too few parameters passed to predicate `"
+	    + domain->predicates().name(atom_predicate) + "'");
+  }
+  parsing_atom = false;
+  return &Atom::make(atom_predicate, term_parameters);
+}
+
+
 /* Creates an equality formula. */
 static const Formula* make_equality(const Term& t1, const Term& t2) {
   if (!requirements->equality) {
     yywarning("assuming `:equality' requirement");
     requirements->equality = true;
   }
-  const Domain& d = *((domain != NULL) ? domain : pdomain);
-  const TermTable& t = (domain != NULL) ? domain->terms() : problem->terms();
-  if (d.types().subtype(t.type(t1), t.type(t2))
-      || d.types().subtype(t.type(t2), t.type(t1))) {
+  const TermTable& terms =
+    (problem != NULL) ? problem->terms() : domain->terms();
+  if (domain->types().subtype(terms.type(t1), terms.type(t2))
+      || domain->types().subtype(terms.type(t2), terms.type(t1))) {
     return &Equality::make(t1, t2);
   } else {
     return &Formula::FALSE;
@@ -970,15 +1072,6 @@ static const Formula* make_negation(const Formula& f) {
     requirements->disjunctive_preconditions = true;
   }
   return &!f;
-}
-
-
-/* Prepares for the parsing of a disjunction. */
-static void prepare_disjunction() {
-  if (!requirements->disjunctive_preconditions) {
-    yywarning("assuming `:disjunctive-preconditions' requirement");
-    requirements->disjunctive_preconditions = true;
-  }
 }
 
 
@@ -1060,108 +1153,9 @@ static const Formula* make_forall(const Formula& body) {
 }
 
 
-/* Adds types, constants, or objects to the current domain or problem. */
-static void add_names(const std::vector<std::string>* names, Type type) {
-  for (std::vector<std::string>::const_iterator si = names->begin();
-       si != names->end(); si++) {
-    const std::string& s = *si;
-    if (name_map_kind == TYPE_MAP) {
-      if (s == OBJECT_NAME) {
-	yywarning("ignoring declaration of reserved type `object'");
-      } else {
-	std::pair<Type, bool> t = domain->types().find_type(s);
-	if (!t.second) {
-	  t.first = domain->types().add_type(s);
-	}
-	if (!domain->types().add_supertype(t.first, type)) {
-	  yyerror("cyclic type hierarchy");
-	}
-      }
-    } else if (name_map_kind == CONSTANT_MAP) {
-      std::pair<Object, bool> old_name = domain->terms().find_object(s);
-      if (old_name.second) {
-	TypeSet components;
-	domain->types().components(components,
-				   domain->terms().type(old_name.first));
-	components.insert(type);
-	domain->terms().set_type(old_name.first, make_type(components));
-      } else {
-	domain->terms().add_object(s, type);
-      }
-    } else { /* name_map_kind == OBJECT_MAP */
-      if (pdomain->terms().find_object(s).second) {
-	yywarning("ignoring declaration of object `" + s
-		  + "' previously declared as constant");
-      } else {
-	std::pair<Object, bool> old_name = problem->terms().find_object(s);
-	if (old_name.second) {
-	  TypeSet components;
-	  pdomain->types().components(components,
-				      problem->terms().type(old_name.first));
-	  components.insert(type);
-	  problem->terms().set_type(old_name.first, make_type(components));
-	} else {
-	  problem->terms().add_object(s, type);
-	}
-      }
-    }
-  }
-  delete names;
-}
-
-
-/* Adds variables to the current variable list. */
-static void add_variables(const std::vector<std::string>* names, Type type) {
-  for (std::vector<std::string>::const_iterator si = names->begin();
-       si != names->end(); si++) {
-    const std::string& s = *si;
-    if (parsing_predicate) {
-      if (!repeated_predicate) {
-	domain->predicates().add_parameter(predicate, type);
-      }
-    } else {
-      if (context.shallow_find(s).second) {
-	yyerror("repetition of parameter `" + s + "'");
-      } else if (context.find(s).second) {
-	yyerror("shadowing parameter `" + s + "'");
-      }
-      Variable var;
-      if (domain != NULL) {
-	var = domain->terms().add_variable(type);
-      } else {
-	var = problem->terms().add_variable(type);
-      }
-      context.insert(s, var);
-      if (!quantified.empty()) {
-	quantified.push_back(var);
-      } else if (action != NULL) {
-	action->add_parameter(var);
-      } else {
-	yyerror("where do these variables go?");
-      }
-    }
-  }
-  delete names;
-}
-
-
-/* Adds the current action to the current domain. */
-static void add_action() {
-  context.pop_frame();
-  if (domain->find_action(action->name()) == NULL) {
-    action->strengthen_effects();
-    domain->add_action(*action);
-  } else {
-    yywarning("ignoring repeated declaration of action `"
-	      + action->name() + "'");
-    delete action;
-  }
-  action = NULL;
-}
-
-
 /* Adds the current effect to the currect action. */
 static void add_effect(const Literal& literal) {
+  domain->predicates().make_dynamic(literal.predicate());
   Effect* effect = new Effect(literal, effect_time);
   for (VariableList::const_iterator vi = quantified.begin();
        vi != quantified.end(); vi++) {
@@ -1184,54 +1178,4 @@ static void pop_forall_effect() {
     n--;
   }
   quantified.resize(n);
-}
-
-
-/* Prepares for the parsning of an atomic formula. */ 
-static void prepare_atom(const std::string* name) {
-  std::pair<Predicate, bool> p = find_predicate(*name);
-  if (!p.second) {
-    if (domain != NULL) {
-      p.first = domain->predicates().add_predicate(*name);
-      yywarning("implicit declaration of predicate `" + *name + "'");
-    } else {
-      p.first = pdomain->predicates().add_predicate(*name);
-      yyerror("undeclared predicate `" + *name + "' used");
-    }
-  }
-  term_parameters.clear();
-  parsing_atom = true;
-  atom_predicate = p.first;
-  delete name;
-}
-
-
-/* Adds a term with the given name to the current atomic formula. */
-static void add_term(const std::string* name) {
-  const Term& term = make_term(name);
-  size_t n = term_parameters.size();
-  const Domain& d = *((domain != NULL) ? domain : pdomain);
-  const TermTable& t = (domain != NULL) ? domain->terms() : problem->terms();
-  if (d.predicates().arity(atom_predicate) > n
-      && !d.types().subtype(t.type(term),
-			    d.predicates().parameter(atom_predicate, n))) {
-    yyerror("type mismatch");
-  }
-  term_parameters.push_back(term);
-}
-
-
-/* Creates the atomic formula just parsed. */
-static const Atom* make_atom() {
-  size_t n = term_parameters.size();
-  const Domain& d = *((domain != NULL) ? domain : pdomain);
-  if (d.predicates().arity(atom_predicate) < n) {
-    yyerror("too many parameters passed to predicate `"
-	    + d.predicates().name(atom_predicate) + "'");
-  } else if (d.predicates().arity(atom_predicate) > n) {
-    yyerror("too few parameters passed to predicate `"
-	    + d.predicates().name(atom_predicate) + "'");
-  }
-  parsing_atom = false;
-  return &Atom::make(atom_predicate, term_parameters);
 }

@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.h,v 6.3 2003-07-28 01:37:35 lorens Exp $
+ * $Id: heuristics.h,v 6.4 2003-09-01 19:38:39 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
@@ -35,6 +35,16 @@ struct Flaw;
 struct Unsafe;
 struct OpenCondition;
 struct Plan;
+
+
+/* ====================================================================== */
+/* ActionEffectMap */
+
+/*
+ * Mapping from actions to effects.
+ */
+struct ActionEffectMap : public std::multimap<const Action*, const Effect*> {
+};
 
 
 /* ====================================================================== */
@@ -145,9 +155,8 @@ struct PlanningGraph {
   HeuristicValue heuristic_value(const Negation& negation, size_t step_id,
 				 const Bindings* bindings = NULL) const;
 
-  /* Fills the provided list with actions that achieve the given
-     formula. */
-  void achieves_formula(ActionList& actions, const Literal& f) const;
+  /* Returns a set of achievers for the given literal. */
+  const ActionEffectMap* literal_achievers(const Literal& literal) const;
 
   /* Returns the parameter domain for the given action, or NULL if the
      parameter domain is empty. */
@@ -155,34 +164,21 @@ struct PlanningGraph {
 
 private:
   /* Atom value map. */
-  struct AtomValueMap : public hashing::hash_map<const Atom*, HeuristicValue> {
+  struct AtomValueMap : public std::map<const Atom*, HeuristicValue> {
   };
-
-  /* Iterator for AtomValueMap. */
-  typedef AtomValueMap::const_iterator AtomValueMapIter;
 
   /* Mapping of literals to actions. */
-  struct LiteralActionsMap
-    : public hashing::hash_multimap<const Literal*, const GroundAction*> {
+  struct LiteralAchieverMap
+    : public std::map<const Literal*, ActionEffectMap> {
   };
-
-  /* Iterator for LiteralActionsMap. */
-  typedef LiteralActionsMap::const_iterator LiteralActionsMapIter;
 
   /* Mapping of predicate names to ground atoms. */
-  struct PredicateAtomsMap
-    : public hashing::hash_multimap<Predicate, const Atom*> {
+  struct PredicateAtomsMap : public std::multimap<Predicate, const Atom*> {
   };
-
-  /* Iterator for PredicateAtomsMap. */
-  typedef PredicateAtomsMap::const_iterator PredicateAtomsMapIter;
 
   /* Mapping of action name to parameter domain. */
   struct ActionDomainMap : public std::map<std::string, ActionDomain*> {
   };
-
-  /* Iterator for ActionDomainMap. */
-  typedef ActionDomainMap::const_iterator ActionDomainMapIter;
 
   /* Problem associated with this planning graph. */
   const Problem* problem_;
@@ -191,7 +187,7 @@ private:
   /* Negated atom values. */
   AtomValueMap negation_values_;
   /* Maps formulas to actions that achieve those formulas. */
-  LiteralActionsMap achieves_;
+  LiteralAchieverMap achievers_;
   /* Maps predicates to ground atoms. */
   PredicateAtomsMap predicate_atoms_;
   /* Maps predicates to negated ground atoms. */
@@ -200,8 +196,8 @@ private:
   ActionDomainMap action_domains_;
 
   /* Finds an element in a LiteralActionsMap. */
-  LiteralActionsMapIter find(const LiteralActionsMap& m,
-			     const Literal &l, const Action& a) const;
+  bool find(const LiteralAchieverMap& m, const Literal& l,
+	    const Action& a, const Effect& e) const;
 };
 
 
@@ -235,7 +231,7 @@ struct InvalidHeuristic : public Exception {
  * ADD uses h(p) = |S(p)| + w*ADD_COST.
  * ADDR is like ADD, but tries to take reuse into account.
  * MAX is an admissible heuristic counting parallel cost.
- * MAXR is like MAX, but thries to take reuse into account.
+ * MAXR is like MAX, but tries to take reuse into account.
  */
 struct Heuristic {
   /* Constructs a heuristic from a name. */
