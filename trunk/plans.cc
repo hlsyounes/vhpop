@@ -1,5 +1,5 @@
 /*
- * $Id: plans.cc,v 1.50 2002-01-05 13:34:45 lorens Exp $
+ * $Id: plans.cc,v 1.51 2002-01-06 21:46:06 lorens Exp $
  */
 #include <queue>
 #include <algorithm>
@@ -141,11 +141,11 @@ static bool add_goal(const OpenConditionChain*& open_conds,
     if (conj != NULL) {
       const FormulaList& gs = conj->conjuncts;
       for (FormulaListIter fi = gs.begin(); fi != gs.end(); fi++) {
-#ifndef REVERSE_OPEN_CONDITIONS
-	goals.push_back(*fi);
-#else
-	goals.push_front(*fi);
-#endif
+	if (params->reverse_open_conditions) {
+	  goals.push_front(*fi);
+	} else {
+	  goals.push_back(*fi);
+	}
       }
     } else {
       const Literal* literal = dynamic_cast<const Literal*>(goal);
@@ -309,9 +309,9 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p) {
 	 ai != domain->actions.end(); ai++) {
       const ActionSchema* as = (*ai).second;
       if (params->domain_constraints) {
-#ifndef KEEP_STATIC_PRECONDITIONS
-	as = &as->strip_static(*domain);
-#endif
+	if (!params->keep_static_preconditions) {
+	  as = &as->strip_static(*domain);
+	}
 	as = &as->strip_equality();
       }
       hash_set<string> preds;

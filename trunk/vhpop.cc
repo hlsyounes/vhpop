@@ -1,7 +1,7 @@
 /*
  * Main program.
  *
- * $Id: vhpop.cc,v 1.23 2002-01-05 13:48:39 lorens Exp $
+ * $Id: vhpop.cc,v 1.24 2002-01-06 21:46:08 lorens Exp $
  */
 #include <iostream>
 #include <cstdio>
@@ -37,11 +37,12 @@ int verbosity;
 #ifdef HAVE_GETOPT_LONG
 /* Program options. */
 static struct option long_options[] = {
-  { "domain-constraints", no_argument, NULL, 'd' },
+  { "domain-constraints", optional_argument, NULL, 'd' },
   { "flaw-order", required_argument, NULL, 'f' },
   { "ground-actions", no_argument, NULL, 'g' },
   { "heuristic", required_argument, NULL, 'h' },
   { "limit", required_argument, NULL, 'l' },
+  { "reverse-open-conditions", no_argument, NULL, 'r' },
   { "search-algorithm", required_argument, NULL, 's' },
   { "transformational", no_argument, NULL, 't' },
   { "time-limit", required_argument, NULL, 'T' },
@@ -53,7 +54,7 @@ static struct option long_options[] = {
   { 0, 0, 0, 0 }
 };
 #endif
-static const char OPTION_STRING[] = "df:gh:l:s:tT:v::Vw:W::?";
+static const char OPTION_STRING[] = "d::f:gh:l:rs:tT:v::Vw:W::?";
 
 
 /* Displays help. */
@@ -61,8 +62,10 @@ static void display_help() {
   cout << PROGRAM_NAME << endl
        << "usage: " << PROGRAM_NAME << " [options] [file ...]" << endl
        << "options:" << endl
-       << "  -d,    --domain-constraints" << endl
-       << "\t\t\tuse parameter domain constraints" << endl
+       << "  -d[k], --domain-constraints=[k]" << endl
+       << "\t\t\tuse parameter domain constraints;" << endl
+       << "\t\t\t  if k is 0, static preconditions are pruned;" << endl
+       << "\t\t\t  otherwise (default) static preconditions are kept" << endl
        << "  -f f,  --flaw-order=f\t"
        << "use flaw selection order f" << endl
        << "  -g,    --ground-actions" << endl
@@ -71,6 +74,8 @@ static void display_help() {
        << "use heuristic h to rank plans" << endl
        << "  -l l,  --limit=l\t"
        << "search no more than l plans" << endl
+       << "  -r,    --reverse-open-conditions" << endl
+       << "\t\t\treverse the order that open conditions are added" << endl
        << "  -s s,  --search-algorithm=s" << endl
        << "\t\t\tuse search algorithm s" << endl
        << "  -t,    --transformational" << endl
@@ -145,6 +150,7 @@ int main(int argc, char* argv[]) {
     switch (c) {
     case 'd':
       params.domain_constraints = true;
+      params.keep_static_preconditions = (optarg == NULL || atoi(optarg) != 0);
       break;
     case 'f':
       try {
@@ -171,6 +177,9 @@ int main(int argc, char* argv[]) {
       break;
     case 'l':
       params.search_limit = atoi(optarg);
+      break;
+    case 'r':
+      params.reverse_open_conditions = true;
       break;
     case 's':
       try {

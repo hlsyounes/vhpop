@@ -2,7 +2,7 @@
 /*
  * Planning parameters.
  *
- * $Id: parameters.h,v 1.6 2002-01-06 21:30:39 lorens Exp $
+ * $Id: parameters.h,v 1.7 2002-01-06 21:46:03 lorens Exp $
  */
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
@@ -41,6 +41,8 @@ struct Parameters : public gc {
   double weight;
   /* Flaw selecion order. */
   FlawSelectionOrder& flaw_order;
+  /* Whether to reverse the order that open conditions are added. */
+  bool reverse_open_conditions;
   /* Whether to use ground actions. */
   bool ground_actions;
   /* Whether to use parameter domain constraints. */
