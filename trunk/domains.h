@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.h,v 6.5 2003-08-28 15:32:08 lorens Exp $
+ * $Id: domains.h,v 6.6 2003-09-05 16:20:44 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -24,6 +24,7 @@
 #include <config.h>
 #include "requirements.h"
 #include "actions.h"
+#include "functions.h"
 #include "terms.h"
 #include "predicates.h"
 #include "types.h"
@@ -80,6 +81,12 @@ struct Domain {
   /* Returns the predicate table of this domain. */
   const PredicateTable& predicates() const { return predicates_; }
 
+  /* Returns the function table of this domain. */
+  FunctionTable& functions() { return functions_; }
+
+  /* Returns the function table of this domain. */
+  const FunctionTable& functions() const { return functions_; }
+
   /* Returns the term table of this domain. */
   TermTable& terms() { return terms_; }
 
@@ -107,6 +114,8 @@ private:
   TypeTable types_;
   /* Domain predicates. */
   PredicateTable predicates_;
+  /* Domain functions. */
+  FunctionTable functions_;
   /* Domain terms. */
   TermTable terms_;
   /* Domain action schemas. */

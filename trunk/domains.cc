@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.cc,v 6.6 2003-08-27 22:13:54 lorens Exp $
+ * $Id: domains.cc,v 6.7 2003-09-05 16:21:24 lorens Exp $
  */
 #include "domains.h"
 #include "bindings.h"
@@ -123,6 +123,14 @@ std::ostream& operator<<(std::ostream& os, const Domain& d) {
       }
     }
   }
+  os << std::endl << "constants:";
+  for (Object i = d.terms().first_object();
+       i <= d.terms().last_object(); i++) {
+    os << std::endl << "  ";
+    d.terms().print_term(os, i);
+    os << " - ";
+    d.types().print_type(os, d.terms().type(i));
+  }
   os << std::endl << "predicates:";
   for (Predicate i = d.predicates().first_predicate();
        i < d.predicates().last_predicate(); i++) {
@@ -137,19 +145,26 @@ std::ostream& operator<<(std::ostream& os, const Domain& d) {
       os << " <static>";
     }
   }
-  os << std::endl << "constants:";
-  for (Object i = d.terms().first_object();
-       i <= d.terms().last_object(); i++) {
-    os << std::endl << "  ";
-    d.terms().print_term(os, i);
-    os << " - ";
-    d.types().print_type(os, d.terms().type(i));
+  os << std::endl << "functions:";
+  for (Function i = d.functions().first_function();
+       i <= d.functions().last_function(); i++) {
+    os << std::endl << "  (";
+    d.functions().print_function(os, i);
+    size_t arity = d.functions().arity(i);
+    for (size_t j = 0; j < arity; j++) {
+      os << " ?v - ";
+      d.types().print_type(os, d.functions().parameter(i, j));
+    }
+    os << ") - " << NUMBER_NAME;
+    if (d.functions().static_function(i)) {
+      os << " <static>";
+    }
   }
   os << std::endl << "actions:";
   for (ActionSchemaMap::const_iterator ai = d.actions_.begin();
        ai != d.actions_.end(); ai++) {
-    os << std::endl << "  ";
-    (*ai).second->print(os, d.predicates(), d.terms());
+    os << std::endl;
+    (*ai).second->print(os, d.predicates(), d.functions(), d.terms());
   }
   return os;
 }
