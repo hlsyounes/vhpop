@@ -2,10 +2,98 @@
 /*
  * Heuristics.
  *
- * $Id: heuristics.h,v 1.5 2001-09-18 15:58:58 lorens Exp $
+ * $Id: heuristics.h,v 1.6 2001-09-29 18:55:03 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
+
+#include <string>
+#include <hash_map>
+#include "support.h"
+
+
+struct Formula;
+struct Problem;
+struct ActionList;
+
+
+/*
+ * Heuristic cost.
+ */
+struct Cost {
+  static const Cost INFINITE;
+
+  /* Total estimated cost. */
+  int cost;
+  /* Estimated remaining effort. */
+  int work;
+
+  /* Constructs a zero cost object. */
+  Cost()
+    : cost(0), work(0) {
+  }
+
+  /* Constructs a cost object. */
+  Cost(int cost, int work)
+    : cost(cost), work(work) {
+  }
+
+  /* Checks if this cost is infinite. */
+  bool infinite() const {
+    return *this == INFINITE;
+  }
+
+  /* Checks if this cost equals the given cost. */
+  bool operator==(const Cost& c) const {
+    return cost == c.cost && work == c.work;
+  }
+
+  /* Checks if this cost is less than the given cost. */
+  bool operator<(const Cost& c) const {
+    return cost < c.cost || (cost == c.cost && work < c.work);
+  }
+
+  /* Checks if this cost is greater than the given cost. */
+  bool operator>(const Cost& c) const {
+    return cost > c.cost || (cost == c.cost && work > c.work);
+  }
+
+  /* Checks if this cost is at most the given cost. */
+  bool operator<=(const Cost& c) const {
+    return !(*this > c);
+  }
+
+  /* Checks if this cost is at least the given cost. */
+  bool operator>=(const Cost& c) const {
+    return !(*this < c);
+  }
+
+  /* Adds the given cost to this cost. */
+  Cost& operator+=(const Cost& c) {
+    cost += c.cost;
+    work += c.work;
+    return *this;
+  }
+};
+
+
+/*
+ * An invalid heuristic exception.
+ */
+struct InvalidHeuristic : public Exception {
+  /* Constructs an invalid heuristic exception. */
+  InvalidHeuristic(const string& name)
+    : name(name) {
+  }
+
+protected:
+  /* Prints this object on the given stream. */
+  virtual void print(ostream& os) const;
+
+private:
+  /* Name of invalid heuristic. */
+  string name;
+};
 
 
 /*
@@ -21,10 +109,13 @@ private:
   typedef enum { MAX, SUM, SUMR, UCPOP } HVal;
 
 public:
-  /* Constructs a default heuristic. */
-  Heuristic() :
-    h_(SUMR) {
+  /* Constructs a heuristic from a name. */
+  Heuristic(const string& name = "SUMR") {
+    *this = name;
   }
+
+  /* Selects a heuristic from a name. */
+  Heuristic& operator=(const string& name);
 
   /* Selects the MAX heuristic. */
   void set_max() {
@@ -66,6 +157,9 @@ public:
     return h_ == UCPOP;
   }
 
+  void compute_cost(hash_map<const Formula*, Cost>& atom_cost,
+		    const Problem& problem, const ActionList& actions) const;
+
 private:
   /* The selected heuristic. */
   HVal h_;
@@ -73,55 +167,21 @@ private:
 
 
 /*
- * Heuristic cost.
+ * An invalid flaw selection order exception.
  */
-struct Cost {
-  /* Total estimated cost. */
-  int cost;
-  /* Estimated remaining effort. */
-  int work;
-
-  /* Constructs a zero cost object. */
-  Cost()
-    : cost(0), work(0) {
+struct InvalidFlawSelectionOrder : public Exception {
+  /* Constructs an invalid flaw selection order exception. */
+  InvalidFlawSelectionOrder(const string& name)
+    : name(name) {
   }
 
-  /* Constructs a cost object. */
-  Cost(int cost, int work)
-    : cost(cost), work(work) {
-  }
+protected:
+  /* Prints this object on the given stream. */
+  virtual void print(ostream& os) const;
 
-  /* Checks if this cost equals the given cost. */
-  bool operator==(const Cost& c) const {
-    return cost == c.cost && work == c.work;
-  }
-
-  /* Checks if this cost is less than the given cost. */
-  bool operator<(const Cost& c) const {
-    return cost < c.cost || (cost == c.cost && work < c.work);
-  }
-
-  /* Checks if this cost is greater than the given cost. */
-  bool operator>(const Cost& c) const {
-    return cost > c.cost || (cost == c.cost && work > c.work);
-  }
-
-  /* Checks if this cost is at most the given cost. */
-  bool operator<=(const Cost& c) const {
-    return !(*this > c);
-  }
-
-  /* Checks if this cost is at least the given cost. */
-  bool operator>=(const Cost& c) const {
-    return !(*this < c);
-  }
-
-  /* Adds the given cost to this cost. */
-  Cost& operator+=(const Cost& c) {
-    cost += c.cost;
-    work += c.work;
-    return *this;
-  }
+private:
+  /* Name of invalid heuristic. */
+  string name;
 };
 
 
@@ -138,9 +198,13 @@ private:
 
 public:
   /* Constructs a default flaw selection order. */
-  FlawSelectionOrder()
-    : lifo_(true), mode_(NONE) {
+  FlawSelectionOrder(const string& name = "LIFO")
+    : lifo_(true) {
+    *this = name;
   }
+
+  /* Selects a flaw selection order from a name. */
+  FlawSelectionOrder& operator=(const string& name);
 
   /* Selects LIFO order. */
   void set_lifo() {

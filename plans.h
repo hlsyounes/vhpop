@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * $Id: plans.h,v 1.16 2001-09-28 17:54:46 lorens Exp $
+ * $Id: plans.h,v 1.17 2001-09-29 18:56:21 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
@@ -15,7 +15,6 @@
 #include "domains.h"
 #include "problems.h"
 #include "bindings.h"
-#include "heuristics.h"
 
 
 struct Reason;
@@ -296,6 +295,7 @@ private:
 };
 
 
+struct Parameters;
 struct CostGraph;
 
 /*
@@ -306,9 +306,8 @@ struct Plan : public Printable {
   static const size_t GOAL_ID;
 
   /* Returns plan for given problem. */
-  static const Plan* plan(const Problem& problem, const FlawSelectionOrder& f,
-			  const Heuristic& h, bool g, bool t, size_t limit,
-			  int v);
+  static const Plan* plan(const Problem& problem, const Parameters& params,
+			  int verbosity);
 
   /* Checks if this plan is complete. */
   bool complete() const;
