@@ -2,7 +2,7 @@
 /*
  * Domain descriptions.
  *
- * $Id: domains.h,v 1.31 2001-12-29 11:42:02 lorens Exp $
+ * $Id: domains.h,v 1.32 2002-01-24 01:46:58 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -198,10 +198,6 @@ struct ActionSchema : public Action {
   /* Returns this action schema with all static preconditions assumed
      true. */
   const ActionSchema& strip_static(const Domain& domain) const;
-
-  /* Returns this action schema with all equality/inequality
-     preconditions assumed true. */
-  const ActionSchema& strip_equality() const;
 
 protected:
   /* Prints this object on the given stream. */
