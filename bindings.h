@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: bindings.h,v 3.8 2002-06-12 19:56:28 lorens Exp $
+ * $Id: bindings.h,v 3.9 2002-06-12 23:10:14 lorens Exp $
  */
 #ifndef BINDINGS_H
 #define BINDINGS_H
@@ -175,12 +175,18 @@ private:
 };
 
 
+/* ====================================================================== */
+/* VarsetChain */
+
 struct Varset;
 
 /*
  * Chain of varsets.
  */
 typedef CollectibleChain<Varset> VarsetChain;
+
+/* ====================================================================== */
+/* StepDomainChain */
 
 struct StepDomain;
 
