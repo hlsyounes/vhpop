@@ -16,13 +16,16 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: types.h,v 3.4 2002-03-18 09:41:29 lorens Exp $
+ * $Id: types.h,v 3.5 2002-03-18 09:41:38 lorens Exp $
  */
 #ifndef TYPES_H
 #define TYPES_H
 
 #include "support.h"
 
+
+/* ====================================================================== */
+/* Type */
 
 /*
  * Abstract type.
@@ -35,6 +38,9 @@ struct Type : public EqualityComparable, public Printable {
   virtual bool subtype(const Type& t) const = 0;
 };
 
+
+/* ====================================================================== */
+/* SimpleType */
 
 /*
  * Simple type.
@@ -73,6 +79,9 @@ private:
 };
 
 
+/* ====================================================================== */
+/* TypeMap */
+
 /*
  * Table of simple types.
  */
@@ -83,6 +92,9 @@ struct TypeMap : hash_map<string, const SimpleType*> {
 typedef TypeMap::const_iterator TypeMapIter;
 
 
+/* ====================================================================== */
+/* TypeSet */
+
 /* Set of simple types. */
 struct TypeSet
   : public set<const SimpleType*, less<const LessThanComparable*> > {
@@ -92,6 +104,8 @@ struct TypeSet
 typedef TypeSet::const_iterator TypeSetIter;
 
 
+/* ====================================================================== */
+/* UnionType */
 /*
  * Union type.
  */
