@@ -2,7 +2,7 @@
 /*
  * Types.
  *
- * $Id: types.h,v 1.2 2001-08-10 04:41:03 lorens Exp $
+ * $Id: types.h,v 1.3 2001-08-11 02:31:52 lorens Exp $
  */
 #ifndef TYPES_H
 #define TYPES_H
@@ -114,9 +114,9 @@ struct TypeList : public gc, vector<const SimpleType*, container_alloc> {
   TypeList() {
   }
 
-  /* Constructs a type list containing n copies of t. */
-  TypeList(size_t n, const SimpleType* t)
-    : vector<const SimpleType*, container_alloc>(n, t) {
+  /* Constructs a type list with a single type. */
+  TypeList(const SimpleType* type)
+    : vector<const SimpleType*, container_alloc>(1, type) {
   }
 };
 
