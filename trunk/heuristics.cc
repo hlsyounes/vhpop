@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.cc,v 4.2 2002-09-20 16:47:07 lorens Exp $
+ * $Id: heuristics.cc,v 4.3 2002-09-23 18:24:55 lorens Exp $
  */
 #include <set>
 #include <typeinfo>
@@ -492,10 +492,10 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
        gi != problem.init().add_list().end(); gi++) {
     const Atom& atom = **gi;
     if (problem.domain().static_predicate(atom.predicate())) {
-      atom_values.insert(make_pair(&atom, HeuristicValue::ZERO));
+      atom_values_.insert(make_pair(&atom, HeuristicValue::ZERO));
     } else {
-      atom_values.insert(make_pair(&atom,
-				   HeuristicValue::ZERO_COST_UNIT_WORK));
+      atom_values_.insert(make_pair(&atom,
+				    HeuristicValue::ZERO_COST_UNIT_WORK));
     }
   }
 
@@ -511,12 +511,12 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
        * Print literal values at this level.
        */
       cerr << "Literal values at level " << level << ":" << endl;
-      for (AtomValueMapIter vi = atom_values.begin();
-	   vi != atom_values.end(); vi++) {
+      for (AtomValueMapIter vi = atom_values_.begin();
+	   vi != atom_values_.end(); vi++) {
 	cerr << "  " << *(*vi).first << " -- " << (*vi).second << endl;
       }
-      for (AtomValueMapIter vi = negation_values.begin();
-	   vi != negation_values.end(); vi++) {
+      for (AtomValueMapIter vi = negation_values_.begin();
+	   vi != negation_values_.end(); vi++) {
 	cerr << "  " << !*(*vi).first << " -- " << (*vi).second << endl;
       }
     }
@@ -542,10 +542,11 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
 	  /* First time this action is applicable. */
 	  applicable_actions.insert(&action);
 	  if (domain_constraints && !action.arguments().empty()) {
-	    ActionDomainMapIter di = action_domains.find(action.name());
-	    if (di == action_domains.end()) {
+	    ActionDomainMapIter di = action_domains_.find(action.name());
+	    if (di == action_domains_.end()) {
 	      ActionDomain* domain = new ActionDomain(action.arguments());
-	      action_domains.insert(make_pair(action.name(), domain));
+	      ActionDomain::register_use(domain);
+	      action_domains_.insert(make_pair(action.name(), domain));
 	    } else {
 	      (*di).second->add(action.arguments());
 	    }
@@ -575,8 +576,9 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
 	    for (AtomListIter gi = effect.add_list().begin();
 		 gi != effect.add_list().end(); gi++) {
 	      const Atom& atom = **gi;
-	      if (achieves.find(make_pair(&atom, &action)) == achieves.end()) {
-		achieves.insert(make_pair(&atom, &action));
+	      if (achieves_.find(make_pair(&atom, &action))
+		  == achieves_.end()) {
+		achieves_.insert(make_pair(&atom, &action));
 		if (verbosity > 4) {
 		  cerr << "  ";
 		  action.print(cerr, 0, NULL);
@@ -585,8 +587,8 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
 	      }
 	      AtomValueMapIter vi = new_atom_values.find(&atom);
 	      if (vi == new_atom_values.end()) {
-		vi = atom_values.find(&atom);
-		if (vi == atom_values.end()) {
+		vi = atom_values_.find(&atom);
+		if (vi == atom_values_.end()) {
 		  /* First level this atom is achieved. */
 		  HeuristicValue new_value = cond_value;
 		  new_value.add_work(1);
@@ -613,9 +615,9 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
 	    for (NegationListIter gi = effect.del_list().begin();
 		 gi != effect.del_list().end(); gi++) {
 	      const Negation& negation = **gi;
-	      if (achieves.find(make_pair(&negation, &action))
-		  == achieves.end()) {
-		achieves.insert(make_pair(&negation, &action));
+	      if (achieves_.find(make_pair(&negation, &action))
+		  == achieves_.end()) {
+		achieves_.insert(make_pair(&negation, &action));
 		if (verbosity > 4) {
 		  cerr << "  ";
 		  action.print(cerr, 0, NULL);
@@ -624,8 +626,8 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
 	      }
 	      AtomValueMapIter vi = new_negation_values.find(&negation.atom());
 	      if (vi == new_negation_values.end()) {
-		vi = negation_values.find(&negation.atom());
-		if (vi == negation_values.end()) {
+		vi = negation_values_.find(&negation.atom());
+		if (vi == negation_values_.end()) {
 		  if (heuristic_value(negation.atom(), 0).zero()) {
 		    /* First level this negated atom is achieved. */
 		    HeuristicValue new_value = cond_value;
@@ -660,33 +662,33 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
      */
     for (AtomValueMapIter vi = new_atom_values.begin();
 	 vi != new_atom_values.end(); vi++) {
-      atom_values[(*vi).first] = (*vi).second;
+      atom_values_[(*vi).first] = (*vi).second;
     }
     /*
      * Add achieved negated atoms to previously achieved negated atoms.
      */
     for (AtomValueMapIter vi = new_negation_values.begin();
 	 vi != new_negation_values.end(); vi++) {
-      negation_values[(*vi).first] = (*vi).second;
+      negation_values_[(*vi).first] = (*vi).second;
     }
   } while (changed);
 
   /*
    * Map predicates to achievable ground atoms.
    */
-  for (AtomValueMapIter vi = atom_values.begin();
-       vi != atom_values.end(); vi++) {
+  for (AtomValueMapIter vi = atom_values_.begin();
+       vi != atom_values_.end(); vi++) {
     const Atom& atom = *(*vi).first;
-    predicate_atoms.insert(make_pair(&atom.predicate(), &atom));
+    predicate_atoms_.insert(make_pair(&atom.predicate(), &atom));
   }
 
   /*
    * Map predicates to achievable negated ground atoms.
    */
-  for (AtomValueMapIter vi = negation_values.begin();
-       vi != negation_values.end(); vi++) {
+  for (AtomValueMapIter vi = negation_values_.begin();
+       vi != negation_values_.end(); vi++) {
     const Atom& atom = *(*vi).first;
-    predicate_negations.insert(make_pair(&atom.predicate(), &atom));
+    predicate_negations_.insert(make_pair(&atom.predicate(), &atom));
   }
 
   if (verbosity > 0) {
@@ -715,15 +717,24 @@ PlanningGraph::PlanningGraph(const Problem& problem, bool domain_constraints) {
        * Print literal values.
        */
       cerr << "Achievable literals:" << endl;
-      for (AtomValueMapIter vi = atom_values.begin();
-	   vi != atom_values.end(); vi++) {
+      for (AtomValueMapIter vi = atom_values_.begin();
+	   vi != atom_values_.end(); vi++) {
 	cerr << "  " << *(*vi).first << " -- " << (*vi).second << endl;
       }
-      for (AtomValueMapIter vi = negation_values.begin();
-	   vi != negation_values.end(); vi++) {
+      for (AtomValueMapIter vi = negation_values_.begin();
+	   vi != negation_values_.end(); vi++) {
 	cerr << "  " << !*(*vi).first << " -- " << (*vi).second << endl;
       }
     }
+  }
+}
+
+
+/* Deletes this planning graph. */
+PlanningGraph::~PlanningGraph() {
+  for (ActionDomainMapIter di = action_domains_.begin();
+       di != action_domains_.end(); di++) {
+    ActionDomain::unregister_use((*di).second);
   }
 }
 
@@ -733,13 +744,14 @@ HeuristicValue PlanningGraph::heuristic_value(const Atom& atom, size_t step_id,
 					      const Bindings* bindings) const {
   if (bindings == NULL) {
     /* Assume ground atom. */
-    AtomValueMapIter vi = atom_values.find(&atom);
-    return (vi != atom_values.end()) ? (*vi).second : HeuristicValue::INFINITE;
+    AtomValueMapIter vi = atom_values_.find(&atom);
+    return ((vi != atom_values_.end())
+	    ? (*vi).second : HeuristicValue::INFINITE);
   } else {
     /* Take minimum value of ground atoms that unify. */
     HeuristicValue value = HeuristicValue::INFINITE;
     pair<PredicateAtomsMapIter, PredicateAtomsMapIter> bounds =
-      predicate_atoms.equal_range(&atom.predicate());
+      predicate_atoms_.equal_range(&atom.predicate());
     for (PredicateAtomsMapIter gi = bounds.first; gi != bounds.second; gi++) {
       const Atom& a = *(*gi).second;
       if (bindings->unify(atom, step_id, a, 0)) {
@@ -761,12 +773,12 @@ HeuristicValue PlanningGraph::heuristic_value(const Negation& negation,
 					      const Bindings* bindings) const {
   if (bindings == NULL) {
     /* Assume ground negated atom. */
-    AtomValueMapIter vi = negation_values.find(&negation.atom());
-    if (vi != negation_values.end()) {
+    AtomValueMapIter vi = negation_values_.find(&negation.atom());
+    if (vi != negation_values_.end()) {
       return (*vi).second;
     } else {
-      vi = atom_values.find(&negation.atom());
-      return ((vi == atom_values.end() || !(*vi).second.zero())
+      vi = atom_values_.find(&negation.atom());
+      return ((vi == atom_values_.end() || !(*vi).second.zero())
 	      ? HeuristicValue::ZERO_COST_UNIT_WORK
 	      : HeuristicValue::INFINITE);
     }
@@ -778,7 +790,7 @@ HeuristicValue PlanningGraph::heuristic_value(const Negation& negation,
     }
     HeuristicValue value = HeuristicValue::INFINITE;
     pair<PredicateAtomsMapIter, PredicateAtomsMapIter> bounds =
-      predicate_negations.equal_range(&negation.predicate());
+      predicate_negations_.equal_range(&negation.predicate());
     for (PredicateAtomsMapIter gi = bounds.first; gi != bounds.second; gi++) {
       const Atom& a = *(*gi).second;
       if (bindings->unify(atom, step_id, a, 0)) {
@@ -799,7 +811,7 @@ HeuristicValue PlanningGraph::heuristic_value(const Negation& negation,
 void PlanningGraph::achieves_formula(ActionList& actions,
 				     const Literal& f) const {
   pair<LiteralActionsMapIter, LiteralActionsMapIter> bounds =
-    achieves.equal_range(&f);
+    achieves_.equal_range(&f);
   for (LiteralActionsMapIter i = bounds.first; i != bounds.second; i++) {
     actions.push_back((*i).second);
   }
@@ -809,8 +821,8 @@ void PlanningGraph::achieves_formula(ActionList& actions,
 /* Returns the parameter domain for the given action, or NULL if the
    parameter domain is empty. */
 const ActionDomain* PlanningGraph::action_domain(const string& name) const {
-  ActionDomainMapIter di = action_domains.find(name);
-  return (di != action_domains.end()) ? (*di).second : NULL;
+  ActionDomainMapIter di = action_domains_.find(name);
+  return (di != action_domains_.end()) ? (*di).second : NULL;
 }
 
 

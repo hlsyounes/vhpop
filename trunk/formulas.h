@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 4.6 2002-09-22 22:55:35 lorens Exp $
+ * $Id: formulas.h,v 4.7 2002-09-23 18:24:49 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -129,7 +129,7 @@ private:
 };
 
 /*
- * Hash function object for terms.
+ * Hash function object for term pointers.
  */
 namespace std {
 struct hash<const Term*> {
@@ -442,7 +442,6 @@ private:
   FormulaTime when_;
 
   friend bool operator==(const Literal& l1, const Literal& l2);
-  friend struct hash<Literal>;
   friend struct hash<const Literal*>;
 };
 
@@ -464,17 +463,6 @@ struct equal_to<const Literal*>
   : public binary_function<const Literal*, const Literal*, bool> {
   bool operator()(const Literal* l1, const Literal* l2) const {
     return *l1 == *l2;
-  }
-};
-}
-
-/*
- * Hash function object for literals.
- */
-namespace std {
-struct hash<Literal> {
-  size_t operator()(const Literal& l) const {
-    return l.hash_value();
   }
 };
 }

@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.cc,v 4.3 2002-09-22 01:40:40 lorens Exp $
+ * $Id: domains.cc,v 4.4 2002-09-23 18:24:35 lorens Exp $
  */
 #include <stack>
 #include "bindings.h"
@@ -55,18 +55,6 @@ const Type& Predicate::type(size_t i) const {
 /* Adds a parameter to this predicate. */
 void Predicate::add_parameter(const Type& type) {
   parameters_.push_back(&type);
-}
-
-
-/* Equality operator for predicates. */
-bool operator==(const Predicate& p1, const Predicate& p2) {
-  return &p1 == &p2;
-}
-
-
-/* Inequality operator for predicates. */
-bool operator!=(const Predicate& p1, const Predicate& p2) {
-  return &p1 != &p2;
 }
 
 
@@ -417,6 +405,13 @@ void Action::achievable_predicates(PredicateSet& preds,
   if (min_duration() <= max_duration()) {
     effects().achievable_predicates(preds, neg_preds);
   }
+}
+
+
+/* Output operator for actions. */
+ostream& operator<<(ostream& os, const Action& a) {
+  a.print(os);
+  return os;
 }
 
 

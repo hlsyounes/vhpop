@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: domains.h,v 4.3 2002-09-22 01:41:04 lorens Exp $
+ * $Id: domains.h,v 4.4 2002-09-23 18:24:39 lorens Exp $
  */
 #ifndef DOMAINS_H
 #define DOMAINS_H
@@ -79,10 +79,14 @@ struct hash<const Predicate*> {
 }
 
 /* Equality operator for predicates. */
-bool operator==(const Predicate& p1, const Predicate& p2);
+inline bool operator==(const Predicate& p1, const Predicate& p2) {
+  return &p1 == &p2;
+}
 
 /* Inequality operator for predicates. */
-bool operator!=(const Predicate& p1, const Predicate& p2);
+inline bool operator!=(const Predicate& p1, const Predicate& p2) {
+  return &p1 != &p2;
+}
 
 /* Output operator for predicates. */
 ostream& operator<<(ostream& os, const Predicate& p);
@@ -236,7 +240,7 @@ typedef EffectList::const_iterator EffectListIter;
 /*
  * Abstract action definition.
  */
-struct Action : public Printable {
+struct Action {
   /* Returns the name of this action. */
   const string& name() const { return name_; }
 
@@ -264,6 +268,9 @@ struct Action : public Printable {
   virtual void print(ostream& os, size_t step_id,
 		     const Bindings* bindings) const = 0;
 
+  /* Prints this object on the given stream. */
+  virtual void print(ostream& os) const = 0;
+
 protected:
   /* Constructs an action. */
   Action(const string& name, const Formula& precondition,
@@ -286,7 +293,12 @@ private:
   float min_duration_;
   /* Maximum duration of this action. */
   float max_duration_;
+
+  friend ostream& operator<<(ostream& os, const Action& a);
 };
+
+/* Output operator for actions. */
+ostream& operator<<(ostream& os, const Action& a);
 
 
 /* ====================================================================== */
