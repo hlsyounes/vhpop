@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: formulas.h,v 6.4 2003-07-21 19:58:14 lorens Exp $
+ * $Id: formulas.h,v 6.5 2003-07-28 01:35:37 lorens Exp $
  */
 #ifndef FORMULAS_H
 #define FORMULAS_H
@@ -708,6 +708,10 @@ struct Forall : public QuantifiedFormula {
 protected:
   /* Returns the negation of this formula. */
   virtual const QuantifiedFormula& negation() const;
+
+private:
+  /* The cached universal base for this formula. */
+  mutable const Formula* universal_base_;
 };
 
 
@@ -781,10 +785,6 @@ struct Condition {
   /* Returns an instantiation of this condition. */
   const Condition& instantiation(const SubstitutionMap& subst,
 				 const Problem& problem) const;
-
-  /* Returns the universal base of this condition. */
-  const Condition& universal_base(const SubstitutionMap& subst,
-				  const Problem& problem) const;
 
   /* Returns the heuristic value of this condition. */
   void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
