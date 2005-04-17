@@ -1,22 +1,26 @@
 /* -*-C++-*- */
 /*
- * Types.
+ * PDDL types.
  *
- * Copyright (C) 2003 Carnegie Mellon University
- * Written by Håkan L. S. Younes.
+ * Copyright (C) 2002-2005 Carnegie Mellon University
  *
- * Permission is hereby granted to distribute this software for
- * non-commercial research purposes, provided that this copyright
- * notice is included with any such distribution.
+ * This file is part of VHPOP.
  *
- * THIS SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
- * EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE
- * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
- * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
+ * VHPOP is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- * $Id: types.h,v 6.3 2003-08-28 15:35:43 lorens Exp $
+ * VHPOP is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with VHPOP; if not, write to the Free Software Foundation,
+ * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ *
+ * $Id: types.h,v 6.4 2005-04-17 10:42:19 lorens Exp $
  */
 #ifndef TYPES_H
 #define TYPES_H
@@ -29,13 +33,46 @@
 #include <vector>
 
 
-/* Type index. */
-typedef int Type;
+/* ====================================================================== */
+/* Type */
 
-/* The object type. */
-const Type OBJECT_TYPE = 0;
-/* Name of object type. */
-const std::string OBJECT_NAME("object");
+/*
+ * A type.
+ */
+struct Type {
+  /* Constructs a type. */
+  explicit Type(int index) : index_(index) {}
+
+  /* Tests if this is a simple type. */
+  bool simple() const { return index_ >= 0; }
+
+private:
+  /* Type index. */
+  int index_;
+
+  friend bool operator==(const Type& t1, const Type& t2);
+  friend bool operator<(const Type& t1, const Type& t2);
+  friend std::ostream& operator<<(std::ostream& os, const Type& t);
+  friend struct TypeTable;
+};
+
+/* Equality operator for types. */
+inline bool operator==(const Type& t1, const Type& t2) {
+  return t1.index_ == t2.index_;
+}
+
+/* Inequality operator for types. */
+inline bool operator!=(const Type& t1, const Type& t2) {
+  return !(t1 == t2);
+}
+
+/* Less-than operator for types. */
+inline bool operator<(const Type& t1, const Type& t2) {
+  return t1.index_ < t2.index_;
+}
+
+/* Output operator for types. */
+std::ostream& operator<<(std::ostream& os, const Type& t);
 
 
 /* ====================================================================== */
@@ -59,49 +96,57 @@ struct TypeSet : public std::set<Type> {
  * Type table.
  */
 struct TypeTable {
-  /* Adds a simple type with the given name to this table and returns
-     the type. */
-  Type add_type(const std::string& name);
+  /* The object type. */
+  static const Type OBJECT;
+  /* Name of object type. */
+  static const std::string OBJECT_NAME;
+  /* Name of number type. */
+  static const std::string NUMBER_NAME;
 
-  /* Adds the union of the given types to this table and returns the
-     type. */
-  Type add_type(const TypeSet& types);
-
-  /* Returns the type with the given name.  If no type with the given
-     name exists, false is returned in the second part of the
-     result. */
-  std::pair<Type, bool> find_type(const std::string& name) const;
-
-  /* Returns the first type of this type table. */
-  Type first_type() const { return OBJECT_TYPE; }
-
-  /* Returns the last type of this type table. */
-  Type last_type() const { return names_.size(); }
+  /* Adds a union type of the given types to this table and returns
+     the union type. */
+  static Type union_type(const TypeSet& types);
 
   /* Adds the second type as a supertype of the first type.  Returns
      false if the second type is a proper subtype of the first
      type. */
-  bool add_supertype(Type type1, Type type2);
+  static bool add_supertype(const Type& type1, const Type& type2);
 
-  /* Checks if the first type is a subtype of the second type. */
-  bool subtype(Type type1, Type type2) const;
+  /* Tests if the first type is a subtype of the second type. */
+  static bool subtype(const Type& type1, const Type& type2);
 
   /* Fills the provided set with the components of the given type. */
-  void components(TypeSet& components, Type type) const;
+  static void components(TypeSet& components, const Type& type);
 
-  /* Prints the given type on the given stream. */
-  void print_type(std::ostream& os, Type type) const;
+  /* Returns a pointer to the most specific of the given types, or 0
+     if the given types are incompatible. */
+  static const Type* most_specific(const Type& type1, const Type& type2);
+
+  /* Adds a simple type with the given name to this table and returns
+     the type. */
+  const Type& add_type(const std::string& name);
+
+  /* Returns a pointer to the type with the given name, or 0 if no
+     type with the given name exists in this table. */
+  const Type* find_type(const std::string& name) const;
 
 private:
   /* Type names. */
-  std::vector<std::string> names_;
+  static std::vector<std::string> names_;
+  /* Transitive closure of subtype relation. */
+  static std::vector<std::vector<bool> > subtype_;
+  /* Union types. */
+  static std::vector<TypeSet> utypes_;
+
   /* Mapping of type names to types. */
   std::map<std::string, Type> types_;
-  /* Transitive closure of subtype relation. */
-  std::vector<std::vector<bool> > subtype_;
-  /* Union types. */
-  std::vector<TypeSet> utypes_;
+
+  friend std::ostream& operator<<(std::ostream& os, const TypeTable& t);
+  friend std::ostream& operator<<(std::ostream& os, const Type& t);
 };
+
+/* Output operator for type tables. */
+std::ostream& operator<<(std::ostream& os, const TypeTable& t);
 
 
 #endif /* TYPES_H */
