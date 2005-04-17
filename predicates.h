@@ -1,22 +1,26 @@
 /* -*-C++-*- */
 /*
- * Predicates.
+ * PDDL predicates.
  *
- * Copyright (C) 2003 Carnegie Mellon University
- * Written by Håkan L. S. Younes.
+ * Copyright (C) 2002-2005 Carnegie Mellon University
  *
- * Permission is hereby granted to distribute this software for
- * non-commercial research purposes, provided that this copyright
- * notice is included with any such distribution.
+ * This file is part of VHPOP.
  *
- * THIS SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
- * EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE
- * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
- * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
+ * VHPOP is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- * $Id: predicates.h,v 6.3 2003-08-28 15:33:49 lorens Exp $
+ * VHPOP is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with VHPOP; if not, write to the Free Software Foundation,
+ * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+ *
+ * $Id: predicates.h,v 6.4 2005-04-17 10:59:01 lorens Exp $
  */
 #ifndef PREDICATES_H
 #define PREDICATES_H
@@ -25,12 +29,48 @@
 #include "types.h"
 #include <iostream>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
 
-/* Predicate index. */
-typedef int Predicate;
+/* ====================================================================== */
+/* Predicate */
+
+/*
+ * A predicate.
+ */
+struct Predicate {
+  /* Constructs a predicate. */
+  explicit Predicate(int index) : index_(index) {}
+
+private:
+  /* Predicate index. */
+  int index_;
+
+  friend bool operator==(const Predicate& p1, const Predicate& p2);
+  friend bool operator<(const Predicate& p1, const Predicate& p2);
+  friend std::ostream& operator<<(std::ostream& os, const Predicate& p);
+  friend struct PredicateTable;
+};
+
+/* Equality operator for predicates. */
+inline bool operator==(const Predicate& p1, const Predicate& p2) {
+  return p1.index_ == p2.index_;
+}
+
+/* Inequality operator for predicates. */
+inline bool operator!=(const Predicate& p1, const Predicate& p2) {
+  return !(p1 == p2);
+}
+
+/* Less-than operator for predicates. */
+inline bool operator<(const Predicate& p1, const Predicate& p2) {
+  return p1.index_ < p2.index_;
+}
+
+/* Output operator for predicates. */
+std::ostream& operator<<(std::ostream& os, const Predicate& p);
 
 
 /* ====================================================================== */
@@ -48,64 +88,46 @@ struct PredicateSet : public std::set<Predicate> {
  * Predicate table.
  */
 struct PredicateTable {
-  /* Adds a predicate with the given name to this table and returns
-     the predicate. */
-  Predicate add_predicate(const std::string& name);
-
-  /* Returns the predicate with the given name.  If no predicate with
-     the given name exists, false is returned in the second part of
-     the result. */
-  std::pair<Predicate, bool> find_predicate(const std::string& name) const;
-
-  /* Returns the first predicate of this predicate table. */
-  Predicate first_predicate() const { return 0; }
-
-  /* Returns the last predicate of this predicate table. */
-  Predicate last_predicate() const { return names_.size() - 1; }
-
   /* Adds a parameter with the given type to the given predicate. */
-  void add_parameter(Predicate predicate, Type type) {
-    parameters_[predicate].push_back(type);
-  }
+  static void add_parameter(const Predicate& predicate, const Type& type);
 
   /* Returns the name of the given predicate. */
-  const std::string& name(Predicate predicate) const {
-    return names_[predicate];
-  }
+  static const std::string& name(const Predicate& predicate);
 
-  /* Returns the arity of the given predicate. */
-  size_t arity(Predicate predicate) const {
-    return parameters_[predicate].size();
-  }
-
-  /* Returns the ith parameter type of the given predicate. */
-  Type parameter(Predicate predicate, size_t i) const {
-    return parameters_[predicate][i];
-  }
+  /* Returns the parameter types of the given predicate. */
+  static const TypeList& parameters(const Predicate& predicate);
 
   /* Makes the given predicate dynamic. */
-  void make_dynamic(Predicate predicate) {
-    static_predicates_.erase(predicate);
-  }
+  static void make_dynamic(const Predicate& predicate);
 
   /* Tests if the given predicate is static. */
-  bool static_predicate(Predicate predicate) const {
-    return static_predicates_.find(predicate) != static_predicates_.end();
-  }
+  static bool static_predicate(const Predicate& predicate);
 
-  /* Prints the given predicate on the given stream. */
-  void print_predicate(std::ostream& os, Predicate predicate) const;
+  /* Adds a predicate with the given name to this table and returns
+     the predicate. */
+  const Predicate& add_predicate(const std::string& name);
+
+  /* Returns a pointer to the predicate with the given name, or 0 if
+     no predicate with the given name exists. */
+  const Predicate* find_predicate(const std::string& name) const;
 
 private:
   /* Predicate names. */
-  std::vector<std::string> names_;
+  static std::vector<std::string> names_;
+  /* Predicate parameters. */
+  static std::vector<TypeList> parameters_;
+  /* Static predicates. */
+  static PredicateSet static_predicates_;
+
   /* Mapping of predicate names to predicates. */
   std::map<std::string, Predicate> predicates_;
-  /* Predicate parameters. */
-  std::vector<TypeList> parameters_;
-  /* Static predicates. */
-  PredicateSet static_predicates_;
+
+  friend std::ostream& operator<<(std::ostream& os, const PredicateTable& t);
+  friend std::ostream& operator<<(std::ostream& os, const Predicate& p);
 };
+
+/* Output operator for predicate tables. */
+std::ostream& operator<<(std::ostream& os, const PredicateTable& t);
 
 
 #endif /* PREDICATES_H */
