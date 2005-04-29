@@ -20,7 +20,7 @@
  * along with VHPOP; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: types.h,v 6.4 2005-04-17 10:42:19 lorens Exp $
+ * $Id: types.h,v 6.5 2005-04-29 09:28:23 lorens Exp $
  */
 #ifndef TYPES_H
 #define TYPES_H
@@ -114,6 +114,9 @@ struct TypeTable {
 
   /* Tests if the first type is a subtype of the second type. */
   static bool subtype(const Type& type1, const Type& type2);
+
+  /* Tests if the given types are compatible. */
+  static bool compatible(const Type& type1, const Type& type2);
 
   /* Fills the provided set with the components of the given type. */
   static void components(TypeSet& components, const Type& type);

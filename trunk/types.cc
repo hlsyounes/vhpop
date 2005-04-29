@@ -19,7 +19,7 @@
  * along with VHPOP; if not, write to the Free Software Foundation,
  * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
- * $Id: types.cc,v 6.3 2005-04-17 10:42:43 lorens Exp $
+ * $Id: types.cc,v 6.4 2005-04-29 09:28:47 lorens Exp $
  */
 #include "types.h"
 #include <stdexcept>
@@ -154,6 +154,12 @@ bool TypeTable::subtype(const Type& type1, const Type& type2) {
   } else {
     return subtype_[type2.index_ - 2][type1.index_ - 1];
   }
+}
+
+
+/* Tests if the given types are compatible. */
+bool TypeTable::compatible(const Type& type1, const Type& type2) {
+  return subtype(type1, type2) || subtype(type2, type1);
 }
 
 
