@@ -118,7 +118,7 @@ total-time                   return make_string(yytext, TOTAL_TIME);
 /* Allocates a string containing the lowercase characters of the given
    C string, and returns the given token. */
 static int make_string(const char* s, int token) {
-  string* result = new string();
+  std::string* result = new std::string();
   for (const char* p = s; *p != '\0'; p++) {
     *result += tolower(*p);
   }

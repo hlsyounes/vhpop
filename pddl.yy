@@ -88,7 +88,7 @@ struct Context {
   }
 
 private:
-  struct VariableMap : public hash_map<string, const Variable*> {
+  struct VariableMap : public __gnu_cxx::hash_map<string, const Variable*> {
   };
 
   vector<VariableMap> frames_;
@@ -139,16 +139,16 @@ static Context free_variables;
   const Formula* formula;
   EffectList* effects;
   const Effect* effect;
-  const pair<AtomList*, NegationList*>* add_del_lists;
+  const std::pair<AtomList*, NegationList*>* add_del_lists;
   FormulaList* formulas;
   TermList* terms;
   const Atom* atom;
   const Name* name;
   VariableList* variables;
   const Variable* variable;
-  const string* str;
+  const std::string* str;
   float num;
-  vector<string>* strings;
+  std::vector<std::string>* strings;
   UnionType* utype;
   const Type* type;
 }
@@ -780,7 +780,7 @@ formulas : /* empty */      { $$ = new FormulaList(); }
          ;
 
 formula : atomic_term_formula
-            { $$ = $1 }
+            { $$ = $1; }
         | '(' '=' terms ')'
             {
 	      if (!requirements->equality) {
@@ -789,7 +789,7 @@ formula : atomic_term_formula
 	      }
 	      if ($3->size() != 2) {
 		yyerror(tostring($3->size()) + " parameter"
-			+ string(($3->size() == 1) ? "" : "s")
+			+ std::string(($3->size() == 1) ? "" : "s")
 			+ " passed to predicate `=' expecting 2");
 	      }
 	      const Term& t1 = *(*$3)[0];
@@ -907,7 +907,8 @@ opt_typed_names : /* empty */
                 | typed_names
                 ;
 
-name_seq : name          { $$ = new vector<string>(1, *$1); delete $1; }
+name_seq : name
+             { $$ = new std::vector<std::string>(1, *$1); delete $1; }
          | name_seq name { $1->push_back(*$2); $$ = $1; delete $2; }
          ;
 
@@ -934,7 +935,7 @@ variables : {
 
 vars : variable_seq
          {
-	   for (vector<string>::const_iterator si = $1->begin();
+	   for (std::vector<std::string>::const_iterator si = $1->begin();
 		si != $1->end(); si++) {
 	     add_variable(*si);
 	   }
@@ -943,7 +944,7 @@ vars : variable_seq
      | variable_seq type_spec 
          {
 	   const UnionType* ut = dynamic_cast<const UnionType*>($2);
-	   for (vector<string>::const_iterator si = $1->begin();
+	   for (std::vector<std::string>::const_iterator si = $1->begin();
 		si != $1->end(); si++) {
 	     /* Duplicate type if it is a union type so that every
 		variable has its own copy. */
@@ -963,7 +964,7 @@ opt_vars : /* empty */
          ;
 
 variable_seq : variable
-                 { $$ = new vector<string>(1, *$1); delete $1; }
+                 { $$ = new std::vector<std::string>(1, *$1); delete $1; }
              | variable_seq variable
                  { $1->push_back(*$2); $$ = $1; delete $2; }
              ;
@@ -1096,8 +1097,8 @@ name : NAME
 /*
  * Converts an unsigned integer to a string.
  */
-static string tostring(unsigned int n) {
-  string result;
+static std::string tostring(unsigned int n) {
+  std::string result;
   while (n > 0) {
     result = char(n % 10 + '0') + result;
     n /= 10;
@@ -1109,7 +1110,7 @@ static string tostring(unsigned int n) {
 /*
  * Outputs an error message.
  */
-static void yyerror(const string& s) {
+static void yyerror(const std::string& s) {
   cerr << PACKAGE << ':' << current_file << ':' << line_number << ": "
        << s << context << endl;
   success = false;
@@ -1119,7 +1120,7 @@ static void yyerror(const string& s) {
 /*
  * Outputs a warning.
  */
-static void yywarning(const string& s) {
+static void yywarning(const std::string& s) {
   if (warning_level > 0) {
     cerr << PACKAGE << ':' << current_file << ':' << line_number << ": "
 	 << s << context << endl;
@@ -1133,7 +1134,7 @@ static void yywarning(const string& s) {
 /*
  * Returns the type with the given name, or NULL if it is undefined.
  */
-static const SimpleType* find_type(const string& name) {
+static const SimpleType* find_type(const std::string& name) {
   if (pdomain != NULL) {
     return pdomain->find_type(name);
   } else if (domain != NULL) {
@@ -1147,7 +1148,7 @@ static const SimpleType* find_type(const string& name) {
 /*
  * Returns the constant or object with the given name, or NULL if it
  * is undefined.  */
-static const Name* find_constant(const string& name) {
+static const Name* find_constant(const std::string& name) {
   const Name* c = NULL;
   if (pdomain != NULL) {
     c = pdomain->find_constant(name);
@@ -1166,7 +1167,7 @@ static const Name* find_constant(const string& name) {
  * Returns the predicate with the given name, or NULL if it is
  * undefined.
  */
-static const Predicate* find_predicate(const string& name) {
+static const Predicate* find_predicate(const std::string& name) {
   if (pdomain != NULL) {
     return pdomain->find_predicate(name);
   } else if (domain != NULL) {
@@ -1180,14 +1181,14 @@ static const Predicate* find_predicate(const string& name) {
 /*
  * Adds types, constants, or objects to the current domain or problem.
  */
-static void add_names(const vector<string>& names, const Type& type) {
+static void add_names(const std::vector<std::string>& names, const Type& type) {
   const UnionType* ut = dynamic_cast<const UnionType*>(&type);
-  for (vector<string>::const_iterator si = names.begin();
+  for (std::vector<std::string>::const_iterator si = names.begin();
        si != names.end(); si++) {
     /* Duplicate type if it is a union type so that every name has its
        own copy. */
     const Type* t = (ut != NULL) ? new UnionType(*ut) : &type;
-    const string& s = *si;
+    const std::string& s = *si;
     if (name_map_type == TYPE_MAP) {
       if (find_type(s) == NULL) {
 	domain->add_type(*(new SimpleType(s, *t)));
@@ -1270,7 +1271,7 @@ static void add_action(const ActionSchema& action) {
 /*
  * Adds a variable to the current context.
  */
-static void add_variable(const string& name, const Type& type) {
+static void add_variable(const std::string& name, const Type& type) {
   if (predicate != NULL) {
     predicate->add_parameter(type);
   } else {
@@ -1289,16 +1290,18 @@ static void add_variable(const string& name, const Type& type) {
 /*
  * Creates an add/delete list pair.
  */
-static const pair<AtomList*, NegationList*>& make_add_del(AtomList* adds,
-							  NegationList* dels) {
-  return *(new pair<AtomList*, NegationList*>(adds, dels));
+static const std::pair<AtomList*, NegationList*>& make_add_del(
+    AtomList* adds,
+    NegationList* dels) {
+  return *(new std::pair<AtomList*, NegationList*>(adds, dels));
 }
 
 
 /*
  * Creates a formula (predicate terms[0] ...).
  */
-static const Atom& make_atom(const string& predicate, const TermList& terms) {
+static const Atom& make_atom(const std::string& predicate,
+                             const TermList& terms) {
   const Predicate* p = find_predicate(predicate);
   if (p == NULL) {
     if (find_type(predicate) != NULL) {
@@ -1318,7 +1321,7 @@ static const Atom& make_atom(const string& predicate, const TermList& terms) {
     }
   } else if (p->arity() != terms.size()) {
     yyerror(tostring(terms.size()) + " parameter"
-	    + string((terms.size() == 1) ? "" : "s")
+	    + std::string((terms.size() == 1) ? "" : "s")
 	    + " passed to predicate `" + predicate
 	    + "' expecting " + tostring(p->arity()));
   }
@@ -1329,7 +1332,7 @@ static const Atom& make_atom(const string& predicate, const TermList& terms) {
 /*
  * Adds a name to the given name term list.
  */
-static TermList& add_name(TermList& terms, const string& name) {
+static TermList& add_name(TermList& terms, const std::string& name) {
   const Name* c = find_constant(name);
   if (c == NULL) {
     const Predicate* predicate = find_predicate(current_predicate);
@@ -1351,7 +1354,7 @@ static TermList& add_name(TermList& terms, const string& name) {
 }
 
 
-static const SimpleType& make_type(const string& name) {
+static const SimpleType& make_type(const std::string& name) {
   const SimpleType* t = find_type(name);
   if (t == NULL) {
     const SimpleType& st = *(new SimpleType(name));

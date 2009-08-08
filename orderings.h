@@ -21,7 +21,7 @@
 #ifndef ORDERINGS_H
 #define ORDERINGS_H
 
-#include <hash_map>
+#include <ext/hash_map>
 #include "support.h"
 #include "chain.h"
 
@@ -139,12 +139,12 @@ struct Orderings : public Collectible, public Printable {
 
   /* Fills the given tables with distances for each step from the
      start step, and returns the greatest distance. */
-  virtual float schedule(hash_map<size_t, float>& start_times,
-			 hash_map<size_t, float>& end_times) const;
+  virtual float schedule(__gnu_cxx::hash_map<size_t, float>& start_times,
+			 __gnu_cxx::hash_map<size_t, float>& end_times) const;
 
 protected:
   /* A step id map. */
-  struct IdMap : public hash_map<size_t, size_t> {
+  struct IdMap : public __gnu_cxx::hash_map<size_t, size_t> {
   };
 
   /* Iterator for id maps. */
@@ -153,7 +153,7 @@ protected:
   /* Maps step ids to positions in the matrix below. */
   IdMap id_map1_;
   /* Maps positions in the matrix below to step ids */
-  vector<size_t> id_map2_;
+  std::vector<size_t> id_map2_;
 #ifdef TRANSFORMATIONAL
   /* The ordering constraints making up this collection. */
   const OrderingChain* orderings_;
@@ -169,8 +169,8 @@ protected:
   size_t size() const;
 
   /* Schedules the given instruction. */
-  virtual float schedule(hash_map<size_t, float>& start_times,
-			 hash_map<size_t, float>& end_times,
+  virtual float schedule(__gnu_cxx::hash_map<size_t, float>& start_times,
+			 __gnu_cxx::hash_map<size_t, float>& end_times,
 			 size_t step_id, StepTime t = STEP_START) const = 0;
 };
 
@@ -215,17 +215,17 @@ struct BinaryOrderings : public Orderings {
 
 protected:
   /* Schedules the given instruction. */
-  virtual float schedule(hash_map<size_t, float>& start_times,
-			 hash_map<size_t, float>& end_times,
+  virtual float schedule(__gnu_cxx::hash_map<size_t, float>& start_times,
+			 __gnu_cxx::hash_map<size_t, float>& end_times,
 			 size_t step_id, StepTime t = STEP_START) const;
 
   /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const;
+  virtual void print(std::ostream& os) const;
 
 private:
   /* Difference from parent's matrix representing the transitive
      closure of the ordering constraints. */
-  vector<const BoolVector*> order_;
+  std::vector<const BoolVector*> order_;
 
   /* Constructs a copy of this ordering collection. */
   BinaryOrderings(const BinaryOrderings& o);
@@ -236,10 +236,11 @@ private:
 
   /* Sets the entry at (r,c) to true in the matrix representing the
      transitive closure of the ordering constraints. */
-  void set_order(hash_map<size_t, BoolVector*>& own_data, size_t r, size_t c);
+  void set_order(__gnu_cxx::hash_map<size_t, BoolVector*>& own_data,
+                 size_t r, size_t c);
 
   /* Updates the transitive closure given a new ordering constraint. */
-  void fill_transitive(hash_map<size_t, BoolVector*>& own_data,
+  void fill_transitive(__gnu_cxx::hash_map<size_t, BoolVector*>& own_data,
 		       const Ordering& ordering);
 };
 
@@ -283,16 +284,16 @@ struct TemporalOrderings : public Orderings {
 
 protected:
   /* Schedules the given instruction. */
-  virtual float schedule(hash_map<size_t, float>& start_times,
-			 hash_map<size_t, float>& end_times,
+  virtual float schedule(__gnu_cxx::hash_map<size_t, float>& start_times,
+			 __gnu_cxx::hash_map<size_t, float>& end_times,
 			 size_t step_id, StepTime t = STEP_START) const;
 
   /* Prints this opbject on the given stream. */
-  virtual void print(ostream& os) const;
+  virtual void print(std::ostream& os) const;
 
 private:
   /* Matrix representing the minimal network for the ordering constraints. */
-  vector<const FloatVector*> distance_;
+  std::vector<const FloatVector*> distance_;
 
   /* Constructs a copy of this ordering collection. */
   TemporalOrderings(const TemporalOrderings& o);
@@ -303,14 +304,14 @@ private:
 
   /* Sets the entry at (r,c) in the matrix representing the minimal
      network for the ordering constraints. */
-  void set_distance(hash_map<size_t, FloatVector*>& own_data,
+  void set_distance(__gnu_cxx::hash_map<size_t, FloatVector*>& own_data,
 		    size_t r, size_t c, float d);
 
   /* Returns the time node for the given step. */
   size_t time_node(size_t id, StepTime t) const;
 
   /* Updates the transitive closure given a new ordering constraint. */
-  bool fill_transitive(hash_map<size_t, FloatVector*>& own_data,
+  bool fill_transitive(__gnu_cxx::hash_map<size_t, FloatVector*>& own_data,
 		       const Ordering& ordering);
 };
 

@@ -23,7 +23,7 @@
 
 #include <iostream>
 #include <string>
-#include <hash_map>
+#include <ext/hash_map>
 #include "debug.h"
 
 
@@ -97,19 +97,20 @@ inline bool member_if(I first, I last, P pred) {
  * A hash multimap.
  */
 template<typename K, typename T,
-	 typename H = hash<K>, typename E = equal_to<K> >
-struct HashMultimap : public hash_multimap<K, T, H, E> {
-  typedef typename hash_multimap<K, T, H, E>::const_iterator const_iterator;
+	 typename H = __gnu_cxx::hash<K>, typename E = std::equal_to<K> >
+struct HashMultimap : public __gnu_cxx::hash_multimap<K, T, H, E> {
+  typedef typename __gnu_cxx::hash_multimap<K, T, H, E>::const_iterator
+      const_iterator;
 
   /* Finds the given element. */
-  const_iterator find(const pair<K, T>& x) const {
-    pair<const_iterator, const_iterator> bounds = equal_range(x.first);
+  const_iterator find(const std::pair<K, T>& x) const {
+    std::pair<const_iterator, const_iterator> bounds = equal_range(x.first);
     for (const_iterator i = bounds.first; i != bounds.second; i++) {
       if ((*i).second == x.second) {
 	return i;
       }
     }
-    return end();
+    return this->end();
   }
 };
 
@@ -143,6 +144,8 @@ inline bool operator!=(const EqualityComparable& o1,
 /*
  * Equality function object for equality comparable object pointers.
  */
+namespace std {
+template<>
 struct equal_to<const EqualityComparable*>
   : public binary_function<const EqualityComparable*,
 			   const EqualityComparable*, bool> {
@@ -151,6 +154,7 @@ struct equal_to<const EqualityComparable*>
     return *o1 == *o2;
   }
 };
+}
 
 
 /*
@@ -183,6 +187,8 @@ inline bool operator>(const LessThanComparable& o1,
 /*
  * Less than function object for less than comparable object pointers.
  */
+namespace std {
+template<>
 struct less<const LessThanComparable*>
   : public binary_function<const LessThanComparable*,
 			   const LessThanComparable*, bool> {
@@ -191,6 +197,7 @@ struct less<const LessThanComparable*>
     return *o1 < *o2;
   }
 };
+}
 
 
 /*
@@ -201,38 +208,47 @@ protected:
   /* Returns the hash value of this object. */
   virtual size_t hash_value() const = 0;
 
-  friend struct hash<Hashable>;
-  friend struct hash<const Hashable*>;
+  friend struct __gnu_cxx::hash<Hashable>;
+  friend struct __gnu_cxx::hash<const Hashable*>;
 };
 
 /*
  * Hash function object for hashable objects.
  */
+namespace __gnu_cxx {
+template<>
 struct hash<Hashable> {
   size_t operator()(const Hashable& o) const {
     return o.hash_value();
   }
 };
+}
 
 /*
  * Hash function object for hashable object pointers.
  */
+namespace __gnu_cxx {
+template<>
 struct hash<const Hashable*> {
   size_t operator()(const Hashable* o) const {
     return o->hash_value();
   }
 };
+}
 
 
 /*
  * Hash function object for strings.
  */
-struct hash<string> {
+namespace __gnu_cxx {
+template<>
+struct hash<std::string> {
   /* Hash function for strings. */
-  size_t operator()(const string& s) const {
+  size_t operator()(const std::string& s) const {
     return hash<char*>()(s.c_str());
   }
 };
+}
 
 
 /*
@@ -243,26 +259,26 @@ struct Printable {
 
 protected:
   /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const = 0;
+  virtual void print(std::ostream& os) const = 0;
 
-  friend ostream& operator<<(ostream& os, const Printable& o);
+  friend std::ostream& operator<<(std::ostream& os, const Printable& o);
 };
 
 /* Output operator for printable objects. */
-ostream& operator<<(ostream& os, const Printable& o);
+std::ostream& operator<<(std::ostream& os, const Printable& o);
 
 
 /* An ostream iterator outputting a space before each object. */
 template <typename T>
 struct pre_ostream_iterator {
-  typedef output_iterator_tag iterator_category;
+  typedef std::output_iterator_tag iterator_category;
   typedef void                value_type;
   typedef void                difference_type;
   typedef void                pointer;
   typedef void                reference;
 
   /* Constructs an ostream iterator. */
-  pre_ostream_iterator(ostream& s)
+  pre_ostream_iterator(std::ostream& s)
     : stream_(&s) {}
 
   /* Assigns to this ostream iterator. */
@@ -283,7 +299,7 @@ struct pre_ostream_iterator {
 
 private:
   /* The stream associated with this iterator. */
-  ostream* stream_;
+  std::ostream* stream_;
 };
 
 
@@ -292,15 +308,15 @@ private:
  */
 struct Exception : public Printable {
   /* Constructs an exception with the given message. */
-  Exception(const string& message);
+  Exception(const std::string& message);
 
 protected:
   /* Prints this object on the given stream. */
-  void print(ostream& os) const;
+  void print(std::ostream& os) const;
 
 private:
   /* Message. */
-  string message;
+  std::string message;
 };
 
 
@@ -309,7 +325,7 @@ private:
  */
 struct Unimplemented : public Exception {
   /* Constructs an unimplemented exception. */
-  Unimplemented(const string& message);
+  Unimplemented(const std::string& message);
 };
 
 

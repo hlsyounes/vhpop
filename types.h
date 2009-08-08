@@ -51,10 +51,10 @@ struct SimpleType : public LessThanComparable, public Type {
   static const SimpleType OBJECT;
 
   /* Constructs a simple type with the given name. */
-  explicit SimpleType(const string& name, const Type& supertype = OBJECT);
+  explicit SimpleType(const std::string& name, const Type& supertype = OBJECT);
 
   /* Returns the name of this simple type. */
-  const string& name() const { return name_; }
+  const std::string& name() const { return name_; }
 
   /* Returns the supertype of this simple type. */
   const Type& supertype() const { return *supertype_; }
@@ -70,11 +70,11 @@ protected:
   virtual bool equals(const EqualityComparable& o) const;
 
   /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const;
+  virtual void print(std::ostream& os) const;
 
 private:
   /* Name of type. */
-  string name_;
+  std::string name_;
   /* Supertype */
   const Type* supertype_;
 };
@@ -85,7 +85,8 @@ private:
 
 /* Set of simple types. */
 struct TypeSet
-  : public set<const SimpleType*, less<const LessThanComparable*> > {
+    : public std::set<const SimpleType*,
+                      std::less<const LessThanComparable*> > {
 };
 
 /* Iterator for type lists. */
@@ -121,7 +122,7 @@ protected:
   virtual bool equals(const EqualityComparable& o) const;
 
   /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const;
+  virtual void print(std::ostream& os) const;
 
 private:
   /* Constituent types. */

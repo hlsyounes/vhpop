@@ -46,7 +46,7 @@ formula_value(const Formula& formula, size_t step_id, const Plan& plan,
     if (literal != NULL) {
       StepTime gt = start_time(*literal);
       if (!domain.static_predicate(literal->predicate())) {
-	hash_set<size_t> seen_steps;
+        __gnu_cxx::hash_set<size_t> seen_steps;
 	for (const StepChain* sc = plan.steps(); sc != NULL; sc = sc->tail) {
 	  const Step& step = sc->head;
 	  if (step.id() != 0 && seen_steps.find(step.id()) == seen_steps.end()
@@ -1019,8 +1019,8 @@ void Heuristic::plan_rank(vector<float>& rank, const Plan& plan,
     case MAX_WORK:
       if (!max_done) {
 	max_done = true;
-	hash_map<size_t, float> start_dist;
-	hash_map<size_t, float> end_dist;
+        __gnu_cxx::hash_map<size_t, float> start_dist;
+        __gnu_cxx::hash_map<size_t, float> end_dist;
 	max_cost = max_steps =
 	  int(plan.orderings().schedule(start_dist, end_dist) + 0.5);
 	for (const OpenConditionChain* occ = plan.open_conds();
@@ -1060,8 +1060,8 @@ void Heuristic::plan_rank(vector<float>& rank, const Plan& plan,
     case MAXR_WORK:
       if (!maxr_done) {
 	maxr_done = true;
-	hash_map<size_t, float> start_dist;
-	hash_map<size_t, float> end_dist;
+        __gnu_cxx::hash_map<size_t, float> start_dist;
+        __gnu_cxx::hash_map<size_t, float> end_dist;
 	maxr_cost = max_steps =
 	  int(plan.orderings().schedule(start_dist, end_dist) + 0.5);
 	for (const OpenConditionChain* occ = plan.open_conds();

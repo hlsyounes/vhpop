@@ -21,7 +21,7 @@
 #ifndef DOMAINS_H
 #define DOMAINS_H
 
-#include <hash_set>
+#include <ext/hash_set>
 #include "support.h"
 #include "requirements.h"
 #include "types.h"
@@ -78,7 +78,8 @@ ostream& operator<<(ostream& os, const Predicate& p);
 /* PredicateMap */
 
 /* Table of predicate declarations. */
-struct PredicateMap : public hash_map<string, const Predicate*> {
+struct PredicateMap :
+    public __gnu_cxx::hash_map<std::string, const Predicate*> {
 };
 
 /* Iterator for predicate table. */
@@ -147,8 +148,8 @@ struct Effect {
 
   /* Fills the provided sets with predicates achievable by the
      effect. */
-  void achievable_predicates(hash_set<string>& preds,
-			     hash_set<string>& neg_preds) const;
+  void achievable_predicates(__gnu_cxx::hash_set<string>& preds,
+			     __gnu_cxx::hash_set<string>& neg_preds) const;
 
   /* Returns a copy of this effect with a new link condition. */
   const Effect& new_link_condition(const Formula& cond) const;
@@ -206,8 +207,8 @@ struct EffectList : public vector<const Effect*> {
 
   /* Fills the provided sets with predicates achievable by the effects
      in this list. */
-  void achievable_predicates(hash_set<string>& preds,
-			     hash_set<string>& neg_preds) const;
+  void achievable_predicates(__gnu_cxx::hash_set<string>& preds,
+			     __gnu_cxx::hash_set<string>& neg_preds) const;
 
   /* "Strengthens" this effect list. */
   const EffectList& strengthen(const Formula& condition) const;
@@ -247,8 +248,8 @@ struct Action : public Printable {
 
   /* Fills the provided sets with predicates achievable by this
      action. */
-  void achievable_predicates(hash_set<string>& preds,
-			     hash_set<string>& neg_preds) const;
+  void achievable_predicates(__gnu_cxx::hash_set<string>& preds,
+			     __gnu_cxx::hash_set<string>& neg_preds) const;
 
 protected:
   /* Constructs an action. */
@@ -337,7 +338,8 @@ private:
 /*
  * Table of action schema definitions.
  */
-struct ActionSchemaMap : public hash_map<string, const ActionSchema*> {
+struct ActionSchemaMap :
+    public __gnu_cxx::hash_map<std::string, const ActionSchema*> {
 };
 
 /* Iterator for action schema table. */
@@ -397,7 +399,7 @@ typedef GroundActionList::const_iterator GroundActionListIter;
 /*
  * Table of simple types.
  */
-struct TypeMap : hash_map<string, const SimpleType*> {
+struct TypeMap : __gnu_cxx::hash_map<std::string, const SimpleType*> {
 };
 
 /* Iterator for type tables. */
@@ -412,7 +414,7 @@ typedef TypeMap::const_iterator TypeMapIter;
  */
 struct Domain {
   /* Table of domain definitions. */
-  struct DomainMap : public hash_map<string, const Domain*> {
+  struct DomainMap : public __gnu_cxx::hash_map<std::string, const Domain*> {
   };
 
   /* Iterator for domain tables. */
@@ -495,7 +497,7 @@ private:
   /* Domain action schemas. */
   ActionSchemaMap actions_;
   /* Static predicates. */
-  hash_set<string> static_predicates_;
+  __gnu_cxx::hash_set<std::string> static_predicates_;
 
   friend ostream& operator<<(ostream& os, const Domain& d);
 };

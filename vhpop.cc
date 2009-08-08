@@ -22,7 +22,9 @@
 #include <cerrno>
 #include <sys/time.h>
 #if HAVE_GETOPT_LONG
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include <getopt.h>
 #else
 #include "getopt.h"

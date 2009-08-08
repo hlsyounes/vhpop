@@ -33,7 +33,7 @@
  */
 struct InvalidSearchAlgorithm : public Exception {
   /* Constructs an invalid search algorithm exception. */
-  InvalidSearchAlgorithm(const string& name);
+  InvalidSearchAlgorithm(const std::string& name);
 };
 
 
@@ -56,9 +56,9 @@ struct Parameters {
   /* Weight to use with heuristic. */
   float weight;
   /* Flaw selecion orders. */
-  vector<FlawSelectionOrder> flaw_orders;
+  std::vector<FlawSelectionOrder> flaw_orders;
   /* Search limits. */
-  vector<size_t> search_limits;
+  std::vector<size_t> search_limits;
   /* Whether to reverse the order that open conditions are added. */
   bool reverse_open_conditions;
   /* Whether to use ground actions. */
@@ -74,7 +74,7 @@ struct Parameters {
   Parameters();
 
   /* Selects a search algorithm from a name. */
-  void set_search_algorithm(const string& name);
+  void set_search_algorithm(const std::string& name);
 };
 
 

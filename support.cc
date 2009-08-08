@@ -24,7 +24,7 @@
 /* Printable */
 
 /* Output operator for printable objects. */
-ostream& operator<<(ostream& os, const Printable& o) {
+std::ostream& operator<<(std::ostream& os, const Printable& o) {
   o.print(os);
   return os;
 }
@@ -34,12 +34,12 @@ ostream& operator<<(ostream& os, const Printable& o) {
 /* Exception */
 
 /* Constructs an exception with the given message. */
-Exception::Exception(const string& message)
+Exception::Exception(const std::string& message)
   : message(message) {}
 
 
 /* Prints this object on the given stream. */
-void Exception::print(ostream& os) const {
+void Exception::print(std::ostream& os) const {
   os << message;
 }
 
@@ -48,7 +48,7 @@ void Exception::print(ostream& os) const {
 /* Unimplemented */
 
 /* Constructs an unimplemented exception. */
-Unimplemented::Unimplemented(const string& message)
+Unimplemented::Unimplemented(const std::string& message)
   : Exception(message) {}
 
 
