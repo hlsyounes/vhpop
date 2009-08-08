@@ -22,7 +22,7 @@
 /* InvalidSearchAlgorithm */
 
 /* Constructs an invalid search algorithm exception. */
-InvalidSearchAlgorithm::InvalidSearchAlgorithm(const string& name)
+InvalidSearchAlgorithm::InvalidSearchAlgorithm(const std::string& name)
   : Exception("invalid search algorithm `" + name + "'") {}
 
 
@@ -42,7 +42,7 @@ Parameters::Parameters()
 
 
 /* Selects a search algorithm from a name. */
-void Parameters::set_search_algorithm(const string& name) {
+void Parameters::set_search_algorithm(const std::string& name) {
   const char* n = name.c_str();
   if (strcasecmp(n, "A") == 0) {
     search_algorithm = A_STAR;

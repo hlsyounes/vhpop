@@ -81,7 +81,7 @@ struct OpenCondition : public Flaw {
 
 protected:
   /* Prints this open condition on the given stream. */
-  virtual void print(ostream& os) const;
+  virtual void print(std::ostream& os) const;
 
 private:
   /* Id of step to which this open condition belongs. */
@@ -132,7 +132,7 @@ struct Unsafe : public Flaw {
 
 protected:
   /* Prints this threatened causal link on the given stream. */
-  virtual void print(ostream& os) const;
+  virtual void print(std::ostream& os) const;
 
 private:
   /* Threatened link. */

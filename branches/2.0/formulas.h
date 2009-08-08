@@ -72,7 +72,7 @@ private:
 /*
  * List of substitutions.
  */
-struct SubstitutionList : public vector<Substitution> {
+struct SubstitutionList : public std::vector<Substitution> {
 };
 
 /* Substitution list iterator. */
@@ -90,7 +90,7 @@ struct Term : public LessThanComparable, public Hashable, public Printable {
   virtual ~Term();
 
   /* Returns the name of this term. */
-  const string& name() const { return name_; }
+  const std::string& name() const { return name_; }
 
   /* Returns the type of this term. */
   const Type& type() const { return *type_; }
@@ -111,7 +111,7 @@ struct Term : public LessThanComparable, public Hashable, public Printable {
 
 protected:
   /* Constructs an abstract term with the given name. */
-  Term(const string& name, const Type& type);
+  Term(const std::string& name, const Type& type);
 
   /* Checks if this object is less than the given object. */
   virtual bool less(const LessThanComparable& o) const;
@@ -123,11 +123,11 @@ protected:
   virtual size_t hash_value() const;
 
   /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const;
+  virtual void print(std::ostream& os) const;
 
 private:
   /* Name of term. */
-  string name_;
+  std::string name_;
   /* Type of term. */
   const Type* type_;
 };
@@ -141,7 +141,7 @@ private:
  */
 struct Name : public Term {
   /* Constructs a name. */
-  Name(const string& name, const Type& type);
+  Name(const std::string& name, const Type& type);
 
   /* Returns an instantiation of this term. */
   virtual const Name& instantiation(size_t id) const;
@@ -164,10 +164,10 @@ struct Name : public Term {
  */
 struct Variable : public Term {
   /* Constructs a variable with the given name. */
-  explicit Variable(const string& name);
+  explicit Variable(const std::string& name);
 
   /* Constructs a variable with the given name and type. */
-  Variable(const string& name, const Type& type);
+  Variable(const std::string& name, const Type& type);
 
   /* Returns an instantiation of this term. */
   virtual const Variable& instantiation(size_t id) const;
@@ -200,7 +200,7 @@ protected:
   virtual bool equals(const EqualityComparable& o) const;
 
   /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const;
+  virtual void print(std::ostream& os) const;
 
 private:
   /* Constructs an instantiated variable. */
@@ -219,7 +219,7 @@ private:
 /*
  * List of terms.
  */
-struct TermList : public vector<const Term*> {
+struct TermList : public std::vector<const Term*> {
   /* Returns an instantiation of this term list. */
   const TermList& instantiation(size_t id) const;
 
@@ -240,7 +240,7 @@ typedef TermList::const_iterator TermListIter;
 /*
  * List of names.
  */
-struct NameList : public vector<const Name*> {
+struct NameList : public std::vector<const Name*> {
 };
 
 /* Name list iterator. */
@@ -253,7 +253,7 @@ typedef NameList::const_iterator NameListIter;
 /*
  * Table of names.
  */
-struct NameMap : public hash_map<string, const Name*> {
+struct NameMap : public __gnu_cxx::hash_map<std::string, const Name*> {
 };
 
 /* Name table iterator. */
@@ -266,7 +266,7 @@ typedef NameMap::const_iterator NameMapIter;
 /*
  * List of variables.
  */
-struct VariableList : public vector<const Variable*> {
+struct VariableList : public std::vector<const Variable*> {
   /* An empty variable list. */
   static const VariableList EMPTY;
 
@@ -363,7 +363,7 @@ const Formula& operator||(const Formula& f1, const Formula& f2);
 /*
  * List of formulas.
  */
-struct FormulaList : public vector<const Formula*> {
+struct FormulaList : public std::vector<const Formula*> {
   /* Constructs an empty formula list. */
   FormulaList();
 
@@ -424,7 +424,7 @@ struct Constant : public Formula {
 
 protected:
   /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const;
+  virtual void print(std::ostream& os) const;
 
   /* Returns a negation of this formula. */
   virtual const Formula& negation() const;
@@ -456,7 +456,7 @@ struct Literal : public Formula {
   FormulaTime when() const { return when_; }
 
   /* Returns the predicate of this literal. */
-  virtual const string& predicate() const = 0;
+  virtual const std::string& predicate() const = 0;
 
   /* Returns the terms of this literal. */
   virtual const TermList& terms() const = 0;
@@ -483,8 +483,8 @@ private:
   FormulaTime when_;
 
   friend bool operator==(const Literal& l1, const Literal& l2);
-  friend struct hash<Literal>;
-  friend struct hash<const Literal*>;
+  friend struct __gnu_cxx::hash<Literal>;
+  friend struct __gnu_cxx::hash<const Literal*>;
 };
 
 /* Equality operator for literals. */
@@ -500,30 +500,39 @@ inline bool operator!=(const Literal& l1, const Literal& l2) {
 /*
  * Equality function object for literal pointers.
  */
+namespace std {
+template<>
 struct equal_to<const Literal*>
   : public binary_function<const Literal*, const Literal*, bool> {
   bool operator()(const Literal* l1, const Literal* l2) const {
     return *l1 == *l2;
   }
 };
+}
 
 /*
  * Hash function object for literals.
  */
+namespace __gnu_cxx {
+template<>
 struct hash<Literal> {
   size_t operator()(const Literal& l) const {
     return l.hash_value();
   }
 };
+}
 
 /*
  * Hash function object for literal pointers.
  */
+namespace __gnu_cxx {
+template<>
 struct hash<const Literal*> {
   size_t operator()(const Literal* l) const {
     return l->hash_value();
   }
 };
+}
 
 
 /* ====================================================================== */
@@ -534,10 +543,10 @@ struct hash<const Literal*> {
  */
 struct Atom : public Literal {
   /* Constructs an atomic formula. */
-  Atom(const string& predicate, const TermList& terms, FormulaTime when);
+  Atom(const std::string& predicate, const TermList& terms, FormulaTime when);
 
   /* Returns the predicate of this literal. */
-  virtual const string& predicate() const { return predicate_; }
+  virtual const std::string& predicate() const { return predicate_; }
 
   /* Returns the terms of this literal. */
   virtual const TermList& terms() const { return *terms_; }
@@ -577,14 +586,14 @@ protected:
   virtual size_t hash_value() const;
 
   /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const;
+  virtual void print(std::ostream& os) const;
 
   /* Returns the negation of this formula. */
   virtual const Literal& negation() const;
 
 private:
   /* Predicate of this atom. */
-  string predicate_;
+  std::string predicate_;
   /* Terms of this atom. */
   const TermList* terms_;
 };
@@ -604,7 +613,7 @@ struct Negation : public Literal {
   const Atom& atom() const { return *atom_; }
 
   /* Returns the predicate of this literal. */
-  virtual const string& predicate() const { return atom().predicate(); }
+  virtual const std::string& predicate() const { return atom().predicate(); }
 
   /* Returns the terms of this literal. */
   virtual const TermList& terms() const { return atom().terms(); }
@@ -644,7 +653,7 @@ protected:
   virtual size_t hash_value() const;
 
   /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const;
+  virtual void print(std::ostream& os) const;
 
   /* Returns the negation of this formula. */
   virtual const Literal& negation() const;
@@ -726,7 +735,7 @@ struct Equality : public BindingLiteral {
 
 protected:
   /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const;
+  virtual void print(std::ostream& os) const;
 
   /* Returns the negation of this formula. */
   virtual const BindingLiteral& negation() const;
@@ -775,7 +784,7 @@ struct Inequality : public BindingLiteral {
 
 protected:
   /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const;
+  virtual void print(std::ostream& os) const;
 
   /* Returns the negation of this formula. */
   virtual const BindingLiteral& negation() const;
@@ -828,7 +837,7 @@ struct Conjunction : public Formula {
 
 protected:
   /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const;
+  virtual void print(std::ostream& os) const;
 
   /* Returns the negation of this formula. */
   virtual const Formula& negation() const;
@@ -890,7 +899,7 @@ struct Disjunction : public Formula {
 
 protected:
   /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const;
+  virtual void print(std::ostream& os) const;
 
   /* Returns the negation of this formula. */
   virtual const Formula& negation() const;
@@ -977,7 +986,7 @@ struct ExistsFormula : public QuantifiedFormula {
 
 protected:
   /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const;
+  virtual void print(std::ostream& os) const;
 
   /* Returns the negation of this formula. */
   virtual const QuantifiedFormula& negation() const;
@@ -1026,7 +1035,7 @@ struct ForallFormula : public QuantifiedFormula {
 
 protected:
   /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const;
+  virtual void print(std::ostream& os) const;
 
   /* Returns the negation of this formula. */
   virtual const QuantifiedFormula& negation() const;
@@ -1039,7 +1048,7 @@ protected:
 /*
  * List of atoms.
  */
-struct AtomList : public vector<const Atom*> {
+struct AtomList : public std::vector<const Atom*> {
   /* An empty atom list. */
   static const AtomList EMPTY;
 
@@ -1066,7 +1075,7 @@ typedef AtomList::const_iterator AtomListIter;
 /*
  * List of negated atoms.
  */
-struct NegationList : public vector<const Negation*> {
+struct NegationList : public std::vector<const Negation*> {
   /* An empty negation list. */
   static const NegationList EMPTY;
 

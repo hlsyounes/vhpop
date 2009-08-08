@@ -38,7 +38,7 @@
  * Mapping of predicate names to actions.
  */
 struct PredicateActionsMap
-  : public hash_multimap<string, const ActionSchema*> {
+    : public __gnu_cxx::hash_multimap<string, const ActionSchema*> {
 };
 
 /* Iterator for PredicateActionsMap. */
@@ -148,12 +148,15 @@ const Atom* Step::step_formula() const {
 /*
  * Less than function object for plan pointers.
  */
+namespace std {
+template<>
 struct less<const Plan*>
   : public binary_function<const Plan*, const Plan*, bool> {
   bool operator()(const Plan* p1, const Plan* p2) const {
     return *p1 < *p2;
   }
 };
+}
 
 
 /*
@@ -303,7 +306,7 @@ static void link_threats(const UnsafeChain*& unsafes, size_t& num_unsafes,
 			 const Link& link, const StepChain* steps,
 			 const Orderings& orderings,
 			 const Bindings& bindings) {
-  hash_set<size_t> seen_steps;
+  __gnu_cxx::hash_set<size_t> seen_steps;
   StepTime lt1 = link.effect_time();
   StepTime lt2 = end_time(link.condition());
   for (const StepChain* sc = steps; sc != NULL; sc = sc->tail) {
@@ -495,14 +498,14 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
       if (params->domain_constraints && !params->keep_static_preconditions) {
 	as = &as->strip_static(*domain);
       }
-      hash_set<string> preds;
-      hash_set<string> neg_preds;
+      __gnu_cxx::hash_set<string> preds;
+      __gnu_cxx::hash_set<string> neg_preds;
       as->achievable_predicates(preds, neg_preds);
-      for (hash_set<string>::const_iterator si = preds.begin();
+      for (__gnu_cxx::hash_set<string>::const_iterator si = preds.begin();
 	   si != preds.end(); si++) {
 	achieves_pred.insert(make_pair(*si, as));
       }
-      for (hash_set<string>::const_iterator si = neg_preds.begin();
+      for (__gnu_cxx::hash_set<string>::const_iterator si = neg_preds.begin();
 	   si != neg_preds.end(); si++) {
 	achieves_neg_pred.insert(make_pair(*si, as));
       }
@@ -1088,7 +1091,7 @@ bool Plan::unsafe_open_condition(const OpenCondition& open_cond) const {
   if (literal != NULL) {
     const Literal& goal = *literal;
     StepTime gt = end_time(goal);
-    hash_set<size_t> seen_steps;
+    __gnu_cxx::hash_set<size_t> seen_steps;
     for (const StepChain* sc = steps(); sc != NULL; sc = sc->tail) {
       const Step& s = sc->head;
       if (seen_steps.find(s.id()) == seen_steps.end()
@@ -1323,7 +1326,7 @@ void Plan::add_step(PlanList& plans, const Literal& literal,
 bool Plan::reusable_steps(int& refinements, const Literal& literal,
 			  size_t step_id, int limit) const {
   int count = 0;
-  hash_set<size_t> seen_steps;
+  __gnu_cxx::hash_set<size_t> seen_steps;
   StepTime gt = start_time(literal);
   for (const StepChain* sc = steps(); sc != NULL; sc = sc->tail) {
     const Step& step = sc->head;
@@ -1344,7 +1347,7 @@ bool Plan::reusable_steps(int& refinements, const Literal& literal,
 /* Handles a literal open condition by reusing an existing step. */
 void Plan::reuse_step(PlanList& plans, const Literal& literal,
 		      const OpenCondition& open_cond) const {
-  hash_set<size_t> seen_steps;
+  __gnu_cxx::hash_set<size_t> seen_steps;
   StepTime gt = start_time(literal);
   for (const StepChain* sc = steps(); sc != NULL; sc = sc->tail) {
     const Step& step = sc->head;
@@ -2114,12 +2117,12 @@ bool Plan::duplicate() const {
 
 
 /* Maps step ids to formulas. */
-struct FormulaMap : public hash_map<size_t, const Formula*> {
+struct FormulaMap : public __gnu_cxx::hash_map<size_t, const Formula*> {
 };
 
 
 /* Checks if the steps match for two plans. */
-static bool matching_plans(hash_map<size_t, size_t>& step_map,
+static bool matching_plans(__gnu_cxx::hash_map<size_t, size_t>& step_map,
 			   const FormulaMap& steps1, const FormulaMap& steps2,
 			   FormulaMap::const_iterator s1) {
   if (s1 == steps1.end()) {
@@ -2172,7 +2175,7 @@ bool Plan::equivalent(const Plan& p) const {
       }
     }
     // try to find mapping between steps so that bindings and orderings match
-    hash_map<size_t, size_t> step_map;
+    __gnu_cxx::hash_map<size_t, size_t> step_map;
     return matching_plans(step_map, steps1, steps2, steps1.begin());
   }
   return false;
@@ -2190,14 +2193,14 @@ bool operator<(const Plan& p1, const Plan& p2) {
 
 
 struct StepSorter {
-  StepSorter(hash_map<size_t, float>& dist)
+  StepSorter(__gnu_cxx::hash_map<size_t, float>& dist)
     : dist(dist) {}
 
   bool operator()(const Step* s1, const Step* s2) const {
     return dist[s1->id()] < dist[s2->id()];
   }
 
-  hash_map<size_t, float>& dist;
+  __gnu_cxx::hash_map<size_t, float>& dist;
 };
 
 
@@ -2319,7 +2322,7 @@ ostream& operator<<(ostream& os, const Plan& p) {
   const Step* goal = NULL;
   const Bindings* bindings = p.bindings();
   vector<const Step*> ordered_steps;
-  hash_set<size_t> seen_steps;
+  __gnu_cxx::hash_set<size_t> seen_steps;
   for (const StepChain* sc = p.steps(); sc != NULL; sc = sc->tail) {
     const Step& step = sc->head;
     if (step.id() == 0) {
@@ -2331,8 +2334,8 @@ ostream& operator<<(ostream& os, const Plan& p) {
       ordered_steps.push_back(&step);
     }
   }
-  hash_map<size_t, float> start_times;
-  hash_map<size_t, float> end_times;
+  __gnu_cxx::hash_map<size_t, float> start_times;
+  __gnu_cxx::hash_map<size_t, float> end_times;
   p.orderings().schedule(start_times, end_times);
   sort(ordered_steps.begin(), ordered_steps.end(), StepSorter(start_times));
   /*

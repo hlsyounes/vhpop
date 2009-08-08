@@ -113,7 +113,7 @@ bool Term::equals(const EqualityComparable& o) const {
 
 /* Returns the hash value of this object. */
 size_t Term::hash_value() const {
-  return hash<string>()(name());
+  return __gnu_cxx::hash<string>()(name());
 }
 
 
@@ -576,8 +576,8 @@ bool Atom::equals(const Literal& o) const {
 
 /* Returns the hash value of this object. */
 size_t Atom::hash_value() const {
-  hash<Hashable> h;
-  size_t val = hash<string>()(predicate());
+  __gnu_cxx::hash<Hashable> h;
+  size_t val = __gnu_cxx::hash<string>()(predicate());
   for (TermListIter ti = terms().begin(); ti != terms().end(); ti++) {
     val = 5*val + h(**ti);
   }
@@ -650,7 +650,7 @@ bool Negation::equals(const Literal& o) const {
 
 /* Returns the hash value of this object. */
 size_t Negation::hash_value() const {
-  return 5*hash<Literal>()(atom());
+  return 5*__gnu_cxx::hash<Literal>()(atom());
 }
 
 

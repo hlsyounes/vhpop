@@ -221,8 +221,9 @@ const Effect& Effect::substitution(const SubstitutionList& subst) const {
 
 /* Fills the provided sets with predicates achievable by the
    effect. */
-void Effect::achievable_predicates(hash_set<string>& preds,
-				   hash_set<string>& neg_preds) const {
+void Effect::achievable_predicates(
+    __gnu_cxx::hash_set<string>& preds,
+    __gnu_cxx::hash_set<string>& neg_preds) const {
   for (AtomListIter gi = add_list().begin(); gi != add_list().end(); gi++) {
     preds.insert((*gi)->predicate());
   }
@@ -341,8 +342,9 @@ EffectList::substitution(const SubstitutionList& subst) const {
 
 /* Fills the provided sets with predicates achievable by the effects
    in this list. */
-void EffectList::achievable_predicates(hash_set<string>& preds,
-				       hash_set<string>& neg_preds) const {
+void EffectList::achievable_predicates(
+    __gnu_cxx::hash_set<string>& preds,
+    __gnu_cxx::hash_set<string>& neg_preds) const {
   for (const_iterator i = begin(); i != end(); i++) {
     (*i)->achievable_predicates(preds, neg_preds);
   }
@@ -461,8 +463,9 @@ Action::Action(const string& name, const Formula& precondition,
 
 /* Fills the provided sets with predicates achievable by this
    action. */
-void Action::achievable_predicates(hash_set<string>& preds,
-				   hash_set<string>& neg_preds) const {
+void Action::achievable_predicates(
+    __gnu_cxx::hash_set<string>& preds,
+    __gnu_cxx::hash_set<string>& neg_preds) const {
   if (min_duration() <= max_duration()) {
     effects().achievable_predicates(preds, neg_preds);
   }
@@ -787,9 +790,10 @@ void Domain::add_predicate(const Predicate& predicate) {
 /* Adds an action to this domain. */
 void Domain::add_action(const ActionSchema& action) {
   actions_.insert(make_pair(action.name(), &action));
-  hash_set<string> achievable_preds;
+  __gnu_cxx::hash_set<string> achievable_preds;
   action.achievable_predicates(achievable_preds, achievable_preds);
-  for (hash_set<string>::const_iterator pi = achievable_preds.begin();
+  for (__gnu_cxx::hash_set<string>::const_iterator pi =
+           achievable_preds.begin();
        pi != achievable_preds.end(); pi++) {
     static_predicates_.erase(*pi);
   }

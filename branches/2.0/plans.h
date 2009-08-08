@@ -247,7 +247,7 @@ struct Plan {
 
 private:
   /* List of plans. */
-  struct PlanList : public vector<const Plan*> {
+  struct PlanList : public std::vector<const Plan*> {
   };
 
   /* Iterator for plan lists. */
@@ -280,7 +280,7 @@ private:
   /* Number of open conditions. */
   const size_t num_open_conds_;
   /* Rank of this plan. */
-  mutable vector<float> rank_;
+  mutable std::vector<float> rank_;
   /* Plan id (serial number). */
   mutable size_t id_;
 #ifdef DEBUG
@@ -393,7 +393,7 @@ private:
 
   /* Adds plans to the given plan list with the given link removed and
      the resulting open condition relinked. */
-  pair<const Plan*, const OpenCondition*> unlink(const Link& link) const;
+  std::pair<const Plan*, const OpenCondition*> unlink(const Link& link) const;
 
   /* Checks if this plan is a duplicate of a previous plan. */
   bool duplicate() const;
@@ -402,14 +402,14 @@ private:
   bool equivalent(const Plan& p) const;
 
   friend bool operator<(const Plan& p1, const Plan& p2);
-  friend ostream& operator<<(ostream& os, const Plan& p);
+  friend std::ostream& operator<<(std::ostream& os, const Plan& p);
 };
 
 /* Less than operator for plans. */
 bool operator<(const Plan& p1, const Plan& p2);
 
 /* Output operator for plans. */
-ostream& operator<<(ostream& os, const Plan& p);
+std::ostream& operator<<(std::ostream& os, const Plan& p);
 
 
 #endif /* PLANS_H */

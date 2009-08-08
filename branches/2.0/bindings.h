@@ -79,11 +79,11 @@ private:
   const Reason* reason_;
 #endif
 
-  friend ostream& operator<<(ostream& os, const Binding& b);
+  friend std::ostream& operator<<(std::ostream& os, const Binding& b);
 };
 
 /* Output operator for variable bindings. */
-ostream& operator<<(ostream& os, const Binding& b);
+std::ostream& operator<<(std::ostream& os, const Binding& b);
 
 
 /* ====================================================================== */
@@ -92,7 +92,7 @@ ostream& operator<<(ostream& os, const Binding& b);
 /*
  * List of bindings.
  */
-struct BindingList : vector<Binding> {
+struct BindingList : std::vector<Binding> {
 };
 
 /* Iterator for binding lists. */
@@ -114,7 +114,8 @@ typedef CollectibleChain<Binding> BindingChain;
 /*
  * A set of names.
  */
-struct NameSet : public set<const Name*, less<const LessThanComparable*> > {
+struct NameSet :
+    public std::set<const Name*, std::less<const LessThanComparable*> > {
 };
 
 /* Iterator for name sets. */
@@ -158,7 +159,7 @@ struct ActionDomain {
 
 private:
   /* A list of parameter tuples. */
-  struct TupleList : public vector<const NameList*> {
+  struct TupleList : public std::vector<const NameList*> {
   };
 
   /* A tuple list iterator. */
@@ -167,13 +168,13 @@ private:
   /* Possible parameter tuples. */
   TupleList tuples_;
   /* Projections. */
-  vector<NameSet*> projections_;
+  std::vector<NameSet*> projections_;
 
-  friend ostream& operator<<(ostream& os, const ActionDomain& ad);
+  friend std::ostream& operator<<(std::ostream& os, const ActionDomain& ad);
 };
 
 /* Output operator for action domains. */
-ostream& operator<<(ostream& os, const ActionDomain& ad);
+std::ostream& operator<<(std::ostream& os, const ActionDomain& ad);
 
 
 /* ====================================================================== */
@@ -276,7 +277,7 @@ struct Bindings : public Printable, public Collectible {
 
 protected:
   /* Prints this object on the given stream. */
-  virtual void print(ostream& os) const;
+  virtual void print(std::ostream& os) const;
 
 private:
   /* Varsets representing the transitive closure of the bindings. */

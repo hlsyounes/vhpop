@@ -35,7 +35,7 @@ struct DummyReason : public Reason {
   }
 
 protected:
-  virtual void print(ostream& os) const {
+  virtual void print(std::ostream& os) const {
     os << "DummyReason";
   }
 };
@@ -80,7 +80,7 @@ InitReason::InitReason() {}
 
 
 /* Prints this reason on the given stream. */
-void InitReason::print(ostream& os) const {
+void InitReason::print(std::ostream& os) const {
   os << "#<InitReason>";
 }
 
@@ -108,7 +108,7 @@ bool AddStepReason::involves(const Step& step) const {
 
 
 /* Prints this reason on the given stream. */
-void AddStepReason::print(ostream& os) const {
+void AddStepReason::print(std::ostream& os) const {
   os << "#<AddStepReason " << step_id << ">";
 }
 
@@ -136,7 +136,7 @@ bool EstablishReason::involves(const Link& link) const {
 
 
 /* Prints this reason on the given stream. */
-void EstablishReason::print(ostream& os) const {
+void EstablishReason::print(std::ostream& os) const {
   os << "#<EstablishReason " << link.from_id() << ' ' << link.condition()
      << ' ' << link.to_id() << ">";
 }
@@ -172,7 +172,7 @@ bool ProtectReason::involves(const Step& step) const {
 
 
 /* Prints this reason on the given stream. */
-void ProtectReason::print(ostream& os) const {
+void ProtectReason::print(std::ostream& os) const {
   os << "#<ProtectReason " << link.from_id() << ' ' << link.condition()
      << ' ' << link.to_id() << " step " << step_id << ">";
 }

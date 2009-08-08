@@ -56,7 +56,7 @@ struct InitReason : public Reason {
 
 protected:
   /* Prints this reason on the given stream. */
-  virtual void print(ostream& os) const;
+  virtual void print(std::ostream& os) const;
 
 private:
   /* Constructs an Init reason. */
@@ -80,7 +80,7 @@ struct AddStepReason : public Reason {
 
 protected:
   /* Prints this reason on the given stream. */
-  virtual void print(ostream& os) const;
+  virtual void print(std::ostream& os) const;
 
 private:
   /* Constructs an AddStep reason. */
@@ -104,7 +104,7 @@ struct EstablishReason : public Reason {
 
 protected:
   /* Prints this reason on the given stream. */
-  virtual void print(ostream& os) const;
+  virtual void print(std::ostream& os) const;
 
 private:
   /* Constructs an Establish reason. */
@@ -134,7 +134,7 @@ struct ProtectReason : public Reason {
 
 protected:
   /* Prints this reason on the given stream. */
-  virtual void print(ostream& os) const;
+  virtual void print(std::ostream& os) const;
 
 private:
   /* Constructs a Protect reason. */

@@ -118,7 +118,7 @@ bool operator>=(const HeuristicValue& v1, const HeuristicValue& v2);
 HeuristicValue min(const HeuristicValue& v1, const HeuristicValue& v2);
 
 /* Output operator for heuristic values. */
-ostream& operator<<(ostream& os, const HeuristicValue& v);
+std::ostream& operator<<(std::ostream& os, const HeuristicValue& v);
 
 
 /* ====================================================================== */
@@ -145,13 +145,14 @@ struct PlanningGraph {
 
   /* Returns the parameter domain for the given action, or NULL if the
      parameter domain is empty. */
-  const ActionDomain* action_domain(const string& name) const;
+  const ActionDomain* action_domain(const std::string& name) const;
 
 private:
   /* Atom value map. */
   struct AtomValueMap
-    : public hash_map<const Atom*, HeuristicValue, hash<const Literal*>,
-    equal_to<const Literal*> > {
+      : public __gnu_cxx::hash_map<const Atom*, HeuristicValue,
+                                   __gnu_cxx::hash<const Literal*>,
+                                   std::equal_to<const Literal*> > {
   };
 
   /* Iterator for AtomValueMap. */
@@ -166,14 +167,15 @@ private:
   typedef LiteralActionsMap::const_iterator LiteralActionsMapIter;
 
   /* Mapping of predicate names to ground atoms. */
-  struct PredicateAtomsMap : public HashMultimap<string, const Atom*> {
+  struct PredicateAtomsMap : public HashMultimap<std::string, const Atom*> {
   };
 
   /* Iterator for PredicateAtomsMap. */
   typedef PredicateAtomsMap::const_iterator PredicateAtomsMapIter;
 
   /* Mapping of action name to parameter domain. */
-  struct ActionDomainMap : public hash_map<string, ActionDomain*> {
+  struct ActionDomainMap :
+      public __gnu_cxx::hash_map<std::string, ActionDomain*> {
   };
 
   /* Iterator for ActionDomainMap. */
@@ -202,7 +204,7 @@ private:
  */
 struct InvalidHeuristic : public Exception {
   /* Constructs an invalid heuristic exception. */
-  InvalidHeuristic(const string& name);
+  InvalidHeuristic(const std::string& name);
 };
 
 
@@ -228,16 +230,16 @@ struct InvalidHeuristic : public Exception {
  */
 struct Heuristic {
   /* Constructs a heuristic from a name. */
-  Heuristic(const string& name = "UCPOP");
+  Heuristic(const std::string& name = "UCPOP");
 
   /* Selects a heuristic from a name. */
-  Heuristic& operator=(const string& name);
+  Heuristic& operator=(const std::string& name);
 
   /* Checks if this heuristic needs a planning graph. */
   bool needs_planning_graph() const;
 
   /* Fills the provided vector with the ranks for the given plan. */
-  void plan_rank(vector<float>& rank, const Plan& plan,
+  void plan_rank(std::vector<float>& rank, const Plan& plan,
 		 float weight, const Domain& domain,
 		 const PlanningGraph* planning_graph) const;
 
@@ -250,7 +252,7 @@ private:
 		 MAXR, MAXR_COST, MAXR_WORK } HVal;
 
   /* The selected heuristics. */
-  vector<HVal> h_;
+  std::vector<HVal> h_;
   /* Whether a planning graph is needed by this heuristic. */
   bool needs_pg_;
 };
@@ -264,7 +266,7 @@ private:
  */
 struct InvalidFlawSelectionOrder : public Exception {
   /* Constructs an invalid flaw selection order exception. */
-  InvalidFlawSelectionOrder(const string& name);
+  InvalidFlawSelectionOrder(const std::string& name);
 };
 
 
@@ -330,10 +332,10 @@ struct SelectionCriterion {
  */
 struct FlawSelectionOrder {
   /* Constructs a default flaw selection order. */
-  FlawSelectionOrder(const string& name = "UCPOP");
+  FlawSelectionOrder(const std::string& name = "UCPOP");
 
   /* Selects a flaw selection order from a name. */
-  FlawSelectionOrder& operator=(const string& name);
+  FlawSelectionOrder& operator=(const std::string& name);
 
   /* Checks if this flaw order needs a planning graph. */
   bool needs_planning_graph() const;
@@ -356,7 +358,7 @@ private:
   };
 
   /* Selection criteria. */
-  vector<SelectionCriterion> selection_criteria_;
+  std::vector<SelectionCriterion> selection_criteria_;
   /* Whether a planning graph is needed by this flaw selection order. */
   bool needs_pg_;
   /* Index of the first selection criterion involving threats. */

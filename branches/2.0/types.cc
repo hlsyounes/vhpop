@@ -21,7 +21,7 @@
 /*
  * A subtype binary predicate.
  */
-struct Subtype : public binary_function<const Type*, const Type*, bool> {
+struct Subtype : public std::binary_function<const Type*, const Type*, bool> {
   /* Checks if the first type is a subtype of the second type. */
   bool operator()(const Type* t1, const Type* t2) const {
     return t1->subtype(*t2);
@@ -46,7 +46,7 @@ const SimpleType SimpleType::OBJECT = SimpleType("object");
 
 
 /* Constructs a simple type with the given name. */
-SimpleType::SimpleType(const string& name, const Type& supertype)
+SimpleType::SimpleType(const std::string& name, const Type& supertype)
   : name_(name),
     supertype_(name == "object" ? (const Type*) this : &supertype) {}
 
@@ -83,7 +83,7 @@ bool SimpleType::equals(const EqualityComparable& o) const {
 
 
 /* Prints this object on the given stream. */
-void SimpleType::print(ostream& os) const {
+void SimpleType::print(std::ostream& os) const {
   os << name();
 }
 
@@ -161,12 +161,12 @@ bool UnionType::equals(const EqualityComparable& o) const {
   const UnionType* ut = dynamic_cast<const UnionType*>(&o);
   return (ut != NULL && types().size() == ut->types().size()
 	  && equal(types().begin(), types().end(), ut->types().begin(),
-		   equal_to<const EqualityComparable*>()));
+		   std::equal_to<const EqualityComparable*>()));
 }
 
 
 /* Prints this object on the given stream. */
-void UnionType::print(ostream& os) const {
+void UnionType::print(std::ostream& os) const {
   os << "(either";
   copy(types().begin(), types().end(), pre_ostream_iterator<SimpleType>(os));
   os << ")";

@@ -39,7 +39,7 @@ struct NameList;
  */
 struct Problem {
   /* Table of problem definitions. */
-  struct ProblemMap : public hash_map<string, const Problem*> {
+  struct ProblemMap : public __gnu_cxx::hash_map<std::string, const Problem*> {
   };
 
   /* Iterator for problem tables. */
@@ -52,19 +52,19 @@ struct Problem {
   static ProblemMapIter end();
 
   /* Returns the problem with the given name, or NULL if it is undefined. */
-  static const Problem* find(const string& name);
+  static const Problem* find(const std::string& name);
 
   /* Removes all defined problems. */
   static void clear();
 
   /* Constructs a problem. */
-  Problem(const string& name, const Domain& domain);
+  Problem(const std::string& name, const Domain& domain);
 
   /* Deletes a problem. */
   ~Problem();
 
   /* Returns the name of this problem. */
-  const string& name() const { return name_; }
+  const std::string& name() const { return name_; }
 
   /* Returns the domain of this problem. */
   const Domain& domain() const { return *domain_; }
@@ -80,7 +80,7 @@ struct Problem {
 
   /* Returns the object with the given name, or NULL if it is
      undefined. */
-  const Name* find_object(const string& name) const;
+  const Name* find_object(const std::string& name) const;
 
   /* Returns the initial conditions of this problem. */
   const Effect& init() const { return *init_; }
@@ -102,7 +102,7 @@ private:
   static ProblemMap problems;
 
   /* Name of problem. */
-  string name_;
+  std::string name_;
   /* Problem domain. */
   const Domain* domain_;
   /* Problem objects. */
@@ -112,11 +112,11 @@ private:
   /* Goal of problem. */
   const Formula* goal_;
 
-  friend ostream& operator<<(ostream& os, const Problem& p);
+  friend std::ostream& operator<<(std::ostream& os, const Problem& p);
 };
 
 /* Output operator for problems. */
-ostream& operator<<(ostream& os, const Problem& p);
+std::ostream& operator<<(std::ostream& os, const Problem& p);
 
 
 #endif /* PROBLEMS_H */

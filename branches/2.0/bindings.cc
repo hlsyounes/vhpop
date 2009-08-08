@@ -615,7 +615,7 @@ const Bindings* Bindings::make_bindings(const StepChain* steps,
 					const BindingChain* equalities,
 					const BindingChain* inequalities) {
   const StepDomainChain* step_domains = NULL;
-  hash_set<size_t> seen_steps;
+  __gnu_cxx::hash_set<size_t> seen_steps;
   for (const StepChain* sc = steps; sc != NULL; sc = sc->tail) {
     const Step& step = sc->head;
     if (step.action() != NULL
@@ -1368,7 +1368,7 @@ void Bindings::print(ostream& os) const {
       os << " }";
     }
   }
-  hash_set<size_t> seen_steps;
+  __gnu_cxx::hash_set<size_t> seen_steps;
   for (const StepDomainChain* sd = step_domains_; sd != NULL; sd = sd->tail) {
     if (seen_steps.find(sd->head.id()) == seen_steps.end()) {
       seen_steps.insert(sd->head.id());
