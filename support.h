@@ -16,24 +16,15 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  * 
- * $Id: support.h,v 3.11 2002-11-05 04:43:25 lorens Exp $
+ * $Id: support.h,v 3.7 2002-06-28 20:13:44 lorens Exp $
  */
 #ifndef SUPPORT_H
 #define SUPPORT_H
 
 #include <iostream>
 #include <string>
-#if HAVE_HASH_MAP
 #include <hash_map>
-#include <hash_set>
-#else
-using namespace __gnu_cxx;
-#include <ext/hash_map>
-#include <ext/hash_set>
-#endif
 #include "debug.h"
-
-using namespace std;
 
 
 /*
@@ -124,21 +115,144 @@ struct HashMultimap : public hash_multimap<K, T, H, E> {
 
 
 /*
+ * A equality comparable object.
+ */
+struct EqualityComparable {
+  virtual ~EqualityComparable() {}
+
+protected:
+  /* Checks if this object equals the given object. */
+  virtual bool equals(const EqualityComparable& o) const = 0;
+
+  friend bool operator==(const EqualityComparable& o1,
+			 const EqualityComparable& o2);
+};
+
+/* Equality operator for equality comparable objects. */
+inline bool operator==(const EqualityComparable& o1,
+		       const EqualityComparable& o2) {
+  return o1.equals(o2);
+}
+
+/* Inequality operator for equality comparable objects. */
+inline bool operator!=(const EqualityComparable& o1,
+		       const EqualityComparable& o2) {
+  return !(o1 == o2);
+}
+
+/*
+ * Equality function object for equality comparable object pointers.
+ */
+struct equal_to<const EqualityComparable*>
+  : public binary_function<const EqualityComparable*,
+			   const EqualityComparable*, bool> {
+  bool operator()(const EqualityComparable* o1,
+		  const EqualityComparable* o2) const {
+    return *o1 == *o2;
+  }
+};
+
+
+/*
+ * A less than comparable object.
+ */
+struct LessThanComparable {
+  virtual ~LessThanComparable() {}
+
+protected:
+  /* Checks if this object is less than the given object. */
+  virtual bool less(const LessThanComparable& o) const = 0;
+
+  friend bool operator<(const LessThanComparable& o1,
+			const LessThanComparable& o2);
+};
+
+/* Less than operator for less than comparable objects. */
+inline bool operator<(const LessThanComparable& o1,
+		      const LessThanComparable& o2) {
+  return o1.less(o2);
+}
+
+
+/* Greater than operator for less than comparable objects. */
+inline bool operator>(const LessThanComparable& o1,
+		      const LessThanComparable& o2) {
+  return o2 < o1;
+}
+
+/*
+ * Less than function object for less than comparable object pointers.
+ */
+struct less<const LessThanComparable*>
+  : public binary_function<const LessThanComparable*,
+			   const LessThanComparable*, bool> {
+  bool operator()(const LessThanComparable* o1,
+		  const LessThanComparable* o2) const {
+    return *o1 < *o2;
+  }
+};
+
+
+/*
+ * A hashable object.
+ */
+struct Hashable : public EqualityComparable {
+protected:
+  /* Returns the hash value of this object. */
+  virtual size_t hash_value() const = 0;
+
+  friend struct hash<Hashable>;
+  friend struct hash<const Hashable*>;
+};
+
+/*
+ * Hash function object for hashable objects.
+ */
+struct hash<Hashable> {
+  size_t operator()(const Hashable& o) const {
+    return o.hash_value();
+  }
+};
+
+/*
+ * Hash function object for hashable object pointers.
+ */
+struct hash<const Hashable*> {
+  size_t operator()(const Hashable* o) const {
+    return o->hash_value();
+  }
+};
+
+
+/*
  * Hash function object for strings.
  */
-namespace __gnu_cxx {
 struct hash<string> {
   /* Hash function for strings. */
   size_t operator()(const string& s) const {
     return hash<char*>()(s.c_str());
   }
 };
-}
 
 
 /*
- * An ostream iterator outputting a space before each object.
+ * A printable object.
  */
+struct Printable {
+  virtual ~Printable() {}
+
+protected:
+  /* Prints this object on the given stream. */
+  virtual void print(ostream& os) const = 0;
+
+  friend ostream& operator<<(ostream& os, const Printable& o);
+};
+
+/* Output operator for printable objects. */
+ostream& operator<<(ostream& os, const Printable& o);
+
+
+/* An ostream iterator outputting a space before each object. */
 template <typename T>
 struct pre_ostream_iterator {
   typedef output_iterator_tag iterator_category;
@@ -176,19 +290,18 @@ private:
 /*
  * Run-time exception.
  */
-struct Exception {
+struct Exception : public Printable {
   /* Constructs an exception with the given message. */
   Exception(const string& message);
+
+protected:
+  /* Prints this object on the given stream. */
+  void print(ostream& os) const;
 
 private:
   /* Message. */
   string message;
-
-  friend ostream& operator<<(ostream& os, const Exception& e);
 };
-
-/* Output operator for exceptions. */
-ostream& operator<<(ostream& os, const Exception& e);
 
 
 /*

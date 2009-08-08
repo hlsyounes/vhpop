@@ -2,7 +2,7 @@
 /*
  * PDDL tokenizer.
  *
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2002 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -16,19 +16,26 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: tokens.ll,v 6.4 2003-09-18 21:52:29 lorens Exp $
+ * $Id: tokens.ll,v 3.8 2002-06-28 20:13:56 lorens Exp $
  */
 %{
-struct Condition;
+struct Type;
+struct UnionType;
+struct TermList;
+struct Name;
+struct Variable;
+struct VariableList;
 struct Formula;
-struct Literal;
+struct FormulaList;
 struct Atom;
-struct Expression;
-struct Application;
+struct AtomList;
+struct NegationList;
+struct Effect;
+struct EffectList;
+struct ActionSchema;
 
-#include "terms.h"
-#include "types.h"
 #include <cctype>
+#include <utility>
 #include <string>
 #include <vector>
 #include "pddl.h"
@@ -37,98 +44,87 @@ struct Application;
 /* Current line number. */
 size_t line_number;
 
-/* Allocates a string containing the lowercase characters of the given
-   C string, and returns the given token. */
 static int make_string(const char* s, int token);
-/* Makes a number of the given string, and return the NUMBER token. */
 static int make_number(const char* s);
-
 %}
 
 %option case-insensitive never-interactive nounput noyywrap
 
-IDENT	[A-Za-z]([A-Za-z0-9\-_])*
-
 %%
 
-define				return make_string(yytext, DEFINE);
-domain				return make_string(yytext, DOMAIN_TOKEN);
-problem				return make_string(yytext, PROBLEM);
-:requirements			return REQUIREMENTS;
-:types				return TYPES;
-:constants			return CONSTANTS;
-:predicates			return PREDICATES;
-:functions			return FUNCTIONS;
-:strips				return STRIPS;
-:typing				return TYPING;
-:negative-preconditions		return NEGATIVE_PRECONDITIONS;
-:disjunctive-preconditions	return DISJUNCTIVE_PRECONDITIONS;
-:equality			return EQUALITY;
-:existential-preconditions	return EXISTENTIAL_PRECONDITIONS;
-:universal-preconditions	return UNIVERSAL_PRECONDITIONS;
-:quantified-preconditions	return QUANTIFIED_PRECONDITIONS;
-:conditional-effects		return CONDITIONAL_EFFECTS;
-:fluents			return FLUENTS;
-:adl				return ADL;
-:durative-actions		return DURATIVE_ACTIONS;
-:duration-inequalities		return DURATION_INEQUALITIES;
-:continuous-effects		return CONTINUOUS_EFFECTS;
-:timed-initial-literals		return TIMED_INITIAL_LITERALS;
-:action				return ACTION;
-:durative-action		return DURATIVE_ACTION;
-:parameters			return PARAMETERS;
-:duration			return DURATION;
-:precondition			return PRECONDITION;
-:condition			return CONDITION;
-:effect				return EFFECT;
-:domain				return PDOMAIN;
-:objects			return OBJECTS;
-:init				return INIT;
-:goal				return GOAL;
-:metric				return METRIC;
-number				return make_string(yytext, NUMBER_TOKEN);
-object				return make_string(yytext, OBJECT_TOKEN);
-either				return make_string(yytext, EITHER);
-when				return make_string(yytext, WHEN);
-not				return make_string(yytext, NOT);
-and				return make_string(yytext, AND);
-or				return make_string(yytext, OR);
-imply				return make_string(yytext, IMPLY);
-exists				return make_string(yytext, EXISTS);
-forall				return make_string(yytext, FORALL);
-at				return make_string(yytext, AT);
-over				return make_string(yytext, OVER);
-start				return make_string(yytext, START);
-end				return make_string(yytext, END);
-all				return make_string(yytext, ALL);
-minimize			return make_string(yytext, MINIMIZE);
-maximize			return make_string(yytext, MAXIMIZE);
-total-time			return make_string(yytext, TOTAL_TIME);
-{IDENT}				return make_string(yytext, NAME);
-\?duration			return make_string(yytext, DURATION_VAR);
-\?{IDENT}			return make_string(yytext, VARIABLE);
-[0-9]*\.?[0-9]+			return make_number(yytext);
-[()=+\-\*/]			return yytext[0];
-\<=				return LE;
->=				return GE;
-;.*$				/* comment */
-[ \t\r]+			/* whitespace */
-\n				line_number++;
-.				return ILLEGAL_TOKEN;
+[()=+\-\*/]                  return yytext[0];
+\<=                          return LE;
+>=                           return GE;
+define                       return make_string(yytext, DEFINE);
+domain                       return make_string(yytext, DOMAIN_TOKEN);
+problem                      return make_string(yytext, PROBLEM);
+:requirements                return REQUIREMENTS;
+:strips                      return STRIPS;
+:typing                      return TYPING;
+:negative-preconditions      return NEGATIVE_PRECONDITIONS;
+:disjunctive-preconditions   return DISJUNCTIVE_PRECONDITIONS;
+:equality                    return EQUALITY;
+:existential-preconditions   return EXISTENTIAL_PRECONDITIONS;
+:universal-preconditions     return UNIVERSAL_PRECONDITIONS;
+:quantified-preconditions    return QUANTIFIED_PRECONDITIONS;
+:conditional-effects         return CONDITIONAL_EFFECTS;
+:fluents                     return FLUENTS;
+:adl                         return ADL;
+:durative-actions            return DURATIVE_ACTIONS;
+:duration-inequalities       return DURATION_INEQUALITIES;
+:continuous-effects          return CONTINUOUS_EFFECTS;
+:types                       return TYPES;
+:constants                   return CONSTANTS;
+:predicates                  return PREDICATES;
+:action                      return ACTION;
+:durative-action             return DURATIVE_ACTION;
+:parameters                  return PARAMETERS;
+:duration                    return DURATION;
+:precondition                return PRECONDITION;
+:condition                   return CONDITION;
+:effect                      return EFFECT;
+:domain                      return PDOMAIN;
+:objects                     return OBJECTS;
+:init                        return INIT;
+:goal                        return GOAL;
+:metric                      return METRIC;
+when                         return make_string(yytext, WHEN);
+not                          return make_string(yytext, NOT);
+and                          return make_string(yytext, AND);
+or                           return make_string(yytext, OR);
+imply                        return make_string(yytext, IMPLY);
+exists                       return make_string(yytext, EXISTS);
+forall                       return make_string(yytext, FORALL);
+either                       return make_string(yytext, EITHER);
+at                           return make_string(yytext, AT);
+over                         return make_string(yytext, OVER);
+start                        return make_string(yytext, START);
+end                          return make_string(yytext, END);
+all                          return make_string(yytext, ALL);
+minimize                     return make_string(yytext, MINIMIZE);
+maximize                     return make_string(yytext, MAXIMIZE);
+total-time                   return make_string(yytext, TOTAL_TIME);
+[A-Za-z]([A-Za-z0-9\-_])*    return make_string(yytext, NAME);
+\?duration                   return make_string(yytext, DURATION_VAR);
+\?[A-Za-z]([A-Z0-9a-z\-_])*  return make_string(yytext, VARIABLE);
+[0-9]*\.?[0-9]+              return make_number(yytext);
+;.*$                         /* comment */
+[ \t\r]+                     /* whitespace */
+\n                           line_number++;
+.                            return ILLEGAL_TOKEN;
 
 %%
 
 /* Allocates a string containing the lowercase characters of the given
    C string, and returns the given token. */
 static int make_string(const char* s, int token) {
-  std::string* result = new std::string();
+  string* result = new string();
   for (const char* p = s; *p != '\0'; p++) {
     *result += tolower(*p);
   }
   yylval.str = result;
   return token;
 }
-
 
 /* Makes a number of the given string, and return the NUMBER token. */
 static int make_number(const char* s) {

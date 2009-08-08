@@ -1,6 +1,6 @@
 ## Process this file with automake to produce Makefile.in
 ##
-## Copyright (C) 2003 Carnegie Mellon University
+## Copyright (C) 2002 Carnegie Mellon University
 ## Written by Håkan L. S. Younes.
 ##
 ## Permission is hereby granted to distribute this software for
@@ -14,12 +14,12 @@
 ## SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
 ## ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
 ##
-## $Id: Makefile.am,v 1.6 2003-03-01 18:56:34 lorens Exp $
+## $Id: Makefile.am,v 1.3 2002-07-18 22:45:20 lorens Exp $
 
 bin_PROGRAMS = vhpop
-vhpop_SOURCES = vhpop.cc exceptions.cc exceptions.h parameters.cc parameters.h types.cc types.h formulas.cc formulas.h domains.cc domains.h problems.cc problems.h bindings.cc bindings.h orderings.cc orderings.h flaws.cc flaws.h reasons.cc reasons.h heuristics.cc heuristics.h plans.cc plans.h requirements.cc requirements.h pddl.yy tokens.ll chain.h debug.h hashing.h mathport.h
+vhpop_SOURCES = vhpop.cc bindings.cc domains.cc flaws.cc formulas.cc heuristics.cc orderings.cc parameters.cc plans.cc problems.cc reasons.cc requirements.cc support.cc types.cc pddl.yy tokens.ll bindings.h chain.h debug.h domains.h flaws.h formulas.h heuristics.h mathport.h orderings.h parameters.h plans.h problems.h reasons.h requirements.h support.h types.h
 vhpop_LDADD = @LIBOBJS@
 MAINTAINERCLEANFILES = pddl.cc tokens.cc
-EXTRA_DIST = getopt.c getopt1.c getopt.h ipc3-vhpop examples scripts
+EXTRA_DIST = getopt.c getopt1.c getopt.h ipc3-vhpop examples
 
 YFLAGS = -d

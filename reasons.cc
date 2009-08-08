@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2002 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -13,7 +13,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: reasons.cc,v 3.6 2003-03-01 18:54:49 lorens Exp $
+ * $Id: reasons.cc,v 3.3 2002-05-26 11:20:18 lorens Exp $
  */
 #include "reasons.h"
 #include "plans.h"
@@ -28,14 +28,14 @@ struct DummyReason : public Reason {
   static const DummyReason THE_DUMMY;
 
   DummyReason() {
-    register_use(this);
+    Collectible::register_use(this);
 #ifdef DEBUG_MEMORY
-    created_reasons--;
+    created_collectibles--;
 #endif
   }
 
 protected:
-  virtual void print(std::ostream& os) const {
+  virtual void print(ostream& os) const {
     os << "DummyReason";
   }
 };
@@ -44,23 +44,6 @@ protected:
 /* A dummy reason. */
 const DummyReason DummyReason::THE_DUMMY = DummyReason();
 const Reason& Reason::DUMMY = DummyReason::THE_DUMMY;
-
-
-/* Constructs a reason. */
-Reason::Reason()
-  : ref_count_(0) {
-#ifdef DEBUG_MEMORY
-  created_reasons++;
-#endif
-}
-
-
-/* Deletes this reason. */
-Reason::~Reason() {
-#ifdef DEBUG_MEMORY
-    deleted_reasons++;
-#endif
-}
 
 
 /* Checks if this reason is a dummy reason. */
@@ -81,13 +64,6 @@ bool Reason::involves(const Step& step) const {
 }
 
 
-/* Output operator for reasons. */
-std::ostream& operator<<(std::ostream& os, const Reason& r) {
-  r.print(os);
-  return os;
-}
-
-
 /* ====================================================================== */
 /* InitReason */
 
@@ -104,7 +80,7 @@ InitReason::InitReason() {}
 
 
 /* Prints this reason on the given stream. */
-void InitReason::print(std::ostream& os) const {
+void InitReason::print(ostream& os) const {
   os << "#<InitReason>";
 }
 
@@ -122,18 +98,18 @@ const Reason& AddStepReason::make(const Parameters& params, size_t step_id) {
 
 /* Constructs an AddStep reason. */
 AddStepReason::AddStepReason(size_t step_id)
-  : step_id_(step_id) {}
+  : step_id(step_id) {}
 
 
 /* Checks if this reason involves the given step. */
 bool AddStepReason::involves(const Step& step) const {
-  return step_id_ == step.id();
+  return step_id == step.id();
 }
 
 
 /* Prints this reason on the given stream. */
-void AddStepReason::print(std::ostream& os) const {
-  os << "#<AddStepReason " << step_id_ << ">";
+void AddStepReason::print(ostream& os) const {
+  os << "#<AddStepReason " << step_id << ">";
 }
 
 
@@ -150,19 +126,19 @@ const Reason& EstablishReason::make(const Parameters& params,
 
 /* Constructs an Establish reason. */
 EstablishReason::EstablishReason(const Link& link)
-  : link_(&link) {}
+  : link(link) {}
 
 
 /* Checks if this reason involves the given link. */
 bool EstablishReason::involves(const Link& link) const {
-  return link_ == &link;
+  return &this->link == &link;
 }
 
 
 /* Prints this reason on the given stream. */
-void EstablishReason::print(std::ostream& os) const {
-  os << "#<EstablishReason " << link_->from_id() << ' ' << link_->condition()
-     << ' ' << link_->to_id() << ">";
+void EstablishReason::print(ostream& os) const {
+  os << "#<EstablishReason " << link.from_id() << ' ' << link.condition()
+     << ' ' << link.to_id() << ">";
 }
 
 
@@ -180,23 +156,23 @@ const Reason& ProtectReason::make(const Parameters& params,
 
 /* Constructs a Protect reason. */
 ProtectReason::ProtectReason(const Link& link, size_t step_id)
-  : link_(&link), step_id_(step_id) {}
+  : link(link), step_id(step_id) {}
 
 
 /* Checks if this reason involves the given link. */
 bool ProtectReason::involves(const Link& link) const {
-  return link_ == &link;
+  return &this->link == &link;
 }
 
 
 /* Checks if this reason involves the given step. */
 bool ProtectReason::involves(const Step& step) const {
-  return step_id_ == step.id();
+  return step_id == step.id();
 }
 
 
 /* Prints this reason on the given stream. */
-void ProtectReason::print(std::ostream& os) const {
-  os << "#<ProtectReason " << link_->from_id() << ' ' << link_->condition()
-     << ' ' << link_->to_id() << " step " << step_id_ << ">";
+void ProtectReason::print(ostream& os) const {
+  os << "#<ProtectReason " << link.from_id() << ' ' << link.condition()
+     << ' ' << link.to_id() << " step " << step_id << ">";
 }
