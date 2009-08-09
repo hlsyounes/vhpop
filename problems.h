@@ -16,7 +16,7 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: problems.h,v 6.8 2003-09-18 21:51:37 lorens Exp $
+ * $Id: problems.h,v 3.6 2003-03-01 18:50:44 lorens Exp $
  */
 #ifndef PROBLEMS_H
 #define PROBLEMS_H
@@ -24,23 +24,9 @@
 #include <config.h>
 #include "domains.h"
 #include "formulas.h"
-#include "expressions.h"
-#include "terms.h"
-#include "types.h"
 
+struct Type;
 
-/* ====================================================================== */
-/* TimedActionTable */
-
-/*
- * A table of timed actions.
- */
-struct TimedActionTable : public std::map<float, GroundAction*> {
-};
-
-
-/* ====================================================================== */
-/* Problem */
 
 /*
  * Problem definition.
@@ -50,11 +36,14 @@ struct Problem {
   struct ProblemMap : public std::map<std::string, const Problem*> {
   };
 
+  /* Iterator for problem tables. */
+  typedef ProblemMap::const_iterator ProblemMapIter;
+
   /* Returns a const_iterator pointing to the first problem. */
-  static ProblemMap::const_iterator begin();
+  static ProblemMapIter begin();
 
   /* Returns a const_iterator pointing beyond the last problem. */
-  static ProblemMap::const_iterator end();
+  static ProblemMapIter end();
 
   /* Returns the problem with the given name, or NULL if it is undefined. */
   static const Problem* find(const std::string& name);
@@ -74,59 +63,40 @@ struct Problem {
   /* Returns the domain of this problem. */
   const Domain& domain() const { return *domain_; }
 
-  /* Returns the term table of this problem. */
-  TermTable& terms() { return terms_; }
-
-  /* Returns the term table of this problem. */
-  const TermTable& terms() const { return terms_; }
+  /* Adds an object to this problem. */
+  void add_object(Name& object);
 
   /* Adds an atomic formula to the initial conditions of this problem. */
-  void add_init_atom(const Atom& atom);
-
-  /* Adds a timed initial literal to this problem. */
-  void add_init_literal(float time, const Literal& literal);
-
-  /* Adds a function application value to the initial conditions of
-     this problem. */
-  void add_init_value(const Application& application, float value);
+  void add_init(const Atom& atom);
 
   /* Sets the goal of this problem. */
   void set_goal(const Formula& goal);
 
-  /* Sets the metric to minimize for this problem. */
-  void set_metric(const Expression& metric, bool negate = false);
+  /* Returns the object with the given name, or NULL if it is
+     undefined. */
+  Name* find_object(const std::string& name);
 
-  /* Returns the initial atoms of this problem. */
-  const AtomSet& init_atoms() const { return init_atoms_; }
+  /* Returns the object with the given name, or NULL if it is
+     undefined. */
+  const Name* find_object(const std::string& name) const;
 
-  /* Returns the initial values of this problem. */
-  const ValueMap& init_values() const { return init_values_; }
+  /* Returns the initial conditions of this problem. */
+  const Effect& init() const { return *init_; }
 
   /* Returns the action representing the initial conditions of this problem. */
   const GroundAction& init_action() const { return init_action_; }
 
-  /* Returns the actions representing the timed initial literals. */
-  const TimedActionTable& timed_actions() const { return timed_actions_; }
-
   /* Returns the goal of this problem. */
   const Formula& goal() const { return *goal_; }
 
-  /* Returns the metric to minimize for this problem. */
-  const Expression& metric() const { return *metric_; }
-
-  /* Tests if the metric is constant. */
-  bool constant_metric() const;
-
-  /* Returns a list with objects (including constants declared in the
-     domain) that are compatible with the given type. */
-  const ObjectList& compatible_objects(Type type) const;
+  /* Fills the provided name list with objects (including constants
+     declared in the domain) that are compatible with the given
+     type. */
+  void compatible_objects(NameList& objects, const Type& t) const;
 
   /* Fills the provided action list with ground actions instantiated
      from the action schemas of the domain. */
   void instantiated_actions(GroundActionList& actions) const;
-
-  /* Returns a new variable for this problem. */
-  Variable new_variable(Type type) const;
 
 private:
   /* Table of defined problems. */
@@ -136,22 +106,14 @@ private:
   std::string name_;
   /* Problem domain. */
   const Domain* domain_;
-  /* Problem terms. */
-  mutable TermTable terms_;
-  /* Initial atoms. */
-  AtomSet init_atoms_;
-  /* Initial function application values. */
-  ValueMap init_values_;
+  /* Problem objects. */
+  NameMap objects_;
+  /* Initial condition of problem. */
+  Effect* init_;
   /* Aciton representing initial conditions of problem. */
   GroundAction init_action_;
-  /* Actions representing timed initial conditions of problem. */
-  TimedActionTable timed_actions_;
   /* Goal of problem. */
   const Formula* goal_;
-  /* Metric to minimize. */
-  const Expression* metric_;
-  /* Cached results of compatible objects queries. */
-  mutable std::map<Type, const ObjectList*> compatible_;
 
   friend std::ostream& operator<<(std::ostream& os, const Problem& p);
 };

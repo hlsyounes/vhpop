@@ -16,16 +16,13 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: parameters.h,v 6.4 2003-12-05 23:16:55 lorens Exp $
+ * $Id: parameters.h,v 3.9 2003-03-01 18:48:07 lorens Exp $
  */
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
 
 #include <config.h>
 #include "heuristics.h"
-#include <stdexcept>
-#include <string>
-#include <vector>
 
 
 /* ====================================================================== */
@@ -34,21 +31,9 @@
 /*
  * An invalid search algorithm exception.
  */
-struct InvalidSearchAlgorithm : public std::runtime_error {
+struct InvalidSearchAlgorithm : public Exception {
   /* Constructs an invalid search algorithm exception. */
   InvalidSearchAlgorithm(const std::string& name);
-};
-
-
-/* ====================================================================== */
-/* InvalidActionCost */
-
-/*
- * An invalid action cost exception.
- */
-struct InvalidActionCost : public std::runtime_error {
-  /* Constructs an invalid action cost exception. */
-  InvalidActionCost(const std::string& name);
 };
 
 
@@ -61,8 +46,6 @@ struct InvalidActionCost : public std::runtime_error {
 struct Parameters {
   /* Valid search algorithms. */
   typedef enum { A_STAR, IDA_STAR, HILL_CLIMBING } SearchAlgorithm;
-  /* Valid action costs. */
-  typedef enum { UNIT_COST, DURATION, RELATIVE } ActionCost;
 
   /* Time limit, in minutes. */
   size_t time_limit;
@@ -70,8 +53,6 @@ struct Parameters {
   SearchAlgorithm search_algorithm;
   /* Plan selection heuristic. */
   Heuristic heuristic;
-  /* Action cost. */
-  ActionCost action_cost;
   /* Weight to use with heuristic. */
   float weight;
   /* Flaw selecion orders. */
@@ -86,6 +67,8 @@ struct Parameters {
   bool domain_constraints;
   /* Whether to keep static preconditions when using domain constraints. */
   bool keep_static_preconditions;
+  /* Whether to use transformational planner. */
+  bool transformational;
 
   /* Constructs default planning parameters. */
   Parameters();
@@ -95,9 +78,6 @@ struct Parameters {
 
   /* Selects a search algorithm from a name. */
   void set_search_algorithm(const std::string& name);
-
-  /* Selects an action cost from a name. */
-  void set_action_cost(const std::string& name);
 };
 
 
