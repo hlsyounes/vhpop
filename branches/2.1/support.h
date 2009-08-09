@@ -29,6 +29,10 @@
 #else
 #include <ext/hash_map>
 #include <ext/hash_set>
+using __gnu_cxx::hash;
+using __gnu_cxx::hash_map;
+using __gnu_cxx::hash_multimap;
+using __gnu_cxx::hash_set;
 #endif
 #include "debug.h"
 
@@ -111,13 +115,13 @@ struct HashMultimap : public hash_multimap<K, T, H, E> {
 
   /* Finds the given element. */
   const_iterator find(const pair<K, T>& x) const {
-    pair<const_iterator, const_iterator> bounds = equal_range(x.first);
+    pair<const_iterator, const_iterator> bounds = this->equal_range(x.first);
     for (const_iterator i = bounds.first; i != bounds.second; i++) {
       if ((*i).second == x.second) {
 	return i;
       }
     }
-    return end();
+    return this->end();
   }
 };
 
@@ -152,6 +156,7 @@ inline bool operator!=(const EqualityComparable& o1,
  * Equality function object for equality comparable object pointers.
  */
 namespace std {
+template<>
 struct equal_to<const EqualityComparable*>
   : public binary_function<const EqualityComparable*,
 			   const EqualityComparable*, bool> {
@@ -194,6 +199,7 @@ inline bool operator>(const LessThanComparable& o1,
  * Less than function object for less than comparable object pointers.
  */
 namespace std {
+template<>
 struct less<const LessThanComparable*>
   : public binary_function<const LessThanComparable*,
 			   const LessThanComparable*, bool> {
@@ -220,7 +226,13 @@ protected:
 /*
  * Hash function object for hashable objects.
  */
+
+#if HAVE_HASH_MAP
 namespace std {
+#else
+namespace __gnu_cxx {
+#endif
+template<>
 struct hash<Hashable> {
   size_t operator()(const Hashable& o) const {
     return o.hash_value();
@@ -231,7 +243,12 @@ struct hash<Hashable> {
 /*
  * Hash function object for hashable object pointers.
  */
+#if HAVE_HASH_MAP
 namespace std {
+#else
+namespace __gnu_cxx {
+#endif
+template<>
 struct hash<const Hashable*> {
   size_t operator()(const Hashable* o) const {
     return o->hash_value();
@@ -243,7 +260,12 @@ struct hash<const Hashable*> {
 /*
  * Hash function object for strings.
  */
+#if HAVE_HASH_MAP
 namespace std {
+#else
+namespace __gnu_cxx {
+#endif
+template<>
 struct hash<string> {
   /* Hash function for strings. */
   size_t operator()(const string& s) const {
