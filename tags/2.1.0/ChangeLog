@@ -1,0 +1,25 @@
+2002-09-21  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Fixed compatibility problems with GCC 3.x.
+
+2002-09-20  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Terms and formulas are no longer instantiated when planning with
+	lifted action.  This reduces memory usage.  It also means that
+	there is a unique instance of every variable, which simplifies
+	variable comparison.  All variables are now compared using pointer
+	comparison instead of string comparison, and this leads to a
+	significant performance improvement when planning with lifted
+	actions.  Variables are paired with step ids when stored in
+	binding constraints so that variables from the same operator but
+	different instantiations can be separated.
+
+2002-07-24  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Fixed test for durative actions in ipc3-vhpop script.
+
+2002-07-22  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Changed string comparisons to pointer comparisons for simple
+	types, names, and literal predicates.  This both improves speed
+	and reduces memory usage.
