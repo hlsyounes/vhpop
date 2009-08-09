@@ -441,6 +441,7 @@ inline bool operator!=(const Literal& l1, const Literal& l2) {
  * Equality function object for literal pointers.
  */
 namespace std {
+template<>
 struct equal_to<const Literal*>
   : public binary_function<const Literal*, const Literal*, bool> {
   bool operator()(const Literal* l1, const Literal* l2) const {
@@ -452,7 +453,12 @@ struct equal_to<const Literal*>
 /*
  * Hash function object for literals.
  */
+#if HAVE_HASH_MAP
 namespace std {
+#else
+namespace __gnu_cxx {
+#endif
+template<>
 struct hash<Literal> {
   size_t operator()(const Literal& l) const {
     return l.hash_value();
@@ -463,7 +469,12 @@ struct hash<Literal> {
 /*
  * Hash function object for literal pointers.
  */
+#if HAVE_HASH_MAP
 namespace std {
+#else
+namespace __gnu_cxx {
+#endif
+template<>
 struct hash<const Literal*> {
   size_t operator()(const Literal* l) const {
     return l->hash_value();

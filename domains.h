@@ -70,7 +70,12 @@ private:
 /*
  * Hash function object for predicates.
  */
+#if HAVE_HASH_MAP
 namespace std {
+#else
+namespace __gnu_cxx {
+#endif
+template<>
 struct hash<const Predicate*> {
   size_t operator()(const Predicate* p) const {
     return size_t(p);

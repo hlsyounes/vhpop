@@ -32,6 +32,7 @@
 typedef pair<const Variable*, size_t> StepVariable;
 
 namespace std {
+template<>
 struct less<StepVariable> {
   bool operator()(const StepVariable& sv1, const StepVariable& sv2) const {
     return (*sv1.first < *sv2.first

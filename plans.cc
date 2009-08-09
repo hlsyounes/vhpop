@@ -142,6 +142,7 @@ void Step::set_reason(const Reason& reason) {
  * Less than function object for plan pointers.
  */
 namespace std {
+template<>
 struct less<const Plan*>
   : public binary_function<const Plan*, const Plan*, bool> {
   bool operator()(const Plan* p1, const Plan* p2) const {
