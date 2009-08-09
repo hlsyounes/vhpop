@@ -9,10 +9,9 @@ For brief information on how to run VHPOP, use the following command:
 
 VHPOP has been successfully built on the following systems:
 
-  Digital UNIX 4.0
-  RedHat Linux 5.2, 6.2, 7.1, 8.0
+  RedHat Linux 5.2, 6.2, 7.0, 7.1
   IRIX 6.5
-  SunOS 5.7, 5.9
+  SunOS 5.7
 
 If you are unable to build VHPOP, please report your problems to
 <lorens@cs.cmu.edu>.

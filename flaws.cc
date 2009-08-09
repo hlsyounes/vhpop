@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2002 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -13,10 +13,11 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: flaws.cc,v 6.2 2003-07-21 02:17:35 lorens Exp $
+ * $Id: flaws.cc,v 3.3 2002-03-23 15:18:20 lorens Exp $
  */
 #include "flaws.h"
 #include "plans.h"
+#include "reasons.h"
 #include "domains.h"
 #include "formulas.h"
 
@@ -26,22 +27,21 @@
 
 /* Constructs an open condition. */
 OpenCondition::OpenCondition(size_t step_id, const Formula& condition,
-			     FormulaTime when)
-  : step_id_(step_id), condition_(&condition), when_(when) {
-  Formula::register_use(condition_);
+			     const Reason& reason)
+  : step_id_(step_id), condition_(&condition) {
+#ifdef TRANSFORMATIONAL
+  reason_ = &reason;
+#endif
 }
 
 
-/* Constructs an open condition. */
-OpenCondition::OpenCondition(const OpenCondition& oc)
-  : step_id_(oc.step_id_), condition_(oc.condition_), when_(oc.when_) {
-  Formula::register_use(condition_);
-}
-
-
-/* Deletes this open condition. */
-OpenCondition::~OpenCondition() {
-  Formula::unregister_use(condition_);
+/* Returns the reason. */
+const Reason& OpenCondition::reason() const {
+#ifdef TRANSFORMATIONAL
+  return *reason_;
+#else
+  return Reason::DUMMY;
+#endif
 }
 
 
@@ -49,7 +49,7 @@ OpenCondition::~OpenCondition() {
 bool OpenCondition::is_static(const Domain& domain) const {
   const Literal* lit = literal();
   return (lit != NULL && step_id() != Plan::GOAL_ID
-	  && domain.predicates().static_predicate(lit->predicate()));
+	  && domain.static_predicate(lit->predicate()));
 }
 
 
@@ -75,23 +75,14 @@ const Disjunction* OpenCondition::disjunction() const {
 
 
 /* Prints this open condition on the given stream. */
-void OpenCondition::print(std::ostream& os, const PredicateTable& predicates,
-			  const TermTable& terms,
-			  const Bindings& bindings) const {
-  os << "#<OPEN (";
-  switch (when()) {
-  case AT_START:
-    os << "at start ";
-    break;
-  case OVER_ALL:
-    os << "over all ";
-    break;
-  case AT_END:
-    os << "at end ";
-    break;
-  }
-  condition().print(os, predicates, terms, step_id(), bindings);
-  os << ") " << step_id() << ">";
+void OpenCondition::print(ostream& os) const {
+  os << "#<OPEN " << condition() << " step " << step_id() << ">";
+}
+
+
+/* Equality operator for open conditions. */
+bool operator==(const OpenCondition& oc1, const OpenCondition& oc2) {
+  return &oc1 == &oc2;
 }
 
 
@@ -106,10 +97,13 @@ Unsafe::Unsafe(const Link& link, size_t step_id, const Effect& effect,
 
 
 /* Prints this threatened causal link on the given stream. */
-void Unsafe::print(std::ostream& os, const PredicateTable& predicates,
-		   const TermTable& terms,
-		   const Bindings& bindings) const {
-  os << "#<UNSAFE " << link().from_id() << ' ';
-  link().condition().print(os, predicates, terms, link().to_id(), bindings);
-  os << ' ' << link().to_id() << " step " << step_id() << ">";
+void Unsafe::print(ostream& os) const {
+  os << "#<UNSAFE " << link().from_id() << ' ' << link().condition()
+     << ' ' << link().to_id() << " step " << step_id() << ">";
+}
+
+
+/* Equality operator for unsafe links. */
+bool operator==(const Unsafe& u1, const Unsafe& u2) {
+  return &u1 == &u2;
 }

@@ -2,7 +2,7 @@
 /*
  * Math library portability support.
  *
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2002 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -21,7 +21,6 @@
 #ifndef MATHCOMP_H
 #define MATHPORT_H
 
-#include <config.h>
 #define __USE_ISOC99 1
 #define __USE_ISOC9X 1
 #include <cmath>

@@ -2,7 +2,7 @@
 /*
  * Plan flaws.
  *
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2002 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -16,17 +16,20 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: flaws.h,v 6.3 2003-07-21 02:18:14 lorens Exp $
+ * $Id: flaws.h,v 3.4 2002-03-23 15:18:15 lorens Exp $
  */
 #ifndef FLAWS_H
 #define FLAWS_H
 
-#include <config.h>
-#include "formulas.h"
+#include "support.h"
 #include "chain.h"
-#include <iostream>
 
+struct Formula;
+struct Literal;
+struct Inequality;
+struct Disjunction;
 struct Domain;
+struct Reason;
 struct Effect;
 struct Link;
 
@@ -37,11 +40,7 @@ struct Link;
 /*
  * Abstract flaw.
  */
-struct Flaw {
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os, const PredicateTable& predicates,
-		     const TermTable& terms,
-		     const Bindings& bindings) const = 0;
+struct Flaw : public Printable {
 };
 
 
@@ -53,13 +52,8 @@ struct Flaw {
  */
 struct OpenCondition : public Flaw {
   /* Constructs an open condition. */
-  OpenCondition(size_t step_id, const Formula& condition, FormulaTime when);
-
-  /* Constructs an open condition. */
-  OpenCondition(const OpenCondition& oc);
-
-  /* Deletes this open condition. */
-  virtual ~OpenCondition();
+  OpenCondition(size_t step_id, const Formula& condition,
+		const Reason& reason);
 
   /* Returns the step id. */
   size_t step_id() const { return step_id_; }
@@ -67,8 +61,8 @@ struct OpenCondition : public Flaw {
   /* Returns the open condition. */
   const Formula& condition() const { return *condition_; }
 
-  /* Returns the time of this condition. */
-  FormulaTime when() const { return when_; }
+  /* Returns the reason. */
+  const Reason& reason() const;
 
   /* Checks if this is a static open condition. */
   bool is_static(const Domain& domain) const;
@@ -85,24 +79,32 @@ struct OpenCondition : public Flaw {
      condition. */
   const Disjunction* disjunction() const;
 
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os, const PredicateTable& predicate,
-		     const TermTable& terms,
-		     const Bindings& bindings) const;
+protected:
+  /* Prints this open condition on the given stream. */
+  virtual void print(ostream& os) const;
 
 private:
   /* Id of step to which this open condition belongs. */
   size_t step_id_;
   /* The open condition. */
   const Formula* condition_;
-  /* The time of the condition. */
-  FormulaTime when_;
+#ifdef TRANSFORMATIONAL
+  /* Reason for open condition. */
+  const Reason* reason_;
+#endif
 };
 
 /* Equality operator for open conditions. */
-inline bool operator==(const OpenCondition& oc1, const OpenCondition& oc2) {
-  return &oc1 == &oc2;
-}
+bool operator==(const OpenCondition& oc1, const OpenCondition& oc2);
+
+
+/* ====================================================================== */
+/* OpenConditionChain */
+
+/*
+ * Chain of open conditions.
+ */
+typedef CollectibleChain<OpenCondition> OpenConditionChain;
 
 
 /* ====================================================================== */
@@ -128,10 +130,9 @@ struct Unsafe : public Flaw {
   /* Returns the specific part of effect that threatens link. */
   const Literal& effect_add() const { return *effect_add_; }
 
-  /* Prints this open condition on the given stream. */
-  virtual void print(std::ostream& os, const PredicateTable& predicates,
-		     const TermTable& terms,
-		     const Bindings& bindings) const;
+protected:
+  /* Prints this threatened causal link on the given stream. */
+  virtual void print(ostream& os) const;
 
 private:
   /* Threatened link. */
@@ -145,9 +146,16 @@ private:
 };
 
 /* Equality operator for unsafe links. */
-inline bool operator==(const Unsafe& u1, const Unsafe& u2) {
-  return &u1 == &u2;
-}
+bool operator==(const Unsafe& u1, const Unsafe& u2);
+
+
+/* ====================================================================== */
+/* UnsafeChain */
+
+/*
+ * Chain of threatened causal links.
+ */
+typedef CollectibleChain<Unsafe> UnsafeChain;
 
 
 #endif /* FLAWS_H */

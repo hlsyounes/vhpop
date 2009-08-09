@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2002 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -16,18 +16,18 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: plans.h,v 6.7 2003-09-10 18:14:20 lorens Exp $
+ * $Id: plans.h,v 4.2 2002-09-20 16:48:46 lorens Exp $
  */
 #ifndef PLANS_H
 #define PLANS_H
 
-#include <config.h>
+#include "support.h"
 #include "chain.h"
 #include "flaws.h"
 #include "orderings.h"
 
 struct Parameters;
-struct BindingList;
+struct SubstitutionList;
 struct Literal;
 struct Atom;
 struct Negation;
@@ -35,8 +35,11 @@ struct Effect;
 struct EffectList;
 struct Action;
 struct Problem;
+struct Reason;
+struct Flaw;
+struct OpenCondition;
+struct Unsafe;
 struct Bindings;
-struct ActionEffectMap;
 struct FlawSelectionOrder;
 
 
@@ -50,12 +53,6 @@ struct Link {
   /* Constructs a causal link. */
   Link(size_t from_id, StepTime effect_time, const OpenCondition& open_cond);
 
-  /* Constructs a causal link. */
-  Link(const Link& l);
-
-  /* Deletes this causal link. */
-  ~Link();
-
   /* Returns the id of step that link goes from. */
   size_t from_id() const { return from_id_; }
 
@@ -68,8 +65,8 @@ struct Link {
   /* Returns the condition satisfied by link. */
   const Literal& condition() const { return *condition_; }
 
-  /* Returns the time of the condition satisfied by this link. */
-  FormulaTime condition_time() const { return condition_time_; }
+  /* Returns the reason for the link. */
+  const Reason& reason() const;
 
 private:
   /* Id of step that link goes from. */
@@ -80,14 +77,23 @@ private:
   size_t to_id_;
   /* Condition satisfied by link. */
   const Literal* condition_;
-  /* Time of condition satisfied by link. */
-  FormulaTime condition_time_;
+#ifdef TRANSFORMATIONAL
+  /* Reason for link. */
+  const Reason* reason_;
+#endif
 };
 
 /* Equality operator for links. */
-inline bool operator==(const Link& l1, const Link& l2) {
-  return &l1 == &l2;
-}
+bool operator==(const Link& l1, const Link& l2);
+
+
+/* ====================================================================== */
+/* LinkChain */
+
+/*
+ * Chain of causal links.
+ */
+typedef CollectibleChain<Link> LinkChain;
 
 
 /* ====================================================================== */
@@ -97,26 +103,47 @@ inline bool operator==(const Link& l1, const Link& l2) {
  * Plan step.
  */
 struct Step {
-  /* Constructs a step instantiated from an action. */
-  Step(size_t id, const Action& action)
-    : id_(id), action_(&action) {}
-
   /* Constructs a step. */
-  Step(const Step& s)
-    : id_(s.id_), action_(s.action_) {}
+  Step(size_t id, const EffectList& effects, const Reason& reason);
+
+  /* Constructs a step instantiated from an action. */
+  Step(size_t id, const Action& action, const Reason& reason);
 
   /* Returns the step id. */
   size_t id() const { return id_; }
 
-  /* Returns the action that this step is instantiated from. */
+  /* Test if this is a dummy step. */
+  size_t dummy() const;
+
+  /* Returns the action that this step was instantiated from, or NULL
+     if step was not instantiated from an action. */
   const Action& action() const { return *action_; }
+
+  /* Returns the reasons. */
+  const Reason& reason() const;
+
+  /* Sets the reason for this step. */
+  void set_reason(const Reason& reason);
 
 private:
   /* Step id. */
   size_t id_;
-  /* Action that this step is instantiated from. */
+  /* Action, or NULL if step is not instantiated from an action. */
   const Action* action_;
+#ifdef TRANSFORMATIONAL
+  /* Reason for step. */
+  const Reason* reason_;
+#endif
 };
+
+
+/* ====================================================================== */
+/* StepChain */
+
+/*
+ * Chain of plan steps.
+ */
+typedef CollectibleChain<Step> StepChain;
 
 
 /* ====================================================================== */
@@ -133,20 +160,17 @@ struct Plan {
   static const Plan* plan(const Problem& problem, const Parameters& params,
 			  bool last_problem);
 
-  /* Cleans up after planning. */
-  static void cleanup();
-
   /* Deletes this plan. */
   ~Plan();
 
   /* Returns the steps of this plan. */
-  const Chain<Step>* steps() const { return steps_; }
+  const StepChain* steps() const { return steps_; }
 
   /* Returns the number of unique steps in this plan. */
   size_t num_steps() const { return num_steps_; }
   
   /* Returns the links of this plan. */
-  const Chain<Link>* links() const { return links_; }
+  const LinkChain* links() const { return links_; }
 
   /* Returns the number of links in this plan. */
   size_t num_links() const { return num_links_; }
@@ -158,13 +182,13 @@ struct Plan {
   const Bindings* bindings() const;
 
   /* Returns the potentially threatened links of this plan. */
-  const Chain<Unsafe>* unsafes() const { return unsafes_; }
+  const UnsafeChain* unsafes() const { return unsafes_; }
 
   /* Returns the number of potentially threatened links in this plan. */
   size_t num_unsafes() const { return num_unsafes_; }
 
   /* Returns the open conditions of this plan. */
-  const Chain<OpenCondition>* open_conds() const { return open_conds_; }
+  const OpenConditionChain* open_conds() const { return open_conds_; }
 
   /* Returns the number of open conditions in this plan. */
   size_t num_open_conds() const { return num_open_conds_; }
@@ -184,48 +208,58 @@ struct Plan {
   size_t depth() const { return depth_; }
 #endif
 
-  /* Counts the number of refinements for the given threat, and returns
-     true iff the number of refinements does not exceed the given
-     limit. */
-  bool unsafe_refinements(int& refinements, int& separable,
-			  int& promotable, int& demotable,
-			  const Unsafe& unsafe, int limit) const;
-
   /* Checks if the given threat is separable. */
   int separable(const Unsafe& unsafe) const;
+
+  /* Checks if the given threat is demotable. */
+  int demotable(const Unsafe& unsafe) const;
+
+  /* Checks if the given threat is promotable. */
+  int promotable(const Unsafe& unsafe) const;
 
   /* Checks if the given open conditions is threatened. */
   bool unsafe_open_condition(const OpenCondition& open_cond) const;
 
-  /* Counts the number of refinements for the given open condition, and
-     returns true iff the number of refinements does not exceed the
-     given limit. */
-  bool open_cond_refinements(int& refinements, int& addable, int& reusable,
-			     const OpenCondition& open_cond, int limit) const;
+  /* Counts the number of refinements for the given disjunctive open
+     condition. */
+  int disjunction_refinements(const Disjunction& disj, size_t step_id) const;
+
+  /* Counts the number of refinements for the given inequality open
+     condition. */
+  int inequality_refinements(const Inequality& neq, size_t step_id) const;
 
   /* Counts the number of add-step refinements for the given literal
      open condition, and returns true iff the number of refinements
      does not exceed the given limit. */
   bool addable_steps(int& refinements, const Literal& literal,
-		     const OpenCondition& open_cond, int limit) const;
+		     size_t step_id, int limit) const;
 
   /* Counts the number of reuse-step refinements for the given literal
      open condition, and returns true iff the number of refinements
      does not exceed the given limit. */
   bool reusable_steps(int& refinements, const Literal& open_cond,
-		      const OpenCondition& open_cond, int limit) const;
+		      size_t step_id, int limit) const;
 
 private:
   /* List of plans. */
-  struct PlanList : public std::vector<const Plan*> {
+  struct PlanList : public vector<const Plan*> {
   };
 
-  /* Chain of steps. */
-  const Chain<Step>* steps_;
+  /* Iterator for plan lists. */
+  typedef PlanList::const_iterator PlanListIter;
+
+  /* Type of plan. */
+  typedef enum { NORMAL_PLAN, INTERMEDIATE_PLAN, TRANSFORMED_PLAN } PlanType;
+
+  /* Chain of steps (could contain same step several times, if it is
+     in plan for more than one reason). */
+  const StepChain* steps_;
   /* Number of unique steps in plan. */
   size_t num_steps_;
+  /* Highest step id that has been used so far. */
+  size_t high_step_id_;
   /* Chain of causal links. */
-  const Chain<Link>* links_;
+  const LinkChain* links_;
   /* Number of causal links. */
   size_t num_links_;
   /* Ordering constraints of this plan. */
@@ -233,20 +267,26 @@ private:
   /* Binding constraints of this plan. */
   const Bindings* bindings_;
   /* Chain of potentially threatened links. */
-  const Chain<Unsafe>* unsafes_;
+  const UnsafeChain* unsafes_;
   /* Number of potentially threatened links. */
   size_t num_unsafes_;
   /* Chain of open conditions. */
-  const Chain<OpenCondition>* open_conds_;
+  const OpenConditionChain* open_conds_;
   /* Number of open conditions. */
   const size_t num_open_conds_;
   /* Rank of this plan. */
-  mutable std::vector<float> rank_;
+  mutable vector<float> rank_;
   /* Plan id (serial number). */
   mutable size_t id_;
 #ifdef DEBUG
   /* Depth of this plan in the search space. */
   size_t depth_;
+#endif
+#ifdef TRANSFORMATIONAL
+  /* Parent plan. */
+  const Plan* const parent_;
+  /* Plan type. */
+  const PlanType type_;
 #endif
 
   /* Returns the initial plan representing the given problem, or NULL
@@ -254,12 +294,12 @@ private:
   static const Plan* make_initial_plan(const Problem& problem);
 
   /* Constructs a plan. */
-  Plan(const Chain<Step>* steps, size_t num_steps,
-       const Chain<Link>* links, size_t num_links,
+  Plan(const StepChain* steps, size_t num_steps,
+       const LinkChain* links, size_t num_links,
        const Orderings& orderings, const Bindings& bindings,
-       const Chain<Unsafe>* unsafes, size_t num_unsafes,
-       const Chain<OpenCondition>* open_conds, size_t num_open_conds,
-       const Plan* parent);
+       const UnsafeChain* unsafes, size_t num_unsafes,
+       const OpenConditionChain* open_conds, size_t num_open_conds,
+       const Plan* parent, PlanType type = NORMAL_PLAN);
 
   /* Returns the next flaw to work on. */
   const Flaw& get_flaw(const FlawSelectionOrder& flaw_order) const;
@@ -272,16 +312,13 @@ private:
   void handle_unsafe(PlanList& plans, const Unsafe& unsafe) const;
 
   /* Handles an unsafe link through separation. */
-  int separate(PlanList& new_plans, const Unsafe& unsafe,
-		const BindingList& unifier, bool test_only = false) const;
+  void separate(PlanList& new_plans, const Unsafe& unsafe) const;
 
   /* Handles an unsafe link through demotion. */
-  int demote(PlanList& new_plans, const Unsafe& unsafe,
-	     bool test_only = false) const;
+  void demote(PlanList& new_plans, const Unsafe& unsafe) const;
 
   /* Handles an unsafe link through promotion. */
-  int promote(PlanList& new_plans, const Unsafe& unsasfe,
-	      bool test_only = false) const;
+  void promote(PlanList& new_plans, const Unsafe& unsasfe) const;
 
   /* Adds a plan to the given plan list with an ordering added. */
   void new_ordering(PlanList& plans, size_t before_id, StepTime t1,
@@ -293,53 +330,77 @@ private:
 			     const OpenCondition& open_cond) const;
 
   /* Handles a disjunctive open condition. */
-  int handle_disjunction(PlanList& plans, const Disjunction& disj,
-			 const OpenCondition& open_cond,
-			 bool test_only = false) const;
+  void handle_disjunction(PlanList& plans, const Disjunction& disj,
+			  const OpenCondition& open_cond) const;
 
   /* Handles an inequality open condition. */
-  int handle_inequality(PlanList& plans, const Inequality& neq,
-			const OpenCondition& open_cond,
-			bool test_only = false) const;
+  void handle_inequality(PlanList& plans, const Inequality& neq,
+			 const OpenCondition& open_cond) const;
 
   /* Handles a literal open condition by adding a new step. */
   void add_step(PlanList& plans, const Literal& literal,
-		const OpenCondition& open_cond,
-		const ActionEffectMap& achievers) const;
+		const OpenCondition& open_cond) const;
 
   /* Handles a literal open condition by reusing an existing step. */
   void reuse_step(PlanList& plans, const Literal& literal,
-		  const OpenCondition& open_cond,
-		  const ActionEffectMap& achievers) const;
+		  const OpenCondition& open_cond) const;
+
+  /* Counts the number of new links that can be established between
+     the given effects and the open condition, and returns true iff
+     the number of refinements does not exceed the given limit. */
+  bool count_new_links(int& count, size_t step_id, const Action& action,
+		       const Literal& literal, size_t oc_step_id,
+		       int limit) const;
 
   /* Adds plans to the given plan list with a link from the given step
      to the given open condition added. */
-  int new_link(PlanList& plans, const Step& step, const Effect& effect,
-	       const Literal& literal, const OpenCondition& open_cond,
-	       bool test_only = false) const;
+  void new_link(PlanList& plans, const Step& step, const Literal& literal,
+		const OpenCondition& open_cond) const;
+
+  /* Checks if a new link be established between the given effects and
+     the open condition using the closed world assumption. */
+  int cw_link_possible(const EffectList& effects,
+		       const Negation& negation, size_t step_id) const;
 
   /* Adds plans to the given plan list with a link from the given step
      to the given open condition added using the closed world
      assumption. */
-  int new_cw_link(PlanList& plans, const EffectList& effects,
-		  const Negation& negation, const OpenCondition& open_cond,
-		  bool test_only = false) const;
+  void new_cw_link(PlanList& plans, const Step& step, const Literal& literal,
+		   const OpenCondition& open_cond) const;
+
+  /* Checks if a new link can be established between the given effect
+     and the open condition. */
+  int link_possible(size_t step_id, const Action& action,
+		    const Effect& effect,
+		    const SubstitutionList& unifier) const;
 
   /* Returns a plan with a link added from the given effect to the
      given open condition. */
-  int make_link(PlanList& plans, const Step& step, const Effect& effect,
-		const Literal& literal, const OpenCondition& open_cond,
-		const BindingList& unifier, bool test_only = false) const;
+  const Plan* make_link(const Step& step, const Effect& effect,
+			const Literal& literal, const OpenCondition& open_cond,
+			const LinkChain* new_links, const Reason& reason,
+			const SubstitutionList& unifier) const;
+
+  /* Adds plans to the given plan list with the given link removed and
+     the resulting open condition relinked. */
+  void relink(PlanList& new_plans, const Link& link) const;
+
+  /* Adds plans to the given plan list with the given link removed and
+     the resulting open condition relinked. */
+  pair<const Plan*, const OpenCondition*> unlink(const Link& link) const;
+
+  /* Checks if this plan is a duplicate of a previous plan. */
+  bool duplicate() const;
 
   friend bool operator<(const Plan& p1, const Plan& p2);
-  friend std::ostream& operator<<(std::ostream& os, const Plan& p);
+  friend ostream& operator<<(ostream& os, const Plan& p);
 };
 
 /* Less than operator for plans. */
 bool operator<(const Plan& p1, const Plan& p2);
 
 /* Output operator for plans. */
-std::ostream& operator<<(std::ostream& os, const Plan& p);
+ostream& operator<<(ostream& os, const Plan& p);
 
 
 #endif /* PLANS_H */

@@ -2,7 +2,7 @@
 /*
  * Heuristics.
  *
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2002 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -16,18 +16,16 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: heuristics.h,v 6.7 2003-12-05 23:16:12 lorens Exp $
+ * $Id: heuristics.h,v 4.2 2002-09-20 16:47:14 lorens Exp $
  */
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
 
-#include <config.h>
-#include "domains.h"
+#include "support.h"
 #include "formulas.h"
-#include <stdexcept>
+#include "domains.h"
 
-struct Action;
-struct ActionList;
+
 struct Problem;
 struct ActionDomain;
 struct Bindings;
@@ -35,17 +33,6 @@ struct Flaw;
 struct Unsafe;
 struct OpenCondition;
 struct Plan;
-struct Parameters;
-
-
-/* ====================================================================== */
-/* ActionEffectMap */
-
-/*
- * Mapping from actions to effects.
- */
-struct ActionEffectMap : public std::multimap<const Action*, const Effect*> {
-};
 
 
 /* ====================================================================== */
@@ -63,21 +50,22 @@ struct HeuristicValue {
   static const HeuristicValue INFINITE;
 
   /* Constructs a zero heuristic value. */
-  HeuristicValue()
-    : add_cost_(0.0f), add_work_(0), makespan_(0.0f) {}
+  HeuristicValue();
 
   /* Constructs a heuristic value. */
-  HeuristicValue(float add_cost, int add_work, float makespan)
-    : add_cost_(add_cost), add_work_(add_work), makespan_(makespan) {}
+  HeuristicValue(int max_cost, int max_work, int add_cost, int add_work);
+
+  /* Returns the cost according to the max heuristic. */
+  int max_cost() const { return max_cost_; }
+
+  /* Returns the work according to the max heuristic. */
+  int max_work() const { return max_work_; }
 
   /* Returns the cost according to the additive heurisitc. */
-  float add_cost() const { return add_cost_; }
+  int add_cost() const { return add_cost_; }
 
   /* Returns the work according to the additive heuristic. */
   int add_work() const { return add_work_; }
-
-  /* Returns the value according to the makespan heuristic. */
-  float makespan() const { return makespan_; }
 
   /* Checks if this heuristic value is zero. */
   bool zero() const;
@@ -88,30 +76,29 @@ struct HeuristicValue {
   /* Adds the given heuristic value to this heuristic value. */
   HeuristicValue& operator+=(const HeuristicValue& v);
 
-  /* Increases the cost of this heuristic value. */
-  void increase_cost(float x);
+  /* Adds the given cost to this heuristic value. */
+  void add_cost(int c);
 
-  /* Increments the work of this heuristic value. */
-  void increment_work();
-
-  /* Increases the makespan of this heuristic value. */
-  void increase_makespan(float x);
+  /* Adds the given work to this heuristic value. */
+  void add_work(int w);
 
 private:
+  /* Cost according to max heuristic. */
+  int max_cost_;
+  /* Work according to max heuristic. */
+  int max_work_;
   /* Cost according to additive heuristic. */
-  float add_cost_;
+  int add_cost_;
   /* Work according to additive heuristic. */
   int add_work_;
-  /* Value according to the makespan heursitic. */
-  float makespan_;
 };
-#if 0
+
 /* Equality operator for heuristic values. */
 bool operator==(const HeuristicValue& v1, const HeuristicValue& v2);
-#endif
+
 /* Inequality operator for heuristic values. */
 bool operator!=(const HeuristicValue& v1, const HeuristicValue& v2);
-#if 0
+
 /* Less than operator for heuristic values. */
 bool operator<(const HeuristicValue& v1, const HeuristicValue& v2);
 
@@ -123,13 +110,13 @@ bool operator<=(const HeuristicValue& v1, const HeuristicValue& v2);
 
 /* Greater than or equal to operator for heuristic values. */
 bool operator>=(const HeuristicValue& v1, const HeuristicValue& v2);
-#endif
+
 /* Returns the componentwise minimum heuristic value, given two
    heuristic values. */
 HeuristicValue min(const HeuristicValue& v1, const HeuristicValue& v2);
 
 /* Output operator for heuristic values. */
-std::ostream& operator<<(std::ostream& os, const HeuristicValue& v);
+ostream& operator<<(ostream& os, const HeuristicValue& v);
 
 
 /* ====================================================================== */
@@ -140,14 +127,8 @@ std::ostream& operator<<(std::ostream& os, const HeuristicValue& v);
  */
 struct PlanningGraph {
   /* Constructs a planning graph. */
-  PlanningGraph(const Problem& problem, const Parameters& params);
+  PlanningGraph(const Problem& problem, bool domain_constraints);
 
-  /* Deletes this planning graph. */
-  ~PlanningGraph();
-
-  /* Returns the problem associated with this planning graph. */
-  const Problem& problem() const { return *problem_; }
-  
   /* Returns the heurisitc value of an atom. */
   HeuristicValue heuristic_value(const Atom& atom, size_t step_id,
 				 const Bindings* bindings = NULL) const;
@@ -156,49 +137,59 @@ struct PlanningGraph {
   HeuristicValue heuristic_value(const Negation& negation, size_t step_id,
 				 const Bindings* bindings = NULL) const;
 
-  /* Returns a set of achievers for the given literal. */
-  const ActionEffectMap* literal_achievers(const Literal& literal) const;
+  /* Fills the provided list with actions that achieve the given
+     formula. */
+  void achieves_formula(ActionList& actions, const Literal& f) const;
 
   /* Returns the parameter domain for the given action, or NULL if the
      parameter domain is empty. */
-  const ActionDomain* action_domain(const std::string& name) const;
+  const ActionDomain* action_domain(const string& name) const;
 
 private:
   /* Atom value map. */
-  struct AtomValueMap : public std::map<const Atom*, HeuristicValue> {
+  struct AtomValueMap
+    : public hash_map<const Atom*, HeuristicValue, hash<const Literal*>,
+    equal_to<const Literal*> > {
   };
+
+  /* Iterator for AtomValueMap. */
+  typedef AtomValueMap::const_iterator AtomValueMapIter;
 
   /* Mapping of literals to actions. */
-  struct LiteralAchieverMap
-    : public std::map<const Literal*, ActionEffectMap> {
+  struct LiteralActionsMap
+    : public HashMultimap<const Literal*, const Action*> {
   };
+
+  /* Iterator for LiteralActionsMap. */
+  typedef LiteralActionsMap::const_iterator LiteralActionsMapIter;
 
   /* Mapping of predicate names to ground atoms. */
-  struct PredicateAtomsMap : public std::multimap<Predicate, const Atom*> {
+  struct PredicateAtomsMap :
+    public HashMultimap<const Predicate*, const Atom*> {
   };
+
+  /* Iterator for PredicateAtomsMap. */
+  typedef PredicateAtomsMap::const_iterator PredicateAtomsMapIter;
 
   /* Mapping of action name to parameter domain. */
-  struct ActionDomainMap : public std::map<std::string, ActionDomain*> {
+  struct ActionDomainMap : public hash_map<string, ActionDomain*> {
   };
 
-  /* Problem associated with this planning graph. */
-  const Problem* problem_;
-  /* Atom values. */
-  AtomValueMap atom_values_;
-  /* Negated atom values. */
-  AtomValueMap negation_values_;
-  /* Maps formulas to actions that achieve those formulas. */
-  LiteralAchieverMap achievers_;
-  /* Maps predicates to ground atoms. */
-  PredicateAtomsMap predicate_atoms_;
-  /* Maps predicates to negated ground atoms. */
-  PredicateAtomsMap predicate_negations_;
-  /* Maps action names to possible parameter lists. */
-  ActionDomainMap action_domains_;
+  /* Iterator for ActionDomainMap. */
+  typedef ActionDomainMap::const_iterator ActionDomainMapIter;
 
-  /* Finds an element in a LiteralActionsMap. */
-  bool find(const LiteralAchieverMap& m, const Literal& l,
-	    const Action& a, const Effect& e) const;
+  /* Atom values. */
+  AtomValueMap atom_values;
+  /* Negated atom values. */
+  AtomValueMap negation_values;
+  /* Maps formulas to actions that achieve those formulas. */
+  LiteralActionsMap achieves;
+  /* Maps predicates to ground atoms. */
+  PredicateAtomsMap predicate_atoms;
+  /* Maps predicates to negated ground atoms. */
+  PredicateAtomsMap predicate_negations;
+  /* Maps action names to possible parameter lists. */
+  ActionDomainMap action_domains;
 };
 
 
@@ -208,9 +199,9 @@ private:
 /*
  * An invalid heuristic exception.
  */
-struct InvalidHeuristic : public std::runtime_error {
+struct InvalidHeuristic : public Exception {
   /* Constructs an invalid heuristic exception. */
-  InvalidHeuristic(const std::string& name);
+  InvalidHeuristic(const string& name);
 };
 
 
@@ -231,31 +222,34 @@ struct InvalidHeuristic : public std::runtime_error {
  * ADD_WORK uses the additive work heuristic.
  * ADD uses h(p) = |S(p)| + w*ADD_COST.
  * ADDR is like ADD, but tries to take reuse into account.
- * MAKESPAN gives priority to plans with low makespan.
+ * MAX is an admissible heuristic counting parallel cost.
+ * MAXR is like MAX, but thries to take reuse into account.
  */
 struct Heuristic {
   /* Constructs a heuristic from a name. */
-  Heuristic(const std::string& name = "UCPOP");
+  Heuristic(const string& name = "UCPOP");
 
   /* Selects a heuristic from a name. */
-  Heuristic& operator=(const std::string& name);
+  Heuristic& operator=(const string& name);
 
   /* Checks if this heuristic needs a planning graph. */
   bool needs_planning_graph() const;
 
   /* Fills the provided vector with the ranks for the given plan. */
-  void plan_rank(std::vector<float>& rank, const Plan& plan,
+  void plan_rank(vector<float>& rank, const Plan& plan,
 		 float weight, const Domain& domain,
 		 const PlanningGraph* planning_graph) const;
 
 private:
   /* Heuristics. */
   typedef enum { LIFO, FIFO, OC, UC, BUC, S_PLUS_OC, UCPOP,
-		 ADD, ADD_COST, ADD_WORK, ADDR, ADDR_COST, ADDR_WORK,
-		 MAKESPAN } HVal;
+		 ADD, ADD_COST, ADD_WORK,
+		 ADDR, ADDR_COST, ADDR_WORK,
+		 MAX, MAX_COST, MAX_WORK,
+		 MAXR, MAXR_COST, MAXR_WORK } HVal;
 
   /* The selected heuristics. */
-  std::vector<HVal> h_;
+  vector<HVal> h_;
   /* Whether a planning graph is needed by this heuristic. */
   bool needs_pg_;
 };
@@ -267,9 +261,9 @@ private:
 /*
  * An invalid flaw selection order exception.
  */
-struct InvalidFlawSelectionOrder : public std::runtime_error {
+struct InvalidFlawSelectionOrder : public Exception {
   /* Constructs an invalid flaw selection order exception. */
-  InvalidFlawSelectionOrder(const std::string& name);
+  InvalidFlawSelectionOrder(const string& name);
 };
 
 
@@ -299,7 +293,7 @@ struct SelectionCriterion {
   typedef enum { LIFO, FIFO, RANDOM, LR, MR,
 		 NEW, REUSE, LC, MC, LW, MW } OrderType;
   /* A heuristic. */
-  typedef enum { ADD, MAKESPAN } RankHeuristic;
+  typedef enum { ADD, MAX } RankHeuristic;
 
   /* Whether this criterion applies to non-separable threats. */
   bool non_separable;
@@ -335,16 +329,16 @@ struct SelectionCriterion {
  */
 struct FlawSelectionOrder {
   /* Constructs a default flaw selection order. */
-  FlawSelectionOrder(const std::string& name = "UCPOP");
+  FlawSelectionOrder(const string& name = "UCPOP");
 
   /* Selects a flaw selection order from a name. */
-  FlawSelectionOrder& operator=(const std::string& name);
+  FlawSelectionOrder& operator=(const string& name);
 
   /* Checks if this flaw order needs a planning graph. */
   bool needs_planning_graph() const;
 
   /* Selects a flaw from the flaws of the given plan. */
-  const Flaw& select(const Plan& plan, const Problem& problem,
+  const Flaw& select(const Plan& plan, const Domain& domain,
 		     const PlanningGraph* pg) const;
 
 private:
@@ -355,13 +349,13 @@ private:
     /* Index of criterion used to select this flaw. */
     int criterion;
     /* Rank of this flaw if selected by a ranking criterion. */
-    float rank;
+    int rank;
     /* Counts the length of a streak, for use with random order. */
     int streak;
   };
 
   /* Selection criteria. */
-  std::vector<SelectionCriterion> selection_criteria_;
+  vector<SelectionCriterion> selection_criteria_;
   /* Whether a planning graph is needed by this flaw selection order. */
   bool needs_pg_;
   /* Index of the first selection criterion involving threats. */
@@ -375,12 +369,11 @@ private:
 
   /* Seaches threats for a flaw to select. */
   int select_unsafe(FlawSelection& selection, const Plan& plan,
-		    const Problem& problem,
 		    int first_criterion, int last_criterion) const;
 
   /* Seaches open conditions for a flaw to select. */
   int select_open_cond(FlawSelection& selection, const Plan& plan,
-		       const Problem& problem, const PlanningGraph* pg,
+		       const Domain& domain, const PlanningGraph* pg,
 		       int first_criterion, int last_criterion) const;
 };
 

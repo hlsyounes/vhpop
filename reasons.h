@@ -2,7 +2,7 @@
 /*
  * Reasons for refinements in a plan.
  *
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2002 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -16,49 +16,24 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: reasons.h,v 3.5 2003-03-10 17:26:10 lorens Exp $
+ * $Id: reasons.h,v 3.1 2002-05-26 11:04:07 lorens Exp $
  */
 #ifndef REASONS_H
 #define REASONS_H
 
-#include <config.h>
-#include <cstdlib>
-#include <iostream>
+#include "support.h"
 
 struct Parameters;
 struct Link;
 struct Step;
 
 
-/* ====================================================================== */
-/* Reason */
-
 /*
  * Abstract reason.
  */
-struct Reason {
+struct Reason : public Collectible, public Printable {
   /* A dummy reason. */
   static const Reason& DUMMY;
-
-  /* Register use of this object. */
-  static void register_use(const Reason* r) {
-    if (r != NULL) {
-      r->ref_count_++;
-    }
-  }
-
-  /* Unregister use of this object. */
-  static void unregister_use(const Reason* r) {
-    if (r != NULL) {
-      r->ref_count_--;
-      if (r->ref_count_ == 0) {
-	delete r;
-      }
-    }
-  }
-
-  /* Deletes this reason. */
-  virtual ~Reason();
 
   /* Checks if this reason is a dummy reason. */
   bool dummy() const;
@@ -68,27 +43,8 @@ struct Reason {
 
   /* Checks if this reason involves the given step. */
   virtual bool involves(const Step& step) const;
-
-protected:
-  /* Creates a reason. */
-  Reason();
-
-  /* Prints this reason on the given stream. */
-  virtual void print(std::ostream& os) const = 0;
-
-private:
-  /* Reference counter. */
-  mutable size_t ref_count_;
-
-  friend std::ostream& operator<<(std::ostream& os, const Reason& r);
 };
 
-/* Output operator for reasons. */
-std::ostream& operator<<(std::ostream& os, const Reason& r);
-
-
-/* ====================================================================== */
-/* InitReason */
 
 /*
  * Reason attached to elements of the initial plan.
@@ -100,7 +56,7 @@ struct InitReason : public Reason {
 
 protected:
   /* Prints this reason on the given stream. */
-  virtual void print(std::ostream& os) const;
+  virtual void print(ostream& os) const;
 
 private:
   /* Constructs an Init reason. */
@@ -108,13 +64,13 @@ private:
 };
 
 
-/* ====================================================================== */
-/* AddStepReason */
-
 /*
  * Reason attached to elements added along with a step.
  */
 struct AddStepReason : public Reason {
+  /* Id of added step. */
+  const size_t step_id;
+
   /* Returns an AddStep reason (or a dummy reason if reasons are not
      needed. */
   static const Reason& make(const Parameters& params, size_t step_id);
@@ -124,24 +80,21 @@ struct AddStepReason : public Reason {
 
 protected:
   /* Prints this reason on the given stream. */
-  virtual void print(std::ostream& os) const;
+  virtual void print(ostream& os) const;
 
 private:
-  /* Id of added step. */
-  const size_t step_id_;
-
   /* Constructs an AddStep reason. */
   AddStepReason(size_t step_id);
 };
 
 
-/* ====================================================================== */
-/* EstablishReason */
-
 /*
  * Reason attached to elements needed to establish a link.
  */
 struct EstablishReason : public Reason {
+  /* Established link */
+  const Link& link;
+
   /* Returns an Establish reason (or a dummy reason if reasons are not
      needed. */
   static const Reason& make(const Parameters& params, const Link& link);
@@ -151,24 +104,23 @@ struct EstablishReason : public Reason {
 
 protected:
   /* Prints this reason on the given stream. */
-  virtual void print(std::ostream& os) const;
+  virtual void print(ostream& os) const;
 
 private:
-  /* Established link */
-  const Link* link_;
-
   /* Constructs an Establish reason. */
   EstablishReason(const Link& link);
 };
 
 
-/* ====================================================================== */
-/* ProtectReason */
-
 /*
  * Reason attached to elements needed to protect a link.
  */
 struct ProtectReason : public Reason {
+  /* Protected link. */
+  const Link& link;
+  /* Id of threatening step. */
+  const size_t step_id;
+
   /* Returns a Protect reason (or a dummy reason if reasons are not
      needed. */
   static const Reason& make(const Parameters& params,
@@ -182,14 +134,9 @@ struct ProtectReason : public Reason {
 
 protected:
   /* Prints this reason on the given stream. */
-  virtual void print(std::ostream& os) const;
+  virtual void print(ostream& os) const;
 
 private:
-  /* Protected link. */
-  const Link* link_;
-  /* Id of threatening step. */
-  const size_t step_id_;
-
   /* Constructs a Protect reason. */
   ProtectReason(const Link& link, size_t step_id);
 };
