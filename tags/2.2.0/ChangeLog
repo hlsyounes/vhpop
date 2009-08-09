@@ -1,0 +1,69 @@
+2003-03-01  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Added -S option for specifying seed to random number generator.
+
+	* Changed -r option to mean random open condition order.
+
+2002-12-18  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Fixed bug that made end times equal start times when scheduling
+	steps with temporal orderings.
+
+	* Workaround for bug in Bison 1.35 that disables stack growth.
+
+2002-12-17  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Effects with a false link condition must not be removed during
+	instantiation.  It is necessary to keep them so that interference
+	between concurrent actions can be properly detected.  This fixes a
+	bug that was introduced in the most recent code overhaul.
+
+2002-12-16  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Fixed memory leaks of actions effects, and formulas.
+
+	* All lists are now stored directly in objects, instead of being
+	stored indirectly as pointers to lists.
+
+2002-11-05  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Types are no longer required to be declared before they are used
+	as supertypes.
+
+2002-09-24  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Instead of stripping static preconditions before planning phase,
+	just do not add static open conditions.  This prevents unnecessary
+	duplication of objects.
+
+2002-09-23  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Removed known memory leaks in handling of variable bindings.
+
+	* Compute projections lazily for ActionDomain objects.
+
+2002-09-21  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Fixed compatibility problems with GCC 3.x.
+
+2002-09-20  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Terms and formulas are no longer instantiated when planning with
+	lifted action.  This reduces memory usage.  It also means that
+	there is a unique instance of every variable, which simplifies
+	variable comparison.  All variables are now compared using pointer
+	comparison instead of string comparison, and this leads to a
+	significant performance improvement when planning with lifted
+	actions.  Variables are paired with step ids when stored in
+	binding constraints so that variables from the same operator but
+	different instantiations can be separated.
+
+2002-07-24  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Fixed test for durative actions in ipc3-vhpop script.
+
+2002-07-22  Håkan L. S. Younes  <lorens@cs.cmu.edu>
+
+	* Changed string comparisons to pointer comparisons for simple
+	types, names, and literal predicates.  This both improves speed
+	and reduces memory usage.
