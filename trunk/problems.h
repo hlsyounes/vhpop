@@ -2,7 +2,7 @@
 /*
  * Problem descriptions.
  *
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2002-2004 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -86,9 +86,8 @@ struct Problem {
   /* Adds a timed initial literal to this problem. */
   void add_init_literal(float time, const Literal& literal);
 
-  /* Adds a function application value to the initial conditions of
-     this problem. */
-  void add_init_value(const Application& application, float value);
+  /* Adds a fluent value to the initial conditions of this problem. */
+  void add_init_value(const Fluent& fluent, float value);
 
   /* Sets the goal of this problem. */
   void set_goal(const Formula& goal);
@@ -117,16 +116,9 @@ struct Problem {
   /* Tests if the metric is constant. */
   bool constant_metric() const;
 
-  /* Returns a list with objects (including constants declared in the
-     domain) that are compatible with the given type. */
-  const ObjectList& compatible_objects(Type type) const;
-
   /* Fills the provided action list with ground actions instantiated
      from the action schemas of the domain. */
   void instantiated_actions(GroundActionList& actions) const;
-
-  /* Returns a new variable for this problem. */
-  Variable new_variable(Type type) const;
 
 private:
   /* Table of defined problems. */
@@ -140,7 +132,7 @@ private:
   mutable TermTable terms_;
   /* Initial atoms. */
   AtomSet init_atoms_;
-  /* Initial function application values. */
+  /* Initial fluent values. */
   ValueMap init_values_;
   /* Aciton representing initial conditions of problem. */
   GroundAction init_action_;
@@ -150,8 +142,6 @@ private:
   const Formula* goal_;
   /* Metric to minimize. */
   const Expression* metric_;
-  /* Cached results of compatible objects queries. */
-  mutable std::map<Type, const ObjectList*> compatible_;
 
   friend std::ostream& operator<<(std::ostream& os, const Problem& p);
 };

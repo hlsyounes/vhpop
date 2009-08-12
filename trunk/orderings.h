@@ -2,7 +2,7 @@
 /*
  * Ordering constraints.
  *
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2002-2004 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -22,11 +22,13 @@
 #define ORDERINGS_H
 
 #include <config.h>
-#include "formulas.h"
 #include "chain.h"
+#include "formulas.h"
+#include <map>
+#include <vector>
 
-struct Step;
 struct Effect;
+struct Step;
 
 
 /* ====================================================================== */
@@ -35,7 +37,34 @@ struct Effect;
 /*
  * A step time.
  */
-typedef enum { STEP_START, STEP_END } StepTime;
+struct StepTime {
+  typedef enum { START, END } StepPoint;
+  typedef enum { BEFORE, AT, AFTER } StepRel;
+
+  static const StepTime AT_START;
+  static const StepTime AFTER_START;
+  static const StepTime BEFORE_END;
+  static const StepTime AT_END;
+
+  StepPoint point;
+  StepRel rel;
+
+private:
+  StepTime(StepPoint point, StepRel rel) : point(point), rel(rel) {}
+};
+
+inline bool operator==(const StepTime& st1, const StepTime& st2) {
+  return st1.point == st2.point && st1.rel == st2.rel;
+}
+
+bool operator<(const StepTime& st1, const StepTime& st2);
+
+bool operator<=(const StepTime& st1, const StepTime& st2);
+
+bool operator>=(const StepTime& st1, const StepTime& st2);
+
+bool operator>(const StepTime& st1, const StepTime& st2);
+
 
 /* Returns the step time corresponding to the end time of the given
    effect. */
@@ -121,9 +150,23 @@ struct Orderings {
   virtual bool possibly_before(size_t id1, StepTime t1,
 			       size_t id2, StepTime t2) const = 0;
 
+  /* Checks if the first step could be ordered after or at the same
+     time as the second step. */
+  virtual bool possibly_not_before(size_t id1, StepTime t1,
+				   size_t id2, StepTime t2) const = 0;
+
   /* Checks if the first step could be ordered after the second step. */
   virtual bool possibly_after(size_t id1, StepTime t1,
 			      size_t id2, StepTime t2) const = 0;
+
+  /* Checks if the first step could be ordered before or at the same
+     time as the second step. */
+  virtual bool possibly_not_after(size_t id1, StepTime t1,
+				  size_t id2, StepTime t2) const = 0;
+
+  /* Checks if the two steps are possibly concurrent. */
+  virtual bool possibly_concurrent(size_t id1, size_t id2, bool& ss, bool& se,
+				   bool& es, bool& ee) const = 0;
 
   /* Returns the ordering collection with the given addition. */
   virtual const Orderings* refine(const Ordering& new_ordering) const = 0;
@@ -140,8 +183,8 @@ struct Orderings {
 			 std::map<size_t, float>& end_times) const = 0;
 
   /* Returns the makespan of this ordering collection. */
-  virtual float makespan(const std::map<std::pair<size_t, StepTime>,
-			 float>& min_times) const = 0;
+  virtual float makespan(const std::map<std::pair<size_t,
+			 StepTime::StepPoint>, float>& min_times) const = 0;
 
 protected:
   /* Constructs an empty ordering collection. */
@@ -183,13 +226,23 @@ struct BinaryOrderings : public Orderings {
   virtual bool possibly_before(size_t id1, StepTime t1,
 			       size_t id2, StepTime t2) const;
 
+  /* Checks if the first step could be ordered after or at the same
+     time as the second step. */
+  virtual bool possibly_not_before(size_t id1, StepTime t1,
+				   size_t id2, StepTime t2) const;
+
   /* Checks if the first step could be ordered after the second step. */
   virtual bool possibly_after(size_t id1, StepTime t1,
 			      size_t id2, StepTime t2) const;
 
+  /* Checks if the first step could be ordered before or at the same
+     time as the second step. */
+  virtual bool possibly_not_after(size_t id1, StepTime t1,
+				  size_t id2, StepTime t2) const;
+
   /* Checks if the two steps are possibly concurrent. */
-  bool possibly_concurrent(size_t id1, StepTime t1,
-			   size_t id2, StepTime t2) const;
+  virtual bool possibly_concurrent(size_t id1, size_t id2, bool& ss, bool& se,
+				   bool& es, bool& ee) const;
 
   /* Returns the ordering collection with the given addition. */
   virtual const BinaryOrderings* refine(const Ordering& new_ordering) const;
@@ -206,8 +259,8 @@ struct BinaryOrderings : public Orderings {
 			 std::map<size_t, float>& end_times) const;
 
   /* Returns the makespan of this ordering collection. */
-  virtual float makespan(const std::map<std::pair<size_t, StepTime>,
-			 float>& min_times) const;
+  virtual float makespan(const std::map<std::pair<size_t,
+			 StepTime::StepPoint>, float>& min_times) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -228,8 +281,8 @@ private:
   /* Schedules the given instruction with the given constraints. */
   float schedule(std::map<size_t, float>& start_times,
 		 std::map<size_t, float>& end_times, size_t step_id,
-		 const std::map<std::pair<size_t, StepTime>,
-		 float>& min_times) const;
+		 const std::map<std::pair<size_t,
+		 StepTime::StepPoint>, float>& min_times) const;
 
   /* Returns true iff the first step is ordered before the second step. */
   bool before(size_t id1, size_t id2) const;
@@ -263,11 +316,25 @@ struct TemporalOrderings : public Orderings {
   virtual bool possibly_before(size_t id1, StepTime t1,
 			       size_t id2, StepTime t2) const;
 
+  /* Checks if the first step could be ordered after or at the same
+     time as the second step. */
+  virtual bool possibly_not_before(size_t id1, StepTime t1,
+				   size_t id2, StepTime t2) const;
+
   /* Checks if the first step could be ordered after the second step. */
   virtual bool possibly_after(size_t id1, StepTime t1,
 			      size_t id2, StepTime t2) const;
 
-  /* Returns the the ordering collection with the given additions. */
+  /* Checks if the first step could be ordered before or at the same
+     time as the second step. */
+  virtual bool possibly_not_after(size_t id1, StepTime t1,
+				  size_t id2, StepTime t2) const;
+
+  /* Checks if the two steps are possibly concurrent. */
+  virtual bool possibly_concurrent(size_t id1, size_t id2, bool& ss, bool& se,
+				   bool& es, bool& ee) const;
+
+  /* Returns the ordering collection with the given additions. */
   const TemporalOrderings* refine(size_t step_id,
 				  float min_start, float min_end) const;
 
@@ -289,8 +356,8 @@ struct TemporalOrderings : public Orderings {
 			 std::map<size_t, float>& end_times) const;
 
   /* Returns the makespan of this ordering collection. */
-  virtual float makespan(const std::map<std::pair<size_t, StepTime>,
-			 float>& min_times) const;
+  virtual float makespan(const std::map<std::pair<size_t,
+			 StepTime::StepPoint>, float>& min_times) const;
 
 protected:
   /* Prints this opbject on the given stream. */
@@ -307,7 +374,7 @@ private:
 
   /* Returns the time node for the given step. */
   size_t time_node(size_t id, StepTime t) const {
-    return (t == STEP_START) ? 2*id - 1: 2*id;
+    return (t.point == StepTime::START) ? 2*id - 1: 2*id;
   }
 
   /* Returns the maximum distance from the first and the second time node. */

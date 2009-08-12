@@ -2,7 +2,7 @@
 /*
  * Plan flaws.
  *
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2002-2004 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -39,9 +39,7 @@ struct Link;
  */
 struct Flaw {
   /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os, const PredicateTable& predicates,
-		     const TermTable& terms,
-		     const Bindings& bindings) const = 0;
+  virtual void print(std::ostream& os, const Bindings& bindings) const = 0;
 };
 
 
@@ -53,7 +51,10 @@ struct Flaw {
  */
 struct OpenCondition : public Flaw {
   /* Constructs an open condition. */
-  OpenCondition(size_t step_id, const Formula& condition, FormulaTime when);
+  OpenCondition(size_t step_id, const Formula& condition);
+
+  /* Constructs an open condition. */
+  OpenCondition(size_t step_id, const Literal& condition, FormulaTime when);
 
   /* Constructs an open condition. */
   OpenCondition(const OpenCondition& oc);
@@ -67,15 +68,15 @@ struct OpenCondition : public Flaw {
   /* Returns the open condition. */
   const Formula& condition() const { return *condition_; }
 
-  /* Returns the time of this condition. */
-  FormulaTime when() const { return when_; }
-
   /* Checks if this is a static open condition. */
-  bool is_static(const Domain& domain) const;
+  bool is_static() const;
 
   /* Returns a literal, or NULL if this is not a literal open
      condition. */
   const Literal* literal() const;
+
+  /* Returns the time stamp associated with a literal open condition. */
+  FormulaTime when() const { return when_; }
 
   /* Returns a inequality, or NULL if this is not an inequality open
      condition. */
@@ -86,16 +87,14 @@ struct OpenCondition : public Flaw {
   const Disjunction* disjunction() const;
 
   /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os, const PredicateTable& predicate,
-		     const TermTable& terms,
-		     const Bindings& bindings) const;
+  virtual void print(std::ostream& os, const Bindings& bindings) const;
 
 private:
   /* Id of step to which this open condition belongs. */
   size_t step_id_;
   /* The open condition. */
   const Formula* condition_;
-  /* The time of the condition. */
+  /* Time stamp associated with a literal open condition. */
   FormulaTime when_;
 };
 
@@ -113,8 +112,8 @@ inline bool operator==(const OpenCondition& oc1, const OpenCondition& oc2) {
  */
 struct Unsafe : public Flaw {
   /* Constructs a threatened causal link. */
-  Unsafe(const Link& link, size_t step_id, const Effect& effect,
-	 const Literal& effect_add);
+  Unsafe(const Link& link, size_t step_id, const Effect& effect)
+    : link_(&link), step_id_(step_id), effect_(&effect) {}
 
   /* Returns the threatened link. */
   const Link& link() const { return *link_; }
@@ -125,13 +124,8 @@ struct Unsafe : public Flaw {
   /* Returns the threatening effect. */
   const Effect& effect() const { return *effect_; }
 
-  /* Returns the specific part of effect that threatens link. */
-  const Literal& effect_add() const { return *effect_add_; }
-
-  /* Prints this open condition on the given stream. */
-  virtual void print(std::ostream& os, const PredicateTable& predicates,
-		     const TermTable& terms,
-		     const Bindings& bindings) const;
+  /* Prints this object on the given stream. */
+  virtual void print(std::ostream& os, const Bindings& bindings) const;
 
 private:
   /* Threatened link. */
@@ -140,13 +134,59 @@ private:
   size_t step_id_;
   /* Threatening effect. */
   const Effect* effect_;
-  /* Specific part of effect that threatens link. */
-  const Literal* effect_add_;
 };
 
 /* Equality operator for unsafe links. */
 inline bool operator==(const Unsafe& u1, const Unsafe& u2) {
   return &u1 == &u2;
+}
+
+
+/* ====================================================================== */
+/* MutexThreat */
+
+/*
+ * A mutex threat between effects of two separate steps.
+ */
+struct MutexThreat : public Flaw {
+  /* Constructs a mutex threat place hoder. */
+  MutexThreat() : step_id1_(0) {}
+
+  /* Constructs a mutex threat. */
+  MutexThreat(size_t step_id1, const Effect& effect1,
+	      size_t step_id2, const Effect& effect2)
+    : step_id1_(step_id1), effect1_(&effect1),
+      step_id2_(step_id2), effect2_(&effect2) {}
+
+  /* Returns the id for the first step. */
+  size_t step_id1() const { return step_id1_; }
+
+  /* Returns the threatening effect for the first step. */
+  const Effect& effect1() const { return *effect1_; }
+
+  /* Returns the id for the second step. */
+  size_t step_id2() const { return step_id2_; }
+
+  /* Returns the threatening effect for the second step. */
+  const Effect& effect2() const { return *effect2_; }
+
+  /* Prints this object on the given stream. */
+  virtual void print(std::ostream& os, const Bindings& bindings) const;
+
+private:
+  /* The id for the first step. */
+  size_t step_id1_;
+  /* The threatening effect for the first step. */
+  const Effect* effect1_;
+  /* The id for the second step. */
+  size_t step_id2_;
+  /* The threatening effect for the second step. */
+  const Effect* effect2_;
+};
+
+/* Equality operator for mutex threats. */
+inline bool operator==(const MutexThreat& mt1, const MutexThreat& mt2) {
+  return &mt1 == &mt2;
 }
 
 

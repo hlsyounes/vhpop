@@ -2,7 +2,7 @@
 /*
  * Debugging related stuff.
  *
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2002-2004 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -29,8 +29,6 @@
 extern int verbosity;
 
 #ifdef DEBUG_MEMORY
-extern size_t created_expressions;
-extern size_t deleted_expressions;
 extern size_t created_formulas;
 extern size_t deleted_formulas;
 extern size_t created_conditions;
@@ -47,8 +45,6 @@ extern size_t created_orderings;
 extern size_t deleted_orderings;
 extern size_t created_plans;
 extern size_t deleted_plans;
-extern size_t created_chains;
-extern size_t deleted_chains;
 #endif
 
 

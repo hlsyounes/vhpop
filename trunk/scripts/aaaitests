@@ -1,0 +1,152 @@
+#!/bin/sh
+
+problems="\
+ gripper-domain gripper-4 gripper-6 gripper-8 gripper-10 gripper-12 gripper-20\
+ rocket-domain rocket-ext-a rocket-ext-b\
+ logistics-domain logistics-a logistics-b logistics-c logistics-d\
+ simple-blocks-domain bw-large-a bw-large-b bw-large-c bw-large-d\
+ bulldozer-domain get-back-jack\
+ grid-domain simple-grid1 simple-grid2 simple-grid3\
+ briefcase-world-domain get-paid get-paid2 get-paid3 get-paid4\
+ uni-briefcase-world-domain uget-paid uget-paid2 uget-paid3 uget-paid4\
+ flat-tire-domain fixit fix1 fix2 fix3 fix4 fix5\
+ blocks-world-domain sussman-anomaly tower-invert3 tower-invert4\
+ monkey-domain monkey-test1 monkey-test2 monkey-test3\
+ robot-domain r-test1 r-test2\
+ ferry-domain test-ferry\
+ ho-world-domain ho-demo\
+ fridge-domain fixa fixb\
+ hanoi-domain hanoi-3\
+ hanoi-3-domain hanoi-n-3\
+ road-domain road-test\
+ prodigy-blocks-world-domain prodigy-sussman prodigy-p22"
+prevh=
+for heuristic in sum sum oc oc; do
+    echo $heuristic
+    case $heuristic in
+    sum)
+	h="ADD/ADD_WORK/BUC/LIFO"
+	;;
+    oc)
+	h="S+OC/LIFO"
+	;;
+    esac
+    if (test "$heuristic" = "$prevh") then
+	r=-r
+	datadir=aaaidata/reverse
+    else
+	r=
+	datadir=aaaidata
+    fi
+    for p in $problems; do
+	if (test ! -z "`echo $p | grep '\-domain'`") then
+	    domain=$p
+	    continue
+	fi
+	echo -n "  "$p
+	for flaw in ucpop zlifo lcfr mc mw lcfr-loc mc-loc mw-loc; do
+	    echo -n " "$flaw
+	    case $flaw in
+	    ucpop)
+		f="{n,s}LIFO/{o}LIFO"
+		;;
+	    zlifo)
+		f="{n}LIFO/{o}0LIFO/{o}1NEW/{o}LIFO/{s}LIFO"
+		;;
+	    lcfr)
+		f="{n,s,o}LR"
+		;;
+	    mc)
+		f="{n,s}LR/{o}MC_add"
+		;;
+	    mw)
+		f="{n,s}LR/{o}MW_add"
+		;;
+	    lcfr-loc)
+		f="{n,s,l}LR"
+		;;
+	    mc-loc)
+		f="{n,s}LR/{l}MC_add"
+		;;
+	    mw-loc)
+		f="{n,s}LR/{l}MW_add"
+		;;
+	    ucpop-conf)
+		f="{n,s}LIFO/{u}LIFO/{o}LIFO"
+		;;
+	    lcfr-conf)
+		f="{n,s,u}LR/{o}LR"
+		;;
+	    esac
+	    outfile=$datadir/ground/$p-$heuristic-$flaw.out
+	    if (test ! -f $outfile) then
+		./tpop $r -v1 -l 100000 -T 180 -h $h -f $f -g examples/$domain.pddl examples/$p.pddl > $outfile 2>&1
+	    fi
+	done
+	echo
+    done
+    prevh=$heuristic
+done
+for heuristic in oc; do
+    echo $heuristic
+    case $heuristic in
+    sum)
+	h="ADD/ADD_WORK/BUC/LIFO"
+	;;
+    oc)
+	h="S+OC/LIFO"
+	;;
+    esac
+    datadir=aaaidata/link-chain
+    for k in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+	echo -n "  "$k
+	for flaw in ucpop lcfr ucpop-conf lcfr-conf lcfr-loc-conf; do
+	    echo -n " "$flaw
+	    case $flaw in
+	    ucpop)
+		f="{n,s}LIFO/{o}LIFO"
+		;;
+	    zlifo)
+		f="{n}LIFO/{o}0LIFO/{o}1NEW/{o}LIFO/{s}LIFO"
+		;;
+	    lcfr)
+		f="{n,s,o}LR"
+		;;
+	    mc)
+		f="{n,s}LR/{o}MC_add"
+		;;
+	    mw)
+		f="{n,s}LR/{o}MW_add"
+		;;
+	    lcfr-loc)
+		f="{n,s,l}LR"
+		;;
+	    mc-loc)
+		f="{n,s}LR/{l}MC_add"
+		;;
+	    mw-loc)
+		f="{n,s}LR/{l}MW_add"
+		;;
+	    ucpop-conf)
+		f="{n,s}LIFO/{u}LIFO/{o}LIFO"
+		;;
+	    lcfr-conf)
+		f="{n,s,u}LR/{o}LR"
+		;;
+	    lcfr-loc-conf)
+		f="{n,s,u}LR/{l}LR"
+		;;
+	    esac
+	    # link-chain domain
+	    i=1
+	    while (test $i -le 10) do
+		outfile=$datadir/ground/$k-$i-$heuristic-$flaw.out
+		if (test ! -f $outfile) then
+		    examples/link-chain.sh 15 $k $i | ./tpop -v1 -l 1000000 -T 1 -h $h -f $f -g > $outfile 2>&1
+		fi
+		i=`expr $i + 1`
+	    done
+	done
+	echo
+    done
+done

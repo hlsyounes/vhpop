@@ -1,6 +1,6 @@
 # Process this file with autoconf to produce a configure script.
 #
-# Copyright (C) 2003 Carnegie Mellon University
+# Copyright (C) 2002-2004 Carnegie Mellon University
 # Written by Håkan L. S. Younes.
 #
 # Permission is hereby granted to distribute this software for
@@ -16,7 +16,7 @@
 #
 # $Id: configure.ac,v 1.9 2003-03-01 18:56:48 lorens Exp $
 
-AC_INIT(VHPOP, 2.2, lorens@cs.cmu.edu)
+AC_INIT(VHPOP, 3.0, lorens@cs.cmu.edu)
 AC_CONFIG_SRCDIR(vhpop.cc)
 AM_INIT_AUTOMAKE
 AM_CONFIG_HEADER(config.h)
@@ -29,13 +29,15 @@ AC_PROG_AWK
 AM_PROG_LEX
 AC_PROG_YACC
 
+AC_LANG(C++)
+
 # Checks for libraries.
 AC_SEARCH_LIBS(gettext, intl)
 
 # Checks for header files.
 AC_FUNC_ALLOCA
 AC_HEADER_STDC
-AC_CHECK_HEADERS([libintl.h stdlib.h string.h strings.h sys/time.h unistd.h])
+AC_CHECK_HEADERS([libintl.h stdlib.h string.h strings.h sys/time.h unistd.h sstream])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST

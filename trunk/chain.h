@@ -2,7 +2,7 @@
 /*
  * Template chain class.
  *
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2002-2004 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -22,7 +22,7 @@
 #define CHAIN_H
 
 #include <config.h>
-#include "debug.h"
+#include <refcount.h>
 
 
 /* ====================================================================== */
@@ -32,44 +32,21 @@
  * Template chain class.
  */
 template<typename T>
-struct Chain {
+struct Chain : RCObject {
   /* The data at this location in the chain. */
   T head;
   /* The rest of the chain. */
   const Chain<T>* tail;
 
-  /* Register use of the given chain. */
-  static void register_use(const Chain<T>* c) {
-    if (c != NULL) {
-      c->ref_count_++;
-    }
-  }
-
-  /* Unregister use of the given chain. */
-  static void unregister_use(const Chain<T>* c) {
-    if (c != NULL) {
-      c->ref_count_--;
-      if (c->ref_count_ == 0) {
-	delete c;
-      }
-    }
-  }
-
   /* Constructs a chain with the given head and tail. */
   Chain<T>(const T& head, const Chain<T>* tail)
-    : head(head), tail(tail), ref_count_(0) {
-#ifdef DEBUG_MEMORY
-    created_chains++;
-#endif
-    register_use(tail);
+    : head(head), tail(tail) {
+    ref(tail);
   }
 
   /* Deletes this chain. */
   ~Chain<T>() {
-#ifdef DEBUG_MEMORY
-    deleted_chains++;
-#endif
-    unregister_use(tail);
+    destructive_deref(tail);
   }
 
   /* Returns the size of this chain. */
@@ -101,12 +78,12 @@ struct Chain {
       for (const Chain<T>* ci = tail; ci != NULL; ci = ci->tail) {
 	if (h == ci->head) {
 	  prev->tail = ci->tail;
-	  register_use(ci->tail);
+	  ref(ci->tail);
 	  break;
 	} else {
 	  Chain<T>* tmp = new Chain<T>(ci->head, NULL);
 	  prev->tail = tmp;
-	  register_use(tmp);
+	  ref(tmp);
 	  prev = tmp;
 	}
       }
@@ -115,10 +92,6 @@ struct Chain {
       return this;
     }
   }
-
-private:
-  /* Reference counter. */
-  mutable size_t ref_count_;
 };
 
 

@@ -1,7 +1,7 @@
 /*
  * Main program.
  *
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2002-2004 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -142,7 +142,8 @@ static void display_help() {
 /* Displays version information. */
 static void display_version() {
   std::cout << PACKAGE_STRING << std::endl
-	    << "Copyright (C) 2003 Carnegie Mellon University" << std::endl
+	    << "Copyright (C) 2002-2004 Carnegie Mellon University"
+	    << std::endl
 	    << PACKAGE_NAME
 	    << " comes with NO WARRANTY, to the extent permitted by law."
 	    << std::endl
@@ -177,9 +178,8 @@ static void cleanup() {
   Domain::clear();
 
 #ifdef DEBUG_MEMORY
-  std::cerr << "Expressions created: " << created_expressions << std::endl
-	    << "Expressions deleted: " << deleted_expressions << std::endl
-	    << "Formulas created: " << created_formulas << std::endl
+  RCObject::print_statistics(std::cerr);
+  std::cerr << "Formulas created: " << created_formulas << std::endl
 	    << "Formulas deleted: " << deleted_formulas << std::endl
 	    << "Conditions created: " << created_conditions << std::endl
 	    << "Conditions deleted: " << deleted_conditions << std::endl
@@ -196,16 +196,12 @@ static void cleanup() {
 	    << "Orderings created: " << created_orderings << std::endl
 	    << "Orderings deleted: " << deleted_orderings << std::endl
 	    << "Plans created: " << created_plans << std::endl
-	    << "Plans deleted: " << deleted_plans << std::endl
-	    << "Chains created: " << created_chains << std::endl
-	    << "Chains deleted: " << deleted_chains << std::endl;
+	    << "Plans deleted: " << deleted_plans << std::endl;
 #endif
 }
 
 
 #ifdef DEBUG_MEMORY
-size_t created_expressions = 0;
-size_t deleted_expressions = 0;
 size_t created_formulas = 0;
 size_t deleted_formulas = 0;
 size_t created_conditions = 0;
@@ -222,8 +218,6 @@ size_t created_orderings = 0;
 size_t deleted_orderings = 0;
 size_t created_plans = 0;
 size_t deleted_plans = 0;
-size_t created_chains = 0;
-size_t deleted_chains = 0;
 #endif
 
 

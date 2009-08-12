@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2002-2004 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -59,12 +59,13 @@ void Domain::clear() {
 
 /* Constructs an empty domain with the given name. */
 Domain::Domain(const std::string& name)
-  : name_(name) {
+  : name_(name), total_time_(functions_.add_function("total-time")) {
   const Domain* d = find(name);
   if (d != NULL) {
     delete d;
   }
   domains[name] = this;
+  FunctionTable::make_dynamic(total_time_);
 }
 
 
@@ -92,79 +93,18 @@ const ActionSchema* Domain::find_action(const std::string& name) const {
 }
 
 
-/* Fills the provided object list with constants that are compatible
-   with the given type. */
-void Domain::compatible_constants(ObjectList& constants, Type type) const {
-  Object last = terms().last_object();
-  for (Object i = terms().first_object(); i <= last; i++) {
-    if (types().subtype(terms().type(i), type)) {
-      constants.push_back(i);
-    }
-  }
-}
-
-
 /* Output operator for domains. */
 std::ostream& operator<<(std::ostream& os, const Domain& d) {
   os << "name: " << d.name();
-  os << std::endl << "types:";
-  for (Type i = d.types().first_type(); i <= d.types().last_type(); i++) {
-    os << std::endl << "  ";
-    d.types().print_type(os, i);
-    bool first = true;
-    for (Type j = d.types().first_type(); j <= d.types().last_type(); j++) {
-      if (i != j && d.types().subtype(i, j)) {
-	if (first) {
-	  os << " <:";
-	  first = false;
-	}
-	os << ' ';
-	d.types().print_type(os, j);
-      }
-    }
-  }
-  os << std::endl << "constants:";
-  for (Object i = d.terms().first_object();
-       i <= d.terms().last_object(); i++) {
-    os << std::endl << "  ";
-    d.terms().print_term(os, i);
-    os << " - ";
-    d.types().print_type(os, d.terms().type(i));
-  }
-  os << std::endl << "predicates:";
-  for (Predicate i = d.predicates().first_predicate();
-       i <= d.predicates().last_predicate(); i++) {
-    os << std::endl << "  (" << d.predicates().name(i);
-    size_t arity = d.predicates().arity(i);
-    for (size_t j = 0; j < arity; j++) {
-      os << " ?x - ";
-      d.types().print_type(os, d.predicates().parameter(i, j));
-    }
-    os << ")";
-    if (d.predicates().static_predicate(i)) {
-      os << " <static>";
-    }
-  }
-  os << std::endl << "functions:";
-  for (Function i = d.functions().first_function();
-       i <= d.functions().last_function(); i++) {
-    os << std::endl << "  (";
-    d.functions().print_function(os, i);
-    size_t arity = d.functions().arity(i);
-    for (size_t j = 0; j < arity; j++) {
-      os << " ?v - ";
-      d.types().print_type(os, d.functions().parameter(i, j));
-    }
-    os << ") - " << NUMBER_NAME;
-    if (d.functions().static_function(i)) {
-      os << " <static>";
-    }
-  }
+  os << std::endl << "types:" << d.types();
+  os << std::endl << "constants:" << d.terms();
+  os << std::endl << "predicates:" << d.predicates();
+  os << std::endl << "functions:" << d.functions();
   os << std::endl << "actions:";
   for (ActionSchemaMap::const_iterator ai = d.actions_.begin();
        ai != d.actions_.end(); ai++) {
     os << std::endl;
-    (*ai).second->print(os, d.predicates(), d.functions(), d.terms());
+    (*ai).second->print(os);
   }
   return os;
 }

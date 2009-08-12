@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2002-2004 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -19,6 +19,7 @@
 #include "bindings.h"
 #include "problems.h"
 #include "domains.h"
+#include "debug.h"
 #include <stack>
 #include <iostream>
 
@@ -167,9 +168,9 @@ Constant::Constant(bool value)
 }
 
 
-/* Returns a formula that separates the given literal from anything
+/* Returns a formula that separates the given effect from anything
    definitely asserted by this formula. */
-const Formula& Constant::separator(const Literal& literal,
+const Formula& Constant::separator(const Effect& effect,
 				   const Domain& domain) const {
   return TRUE;
 }
@@ -196,9 +197,8 @@ const Formula& Constant::universal_base(const SubstitutionMap& subst,
 
 
 /* Prints this formula on the given stream with the given bindings. */
-void Constant::print(std::ostream& os, const PredicateTable& predicates,
-		     const TermTable& terms, size_t step_id,
-		     const Bindings& bindings) const {
+void Constant::print(std::ostream& os,
+		     size_t step_id, const Bindings& bindings) const {
   os << (value_ ? "(and)" : "(or)");
 }
 
@@ -226,13 +226,12 @@ void Literal::assign_id(bool ground) {
 }
 
 
-/* Returns a formula that separates the given literal from anything
+/* Returns a formula that separates the given effect from anything
    definitely asserted by this formula. */
-const Formula& Literal::separator(const Literal& literal,
+const Formula& Literal::separator(const Effect& effect,
 				  const Domain& domain) const {
   BindingList mgu;
-  if (Bindings::unifiable(mgu, *this, 1, literal, 1,
-			  domain.types(), domain.terms())) {
+  if (Bindings::unifiable(mgu, *this, 1, effect.literal(), 1)) {
     Disjunction* disj = NULL;
     const Formula* first_d = &FALSE;
     for (BindingList::const_iterator bi = mgu.begin(); bi != mgu.end(); bi++) {
@@ -273,18 +272,19 @@ static bool unifiable_atoms(const Atom& a1, const Atom& a2) {
     size_t n = a1.arity();
     for (size_t i = 0; i < n; i++) {
       Term t1 = a1.term(i);
-      if (is_object(t1)) {
+      if (t1.object()) {
 	if (t1 != a2.term(i)) {
 	  return false;
 	}
       } else {
-	SubstitutionMap::const_iterator b = bind.find(t1);
+	const Variable& v1 = t1.as_variable();
+	SubstitutionMap::const_iterator b = bind.find(v1);
 	if (b != bind.end()) {
-	  if ((*b).second != Object(a2.term(i))) {
+	  if ((*b).second != a2.term(i)) {
 	    return false;
 	  }
 	} else {
-	  bind.insert(std::make_pair(t1, a2.term(i)));
+	  bind.insert(std::make_pair(v1, a2.term(i).as_object()));
 	}
       }
     }
@@ -301,13 +301,13 @@ Atom::AtomTable Atom::atoms;
 bool Atom::AtomLess::operator()(const Atom* a1, const Atom* a2) const {
   if (a1->predicate() < a2->predicate()) {
     return true;
-  } else if (a1->predicate() > a2->predicate()) {
+  } else if (a2->predicate() < a1->predicate()) {
     return false;
   } else {
     for (size_t i = 0; i < a1->arity(); i++) {
       if (a1->term(i) < a2->term(i)) {
 	return true;
-      } else if (a1->term(i) > a2->term(i)) {
+      } else if (a2->term(i) < a1->term(i)) {
 	return false;
       }
     }
@@ -317,12 +317,12 @@ bool Atom::AtomLess::operator()(const Atom* a1, const Atom* a2) const {
 
 
 /* Returns an atomic state formula with the given predicate and terms. */
-const Atom& Atom::make(Predicate predicate, const TermList& terms) {
+const Atom& Atom::make(const Predicate& predicate, const TermList& terms) {
   Atom* atom = new Atom(predicate);
   bool ground = true;
   for (TermList::const_iterator ti = terms.begin(); ti != terms.end(); ti++) {
     atom->add_term(*ti);
-    if (ground && is_variable(*ti)) {
+    if (ground && (*ti).variable()) {
       ground = false;
     }
   }
@@ -361,7 +361,7 @@ const Atom& Atom::substitution(const SubstitutionMap& subst) const {
     for (TermList::const_iterator ti = terms_.begin();
 	 ti != terms_.end(); ti++) {
       SubstitutionMap::const_iterator si =
-	is_variable(*ti) ? subst.find(*ti) : subst.end();
+	(*ti).variable() ? subst.find((*ti).as_variable()) : subst.end();
       if (si != subst.end()) {
 	inst_terms.push_back((*si).second);
 	substituted = true;
@@ -390,7 +390,7 @@ const Formula& Atom::instantiation(const SubstitutionMap& subst,
     for (TermList::const_iterator ti = terms_.begin();
 	 ti != terms_.end(); ti++) {
       SubstitutionMap::const_iterator si =
-	is_variable(*ti) ? subst.find(*ti) : subst.end();
+	(*ti).variable() ? subst.find((*ti).as_variable()) : subst.end();
       if (si != subst.end()) {
 	inst_terms.push_back((*si).second);
 	substituted = true;
@@ -400,7 +400,7 @@ const Formula& Atom::instantiation(const SubstitutionMap& subst,
     }
     inst_atom = substituted ? &make(predicate(), inst_terms) : this;
   }
-  if (problem.domain().predicates().static_predicate(predicate())) {
+  if (PredicateTable::static_predicate(predicate())) {
     if (inst_atom->id() > 0) {
       if (problem.init_atoms().find(inst_atom) != problem.init_atoms().end()) {
 	register_use(inst_atom);
@@ -436,15 +436,13 @@ const Formula& Atom::universal_base(const SubstitutionMap& subst,
 
 
 /* Prints this formula on the given stream with the given bindings. */
-void Atom::print(std::ostream& os, const PredicateTable& predicates,
-		 const TermTable& terms, size_t step_id,
-		 const Bindings& bindings) const {
-  os << '(';
-  predicates.print_predicate(os, predicate());
+void Atom::print(std::ostream& os,
+		 size_t step_id, const Bindings& bindings) const {
+  os << '(' << predicate();
   for (TermList::const_iterator ti = terms_.begin();
        ti != terms_.end(); ti++) {
     os << ' ';
-    terms.print_term(os, *ti, step_id, bindings);
+    bindings.print_term(os, *ti, step_id);
   }
   os << ')';
 }
@@ -543,11 +541,10 @@ const Formula& Negation::universal_base(const SubstitutionMap& subst,
 
 
 /* Prints this formula on the given stream with the given bindings. */
-void Negation::print(std::ostream& os, const PredicateTable& predicates,
-		     const TermTable& terms, size_t step_id,
-		     const Bindings& bindings) const {
+void Negation::print(std::ostream& os,
+		     size_t step_id, const Bindings& bindings) const {
   os << "(not ";
-  atom().print(os, predicates, terms, step_id, bindings);
+  atom().print(os, step_id, bindings);
   os << ")";
 }
 
@@ -561,15 +558,9 @@ const Literal& Negation::negation() const {
 /* ====================================================================== */
 /* BindingLiteral */
 
-/* Constructs a binding literal. */
-BindingLiteral::BindingLiteral(Term term1, size_t id1,
-			       Term term2, size_t id2)
-  : term1_(term1), id1_(id1), term2_(term2), id2_(id2) {}
-
-
-/* Returns a formula that separates the given literal from anything
+/* Returns a formula that separates the given effect from anything
    definitely asserted by this formula. */
-const Formula& BindingLiteral::separator(const Literal& literal,
+const Formula& BindingLiteral::separator(const Effect& effect,
 					 const Domain& domain) const {
   return TRUE;
 }
@@ -579,54 +570,50 @@ const Formula& BindingLiteral::separator(const Literal& literal,
 /* Equality */
 
 /* Returns an equality of the two terms. */
-const Formula& Equality::make(Term term1, Term term2) {
-  if (term1 == term2) {
-    return TRUE;
-  } else if (is_object(term1) && is_object(term2) && term1 != term2) {
-    return FALSE;
-  } else {
-    return *new Equality(term1, 0, term2, 0);
-  }
+const Formula& Equality::make(const Term& term1, const Term& term2) {
+  return make(term1, 0, term2, 0);
 }
 
 
 /* Returns an equality of the two terms. */
-const Formula& Equality::make(Term term1, size_t id1, Term term2, size_t id2) {
+const Formula& Equality::make(const Term& term1, size_t id1,
+			      const Term &term2, size_t id2) {
   if (term1 == term2 && id1 == id2) {
     return TRUE;
-  } else if (is_object(term1) && is_object(term2)) {
-    return (term1 == term2) ? TRUE : FALSE;
+  } else if (term1.variable()) {
+    const Type& t1 = TermTable::type(term1);
+    const Type& t2 = TermTable::type(term2);
+    if ((term2.variable() && TypeTable::compatible(t1, t2))
+	|| (term2.object() && TypeTable::subtype(t2, t1))) {
+      return *new Equality(term1.as_variable(), id1, term2, id2);
+    } else {
+      /* The terms have incompatible types. */
+      return FALSE;
+    }
+  } else if (term2.variable()) {
+    if (TypeTable::subtype(TermTable::type(term1), TermTable::type(term2))) {
+      return *new Equality(term2.as_variable(), id1, term1, id2);
+    } else {
+      /* The terms have incompatible types. */
+      return FALSE;
+    }
   } else {
-    return *new Equality(term1, id1, term2, id2);
+    /* The two terms are different objects. */
+    return FALSE;
   }
 }
 
 
-/* Constructs an equality with assigned step ids. */
-Equality::Equality(Term term1, size_t id1, Term term2, size_t id2)
-  : BindingLiteral(term1, id1, term2, id2) {}
-
-
 /* Returns this formula subject to the given substitutions. */
 const Formula& Equality::substitution(const SubstitutionMap& subst) const {
-  Term t1 = term1();
-  Term t2 = term2();
-  if (is_variable(t1)) {
-    const SubstitutionMap::const_iterator si = subst.find(t1);
-    if (si != subst.end()) {
-      t1 = (*si).second;
-    }
-  }
-  if (is_variable(t2)) {
-    const SubstitutionMap::const_iterator si = subst.find(t2);
-    if (si != subst.end()) {
-      t2 = (*si).second;
-    }
-  }
-  if (t1 == term1() && t2 == term2()) {
+  SubstitutionMap::const_iterator si = subst.find(variable());
+  const Term& term1 = (si != subst.end()) ? (*si).second : Term(variable());
+  si = term().variable() ? subst.find(term().as_variable()) : subst.end();
+  const Term& term2 = (si != subst.end()) ? (*si).second : term();
+  if (term1 == variable() && term2 == term()) {
     return *this;
   } else {
-    return make(t1, step_id1(0), t2, step_id2(0));
+    return make(term1, step_id1(0), term2, step_id2(0));
   }
 }
 
@@ -646,20 +633,19 @@ const Formula& Equality::universal_base(const SubstitutionMap& subst,
 
 
 /* Prints this formula on the given stream with the given bindings. */
-void Equality::print(std::ostream& os, const PredicateTable& predicates,
-		     const TermTable& terms, size_t step_id,
-		     const Bindings& bindings) const {
+void Equality::print(std::ostream& os,
+		     size_t step_id, const Bindings& bindings) const {
   os << "(= ";
-  terms.print_term(os, term1(), step_id, bindings);
+  bindings.print_term(os, variable(), step_id);
   os << ' ';
-  terms.print_term(os, term2(), step_id, bindings);
+  bindings.print_term(os, term(), step_id);
   os << ")";
 }
 
 
 /* Returns the negation of this formula. */
 const Formula& Equality::negation() const {
-  return Inequality::make(term1(), step_id1(0), term2(), step_id2(0));
+  return Inequality::make(variable(), step_id1(0), term(), step_id2(0));
 }
 
 
@@ -667,55 +653,50 @@ const Formula& Equality::negation() const {
 /* Inequality */
 
 /* Returns an equality of the two terms. */
-const Formula& Inequality::make(Term term1, Term term2) {
-  if (term1 == term2) {
-    return FALSE;
-  } else if (is_object(term1) && is_object(term2) && term1 != term2) {
-    return TRUE;
-  } else {
-    return *new Inequality(term1, 0, term2, 0);
-  }
+const Formula& Inequality::make(const Term& term1, const Term& term2) {
+  return make(term1, 0, term2, 0);
 }
 
 
 /* Returns an equality of the two terms. */
-const Formula& Inequality::make(Term term1, size_t id1,
-				Term term2, size_t id2) {
+const Formula& Inequality::make(const Term& term1, size_t id1,
+				const Term& term2, size_t id2) {
   if (term1 == term2 && id1 == id2) {
     return FALSE;
-  } else if (is_object(term1) && is_object(term2)) {
-    return (term1 != term2) ? TRUE : FALSE;
+  } else if (term1.variable()) {
+    const Type& t1 = TermTable::type(term1);
+    const Type& t2 = TermTable::type(term2);
+    if ((term2.variable() && TypeTable::compatible(t1, t2))
+	|| (term2.object() && TypeTable::subtype(t2, t1))) {
+      return *new Inequality(term1.as_variable(), id1, term2, id2);
+    } else {
+      /* The terms have incompatible types. */
+      return TRUE;
+    }
+  } else if (term2.variable()) {
+    if (TypeTable::subtype(TermTable::type(term1), TermTable::type(term2))) {
+      return *new Inequality(term2.as_variable(), id1, term1, id2);
+    } else {
+      /* The terms have incompatible types. */
+      return TRUE;
+    }
   } else {
-    return *new Inequality(term1, id1, term2, id2);
+    /* The two terms are different objects. */
+    return TRUE;
   }
 }
 
 
-/* Constructs an inequality with assigned step ids. */
-Inequality::Inequality(Term term1, size_t id1, Term term2, size_t id2)
-  : BindingLiteral(term1, id1, term2, id2) {}
-
-
 /* Returns this formula subject to the given substitutions. */
 const Formula& Inequality::substitution(const SubstitutionMap& subst) const {
-  Term t1 = term1();
-  Term t2 = term2();
-  if (is_variable(t1)) {
-    const SubstitutionMap::const_iterator si = subst.find(t1);
-    if (si != subst.end()) {
-      t1 = (*si).second;
-    }
-  }
-  if (is_variable(t2)) {
-    const SubstitutionMap::const_iterator si = subst.find(t2);
-    if (si != subst.end()) {
-      t2 = (*si).second;
-    }
-  }
-  if (t1 == term1() && t2 == term2()) {
+  SubstitutionMap::const_iterator si = subst.find(variable());
+  const Term& term1 = (si != subst.end()) ? (*si).second : Term(variable());
+  si = term().variable() ? subst.find(term().as_variable()) : subst.end();
+  const Term& term2 = (si != subst.end()) ? (*si).second : term();
+  if (term1 == variable() && term2 == term()) {
     return *this;
   } else {
-    return make(t1, step_id1(0), t2, step_id2(0));
+    return make(term1, step_id1(0), term2, step_id2(0));
   }
 }
 
@@ -735,20 +716,19 @@ const Formula& Inequality::universal_base(const SubstitutionMap& subst,
 
 
 /* Prints this formula on the given stream with the given bindings. */
-void Inequality::print(std::ostream& os, const PredicateTable& predicates,
-		       const TermTable& terms, size_t step_id,
-		       const Bindings& bindings) const {
+void Inequality::print(std::ostream& os,
+		       size_t step_id, const Bindings& bindings) const {
   os << "(not (= ";
-  terms.print_term(os, term1(), step_id, bindings);
+  bindings.print_term(os, variable(), step_id);
   os << ' ';
-  terms.print_term(os, term2(), step_id, bindings);
+  bindings.print_term(os, term(), step_id);
   os << "))";
 }
 
 
 /* Returns the negation of this formula. */
 const Formula& Inequality::negation() const {
-  return Equality::make(term1(), step_id1(0), term2(), step_id2(0));
+  return Equality::make(variable(), step_id1(0), term(), step_id2(0));
 }
 
 
@@ -775,15 +755,15 @@ void Conjunction::add_conjunct(const Formula& conjunct) {
 }
 
 
-/* Returns a formula that separates the given literal from anything
+/* Returns a formula that separates the given effect from anything
    definitely asserted by this formula. */
-const Formula& Conjunction::separator(const Literal& literal,
+const Formula& Conjunction::separator(const Effect& effect,
 				      const Domain& domain) const {
   Conjunction* conj = NULL;
   const Formula* first_c = &TRUE;
   for (FormulaList::const_iterator fi = conjuncts().begin();
        fi != conjuncts().end(); fi++) {
-    const Formula& c = (*fi)->separator(literal, domain);
+    const Formula& c = (*fi)->separator(effect, domain);
     if (c.contradiction()) {
       if (conj == NULL) {
 	register_use(first_c);
@@ -963,14 +943,13 @@ const Formula& Conjunction::universal_base(const SubstitutionMap& subst,
 
 
 /* Prints this formula on the given stream with the given bindings. */
-void Conjunction::print(std::ostream& os, const PredicateTable& predicates,
-			const TermTable& terms, size_t step_id,
-			const Bindings& bindings) const {
+void Conjunction::print(std::ostream& os,
+			size_t step_id, const Bindings& bindings) const {
   os << "(and";
   for (FormulaList::const_iterator fi = conjuncts().begin();
        fi != conjuncts().end(); fi++) {
     os << ' ';
-    (*fi)->print(os, predicates, terms, step_id, bindings);
+    (*fi)->print(os, step_id, bindings);
   }
   os << ")";
 }
@@ -1035,16 +1014,16 @@ void Disjunction::add_disjunct(const Formula& disjunct) {
 }
 
 
-/* Returns a formula that separates the given literal from anything
+/* Returns a formula that separates the given effect from anything
    definitely asserted by this formula. */
-const Formula& Disjunction::separator(const Literal& literal,
+const Formula& Disjunction::separator(const Effect& effect,
 				      const Domain& domain) const {
   Conjunction* conj = NULL;
   const Formula* first_c = &TRUE;
   for (FormulaList::const_iterator fi = disjuncts().begin();
        fi != disjuncts().end(); fi++) {
     const Formula& d = **fi;
-    const Formula& c = !d && d.separator(literal, domain);
+    const Formula& c = !d && d.separator(effect, domain);
     if (c.contradiction()) {
       if (conj == NULL) {
 	register_use(first_c);
@@ -1224,14 +1203,13 @@ const Formula& Disjunction::universal_base(const SubstitutionMap& subst,
 
 
 /* Prints this formula on the given stream with the given bindings. */
-void Disjunction::print(std::ostream& os, const PredicateTable& predicates,
-			const TermTable& terms, size_t step_id,
-			const Bindings& bindings) const {
+void Disjunction::print(std::ostream& os,
+			size_t step_id, const Bindings& bindings) const {
   os << "(or";
   for (FormulaList::const_iterator fi = disjuncts().begin();
        fi != disjuncts().end(); fi++) {
     os << ' ';
-    (*fi)->print(os, predicates, terms, step_id, bindings);
+    (*fi)->print(os, step_id, bindings);
   }
   os << ")";
 }
@@ -1305,9 +1283,9 @@ void Quantification::set_body(const Formula& body) {
 }
 
 
-/* Returns a formula that separates the given literal from anything
+/* Returns a formula that separates the given effect from anything
    definitely asserted by this formula. */
-const Formula& Quantification::separator(const Literal& literal,
+const Formula& Quantification::separator(const Effect& effect,
 					 const Domain& domain) const {
   /* We are being conservative here.  It can be hard to find a
      separator in this case. */
@@ -1353,8 +1331,8 @@ const Formula& Exists::instantiation(const SubstitutionMap& subst,
     std::vector<const ObjectList*> arguments(n);
     std::vector<ObjectList::const_iterator> next_arg;
     for (int i = 0; i < n; i++) {
-      Type t = problem.terms().type(parameters()[i]);
-      arguments[i] = &problem.compatible_objects(t);
+      const Type& t = TermTable::type(parameters()[i]);
+      arguments[i] = &problem.terms().compatible_objects(t);
       if (arguments[i]->empty()) {
 	return FALSE;
       }
@@ -1427,19 +1405,18 @@ const Formula& Exists::universal_base(const SubstitutionMap& subst,
 
 
 /* Prints this formula on the given stream with the given bindings. */
-void Exists::print(std::ostream& os, const PredicateTable& predicates,
-		   const TermTable& terms, size_t step_id,
-		   const Bindings& bindings) const {
+void Exists::print(std::ostream& os, 
+		   size_t step_id, const Bindings& bindings) const {
   os << "(exists (";
   for (VariableList::const_iterator vi = parameters().begin();
        vi != parameters().end(); vi++) {
     if (vi != parameters().begin()) {
       os << ' ';
     }
-    terms.print_term(os, *vi, step_id, bindings);
+    bindings.print_term(os, *vi, step_id);
   }
   os << ") ";
-  body().print(os, predicates, terms, step_id, bindings);
+  body().print(os, step_id, bindings);
   os << ")";
 }
 
@@ -1494,8 +1471,8 @@ const Formula& Forall::instantiation(const SubstitutionMap& subst,
     std::vector<const ObjectList*> arguments(n);
     std::vector<ObjectList::const_iterator> next_arg;
     for (int i = 0; i < n; i++) {
-      Type t = problem.terms().type(parameters()[i]);
-      arguments[i] = &problem.compatible_objects(t);
+      const Type& t = TermTable::type(parameters()[i]);
+      arguments[i] = &problem.terms().compatible_objects(t);
       if (arguments[i]->empty()) {
 	return TRUE;
       }
@@ -1561,8 +1538,8 @@ const Formula& Forall::universal_base(const SubstitutionMap& subst,
     std::vector<const ObjectList*> arguments(n);
     std::vector<ObjectList::const_iterator> next_arg;
     for (int i = 0; i < n; i++) {
-      Type t = problem.terms().type(parameters()[i]);
-      arguments[i] = &problem.compatible_objects(t);
+      const Type& t = TermTable::type(parameters()[i]);
+      arguments[i] = &problem.terms().compatible_objects(t);
       if (arguments[i]->empty()) {
 	universal_base_ = &TRUE;
 	return TRUE;
@@ -1617,19 +1594,18 @@ const Formula& Forall::universal_base(const SubstitutionMap& subst,
 
 
 /* Prints this formula on the given stream with the given bindings. */
-void Forall::print(std::ostream& os, const PredicateTable& predicates,
-		   const TermTable& terms, size_t step_id,
-		   const Bindings& bindings) const {
+void Forall::print(std::ostream& os, 
+		   size_t step_id, const Bindings& bindings) const {
   os << "(forall (";
   for (VariableList::const_iterator vi = parameters().begin();
        vi != parameters().end(); vi++) {
     if (vi != parameters().begin()) {
       os << ' ';
     }
-    terms.print_term(os, *vi, step_id, bindings);
+    bindings.print_term(os, *vi, step_id);
   }
   os << ") ";
-  body().print(os, predicates, terms, step_id, bindings);
+  body().print(os, step_id, bindings);
   os << ")";
 }
 
@@ -1646,6 +1622,110 @@ const Quantification& Forall::negation() const {
 }
 
 
+/* ====================================================================== */
+/* TimedLiteral */
+
+/* Returns a literal with the given time stamp. */
+const Formula& TimedLiteral::make(const Literal& literal, FormulaTime when) {
+  if (when == AT_START) {
+    return literal;
+  } else {
+    return *new TimedLiteral(literal, when);
+  }
+}
+
+
+/* Constructs a timed literal. */
+TimedLiteral::TimedLiteral(const Literal& literal, FormulaTime when)
+  : literal_(&literal), when_(when) {
+  register_use(literal_);
+}
+
+
+/* Deletes this timed literal. */
+TimedLiteral::~TimedLiteral() {
+  unregister_use(literal_);
+}
+
+
+/* Returns a formula that separates the given effect from anything
+   definitely asserted by this formula. */
+const Formula& TimedLiteral::separator(const Effect& effect,
+				       const Domain& domain) const {
+  if ((when() == AT_END && effect.when() == Effect::AT_END)
+      || (when() != AT_END && effect.when() != Effect::AT_END)) {
+    return literal().separator(effect, domain);
+  } else {
+    return TRUE;
+  }
+}
+
+
+/* Returns this formula subject to the given substitutions. */
+const TimedLiteral&
+TimedLiteral::substitution(const SubstitutionMap& subst) const {
+  const Literal& subst_literal = literal().substitution(subst);
+  if (&subst_literal != &literal()) {
+    return *new TimedLiteral(subst_literal, when());
+  } else {
+    return *this;
+  }
+}
+
+
+/* Returns an instantiation of this formula. */
+const Formula& TimedLiteral::instantiation(const SubstitutionMap& subst,
+					   const Problem& problem) const {
+  const Formula& inst_literal = literal().instantiation(subst, problem);
+  if (&inst_literal != &literal()) {
+    const Literal* l = dynamic_cast<const Literal*>(&inst_literal);
+    if (l != NULL) {
+      return *new TimedLiteral(*l, when());
+    } else {
+      return inst_literal;
+    }
+  } else {
+    return *this;
+  }
+}
+
+
+/* Returns the universal base of this formula. */
+const Formula& TimedLiteral::universal_base(const SubstitutionMap& subst,
+					    const Problem& problem) const {
+  return instantiation(subst, problem);
+}
+
+
+/* Prints this formula on the given stream with the given bindings. */
+void TimedLiteral::print(std::ostream& os,
+			 size_t step_id, const Bindings& bindings) const {
+  os << '(';
+  switch (when()) {
+  case AT_START:
+  default:
+    os << "at start ";
+    break;
+  case OVER_ALL:
+    os << "over all ";
+    break;
+  case AT_END:
+    os << "at end ";
+    break;
+  }
+  literal().print(os, step_id, bindings);
+  os << ')';
+}
+
+
+/* Returns the negation of this formula. */
+const TimedLiteral& TimedLiteral::negation() const {
+  const Literal& neg_literal = dynamic_cast<const Literal&>(!literal());
+  return *new TimedLiteral(neg_literal, when());
+}
+
+
+#if 0
 /* ====================================================================== */
 /* Condition */
 
@@ -1768,9 +1848,8 @@ const Condition& Condition::instantiation(const SubstitutionMap& subst,
 
 
 /* Prints this condition on the given stream with the given bindings. */
-void Condition::print(std::ostream& os, const PredicateTable& predicates,
-		      const TermTable& terms, size_t step_id,
-		      const Bindings& bindings) const {
+void Condition::print(std::ostream& os,
+		      size_t step_id, const Bindings& bindings) const {
   if (tautology()) {
     os << "(and)";
   } else if (contradiction()) {
@@ -1794,7 +1873,7 @@ void Condition::print(std::ostream& os, const PredicateTable& predicates,
 	os << ' ';
       }
       os << "(at start ";
-      at_start().print(os, predicates, terms, step_id, bindings);
+      at_start().print(os, step_id, bindings);
       os << ")";
     }
     if (!over_all().tautology()) {
@@ -1802,7 +1881,7 @@ void Condition::print(std::ostream& os, const PredicateTable& predicates,
 	os << ' ';
       }
       os << "(over all ";
-      over_all().print(os, predicates, terms, step_id, bindings);
+      over_all().print(os, step_id, bindings);
       os << ")";
     }
     if (!at_end().tautology()) {
@@ -1810,7 +1889,7 @@ void Condition::print(std::ostream& os, const PredicateTable& predicates,
 	os << ' ';
       }
       os << "(at end ";
-      at_end().print(os, predicates, terms, step_id, bindings);
+      at_end().print(os, step_id, bindings);
       os << ")";
     }
     if (n > 1) {
@@ -1874,3 +1953,4 @@ const Condition& operator||(const Condition& c1, const Condition& c2) {
     return cond;
   }
 }
+#endif

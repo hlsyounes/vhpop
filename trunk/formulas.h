@@ -2,7 +2,7 @@
 /*
  * Formulas.
  *
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2002-2004 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -35,6 +35,7 @@
 #undef FALSE
 #endif
 
+struct Effect;
 struct Problem;
 struct Domain;
 struct Bindings;
@@ -82,9 +83,9 @@ struct Formula {
   /* Tests if this formula is a contradiction. */
   bool contradiction() const { return this == &FALSE; }
 
-  /* Returns a formula that separates the given literal from anything
+  /* Returns a formula that separates the given effect from anything
      definitely asserted by this formula. */
-  virtual const Formula& separator(const Literal& literal,
+  virtual const Formula& separator(const Effect& effect,
 				   const Domain& domain) const = 0;
 
   /* Returns this formula subject to the given substitutions. */
@@ -99,14 +100,13 @@ struct Formula {
 					const Problem& problem) const = 0;
 
   /* Returns the heuristic value of this formula. */
-  virtual void heuristic_value(HeuristicValue& h,
+  virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
 			       const PlanningGraph& pg, size_t step_id,
 			       const Bindings* b = NULL) const = 0;
 
   /* Prints this formula on the given stream with the given bindings. */
-  virtual void print(std::ostream& os, const PredicateTable& predicates,
-		     const TermTable& terms, size_t step_id,
-		     const Bindings& bindings) const = 0;
+  virtual void print(std::ostream& os,
+		     size_t step_id, const Bindings& bindings) const = 0;
 
 protected:
   /* Constructs a formula. */
@@ -149,9 +149,9 @@ struct FormulaList : public std::vector<const Formula*> {
  * A formula with a constant truth value.
  */
 struct Constant : public Formula {
-  /* Returns a formula that separates the given literal from anything
+  /* Returns a formula that separates the given effect from anything
      definitely asserted by this formula. */
-  virtual const Formula& separator(const Literal& literal,
+  virtual const Formula& separator(const Effect& effect,
 				   const Domain& domain) const;
 
   /* Returns this formula subject to the given substitutions. */
@@ -166,14 +166,13 @@ struct Constant : public Formula {
 					const Problem& problem) const;
 
   /* Returns the heuristic value of this formula. */
-  virtual void heuristic_value(HeuristicValue& h,
+  virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
 			       const PlanningGraph& pg, size_t step_id,
 			       const Bindings* b) const;
 
   /* Prints this formula on the given stream with the given bindings. */
-  virtual void print(std::ostream& os, const PredicateTable& predicates,
-		     const TermTable& terms, size_t step_id,
-		     const Bindings& bindings) const;
+  virtual void print(std::ostream& os,
+		     size_t step_id, const Bindings& bindings) const;
 
 protected:
   /* Returns a negation of this formula. */
@@ -198,6 +197,8 @@ private:
 /* ====================================================================== */
 /* Literal */
 
+struct Atom;
+
 /*
  * An abstract literal.
  */
@@ -206,17 +207,20 @@ struct Literal : public Formula {
   size_t id() const { return id_; }
 
   /* Returns the predicate of this literal. */
-  virtual Predicate predicate() const = 0;
+  virtual const Predicate& predicate() const = 0;
 
   /* Returns the number of terms of this literal. */
   virtual size_t arity() const = 0;
 
   /* Returns the ith term of this literal. */
-  virtual Term term(size_t i) const = 0;
+  virtual const Term& term(size_t i) const = 0;
 
-  /* Returns a formula that separates the given literal from anything
+  /* Returns the atom associated with this literal. */
+  virtual const Atom& atom() const = 0;
+
+  /* Returns a formula that separates the given effect from anything
      definitely asserted by this formula. */
-  virtual const Formula& separator(const Literal& literal,
+  virtual const Formula& separator(const Effect& effect,
 				   const Domain& domain) const;
 
   /* Returns this formula subject to the given substitutions. */
@@ -238,6 +242,7 @@ private:
  * Less than function object for literal pointers.
  */
 namespace std {
+  template<>
   struct less<const Literal*>
     : public binary_function<const Literal*, const Literal*, bool> {
     /* Comparison function operator. */
@@ -256,19 +261,22 @@ namespace std {
  */
 struct Atom : public Literal {
   /* Returns an atomic formula with the given predicate and terms. */
-  static const Atom& make(Predicate predicate, const TermList& terms);
+  static const Atom& make(const Predicate& predicate, const TermList& terms);
 
   /* Deletes this atomic formula. */
   virtual ~Atom();
 
   /* Returns the predicate of this literal. */
-  virtual Predicate predicate() const { return predicate_; }
+  virtual const Predicate& predicate() const { return predicate_; }
 
   /* Returns the number of terms of this literal. */
   virtual size_t arity() const { return terms_.size(); }
 
   /* Returns the ith term of this literal. */
-  virtual Term term(size_t i) const { return terms_[i]; }
+  virtual const Term& term(size_t i) const { return terms_[i]; }
+
+  /* Returns the atom associated with this literal. */
+  virtual const Atom& atom() const { return *this; }
 
   /* Returns this formula subject to the given substitutions. */
   virtual const Atom& substitution(const SubstitutionMap& subst) const;
@@ -282,14 +290,13 @@ struct Atom : public Literal {
 					const Problem& problem) const;
 
   /* Returns the heuristic value of this formula. */
-  virtual void heuristic_value(HeuristicValue& h,
+  virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
 			       const PlanningGraph& pg, size_t step_id,
 			       const Bindings* b) const;
 
   /* Prints this formula on the given stream with the given bindings. */
-  virtual void print(std::ostream& os, const PredicateTable& predicates,
-		     const TermTable& terms, size_t step_id,
-		     const Bindings& bindings) const;
+  virtual void print(std::ostream& os,
+		     size_t step_id, const Bindings& bindings) const;
 
 protected:
   /* Returns the negation of this formula. */
@@ -316,16 +323,17 @@ private:
   TermList terms_;
 
   /* Constructs an atomic formula with the given predicate. */
-  explicit Atom(Predicate predicate) : predicate_(predicate) {}
+  explicit Atom(const Predicate& predicate) : predicate_(predicate) {}
 
   /* Adds a term to this atomic formula. */
-  void add_term(Term term) { terms_.push_back(term); }
+  void add_term(const Term& term) { terms_.push_back(term); }
 };
 
 /*
  * Less than function object for atom pointers.
  */
 namespace std {
+  template<>
   struct less<const Atom*> : public less<const Literal*> {
   };
 }
@@ -344,17 +352,17 @@ struct Negation : public Literal {
   /* Deletes this negated atom. */
   virtual ~Negation();
 
-  /* Returns the negated atom. */
-  const Atom& atom() const { return *atom_; }
-
   /* Returns the predicate of this literal. */
-  virtual Predicate predicate() const { return atom().predicate(); }
+  virtual const Predicate& predicate() const { return atom().predicate(); }
 
   /* Returns the number of terms of this literal. */
   virtual size_t arity() const { return atom().arity(); }
 
   /* Returns the ith term of this literal. */
-  virtual Term term(size_t i) const { return atom().term(i); }
+  virtual const Term& term(size_t i) const { return atom().term(i); }
+
+  /* Returns the atom associated with this literal. */
+  virtual const Atom& atom() const { return *atom_; }
 
   /* Returns this formula subject to the given substitutions. */
   virtual const Negation& substitution(const SubstitutionMap& subst) const;
@@ -368,14 +376,13 @@ struct Negation : public Literal {
 					const Problem& problem) const;
 
   /* Returns the heuristic value of this formula. */
-  virtual void heuristic_value(HeuristicValue& h,
+  virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
 			       const PlanningGraph& pg, size_t step_id,
 			       const Bindings* b) const;
 
   /* Prints this formula on the given stream with the given bindings. */
-  virtual void print(std::ostream& os, const PredicateTable& predicates,
-		     const TermTable& terms, size_t step_id,
-		     const Bindings& bindings) const;
+  virtual void print(std::ostream& os,
+		     size_t step_id, const Bindings& bindings) const;
 
 protected:
   /* Returns the negation of this formula. */
@@ -407,6 +414,7 @@ private:
  * Less than function object for negation pointers.
  */
 namespace std {
+  template<>
   struct less<const Negation*> : public less<const Literal*> {
   };
 }
@@ -419,37 +427,39 @@ namespace std {
  * A binding literal.
  */
 struct BindingLiteral : public Formula {
-  /* Returns the first term of this binding literal. */
-  Term term1() const { return term1_; }
+  /* Returns the variable of this binding literal. */
+  const Variable& variable() const { return variable_; }
 
-  /* Returns the step id of the first term, or the given id if no step
+  /* Returns the step id of the variable, or the given id if no step
      id has been assigned. */
   size_t step_id1(size_t def_id) const { return (id1_ != 0) ? id1_ : def_id; }
 
-  /* Returns the second term of binding literal. */
-  Term term2() const { return term2_; }
+  /* Returns the term of this binding literal. */
+  const Term& term() const { return term_; }
 
-  /* Returns the step id of the second term, or the given id if no
-     step id has been assigned. */
+  /* Returns the step id of the term, or the given id if no step id
+     has been assigned. */
   size_t step_id2(size_t def_id) const { return (id2_ != 0) ? id2_ : def_id; }
 
-  /* Returns a formula that separates the given literal from anything
+  /* Returns a formula that separates the given effect from anything
      definitely asserted by this formula. */
-  virtual const Formula& separator(const Literal& literal,
+  virtual const Formula& separator(const Effect& effect,
 				   const Domain& domain) const;
 
 protected:
   /* Constructs a binding literal. */
-  BindingLiteral(Term term1, size_t id1, Term term2, size_t id2);
+  BindingLiteral(const Variable& variable, size_t id1,
+		 const Term& term, size_t id2)
+    : variable_(variable), id1_(id1), term_(term), id2_(id2) {}
 
 private:
-  /* First term of binding literal. */
-  Term term1_;
-  /* Step id of first term, or zero if unassigned. */
+  /* Variable of binding literal. */
+  Variable variable_;
+  /* Step id of variable, or zero if unassigned. */
   size_t id1_;
-  /* Second term of binding literal. */
-  Term term2_;
-  /* Step id of second term, or zero if unassigned. */
+  /* Term of binding literal. */
+  Term term_;
+  /* Step id of term, or zero if unassigned. */
   size_t id2_;
 };
 
@@ -462,10 +472,11 @@ private:
  */
 struct Equality : public BindingLiteral {
   /* Returns an equality of the two terms. */
-  static const Formula& make(Term term1, Term term2);
+  static const Formula& make(const Term& term1, const Term& term2);
 
   /* Returns an equality of the two terms. */
-  static const Formula& make(Term term1, size_t id1, Term term2, size_t id2);
+  static const Formula& make(const Term& term1, size_t id1,
+			     const Term& term2, size_t id2);
 
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionMap& subst) const;
@@ -479,14 +490,13 @@ struct Equality : public BindingLiteral {
 					const Problem& problem) const;
 
   /* Returns the heuristic value of this formula. */
-  virtual void heuristic_value(HeuristicValue& h,
+  virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
 			       const PlanningGraph& pg, size_t step_id,
 			       const Bindings* b) const;
 
   /* Prints this formula on the given stream with the given bindings. */
-  virtual void print(std::ostream& os, const PredicateTable& predicates,
-		     const TermTable& terms, size_t step_id,
-		     const Bindings& bindings) const;
+  virtual void print(std::ostream& os,
+		     size_t step_id, const Bindings& bindings) const;
 
 protected:
   /* Returns the negation of this formula. */
@@ -494,7 +504,8 @@ protected:
 
 private:
   /* Constructs an equality with assigned step ids. */
-  Equality(Term term1, size_t id1, Term term2, size_t id2);
+  Equality(const Variable& variable, size_t id1, const Term& term, size_t id2)
+    : BindingLiteral(variable, id1, term, id2) {}
 };
 
 
@@ -506,13 +517,11 @@ private:
  */
 struct Inequality : public BindingLiteral {
   /* Returns an inequality of the two terms. */
-  static const Formula& make(Term term1, Term term2);
+  static const Formula& make(const Term& term1, const Term& term2);
 
   /* Returns an inequality of the two terms. */
-  static const Formula& make(Term term1, size_t id1, Term term2, size_t id2);
-
-  /* Constructs an inequality with assigned step ids. */
-  Inequality(Term term1, size_t id1, Term term2, size_t id2);
+  static const Formula& make(const Term& term1, size_t id1,
+			     const Term& term2, size_t id2);
 
   /* Returns this formula subject to the given substitutions. */
   virtual const Formula& substitution(const SubstitutionMap& subst) const;
@@ -526,18 +535,23 @@ struct Inequality : public BindingLiteral {
 					const Problem& problem) const;
 
   /* Returns the heuristic value of this formula. */
-  virtual void heuristic_value(HeuristicValue& h,
+  virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
 			       const PlanningGraph& pg, size_t step_id,
 			       const Bindings* b) const;
 
   /* Prints this formula on the given stream with the given bindings. */
-  virtual void print(std::ostream& os, const PredicateTable& predicates,
-		     const TermTable& terms, size_t step_id,
-		     const Bindings& bindings) const;
+  virtual void print(std::ostream& os,
+		     size_t step_id, const Bindings& bindings) const;
 
 protected:
   /* Returns the negation of this formula. */
   virtual const Formula& negation() const;
+
+private:
+  /* Constructs an inequality with assigned step ids. */
+  Inequality(const Variable& variable, size_t id1,
+	     const Term& term, size_t id2)
+    : BindingLiteral(variable, id1, term, id2) {}
 };
 
 
@@ -560,9 +574,9 @@ struct Conjunction : public Formula {
   /* Returns the conjuncts. */
   const FormulaList& conjuncts() const { return conjuncts_; }
 
-  /* Returns a formula that separates the given literal from anything
+  /* Returns a formula that separates the given effect from anything
      definitely asserted by this formula. */
-  virtual const Formula& separator(const Literal& literal,
+  virtual const Formula& separator(const Effect& effect,
 				   const Domain& domain) const;
 
   /* Returns this formula subject to the given substitutions. */
@@ -577,14 +591,13 @@ struct Conjunction : public Formula {
 					const Problem& problem) const;
 
   /* Returns the heuristic value of this formula. */
-  virtual void heuristic_value(HeuristicValue& h,
+  virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
 			       const PlanningGraph& pg, size_t step_id,
 			       const Bindings* b) const;
 
   /* Prints this formula on the given stream with the given bindings. */
-  virtual void print(std::ostream& os, const PredicateTable& predicates,
-		     const TermTable& terms, size_t step_id,
-		     const Bindings& bindings) const;
+  virtual void print(std::ostream& os,
+		     size_t step_id, const Bindings& bindings) const;
 
 protected:
   /* Returns the negation of this formula. */
@@ -615,9 +628,9 @@ struct Disjunction : public Formula {
   /* Returns the disjuncts. */
   const FormulaList& disjuncts() const { return disjuncts_; }
 
-  /* Returns a formula that separates the given literal from anything
+  /* Returns a formula that separates the given effect from anything
      definitely asserted by this formula. */
-  virtual const Formula& separator(const Literal& literal,
+  virtual const Formula& separator(const Effect& effect,
 				   const Domain& domain) const;
 
   /* Returns this formula subject to the given substitution. */
@@ -632,14 +645,13 @@ struct Disjunction : public Formula {
 					const Problem& problem) const;
 
   /* Returns the heuristic value of this formula. */
-  virtual void heuristic_value(HeuristicValue& h,
+  virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
 			       const PlanningGraph& pg, size_t step_id,
 			       const Bindings* b) const;
 
   /* Prints this formula on the given stream with the given bindings. */
-  virtual void print(std::ostream& os, const PredicateTable& predicates,
-		     const TermTable& terms, size_t step_id,
-		     const Bindings& bindings) const;
+  virtual void print(std::ostream& os,
+		     size_t step_id, const Bindings& bindings) const;
 
 protected:
   /* Returns the negation of this formula. */
@@ -673,9 +685,9 @@ struct Quantification : public Formula {
   /* Returns the quantified formula. */
   const Formula& body() const { return *body_; }
 
-  /* Returns a formula that separates the given literal from anything
+  /* Returns a formula that separates the given effect from anything
      definitely asserted by this formula. */
-  virtual const Formula& separator(const Literal& literal,
+  virtual const Formula& separator(const Effect& effect,
 				   const Domain& domain) const;
 
 protected:
@@ -712,14 +724,13 @@ struct Exists : public Quantification {
 					const Problem& problem) const;
 
   /* Returns the heuristic value of this formula. */
-  virtual void heuristic_value(HeuristicValue& h,
+  virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
 			       const PlanningGraph& pg, size_t step_id,
 			       const Bindings* b) const;
 
   /* Prints this formula on the given stream with the given bindings. */
-  virtual void print(std::ostream& os, const PredicateTable& predicates,
-		     const TermTable& terms, size_t step_id,
-		     const Bindings& bindings) const;
+  virtual void print(std::ostream& os,
+		     size_t step_id, const Bindings& bindings) const;
 
 protected:
   /* Returns the negation of this formula. */
@@ -749,14 +760,13 @@ struct Forall : public Quantification {
 					const Problem& problem) const;
 
   /* Returns the heuristic value of this formula. */
-  virtual void heuristic_value(HeuristicValue& h,
+  virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
 			       const PlanningGraph& pg, size_t step_id,
 			       const Bindings* b) const;
 
   /* Prints this formula on the given stream with the given bindings. */
-  virtual void print(std::ostream& os, const PredicateTable& predicates,
-		     const TermTable& terms, size_t step_id,
-		     const Bindings& bindings) const;
+  virtual void print(std::ostream& os,
+		     size_t step_id, const Bindings& bindings) const;
 
 protected:
   /* Returns the negation of this formula. */
@@ -777,6 +787,66 @@ private:
 typedef enum { AT_START, OVER_ALL, AT_END } FormulaTime;
 
 
+/* ====================================================================== */
+/* TimedLiteral */
+
+/*
+ * A literal with a time stamp.
+ */
+struct TimedLiteral : public Formula {
+  /* Returns a literal with the given time stamp. */
+  static const Formula& make(const Literal& literal, FormulaTime when);
+
+  /* Deletes this timed literal. */
+  ~TimedLiteral();
+
+  /* Returns the literal. */
+  const Literal& literal() const { return *literal_; }
+
+  /* Returns the time stamp. */
+  FormulaTime when() const { return when_; }
+
+  /* Returns a formula that separates the given effect from anything
+     definitely asserted by this formula. */
+  virtual const Formula& separator(const Effect& effect,
+				   const Domain& domain) const;
+
+  /* Returns this formula subject to the given substitutions. */
+  virtual const TimedLiteral& substitution(const SubstitutionMap& subst) const;
+
+  /* Returns an instantiation of this formula. */
+  virtual const Formula& instantiation(const SubstitutionMap& subst,
+				       const Problem& problem) const;
+
+  /* Returns the universal base of this formula. */
+  virtual const Formula& universal_base(const SubstitutionMap& subst,
+					const Problem& problem) const;
+
+  /* Returns the heuristic value of this formula. */
+  virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
+			       const PlanningGraph& pg, size_t step_id,
+			       const Bindings* b) const;
+
+  /* Prints this formula on the given stream with the given bindings. */
+  virtual void print(std::ostream& os,
+		     size_t step_id, const Bindings& bindings) const;
+
+protected:
+  /* Returns the negation of this formula. */
+  virtual const TimedLiteral& negation() const;
+
+private:
+  /* Literal. */
+  const Literal* literal_;
+  /* Time stamp. */
+  FormulaTime when_;
+
+  /* Constructs a timed literal. */
+  TimedLiteral(const Literal& literal, FormulaTime when);
+};
+
+
+#if 0
 /* ====================================================================== */
 /* Condition */
 
@@ -845,9 +915,8 @@ struct Condition {
 		       const Bindings* b = NULL) const;
 
   /* Prints this condition on the given stream with the given bindings. */
-  void print(std::ostream& os, const PredicateTable& predicates,
-	     const TermTable& terms, size_t step_id,
-	     const Bindings& bindings) const;
+  void print(std::ostream& os,
+	     size_t step_id, const Bindings& bindings) const;
 
 private:
   /* Start condition. */
@@ -875,7 +944,7 @@ const Condition& operator&&(const Condition& c1, const Condition& c2);
 
 /* Disjunction operator for conditions. */
 const Condition& operator||(const Condition& c1, const Condition& c2);
-
+#endif
 
 /* ====================================================================== */
 /* AtomSet */

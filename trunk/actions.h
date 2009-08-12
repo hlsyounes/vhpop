@@ -2,7 +2,7 @@
 /*
  * Actions.
  *
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2002-2004 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -24,9 +24,9 @@
 #include <config.h>
 #include "effects.h"
 
-struct FunctionTable;
 struct Expression;
 struct Domain;
+struct Bindings;
 
 
 /* ====================================================================== */
@@ -40,7 +40,7 @@ struct Action {
   virtual ~Action();
 
   /* Sets the condition for this action. */
-  void set_condition(const Condition& condition);
+  void set_condition(const Formula& condition);
 
   /* Adds an effect to this action. */
   void add_effect(const Effect& effect);
@@ -61,7 +61,7 @@ struct Action {
   const std::string& name() const { return name_; }
 
   /* Return the condition of this action. */
-  const Condition& condition() const { return *condition_; }
+  const Formula& condition() const { return *condition_; }
 
   /* List of action effects. */
   const EffectList& effects() const { return effects_; }
@@ -79,7 +79,7 @@ struct Action {
   void strengthen_effects(const Domain& domain);
 
   /* Prints this action on the given stream with the given bindings. */
-  virtual void print(std::ostream& os, const TermTable& terms,
+  virtual void print(std::ostream& os,
 		     size_t step_id, const Bindings& bindings) const = 0;
 
 protected:
@@ -95,7 +95,7 @@ private:
   /* Name of this action. */
   std::string name_;
   /* Action condition. */
-  const Condition* condition_;
+  const Formula* condition_;
   /* List of action effects. */
   EffectList effects_;
   /* Whether this is a durative action. */
@@ -110,6 +110,7 @@ private:
  * Less than function object for action pointers.
  */
 namespace std {
+  template<>
   struct less<const Action*>
     : public binary_function<const Action*, const Action*, bool> {
     /* Comparison function operator. */
@@ -154,11 +155,10 @@ struct ActionSchema : public Action {
   void instantiations(GroundActionList& actions, const Problem& problem) const;
 
   /* Prints this action on the given stream. */
-  void print(std::ostream& os, const PredicateTable& predicates,
-	     const FunctionTable& functions, const TermTable& terms) const;
+  void print(std::ostream& os) const;
 
   /* Prints this action on the given stream with the given bindings. */
-  virtual void print(std::ostream& os, const TermTable& terms,
+  virtual void print(std::ostream& os,
 		     size_t step_id, const Bindings& bindings) const;
 
 private:
@@ -168,13 +168,14 @@ private:
   /* Returns an instantiation of this action schema. */
   const GroundAction* instantiation(const SubstitutionMap& args,
 				    const Problem& problem,
-				    const Condition& condition) const;
+				    const Formula& condition) const;
 };
 
 /*
  * Less than function object for action schemas pointers.
  */
 namespace std {
+  template<>
   struct less<const ActionSchema*> : public less<const Action*> {
   };
 }
@@ -207,7 +208,7 @@ struct GroundAction : public Action {
   const ObjectList& arguments() const { return arguments_; }
 
   /* Prints this action on the given stream with the given bindings. */
-  virtual void print(std::ostream& os, const TermTable& terms,
+  virtual void print(std::ostream& os,
 		     size_t step_id, const Bindings& bindings) const;
 
 private:
@@ -219,6 +220,7 @@ private:
  * Less than function object for ground action pointers.
  */
 namespace std {
+  template<>
   struct less<const GroundAction*> : public less<const Action*> {
   };
 }

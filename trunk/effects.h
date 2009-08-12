@@ -2,7 +2,7 @@
 /*
  * Effects.
  *
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2002-2004 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -25,9 +25,8 @@
 #include "terms.h"
 #include <vector>
 
-struct PredicateTable;
+struct Formula;
 struct Literal;
-struct Condition;
 struct Problem;
 
 
@@ -53,10 +52,10 @@ struct Effect {
   void add_parameter(Variable parameter);
 
   /* Sets the condition of this effect. */
-  void set_condition(const Condition& condition);
+  void set_condition(const Formula& condition);
 
   /* Sets the link condition of this effect. */
-  void set_link_condition(const Condition& link_condition) const;
+  void set_link_condition(const Formula& link_condition) const;
 
   /* Returns the number of universally quantified variables of this effect. */
   size_t arity() const { return parameters_.size(); }
@@ -65,11 +64,11 @@ struct Effect {
   Variable parameter(size_t i) const { return parameters_[i]; }
 
   /* Returns the condition for this effect. */
-  const Condition& condition() const { return *condition_; }
+  const Formula& condition() const { return *condition_; }
 
   /* Returns the condition that must hold for this effect to be
      considered for linking. */
-  const Condition& link_condition() const { return *link_condition_; }
+  const Formula& link_condition() const { return *link_condition_; }
 
   /* Returns the literal added by this effect. */
   const Literal& literal() const { return *literal_; }
@@ -86,16 +85,15 @@ struct Effect {
 		      const Problem& problem) const;
 
   /* Prints this effect on the given stream. */
-  void print(std::ostream& os, const PredicateTable& predicates,
-	     const TermTable& terms) const;
+  void print(std::ostream& os) const;
 
 private:
   /* List of universally quantified variables for this effect. */
   VariableList parameters_;
   /* Condition for this effect, or TRUE if unconditional effect. */
-  const Condition* condition_;
+  const Formula* condition_;
   /* Condition that must hold for this effect to be considered for linking. */
-  mutable const Condition* link_condition_;
+  mutable const Formula* link_condition_;
   /* Litteral added by this effect. */
   const Literal* literal_;
   /* Temporal annotation for this effect. */
@@ -104,7 +102,7 @@ private:
   /* Returns an instantiation of this effect. */
   const Effect* instantiation(const SubstitutionMap& args,
 			      const Problem& problem,
-			      const Condition& condition) const;
+			      const Formula& condition) const;
 };
 
 

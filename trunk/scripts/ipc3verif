@@ -1,0 +1,67 @@
+#! /bin/sh
+
+pddldir=~/research/IPC3
+outdir=ipc3data
+validator=~/tmp/val/validate
+
+problems="\
+ Tests1/Depots/Strips/Depots.pddl Tests1/Depots/Strips\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22\
+ Tests1/DriverLog/Strips/driverlog.pddl Tests1/DriverLog/Strips\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20\
+ Tests1/ZenoTravel/Strips/zenotravelStrips.pddl Tests1/ZenoTravel/Strips\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20\
+ Tests2/Satellite/Strips/adlSat.pddl Tests2/Satellite/Strips\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20\
+ Tests2/Rovers/Strips/StripsRover.pddl Tests2/Rovers/Strips\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20\
+ Tests3/FreeCell/Strips/free.pddl Tests3/FreeCell/Strips\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20\
+ Tests1/Depots/SimpleTime/DepotsSimpleTime.pddl Tests1/Depots/SimpleTime\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22\
+ Tests1/DriverLog/SimpleTime/driverlogSimpleTime.pddl Tests1/DriverLog/SimpleTime\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20\
+ Tests1/ZenoTravel/SimpleTime/zenoSimpleTime.pddl Tests1/ZenoTravel/SimpleTime\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20\
+ Tests2/Satellite/SimpleTime/adlsimpleTimeSat.pddl Tests2/Satellite/SimpleTime\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20\
+ Tests2/Rovers/SimpleTime/STRover.pddl Tests2/Rovers/SimpleTime\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20\
+ Tests1/Depots/Time/DepotsTime.pddl Tests1/Depots/Time\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22\
+ Tests1/DriverLog/Time/driverlogTimed.pddl Tests1/DriverLog/Time\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20\
+ Tests2/Satellite/Time/adlcomputedDurationsDat.pddl Tests2/Satellite/Time\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20"
+
+for p in $problems; do
+    if (test ! -z "`echo $p | grep '\.pddl'`") then
+	domain=$p
+	pdir=""
+	continue
+    fi
+    if (test -z "$pdir") then
+	pdir=$p
+	continue
+    fi
+    for heuristic in addr; do
+	for flaw in mw-loc mw-loc-conf lcfr-loc lcfr-loc-conf all; do
+	    outfile=$outdir/$pdir/pfile$p-$heuristic-$flaw.out
+	    if (test ! -e $outfile) then
+		continue
+	    fi
+	    if (test ! -z "`grep 'Search limit reached.' $outfile`") then
+		continue
+	    fi
+	    if (test ! -z "`grep 'Time:' $outfile`") then
+		echo -n $outfile...
+		succ=`grep -v ' actions:\|Plans generated:\|Plans visited:\|Dead ends encountered:\|Number of steps:\|Makespan:\|^[#.]' $outfile | $validator $pddldir/$domain $pddldir/$pdir/pfile$p /dev/stdin | grep 'Plan valid'`
+		if (test ! -z "$succ") then
+		    echo valid
+		else
+		    echo INVALID
+		fi
+	    fi
+	done
+    done
+done

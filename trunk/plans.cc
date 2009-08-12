@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2002-2004 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -90,6 +90,7 @@ Link::~Link() {
  * Less than function object for plan pointers.
  */
 namespace std {
+  template<>
   struct less<const Plan*>
     : public binary_function<const Plan*, const Plan*, bool> {
     /* Comparison function operator. */
@@ -115,7 +116,7 @@ const size_t Plan::GOAL_ID = UINT_MAX;
    if the goal is consistent. */
 static bool add_goal(const Chain<OpenCondition>*& open_conds,
 		     size_t& num_open_conds, BindingList& new_bindings,
-		     const Formula& goal, FormulaTime when, size_t step_id,
+		     const Formula& goal, size_t step_id,
 		     bool test_only = false) {
   if (goal.tautology()) {
     return true;
@@ -126,13 +127,22 @@ static bool add_goal(const Chain<OpenCondition>*& open_conds,
   while (!goals.empty()) {
     const Formula* goal = goals.back();
     goals.pop_back();
-    const Literal* l = dynamic_cast<const Literal*>(goal);
+    const Literal* l;
+    FormulaTime when;
+    const TimedLiteral* tl = dynamic_cast<const TimedLiteral*>(goal);
+    if (tl != NULL) {
+      l = &tl->literal();
+      when = tl->when();
+    } else {
+      l = dynamic_cast<const Literal*>(goal);
+      when = AT_START;
+    }
     if (l != NULL) {
       if (!test_only
 	  && !(params->strip_static_preconditions()
-	       && domain->predicates().static_predicate(l->predicate()))) {
+	       && PredicateTable::static_predicate(l->predicate()))) {
 	open_conds =
-	  new Chain<OpenCondition>(OpenCondition(step_id, *goal, when),
+	  new Chain<OpenCondition>(OpenCondition(step_id, *l, when),
 				   open_conds);
       }
       num_open_conds++;
@@ -160,7 +170,7 @@ static bool add_goal(const Chain<OpenCondition>*& open_conds,
 	if (disj != NULL) {
 	  if (!test_only) {
 	    open_conds =
-	      new Chain<OpenCondition>(OpenCondition(step_id, *goal, when),
+	      new Chain<OpenCondition>(OpenCondition(step_id, *disj),
 				       open_conds);
 	  }
 	  num_open_conds++;
@@ -168,44 +178,24 @@ static bool add_goal(const Chain<OpenCondition>*& open_conds,
 	  const BindingLiteral* bl = dynamic_cast<const BindingLiteral*>(goal);
 	  if (bl != NULL) {
 	    bool is_eq = (typeid(*bl) == typeid(Equality));
-	    bool added = false;
-	    if (is_variable(bl->term1())) {
-	      /* The first term is a variable. */
-	      new_bindings.push_back(Binding(bl->term1(),
-					     bl->step_id1(step_id),
-					     bl->term2(),
-					     bl->step_id2(step_id), is_eq));
-	      added = true;
-	    } else if (is_variable(bl->term2())) {
-	      /* The second term is a variable. */
-	      new_bindings.push_back(Binding(bl->term2(),
-					     bl->step_id2(step_id),
-					     bl->term1(),
-					     bl->step_id1(step_id), is_eq));
-	      added = true;
-	    } else if ((is_eq && bl->term1() != bl->term2())
-		       || (!is_eq && bl->term1() == bl->term2())) {
-	      /* Both terms are names, and the binding is inconsistent. */
-	      return false;
-	    }
-	    if (added) {
+	    new_bindings.push_back(Binding(bl->variable(),
+					   bl->step_id1(step_id),
+					   bl->term(),
+					   bl->step_id2(step_id), is_eq));
 #ifdef BRANCH_ON_INEQUALITY
-	      const Inequality* neq = dynamic_cast<const Inequality*>(bl);
-	      if (params->domain_constraints
-		  && neq != NULL
-		  && is_variable(bl->term1) && is_variable(bl->term2)) {
-		/* Both terms are variables, so handle specially. */
-		if (!test_only) {
-		  open_conds =
-		    new Chain<OpenCondition>(OpenCondition(step_id, *neq,
-							   when),
-					     open_conds);
-		}
-		num_open_conds++;
-		new_bindings.pop_back();
+	    const Inequality* neq = dynamic_cast<const Inequality*>(bl);
+	    if (params->domain_constraints
+		&& neq != NULL && bl.term().variable()) {
+	      /* Both terms are variables, so handle specially. */
+	      if (!test_only) {
+		open_conds =
+		  new Chain<OpenCondition>(OpenCondition(step_id, *neq),
+					   open_conds);
 	      }
-#endif
+	      num_open_conds++;
+	      new_bindings.pop_back();
 	    }
+#endif
 	  } else {
 	    const Exists* exists = dynamic_cast<const Exists*>(goal);
 	    if (exists != NULL) {
@@ -253,21 +243,6 @@ static bool add_goal(const Chain<OpenCondition>*& open_conds,
 }
 
 
-/* Adds goal to chain of open conditions, and returns true if and only
-   if the goal is consistent. */
-static bool add_goal(const Chain<OpenCondition>*& open_conds,
-		     size_t& num_open_conds, BindingList& new_bindings,
-		     const Condition& goal, size_t step_id,
-		     bool test_only = false) {
-  return (add_goal(open_conds, num_open_conds, new_bindings,
-		   goal.at_start(), AT_START, step_id, test_only)
-	  && add_goal(open_conds, num_open_conds, new_bindings,
-		      goal.over_all(), OVER_ALL, step_id, test_only)
-	  && add_goal(open_conds, num_open_conds, new_bindings,
-		      goal.at_end(), AT_END, step_id, test_only));
-}
-
-
 /* Returns a set of achievers for the given literal. */
 static const ActionEffectMap* literal_achievers(const Literal& literal) {
   if (params->ground_actions) {
@@ -293,10 +268,10 @@ static void link_threats(const Chain<Unsafe>*& unsafes, size_t& num_unsafes,
   StepTime lt2 = end_time(link.condition_time());
   for (const Chain<Step>* sc = steps; sc != NULL; sc = sc->tail) {
     const Step& s = sc->head;
-    if (link.from_id() == s.id()
-	|| (orderings.possibly_before(link.from_id(), lt1, s.id(), STEP_END)
-	    && orderings.possibly_after(link.to_id(), lt2,
-					s.id(), STEP_START))) {
+    if (orderings.possibly_not_after(link.from_id(), lt1,
+				     s.id(), StepTime::AT_END)
+	&& orderings.possibly_not_before(link.to_id(), lt2,
+					 s.id(), StepTime::AT_START)) {
       const EffectList& effects = s.action().effects();
       for (EffectList::const_iterator ei = effects.begin();
 	   ei != effects.end(); ei++) {
@@ -306,25 +281,14 @@ static void link_threats(const Chain<Unsafe>*& unsafes, size_t& num_unsafes,
 	  continue;
 	}
 	StepTime et = end_time(e);
-	if ((link.from_id() == s.id() && lt1 == et)
-	    || orderings.possibly_before(link.from_id(), lt1, s.id(), et)
-	    || orderings.possibly_after(link.to_id(), lt2, s.id(), et)) {
-	  if (typeid(link.condition()) == typeid(Negation)) {
+	if (!(s.id() == link.to_id() && et >= lt2)
+	    && orderings.possibly_not_after(link.from_id(), lt1, s.id(), et)
+	    && orderings.possibly_not_before(link.to_id(), lt2, s.id(), et)) {
+	  if (typeid(link.condition()) == typeid(Negation)
+	      || !(link.from_id() == s.id() && lt1 == et)) {
 	    if (bindings.affects(e.literal(), s.id(),
-				 link.condition(), link.to_id(),
-				 problem->domain().types(),
-				 problem->terms())) {
-	      unsafes = new Chain<Unsafe>(Unsafe(link, s.id(), e, e.literal()),
-					  unsafes);
-	      num_unsafes++;
-	    }
-	  } else if (!(link.from_id() == s.id() && lt1 == et)) {
-	    if (bindings.affects(e.literal(), s.id(),
-				 link.condition(), link.to_id(),
-				 problem->domain().types(),
-				 problem->terms())) {
-	      unsafes = new Chain<Unsafe>(Unsafe(link, s.id(), e, e.literal()),
-					  unsafes);
+				 link.condition(), link.to_id())) {
+	      unsafes = new Chain<Unsafe>(Unsafe(link, s.id(), e), unsafes);
 	      num_unsafes++;
 	    }
 	  }
@@ -335,18 +299,20 @@ static void link_threats(const Chain<Unsafe>*& unsafes, size_t& num_unsafes,
 }
 
 
-/* Finds the threats by the given step. */
+/* Finds the threatened links by the given step. */
 static void step_threats(const Chain<Unsafe>*& unsafes, size_t& num_unsafes,
 			 const Step& step, const Chain<Link>* links,
 			 const Orderings& orderings,
 			 const Bindings& bindings) {
+  const EffectList& effects = step.action().effects();
   for (const Chain<Link>* lc = links; lc != NULL; lc = lc->tail) {
     const Link& l = lc->head;
     StepTime lt1 = l.effect_time();
     StepTime lt2 = end_time(l.condition_time());
-    if (orderings.possibly_before(l.from_id(), lt1, step.id(), STEP_END)
-	&& orderings.possibly_after(l.to_id(), lt2, step.id(), STEP_START)) {
-      const EffectList& effects = step.action().effects();
+    if (orderings.possibly_not_after(l.from_id(), lt1,
+				     step.id(), StepTime::AT_END)
+	&& orderings.possibly_not_before(l.to_id(), lt2,
+					 step.id(), StepTime::AT_START)) {
       for (EffectList::const_iterator ei = effects.begin();
 	   ei != effects.end(); ei++) {
 	const Effect& e = **ei;
@@ -355,14 +321,70 @@ static void step_threats(const Chain<Unsafe>*& unsafes, size_t& num_unsafes,
 	  continue;
 	}
 	StepTime et = end_time(e);
-	if (orderings.possibly_before(l.from_id(), lt1, step.id(), et)
-	    && orderings.possibly_after(l.to_id(), lt2, step.id(), et)) {
-	  if (bindings.affects(e.literal(), step.id(),
-			       l.condition(), l.to_id(),
-			       problem->domain().types(), problem->terms())) {
-	    unsafes = new Chain<Unsafe>(Unsafe(l, step.id(), e, e.literal()),
-					unsafes);
-	    num_unsafes++;
+	if (!(step.id() == l.to_id() && et >= lt2)
+	    && orderings.possibly_not_after(l.from_id(), lt1, step.id(), et)
+	    && orderings.possibly_not_before(l.to_id(), lt2, step.id(), et)) {
+	  if (typeid(l.condition()) == typeid(Negation)
+	      || !(l.from_id() == step.id() && lt1 == et)) {
+	    if (bindings.affects(e.literal(), step.id(),
+				 l.condition(), l.to_id())) {
+	      unsafes = new Chain<Unsafe>(Unsafe(l, step.id(), e), unsafes);
+	      num_unsafes++;
+	    }
+	  }
+	}
+      }
+    }
+  }
+}
+
+
+/* Finds the mutex threats by the given step. */
+static void mutex_threats(const Chain<MutexThreat>*& mutex_threats,
+			  const Step& step, const Chain<Step>* steps,
+			  const Orderings& orderings,
+			  const Bindings& bindings) {
+  const EffectList& effects = step.action().effects();
+  for (const Chain<Step>* sc = steps; sc != NULL; sc = sc->tail) {
+    const Step& s = sc->head;
+    bool ss, se, es, ee;
+    if (orderings.possibly_concurrent(step.id(), s.id(), ss, se, es, ee)) {
+      const EffectList& effects2 = s.action().effects();
+      for (EffectList::const_iterator ei = effects.begin();
+	   ei != effects.end(); ei++) {
+	const Effect& e = **ei;
+	if (e.when() == Effect::AT_START) {
+	  if (!ss && !se) {
+	    continue;
+	  }
+	} else if (!es && !ee) {
+	  continue;
+	}
+	for (EffectList::const_iterator ej = effects2.begin();
+	     ej != effects2.end(); ej++) {
+	  const Effect& e2 = **ej;
+	  if (e.when() == Effect::AT_START) {
+	    if (e2.when() == Effect::AT_START) {
+	      if (!ss) {
+		continue;
+	      }
+	    } else if (!se) {
+	      continue;
+	    }
+	  } else {
+	    if (e2.when() == Effect::AT_START) {
+	      if (!es) {
+		continue;
+	      }
+	    } else if (!ee) {
+	      continue;
+	    }
+	  }
+	  if (bindings.unify(e.literal().atom(), step.id(),
+			     e2.literal().atom(), s.id())) {
+	    mutex_threats = new Chain<MutexThreat>(MutexThreat(step.id(), e,
+							       s.id(), e2),
+						   mutex_threats);
 	  }
 	}
       }
@@ -384,18 +406,17 @@ static const Bindings* step_instantiation(const Chain<Step>* steps, size_t n,
     if (as == NULL || as->parameters().size() <= n) {
       return step_instantiation(steps->tail, 0, bindings);
     } else {
-      Variable v = as->parameters()[n];
+      const Variable& v = as->parameters()[n];
       if (v != bindings.binding(v, step.id())) {
 	return step_instantiation(steps, n + 1, bindings);
       } else {
-	Type t = problem->domain().terms().type(v);
-	const ObjectList& arguments = problem->compatible_objects(t);
+	const Type& t = TermTable::type(v);
+	const ObjectList& arguments = problem->terms().compatible_objects(t);
 	for (ObjectList::const_iterator oi = arguments.begin();
 	     oi != arguments.end(); oi++) {
 	  BindingList bl;
 	  bl.push_back(Binding(v, step.id(), *oi, 0, true));
-	  const Bindings* new_bindings =
-	    bindings.add(bl, problem->domain().types(), problem->terms());
+	  const Bindings* new_bindings = bindings.add(bl);
 	  if (new_bindings != NULL) {
 	    const Bindings* result = step_instantiation(steps, n + 1,
 							*new_bindings);
@@ -424,10 +445,10 @@ const Plan* Plan::make_initial_plan(const Problem& problem) {
     goal_action = new GroundAction("", false);
     const Formula& goal_formula =
       problem.goal().instantiation(SubstitutionMap(), problem);
-    goal_action->set_condition(Condition::make(goal_formula, AT_START));
+    goal_action->set_condition(goal_formula);
   } else {
     goal_action = new ActionSchema("", false);
-    goal_action->set_condition(Condition::make(problem.goal(), AT_START));
+    goal_action->set_condition(problem.goal());
   }
   /* Chain of open conditions. */
   const Chain<OpenCondition>* open_conds = NULL;
@@ -439,10 +460,13 @@ const Plan* Plan::make_initial_plan(const Problem& problem) {
   if (!add_goal(open_conds, num_open_conds, new_bindings,
 		goal_action->condition(), GOAL_ID)) {
     /* Goals are inconsistent. */
-    Chain<OpenCondition>::register_use(open_conds);
-    Chain<OpenCondition>::unregister_use(open_conds);
+    RCObject::ref(open_conds);
+    RCObject::destructive_deref(open_conds);
     return NULL;
   }
+  /* Make chain of mutex threat place holder. */
+  const Chain<MutexThreat>* mutex_threats =
+    new Chain<MutexThreat>(MutexThreat(), NULL);
   /* Make chain of initial steps. */
   const Chain<Step>* steps =
     new Chain<Step>(Step(0, problem.init_action()),
@@ -464,10 +488,10 @@ const Plan* Plan::make_initial_plan(const Problem& problem) {
       const TemporalOrderings* tmp = to->refine((*ai).first, steps->head);
       delete to;
       if (tmp == NULL) {
-	Chain<OpenCondition>::register_use(open_conds);
-	Chain<OpenCondition>::unregister_use(open_conds);
-	Chain<Step>::register_use(steps);
-	Chain<Step>::unregister_use(steps);
+	RCObject::ref(open_conds);
+	RCObject::destructive_deref(open_conds);
+	RCObject::ref(steps);
+	RCObject::destructive_deref(steps);
 	return NULL;
       }
       to = tmp;
@@ -478,7 +502,7 @@ const Plan* Plan::make_initial_plan(const Problem& problem) {
   }
   /* Return initial plan. */
   return new Plan(steps, num_steps, NULL, 0, *orderings, *bindings,
-		  NULL, 0, open_conds, num_open_conds, NULL);
+		  NULL, 0, open_conds, num_open_conds, mutex_threats, NULL);
 }
 
 
@@ -752,7 +776,7 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
 		new Plan(current_plan->steps(), current_plan->num_steps(),
 			 current_plan->links(), current_plan->num_links(),
 			 current_plan->orderings(), *new_bindings,
-			 NULL, 0, NULL, 0, current_plan);
+			 NULL, 0, NULL, 0, NULL, current_plan);
 	      delete current_plan;
 	      current_plan = inst_plan;
 	    }
@@ -838,18 +862,20 @@ Plan::Plan(const Chain<Step>* steps, size_t num_steps,
 	   const Orderings& orderings, const Bindings& bindings,
 	   const Chain<Unsafe>* unsafes, size_t num_unsafes,
 	   const Chain<OpenCondition>* open_conds, size_t num_open_conds,
-	   const Plan* parent)
+	   const Chain<MutexThreat>* mutex_threats, const Plan* parent)
   : steps_(steps), num_steps_(num_steps),
     links_(links), num_links_(num_links),
     orderings_(&orderings), bindings_(&bindings),
     unsafes_(unsafes), num_unsafes_(num_unsafes),
-    open_conds_(open_conds), num_open_conds_(num_open_conds) {
-  Chain<Step>::register_use(steps);
-  Chain<Link>::register_use(links);
+    open_conds_(open_conds), num_open_conds_(num_open_conds),
+    mutex_threats_(mutex_threats) {
+  RCObject::ref(steps);
+  RCObject::ref(links);
   Orderings::register_use(&orderings);
   Bindings::register_use(&bindings);
-  Chain<Unsafe>::register_use(unsafes);
-  Chain<OpenCondition>::register_use(open_conds);
+  RCObject::ref(unsafes);
+  RCObject::ref(open_conds);
+  RCObject::ref(mutex_threats);
 #ifdef DEBUG_MEMORY
   created_plans++;
 #endif
@@ -864,12 +890,13 @@ Plan::~Plan() {
 #ifdef DEBUG_MEMORY
   deleted_plans++;
 #endif
-  Chain<Step>::unregister_use(steps_);
-  Chain<Link>::unregister_use(links_);
+  RCObject::destructive_deref(steps_);
+  RCObject::destructive_deref(links_);
   Orderings::unregister_use(orderings_);
   Bindings::unregister_use(bindings_);
-  Chain<Unsafe>::unregister_use(unsafes_);
-  Chain<OpenCondition>::unregister_use(open_conds_);
+  RCObject::destructive_deref(unsafes_);
+  RCObject::destructive_deref(open_conds_);
+  RCObject::destructive_deref(mutex_threats_);
 }
 
 
@@ -881,7 +908,7 @@ const Bindings* Plan::bindings() const {
 
 /* Checks if this plan is complete. */
 bool Plan::complete() const {
-  return unsafes() == NULL && open_conds() == NULL;
+  return unsafes() == NULL && open_conds() == NULL && mutex_threats() == NULL;
 }
 
 
@@ -907,7 +934,7 @@ const Flaw& Plan::get_flaw(const FlawSelectionOrder& flaw_order) const {
   const Flaw& flaw = flaw_order.select(*this, *problem, planning_graph);
   if (!params->ground_actions) {
     const OpenCondition* open_cond = dynamic_cast<const OpenCondition*>(&flaw);
-    static_pred_flaw = (open_cond != NULL && open_cond->is_static(*domain));
+    static_pred_flaw = (open_cond != NULL && open_cond->is_static());
   }
   return flaw;
 }
@@ -919,7 +946,7 @@ void Plan::refinements(PlanList& plans,
   const Flaw& flaw = get_flaw(flaw_order);
   if (verbosity > 1) {
     std::cerr << std::endl << "handle ";
-    flaw.print(std::cerr, domain->predicates(), problem->terms(), *bindings_);
+    flaw.print(std::cerr, *bindings_);
     std::cerr << std::endl;
   }
   const Unsafe* unsafe = dynamic_cast<const Unsafe*>(&flaw);
@@ -930,7 +957,13 @@ void Plan::refinements(PlanList& plans,
     if (open_cond != NULL) {
       handle_open_condition(plans, *open_cond);
     } else {
-      throw std::logic_error("unknown kind of flaw");
+      const MutexThreat* mutex_threat =
+	dynamic_cast<const MutexThreat*>(&flaw);
+      if (mutex_threat != NULL) {
+	handle_mutex_threat(plans, *mutex_threat);
+      } else {
+	throw std::logic_error("unknown kind of flaw");
+      }
     }
   }
 }
@@ -951,14 +984,13 @@ bool Plan::unsafe_refinements(int& refinements, int& separable,
     StepTime lt1 = link.effect_time();
     StepTime lt2 = end_time(link.condition_time());
     StepTime et = end_time(unsafe.effect());
-    if (((link.from_id() == unsafe.step_id() && lt1 == et)
-	 || (orderings().possibly_before(link.from_id(), lt1,
-					 unsafe.step_id(), et)
-	     && orderings().possibly_after(link.to_id(), lt2,
-					   unsafe.step_id(), et)))
-	&& bindings_->affects(unifier, unsafe.effect_add(), unsafe.step_id(),
-			      link.condition(), link.to_id(),
-			      problem->domain().types(), problem->terms())) {
+    if (orderings().possibly_not_after(link.from_id(), lt1,
+				       unsafe.step_id(), et)
+	&& orderings().possibly_not_before(link.to_id(), lt2,
+					   unsafe.step_id(), et)
+	&& bindings_->affects(unifier, unsafe.effect().literal(),
+			      unsafe.step_id(),
+			      link.condition(), link.to_id())) {
       PlanList dummy;
       if (separable < 0) {
 	separable = separate(dummy, unsafe, unifier, true);
@@ -994,14 +1026,13 @@ void Plan::handle_unsafe(PlanList& plans, const Unsafe& unsafe) const {
   StepTime lt1 = link.effect_time();
   StepTime lt2 = end_time(link.condition_time());
   StepTime et = end_time(unsafe.effect());
-  if (((link.from_id() == unsafe.step_id() && lt1 == et)
-       || (orderings().possibly_before(link.from_id(), lt1,
-				       unsafe.step_id(), et)
-	   && orderings().possibly_after(link.to_id(), lt2,
-				       unsafe.step_id(), et)))
-      && bindings_->affects(unifier, unsafe.effect_add(), unsafe.step_id(),
-			    link.condition(), link.to_id(),
-			    problem->domain().types(), problem->terms())) {
+  if (orderings().possibly_not_after(link.from_id(), lt1,
+				     unsafe.step_id(), et)
+      && orderings().possibly_not_before(link.to_id(), lt2,
+					 unsafe.step_id(), et)
+      && bindings_->affects(unifier, unsafe.effect().literal(),
+			    unsafe.step_id(),
+			    link.condition(), link.to_id())) {
     separate(plans, unsafe, unifier);
     promote(plans, unsafe);
     demote(plans, unsafe);
@@ -1010,7 +1041,8 @@ void Plan::handle_unsafe(PlanList& plans, const Unsafe& unsafe) const {
     plans.push_back(new Plan(steps(), num_steps(), links(), num_links(),
 			     orderings(), *bindings_,
 			     unsafes()->remove(unsafe), num_unsafes() - 1,
-			     open_conds(), num_open_conds(), this));
+			     open_conds(), num_open_conds(),
+			     mutex_threats(), this));
   }
 }
 
@@ -1022,15 +1054,14 @@ int Plan::separable(const Unsafe& unsafe) const {
   StepTime lt1 = link.effect_time();
   StepTime lt2 = end_time(link.condition_time());
   StepTime et = end_time(unsafe.effect());
-  if (((link.from_id() == unsafe.step_id() && lt1 == et)
-       || (orderings().possibly_before(link.from_id(), lt1,
-				       unsafe.step_id(), et)
-	   && orderings().possibly_after(link.to_id(), lt2,
-				       unsafe.step_id(), et)))
+  if (orderings().possibly_not_after(link.from_id(), lt1,
+				     unsafe.step_id(), et)
+      && orderings().possibly_not_before(link.to_id(), lt2,
+					 unsafe.step_id(), et)
       && bindings_->affects(unifier,
-			    unsafe.effect_add(), unsafe.step_id(),
-			    link.condition(), link.to_id(),
-			    problem->domain().types(), problem->terms())) {
+			    unsafe.effect().literal(),
+			    unsafe.step_id(),
+			    link.condition(), link.to_id())) {
     PlanList dummy;
     return separate(dummy, unsafe, unifier, true);
   } else {
@@ -1042,71 +1073,50 @@ int Plan::separable(const Unsafe& unsafe) const {
 /* Handles an unsafe link through separation. */
 int Plan::separate(PlanList& plans, const Unsafe& unsafe,
 		   const BindingList& unifier, bool test_only) const {
-  const Condition* goal = &Condition::FALSE;
+  const Formula* goal = &Formula::FALSE;
   for (BindingList::const_iterator si = unifier.begin();
        si != unifier.end(); si++) {
     const Binding& subst = *si;
     if (!unsafe.effect().quantifies(subst.var())) {
-      const Inequality& neq = *new Inequality(subst.var(), subst.var_id(),
-					      subst.term(), subst.term_id());
-      if (bindings_->consistent_with(neq, 0)) {
-	goal = &(*goal || Condition::make(neq, AT_START));
+      const Formula& g = Inequality::make(subst.var(), subst.var_id(),
+					  subst.term(), subst.term_id());
+      const Inequality* neq = dynamic_cast<const Inequality*>(&g);
+      if (neq == 0 || bindings_->consistent_with(*neq, 0)) {
+	goal = &(*goal || g);
       } else {
-	Formula::register_use(&neq);
-	Formula::unregister_use(&neq);
+	Formula::register_use(&g);
+	Formula::unregister_use(&g);
       }
     }
   }
-  const Condition& effect_cond = unsafe.effect().condition();
+  const Formula& effect_cond = unsafe.effect().condition();
   if (!effect_cond.tautology()) {
     size_t n = unsafe.effect().arity();
     if (n > 0) {
-      Forall* forall_s = new Forall();
-      Forall* forall_i = new Forall();
-      Forall* forall_e = new Forall();
+      Forall* forall = new Forall();
       SubstitutionMap forall_subst;
       for (size_t i = 0; i < n; i++) {
 	Variable vi = unsafe.effect().parameter(i);
 	Variable v =
-	  test_only ? vi : problem->new_variable(problem->terms().type(vi));
-	forall_s->add_parameter(v);
-	forall_i->add_parameter(v);
-	forall_e->add_parameter(v);
+	  test_only ? vi : TermTable::add_variable(TermTable::type(vi));
+	forall->add_parameter(v);
 	if (!test_only) {
 	  forall_subst.insert(std::make_pair(vi, v));
 	}
       }
       if (test_only) {
-	forall_s->set_body(!effect_cond.at_start());
-	forall_i->set_body(!effect_cond.over_all());
-	forall_e->set_body(!effect_cond.at_end());
+	forall->set_body(!effect_cond);
       } else {
-	forall_s->set_body(!effect_cond.at_start().substitution(forall_subst));
-	forall_i->set_body(!effect_cond.over_all().substitution(forall_subst));
-	forall_e->set_body(!effect_cond.at_end().substitution(forall_subst));
+	forall->set_body(!effect_cond.substitution(forall_subst));
       }
-      const Formula* at_start;
-      if (forall_s->body().tautology() || forall_s->body().contradiction()) {
-	at_start = &forall_s->body();
-	delete forall_s;
+      const Formula* forall_cond;
+      if (forall->body().tautology() || forall->body().contradiction()) {
+	forall_cond = &forall->body();
+	delete forall;
       } else {
-	at_start = forall_s;
+	forall_cond = forall;
       }
-      const Formula* over_all;
-      if (forall_i->body().tautology() || forall_i->body().contradiction()) {
-	over_all = &forall_i->body();
-	delete forall_i;
-      } else {
-	over_all = forall_i;
-      }
-      const Formula* at_end;
-      if (forall_e->body().tautology() || forall_e->body().contradiction()) {
-	at_end = &forall_e->body();
-	delete forall_e;
-      } else {
-	at_end = forall_e;
-      }
-      goal = &(*goal || Condition::make(*at_start, *over_all, *at_end));
+      goal = &(*goal || *forall_cond);
     } else {
       goal = &(*goal || !effect_cond);
     }
@@ -1117,13 +1127,11 @@ int Plan::separate(PlanList& plans, const Unsafe& unsafe,
   bool added = add_goal(new_open_conds, new_num_open_conds, new_bindings,
 			*goal, unsafe.step_id(), test_only);
   if (!test_only) {
-    Chain<OpenCondition>::register_use(new_open_conds);
+    RCObject::ref(new_open_conds);
   }
   int count = 0;
   if (added) {
-    const Bindings* bindings = bindings_->add(new_bindings,
-					      problem->domain().types(),
-					      problem->terms(), test_only);
+    const Bindings* bindings = bindings_->add(new_bindings, test_only);
     if (bindings != NULL) {
       if (!test_only) {
 	const Orderings* new_orderings = orderings_;
@@ -1143,7 +1151,8 @@ int Plan::separate(PlanList& plans, const Unsafe& unsafe,
 				   *new_orderings, *bindings,
 				   unsafes()->remove(unsafe),
 				   num_unsafes() - 1,
-				   new_open_conds, new_num_open_conds, this));
+				   new_open_conds, new_num_open_conds,
+				   mutex_threats(), this));
 	} else {
 	  Bindings::register_use(bindings);
 	  Bindings::unregister_use(bindings);
@@ -1153,10 +1162,10 @@ int Plan::separate(PlanList& plans, const Unsafe& unsafe,
     }
   }
   if (!test_only) {
-    Chain<OpenCondition>::unregister_use(new_open_conds);
+    RCObject::destructive_deref(new_open_conds);
   }
-  Condition::register_use(goal);
-  Condition::unregister_use(goal);
+  Formula::register_use(goal);
+  Formula::unregister_use(goal);
   return count;
 }
 
@@ -1205,12 +1214,205 @@ void Plan::new_ordering(PlanList& plans, size_t before_id, StepTime t1,
     plans.push_back(new Plan(steps(), num_steps(), links(), num_links(),
 			     *new_orderings, *bindings_,
 			     unsafes()->remove(unsafe), num_unsafes() - 1,
-			     open_conds(), num_open_conds(), this));
+			     open_conds(), num_open_conds(),
+			     mutex_threats(), this));
   }
 }
 
 
-/* Checks if the given open conditions is threatened. */
+/* Handles a mutex threat. */
+void Plan::handle_mutex_threat(PlanList& plans,
+			       const MutexThreat& mutex_threat) const {
+  if (mutex_threat.step_id1() == 0) {
+    const Chain<MutexThreat>* new_mutex_threats = NULL;
+    for (const Chain<Step>* sc = steps(); sc != NULL; sc = sc->tail) {
+      const Step& s = sc->head;
+      ::mutex_threats(new_mutex_threats, s, steps(), orderings(), *bindings_);
+    }
+    plans.push_back(new Plan(steps(), num_steps(), links(), num_links(),
+			     orderings(), *bindings_, unsafes(), num_unsafes(),
+			     open_conds(), num_open_conds(),
+			     new_mutex_threats, this));
+    return;
+  }
+  BindingList unifier;
+  size_t id1 = mutex_threat.step_id1();
+  StepTime et1 = end_time(mutex_threat.effect1());
+  size_t id2 = mutex_threat.step_id2();
+  StepTime et2 = end_time(mutex_threat.effect2());
+  if (orderings().possibly_not_before(id1, et1, id2, et2)
+      && orderings().possibly_not_after(id1, et1, id2, et2)
+      && bindings_->unify(unifier,
+			  mutex_threat.effect1().literal().atom(), id1,
+			  mutex_threat.effect2().literal().atom(), id2)) {
+    separate(plans, mutex_threat, unifier);
+    promote(plans, mutex_threat);
+    demote(plans, mutex_threat);
+  } else {
+    /* bogus flaw */
+    plans.push_back(new Plan(steps(), num_steps(), links(), num_links(),
+			     orderings(), *bindings_, unsafes(), num_unsafes(),
+			     open_conds(), num_open_conds(),
+			     mutex_threats()->remove(mutex_threat), this));
+  }
+}
+
+
+
+/* Handles a mutex threat through separation. */
+void Plan::separate(PlanList& plans, const MutexThreat& mutex_threat,
+		    const BindingList& unifier) const {
+  if (!unifier.empty()) {
+    const Formula* goal = &Formula::FALSE;
+    for (BindingList::const_iterator si = unifier.begin();
+	 si != unifier.end(); si++) {
+      const Binding& subst = *si;
+      if (!mutex_threat.effect1().quantifies(subst.var())
+	  && !mutex_threat.effect2().quantifies(subst.var())) {
+	const Formula& g = Inequality::make(subst.var(), subst.var_id(),
+					    subst.term(), subst.term_id());
+	const Inequality* neq = dynamic_cast<const Inequality*>(&g);
+	if (neq == 0 || bindings_->consistent_with(*neq, 0)) {
+	  goal = &(*goal || g);
+	} else {
+	  Formula::register_use(&g);
+	  Formula::unregister_use(&g);
+	}
+      }
+    }
+    const Chain<OpenCondition>* new_open_conds = open_conds();
+    size_t new_num_open_conds = num_open_conds();
+    BindingList new_bindings;
+    bool added = add_goal(new_open_conds, new_num_open_conds, new_bindings,
+			  *goal, 0);
+    RCObject::ref(new_open_conds);
+    if (added) {
+      const Bindings* bindings = bindings_->add(new_bindings);
+      if (bindings != NULL) {
+	plans.push_back(new Plan(steps(), num_steps(), links(),
+				 num_links(), orderings(), *bindings,
+				 unsafes(), num_unsafes(),
+				 new_open_conds, new_num_open_conds,
+				 mutex_threats()->remove(mutex_threat), this));
+      } else {
+	Bindings::register_use(bindings);
+	Bindings::unregister_use(bindings);
+      }
+    }
+    RCObject::destructive_deref(new_open_conds);
+    Formula::register_use(goal);
+    Formula::unregister_use(goal);
+  }
+  for (size_t i = 1; i <= 2; i++) {
+    size_t step_id = ((i == 1) ? mutex_threat.step_id1()
+		      : mutex_threat.step_id2());
+    const Effect& effect = ((i == 1) ? mutex_threat.effect1()
+			    : mutex_threat.effect2());
+    const Formula& effect_cond = effect.condition();
+    const Formula* goal;
+    if (!effect_cond.tautology()) {
+      size_t n = effect.arity();
+      if (n > 0) {
+	Forall* forall = new Forall();
+	SubstitutionMap forall_subst;
+	for (size_t i = 0; i < n; i++) {
+	  Variable vi = effect.parameter(i);
+	  Variable v = TermTable::add_variable(TermTable::type(vi));
+	  forall->add_parameter(v);
+	  forall_subst.insert(std::make_pair(vi, v));
+	}
+	forall->set_body(!effect_cond.substitution(forall_subst));
+	if (forall->body().tautology() || forall->body().contradiction()) {
+	  goal = &forall->body();
+	  delete forall;
+	} else {
+	  goal = forall;
+	}
+      } else {
+	goal = &!effect_cond;
+      }
+      const Chain<OpenCondition>* new_open_conds = open_conds();
+      size_t new_num_open_conds = num_open_conds();
+      BindingList new_bindings;
+      bool added = add_goal(new_open_conds, new_num_open_conds, new_bindings,
+			    *goal, step_id);
+      RCObject::ref(new_open_conds);
+      if (added) {
+	const Bindings* bindings = bindings_->add(new_bindings);
+	if (bindings != NULL) {
+	  const Orderings* new_orderings = orderings_;
+	  if (!goal->tautology() && planning_graph != NULL) {
+	    const TemporalOrderings* to =
+	      dynamic_cast<const TemporalOrderings*>(new_orderings);
+	    if (to != NULL) {
+	      HeuristicValue h, hs;
+	      goal->heuristic_value(h, hs, *planning_graph, step_id,
+				    params->ground_actions ? NULL : bindings);
+	      new_orderings = to->refine(step_id, hs.makespan(), h.makespan());
+	    }
+	  }
+	  if (new_orderings != NULL) {
+	    plans.push_back(new Plan(steps(), num_steps(), links(),
+				     num_links(), *new_orderings, *bindings,
+				     unsafes(), num_unsafes(),
+				     new_open_conds, new_num_open_conds,
+				     mutex_threats()->remove(mutex_threat),
+				     this));
+	  } else {
+	    Bindings::register_use(bindings);
+	    Bindings::unregister_use(bindings);
+	  }
+	}
+      }
+      RCObject::destructive_deref(new_open_conds);
+      Formula::register_use(goal);
+      Formula::unregister_use(goal);
+    }
+  }
+}
+
+
+/* Handles a mutex threat through demotion. */
+void Plan::demote(PlanList& plans, const MutexThreat& mutex_threat) const {
+  size_t id1 = mutex_threat.step_id1();
+  StepTime et1 = end_time(mutex_threat.effect1());
+  size_t id2 = mutex_threat.step_id2();
+  StepTime et2 = end_time(mutex_threat.effect2());
+  if (orderings().possibly_before(id1, et1, id2, et2)) {
+    new_ordering(plans, id1, et1, id2, et2, mutex_threat);
+  }
+}
+
+
+/* Handles a mutex threat through promotion. */
+void Plan::promote(PlanList& plans, const MutexThreat& mutex_threat) const {
+  size_t id1 = mutex_threat.step_id1();
+  StepTime et1 = end_time(mutex_threat.effect1());
+  size_t id2 = mutex_threat.step_id2();
+  StepTime et2 = end_time(mutex_threat.effect2());
+  if (orderings().possibly_before(id2, et2, id1, et1)) {
+    new_ordering(plans, id2, et2, id1, et1, mutex_threat);
+  }
+}
+
+
+/* Adds a plan to the given plan list with an ordering added. */
+void Plan::new_ordering(PlanList& plans, size_t before_id, StepTime t1,
+			size_t after_id, StepTime t2,
+			const MutexThreat& mutex_threat) const {
+  const Orderings* new_orderings =
+    orderings().refine(Ordering(before_id, t1, after_id, t2));
+  if (new_orderings != NULL) {
+    plans.push_back(new Plan(steps(), num_steps(), links(), num_links(),
+			     *new_orderings, *bindings_,
+			     unsafes(), num_unsafes(),
+			     open_conds(), num_open_conds(),
+			     mutex_threats()->remove(mutex_threat), this));
+  }
+}
+
+
+/* Checks if the given open condition is threatened. */
 bool Plan::unsafe_open_condition(const OpenCondition& open_cond) const {
   const Literal* literal = open_cond.literal();
   if (literal != NULL) {
@@ -1218,21 +1420,18 @@ bool Plan::unsafe_open_condition(const OpenCondition& open_cond) const {
     StepTime gt = end_time(open_cond.when());
     for (const Chain<Step>* sc = steps(); sc != NULL; sc = sc->tail) {
       const Step& s = sc->head;
-      if (orderings().possibly_before(s.id(), STEP_START,
-				      open_cond.step_id(), gt)) {
+      if (orderings().possibly_not_before(open_cond.step_id(), gt,
+					  s.id(), StepTime::AT_START)) {
 	const EffectList& effects = s.action().effects();
 	for (EffectList::const_iterator ei = effects.begin();
 	     ei != effects.end(); ei++) {
 	  const Effect& e = **ei;
 	  StepTime et = end_time(e);
-	  if (orderings().possibly_before(s.id(), et,
-					  open_cond.step_id(), gt)) {
-	    if (bindings_->affects(e.literal(), s.id(),
-				   goal, open_cond.step_id(),
-				   problem->domain().types(),
-				   problem->terms())) {
-	      return true;
-	    }
+	  if (orderings().possibly_not_before(open_cond.step_id(), gt,
+					      s.id(), et)
+	      && bindings_->affects(e.literal(), s.id(),
+				    goal, open_cond.step_id())) {
+	    return true;
 	  }
 	}
       }
@@ -1333,27 +1532,25 @@ int Plan::handle_disjunction(PlanList& plans, const Disjunction& disj,
       test_only ? NULL : open_conds()->remove(open_cond);
     size_t new_num_open_conds = test_only ? 0 : num_open_conds() - 1;
     bool added = add_goal(new_open_conds, new_num_open_conds, new_bindings,
-			  **fi, open_cond.when(), open_cond.step_id(),
-			  test_only);
+			  **fi, open_cond.step_id(), test_only);
     if (!test_only) {
-      Chain<OpenCondition>::register_use(new_open_conds);
+      RCObject::ref(new_open_conds);
     }
     if (added) {
-      const Bindings* bindings = bindings_->add(new_bindings,
-						problem->domain().types(),
-						problem->terms(), test_only);
+      const Bindings* bindings = bindings_->add(new_bindings, test_only);
       if (bindings != NULL) {
 	if (!test_only) {
 	  plans.push_back(new Plan(steps(), num_steps(), links(), num_links(),
 				   orderings(), *bindings,
 				   unsafes(), num_unsafes(),
-				   new_open_conds, new_num_open_conds, this));
+				   new_open_conds, new_num_open_conds,
+				   mutex_threats(), this));
 	}
 	count++;
       }
     }
     if (!test_only) {
-      Chain<OpenCondition>::unregister_use(new_open_conds);
+      RCObject::destructive_deref(new_open_conds);
     }
   }
   return count;
@@ -1366,48 +1563,37 @@ int Plan::handle_inequality(PlanList& plans, const Inequality& neq,
 			    bool test_only) const {
   int count = 0;
   size_t step_id = open_cond.step_id();
-  const NameSet& d1 = bindings_->domain(neq.term1(), neq.step_id1(step_id),
+  Variable variable2 = neq.term().as_variable();
+  const NameSet& d1 = bindings_->domain(neq.variable(), neq.step_id1(step_id),
 					*problem);
-  const NameSet& d2 = bindings_->domain(neq.term2(), neq.step_id2(step_id),
+  const NameSet& d2 = bindings_->domain(variable2, neq.step_id2(step_id),
 					*problem);
 
   /*
    * Branch on the variable with the smallest domain.
    */
-  Variable var1;
-  size_t id1;
-  Variable var2;
-  size_t id2;
-  const NameSet* var_domain;
-  if (d1.size() < d2.size()) {
-    var1 = neq.term1();
-    id1 = neq.step_id1(step_id);
-    var2 = neq.term2();
-    id2 = neq.step_id2(step_id);
-    var_domain = &d1;
-  } else {
-    var1 = neq.term2();
-    id1 = neq.step_id2(step_id);
-    var2 = neq.term1();
-    id2 = neq.step_id1(step_id);
-    var_domain = &d2;
-  }
-  for (NameSet::const_iterator ni = var_domain->begin();
-       ni != var_domain->end(); ni++) {
+  const Variable& var1 = (d1.size() < d2.size()) ? neq.variable() : variable2;
+  size_t id1 =
+    (d1.size() < d2.size()) ? neq.step_id1(step_id) : neq.step_id2(step_id);
+  const Variable& var2 = (d1.size() < d2.size()) ? variable2 : neq.variable();
+  size_t id2 =
+    (d1.size() < d2.size()) ? neq.step_id2(step_id) : neq.step_id1(step_id);
+  const NameSet& var_domain = (d1.size() < d2.size()) ? d1 : d2;
+  for (NameSet::const_iterator ni = var_domain.begin();
+       ni != var_domain.end(); ni++) {
     Object name = *ni;
     BindingList new_bindings;
     new_bindings.push_back(Binding(var1, id1, name, 0, true));
     new_bindings.push_back(Binding(var2, id2, name, 0, false));
-    const Bindings* bindings = bindings_->add(new_bindings,
-					      problem->domain().types(),
-					      problem->terms(), test_only);
+    const Bindings* bindings = bindings_->add(new_bindings, test_only);
     if (bindings != NULL) {
       if (!test_only) {
 	plans.push_back(new Plan(steps(), num_steps(), links(), num_links(),
 				 orderings(), *bindings,
 				 unsafes(), num_unsafes(),
 				 open_conds()->remove(open_cond),
-				 num_open_conds() - 1, this));
+				 num_open_conds() - 1,
+				 mutex_threats(), this));
       }
       count++;
     }
@@ -1475,7 +1661,7 @@ bool Plan::reusable_steps(int& refinements, const Literal& literal,
     StepTime gt = start_time(open_cond.when());
     for (const Chain<Step>* sc = steps(); sc != NULL; sc = sc->tail) {
       const Step& step = sc->head;
-      if (orderings().possibly_before(step.id(), STEP_START,
+      if (orderings().possibly_before(step.id(), StepTime::AT_START,
 				      open_cond.step_id(), gt)) {
 	std::pair<ActionEffectMap::const_iterator,
 	  ActionEffectMap::const_iterator> b =
@@ -1512,7 +1698,7 @@ void Plan::reuse_step(PlanList& plans, const Literal& literal,
   StepTime gt = start_time(open_cond.when());
   for (const Chain<Step>* sc = steps(); sc != NULL; sc = sc->tail) {
     const Step& step = sc->head;
-    if (orderings().possibly_before(step.id(), STEP_START,
+    if (orderings().possibly_before(step.id(), StepTime::AT_START,
 				    open_cond.step_id(), gt)) {
       std::pair<ActionEffectMap::const_iterator,
 	ActionEffectMap::const_iterator> b =
@@ -1538,8 +1724,7 @@ int Plan::new_link(PlanList& plans, const Step& step, const Effect& effect,
 		   bool test_only) const {
   BindingList mgu;
   if (bindings_->unify(mgu, effect.literal(), step.id(),
-		       literal, open_cond.step_id(),
-		       problem->domain().types(), problem->terms())) {
+		       literal, open_cond.step_id())) {
     return make_link(plans, step, effect, literal, open_cond, mgu, test_only);
   } else {
     return 0;
@@ -1560,8 +1745,7 @@ int Plan::new_cw_link(PlanList& plans, const EffectList& effects,
     const Effect& effect = **ei;
     BindingList mgu;
     if (bindings_->unify(mgu, effect.literal(), 0,
-			 goal, open_cond.step_id(),
-			 problem->domain().types(), problem->terms())) {
+			 goal, open_cond.step_id())) {
       if (mgu.empty()) {
 	/* Impossible to separate goal and initial condition. */
 	return 0;
@@ -1581,36 +1765,35 @@ int Plan::new_cw_link(PlanList& plans, const EffectList& effects,
     test_only ? NULL : open_conds()->remove(open_cond);
   size_t new_num_open_conds = test_only ? 0 : num_open_conds() - 1;
   bool added = add_goal(new_open_conds, new_num_open_conds, new_bindings,
-			*goals, AT_START, 0, test_only);
+			*goals, 0, test_only);
   Formula::register_use(goals);
   Formula::unregister_use(goals);
   if (!test_only) {
-    Chain<OpenCondition>::register_use(new_open_conds);
+    RCObject::ref(new_open_conds);
   }
   int count = 0;
   if (added) {
-    const Bindings* bindings = bindings_->add(new_bindings,
-					      problem->domain().types(),
-					      problem->terms(), test_only);
+    const Bindings* bindings = bindings_->add(new_bindings, test_only);
     if (bindings != NULL) {
       if (!test_only) {
 	const Chain<Unsafe>* new_unsafes = unsafes();
 	size_t new_num_unsafes = num_unsafes();
 	const Chain<Link>* new_links =
-	  new Chain<Link>(Link(0, STEP_END, open_cond), links());
+	  new Chain<Link>(Link(0, StepTime::AT_END, open_cond), links());
 	link_threats(new_unsafes, new_num_unsafes, new_links->head, steps(),
 		     orderings(), *bindings);
 	plans.push_back(new Plan(steps(), num_steps(),
 				 new_links, num_links() + 1,
 				 orderings(), *bindings,
 				 new_unsafes, new_num_unsafes,
-				 new_open_conds, new_num_open_conds, this));
+				 new_open_conds, new_num_open_conds,
+				 mutex_threats(), this));
       }
       count++;
     }
   }
   if (!test_only) {
-    Chain<OpenCondition>::unregister_use(new_open_conds);
+    RCObject::destructive_deref(new_open_conds);
   }
   return count;
 }
@@ -1633,7 +1816,7 @@ int Plan::make_link(PlanList& plans, const Step& step, const Effect& effect,
 	 si != unifier.end(); si++) {
       const Binding& subst = *si;
       if (effect.quantifies(subst.var())) {
-	Variable v = problem->new_variable(problem->terms().type(subst.var()));
+	Variable v = TermTable::add_variable(TermTable::type(subst.var()));
 	forall_subst.insert(std::make_pair(subst.var(), v));
 	new_bindings.push_back(Binding(v, subst.var_id(),
 				       subst.term(), subst.term_id(), true));
@@ -1649,8 +1832,7 @@ int Plan::make_link(PlanList& plans, const Step& step, const Effect& effect,
   const Chain<OpenCondition>* new_open_conds =
     test_only ? NULL : open_conds()->remove(open_cond);
   size_t new_num_open_conds = test_only ? 0 : num_open_conds() - 1;
-  const Condition* cond_goal =
-    &(effect.condition() && effect.link_condition());
+  const Formula* cond_goal = &(effect.condition() && effect.link_condition());
   if (!cond_goal->tautology()) {
     if (!test_only) {
       size_t n = effect.arity();
@@ -1658,26 +1840,26 @@ int Plan::make_link(PlanList& plans, const Step& step, const Effect& effect,
 	for (size_t i = 0; i < n; i++) {
 	  Variable vi = effect.parameter(i);
 	  if (forall_subst.find(vi) == forall_subst.end()) {
-	    Variable v = problem->new_variable(problem->terms().type(vi));
+	    Variable v = TermTable::add_variable(TermTable::type(vi));
 	    forall_subst.insert(std::make_pair(vi, v));
 	  }
 	}
-	const Condition* old_cond_goal = cond_goal;
+	const Formula* old_cond_goal = cond_goal;
 	cond_goal = &cond_goal->substitution(forall_subst);
 	if (old_cond_goal != cond_goal) {
-	  Condition::register_use(old_cond_goal);
-	  Condition::unregister_use(old_cond_goal);
+	  Formula::register_use(old_cond_goal);
+	  Formula::unregister_use(old_cond_goal);
 	}
       }
     }
     bool added = add_goal(new_open_conds, new_num_open_conds, new_bindings,
 			  *cond_goal, step.id(), test_only);
-    Condition::register_use(cond_goal);
-    Condition::unregister_use(cond_goal);
+    Formula::register_use(cond_goal);
+    Formula::unregister_use(cond_goal);
     if (!added) {
       if (!test_only) {
-	Chain<OpenCondition>::register_use(new_open_conds);
-	Chain<OpenCondition>::unregister_use(new_open_conds);
+	RCObject::ref(new_open_conds);
+	RCObject::destructive_deref(new_open_conds);
       }
       return 0;
     }
@@ -1693,8 +1875,8 @@ int Plan::make_link(PlanList& plans, const Step& step, const Effect& effect,
     if (!add_goal(new_open_conds, new_num_open_conds, new_bindings,
 		  step.action().condition(), step.id(), test_only)) {
       if (!test_only) {
-	Chain<OpenCondition>::register_use(new_open_conds);
-	Chain<OpenCondition>::unregister_use(new_open_conds);
+	RCObject::ref(new_open_conds);
+	RCObject::destructive_deref(new_open_conds);
       }
       return 0;
     }
@@ -1702,8 +1884,8 @@ int Plan::make_link(PlanList& plans, const Step& step, const Effect& effect,
       bindings = bindings->add(step.id(), step.action(), *planning_graph);
       if (bindings == NULL) {
 	if (!test_only) {
-	  Chain<OpenCondition>::register_use(new_open_conds);
-	  Chain<OpenCondition>::unregister_use(new_open_conds);
+	  RCObject::ref(new_open_conds);
+	  RCObject::destructive_deref(new_open_conds);
 	}
 	return 0;
       }
@@ -1713,18 +1895,16 @@ int Plan::make_link(PlanList& plans, const Step& step, const Effect& effect,
       new_num_steps++;
     }
   }
-  const Bindings* tmp_bindings = bindings->add(new_bindings,
-					       problem->domain().types(),
-					       problem->terms(), test_only);
+  const Bindings* tmp_bindings = bindings->add(new_bindings, test_only);
   if ((test_only || tmp_bindings != bindings) && bindings != bindings_) {
     delete bindings;
   }
   if (tmp_bindings == NULL) {
     if (!test_only) {
-      Chain<OpenCondition>::register_use(new_open_conds);
-      Chain<OpenCondition>::unregister_use(new_open_conds);
-      Chain<Step>::register_use(new_steps);
-      Chain<Step>::unregister_use(new_steps);
+      RCObject::ref(new_open_conds);
+      RCObject::destructive_deref(new_open_conds);
+      RCObject::ref(new_steps);
+      RCObject::destructive_deref(new_steps);
       return 0;
     }
   }
@@ -1756,10 +1936,10 @@ int Plan::make_link(PlanList& plans, const Step& step, const Effect& effect,
       if (bindings != bindings_) {
 	delete bindings;
       }
-      Chain<OpenCondition>::register_use(new_open_conds);
-      Chain<OpenCondition>::unregister_use(new_open_conds);
-      Chain<Step>::register_use(new_steps);
-      Chain<Step>::unregister_use(new_steps);
+      RCObject::ref(new_open_conds);
+      RCObject::destructive_deref(new_open_conds);
+      RCObject::ref(new_steps);
+      RCObject::destructive_deref(new_steps);
       return 0;
     }
 
@@ -1780,16 +1960,18 @@ int Plan::make_link(PlanList& plans, const Step& step, const Effect& effect,
     /*
      * If this is a new step, find links it threatens.
      */
+    const Chain<MutexThreat>* new_mutex_threats = mutex_threats();
     if (step.id() > num_steps()) {
-      step_threats(new_unsafes, new_num_unsafes, step, links(), *new_orderings,
-		   *bindings);
+      step_threats(new_unsafes, new_num_unsafes, step,
+		   links(), *new_orderings, *bindings);
     }
 
     /* Adds the new plan. */
     plans.push_back(new Plan(new_steps, new_num_steps, new_links,
 			     num_links() + 1, *new_orderings, *bindings,
 			     new_unsafes, new_num_unsafes,
-			     new_open_conds, new_num_open_conds, this));
+			     new_open_conds, new_num_open_conds,
+			     new_mutex_threats, this));
   }
   return 1;
 }
@@ -1819,7 +2001,7 @@ struct StepSorter {
   std::map<size_t, float>& dist;
 };
 
-
+#if 0
 /* Find interfering steps. */
 static const Orderings&
 disable_interference(const std::vector<const Step*>& ordered_steps,
@@ -1829,26 +2011,16 @@ disable_interference(const std::vector<const Step*>& ordered_steps,
   const BinaryOrderings* new_orderings = &orderings;
   size_t n = ordered_steps.size();
   for (size_t i = 0; i < n; i++) {
-    for (size_t j = i + 1; j < n; j++) {
+    for (size_t j = i + 1; j < n; ) {
       const Step& si = *ordered_steps[i];
       const Step& sj = *ordered_steps[j];
-      if (new_orderings->possibly_concurrent(si.id(), STEP_START,
-					     sj.id(), STEP_START)
-	  || new_orderings->possibly_concurrent(si.id(), STEP_START,
-						sj.id(), STEP_END)
-	  || new_orderings->possibly_concurrent(si.id(), STEP_END,
-						sj.id(), STEP_START)
-	  || new_orderings->possibly_concurrent(si.id(), STEP_END,
-						sj.id(), STEP_END)) {
-	if (verbosity > 1) {
-	  std::cerr << si.id() << " and " << sj.id() << " possibly concurrent"
-		    << std::endl;
-	}
+      if (!new_orderings->possibly_concurrent(si.id(), sj.id())) {
+	j = n;
+      } else {
 	bool interference = false;
 	for (const Chain<Link>* lc = links;
 	     lc != NULL && !interference; lc = lc->tail) {
 	  const Link& l = lc->head;
-	  StepTime lt = end_time(l.condition_time());
 	  if (l.to_id() == sj.id()) {
 	    // is effect of si interfering with link condition?
 	    const EffectList& effects = si.action().effects();
@@ -1857,15 +2029,9 @@ disable_interference(const std::vector<const Step*>& ordered_steps,
 	      const Effect& e = **ei;
 	      if (e.link_condition().contradiction()) {
 		// effect could interfere with condition
-		StepTime et = end_time(e);
-		if (new_orderings->possibly_concurrent(si.id(), et,
-						       l.to_id(), lt)) {
-		  if (bindings.affects(e.literal(), si.id(),
-				       l.condition(), l.to_id(),
-				       problem->domain().types(),
-				       problem->terms())) {
-		    interference = true;
-		  }
+		if (bindings.affects(e.literal(), si.id(),
+				     l.condition(), l.to_id())) {
+		  interference = true;
 		}
 	      }
 	    }
@@ -1877,15 +2043,9 @@ disable_interference(const std::vector<const Step*>& ordered_steps,
 	      const Effect& e = **ei;
 	      if (e.link_condition().contradiction()) {
 		// effect could interfere with condition
-		StepTime et = end_time(e);
-		if (new_orderings->possibly_concurrent(sj.id(), et,
-						       l.to_id(), lt)) {
-		  if (bindings.affects(e.literal(), sj.id(),
-				       l.condition(), l.to_id(),
-				       problem->domain().types(),
-				       problem->terms())) {
-		    interference = true;
-		  }
+		if (bindings.affects(e.literal(), sj.id(),
+				     l.condition(), l.to_id())) {
+		  interference = true;
 		}
 	      }
 	    }
@@ -1897,19 +2057,22 @@ disable_interference(const std::vector<const Step*>& ordered_steps,
 		      << std::endl;
 	  }
 	  const Orderings* old_orderings = new_orderings;
-	  new_orderings = new_orderings->refine(Ordering(si.id(), STEP_START,
-							 sj.id(), STEP_START));
+	  new_orderings = new_orderings->refine(Ordering(si.id(),
+							 StepTime::AT_START,
+							 sj.id(),
+							 StepTime::AT_START));
 	  if (old_orderings != new_orderings) {
 	    Orderings::register_use(old_orderings);
 	    Orderings::unregister_use(old_orderings);
 	  }
 	}
+	j++;
       }
     }
   }
   return *new_orderings;
 }
-
+#endif
 
 /* Output operator for plans. */
 std::ostream& operator<<(std::ostream& os, const Plan& p) {
@@ -1931,6 +2094,7 @@ std::ostream& operator<<(std::ostream& os, const Plan& p) {
   std::map<size_t, float> end_times;
   float makespan = p.orderings().schedule(start_times, end_times);
   sort(ordered_steps.begin(), ordered_steps.end(), StepSorter(start_times));
+#if 0
   /*
    * Now make sure that nothing scheduled at the same time is
    * interfering.  This can only occur if there are link conditions on
@@ -1957,6 +2121,7 @@ std::ostream& operator<<(std::ostream& os, const Plan& p) {
       Orderings::unregister_use(&new_orderings);
     }
   }
+#endif
   if (verbosity < 2) {
     std::cerr << "Makespan: " << makespan << std::endl;
     bool first = true;
@@ -1969,7 +2134,7 @@ std::ostream& operator<<(std::ostream& os, const Plan& p) {
 	}
 	first = false;
 	os << start_times[s.id()] << ':';
-	s.action().print(os, problem->terms(), s.id(), *bindings);
+	s.action().print(os, s.id(), *bindings);
 	if (s.action().durative()) {
 	  os << '[' << (end_times[s.id()] - start_times[s.id()]) << ']';
 	}
@@ -1981,8 +2146,7 @@ std::ostream& operator<<(std::ostream& os, const Plan& p) {
     for (EffectList::const_iterator ei = effects.begin();
 	 ei != effects.end(); ei++) {
       os << ' ';
-      (*ei)->literal().print(os, problem->domain().predicates(),
-			     problem->terms(), 0, *bindings);
+      (*ei)->literal().print(os, 0, *bindings);
     }
     ordered_steps.push_back(goal);
     for (std::vector<const Step*>::const_iterator si = ordered_steps.begin();
@@ -1999,7 +2163,16 @@ std::ostream& operator<<(std::ostream& os, const Plan& p) {
 	  os << ' ';
 	}
 	os << " : ";
-	step.action().print(os, problem->terms(), step.id(), *bindings);
+	step.action().print(os, step.id(), *bindings);
+	for (const Chain<MutexThreat>* mc = p.mutex_threats();
+	     mc != NULL; mc = mc->tail) {
+	  const MutexThreat& mt = mc->head;
+	  if (mt.step_id1() == step.id()) {
+	    os << " <" << mt.step_id2() << '>';
+	  } else if (mt.step_id2() == step.id()) {
+	    os << " <" << mt.step_id1() << '>';
+	  }
+	}
       }
       for (const Chain<Link>* lc = p.links(); lc != NULL; lc = lc->tail) {
 	const Link& link = lc->head;
@@ -2011,26 +2184,13 @@ std::ostream& operator<<(std::ostream& os, const Plan& p) {
 	    }
 	    os << ' ';
 	  }
-	  os << " -> (";
-	  switch (link.condition_time()) {
-	  case AT_START:
-	    os << "at start ";
-	    break;
-	  case OVER_ALL:
-	    os << "over all ";
-	    break;
-	  case AT_END:
-	    os << "at end ";
-	    break;
-	  }
-	  link.condition().print(os, problem->domain().predicates(),
-				 problem->terms(), link.to_id(), *bindings);
-	  os << ")";
+	  os << " -> ";
+	  link.condition().print(os, link.to_id(), *bindings);
 	  for (const Chain<Unsafe>* uc = p.unsafes();
 	       uc != NULL; uc = uc->tail) {
 	    const Unsafe& unsafe = uc->head;
 	    if (unsafe.link() == link) {
-	      os << " <" << unsafe.step_id() << ">";
+	      os << " <" << unsafe.step_id() << '>';
 	    }
 	  }
 	}
@@ -2039,29 +2199,15 @@ std::ostream& operator<<(std::ostream& os, const Plan& p) {
 	   occ != NULL; occ = occ->tail) {
 	const OpenCondition& open_cond = occ->head;
 	if (open_cond.step_id() == step.id()) {
-	  os << std::endl << "           ?? -> (";
-	  switch (open_cond.when()) {
-	  case AT_START:
-	    os << "at start ";
-	    break;
-	  case OVER_ALL:
-	    os << "over all ";
-	    break;
-	  case AT_END:
-	    os << "at end ";
-	    break;
-	  }
-	  open_cond.condition().print(os, problem->domain().predicates(),
-				      problem->terms(), open_cond.step_id(),
-				      *bindings);
-	  os << ")";
+	  os << std::endl << "           ?? -> ";
+	  open_cond.condition().print(os, open_cond.step_id(), *bindings);
 	}
       }
     }
     os << std::endl << "orderings = " << p.orderings();
     if (p.bindings() != NULL) {
       os << std::endl << "bindings = ";
-      bindings->print(os, problem->terms());
+      bindings->print(os);
     }
   }
   return os;

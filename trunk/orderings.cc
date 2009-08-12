@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2002-2004 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -27,13 +27,43 @@
 /* ====================================================================== */
 /* StepTime */
 
+const StepTime StepTime::AT_START(StepTime::START, StepTime::AT);
+const StepTime StepTime::AFTER_START(StepTime::START, StepTime::AFTER);
+const StepTime StepTime::BEFORE_END(StepTime::END, StepTime::BEFORE);
+const StepTime StepTime::AT_END(StepTime::END, StepTime::AT);
+
+
+bool operator<(const StepTime& st1, const StepTime& st2) {
+  return (st1.point < st2.point
+	  || (st1.point == st2.point && st1.rel < st2.rel));
+}
+
+
+bool operator<=(const StepTime& st1, const StepTime& st2) {
+  return (st1.point <= st2.point
+	  || (st1.point == st2.point && st1.rel <= st2.rel));
+}
+
+
+bool operator>=(const StepTime& st1, const StepTime& st2) {
+  return (st1.point >= st2.point
+	  || (st1.point == st2.point && st1.rel >= st2.rel));
+}
+
+
+bool operator>(const StepTime& st1, const StepTime& st2) {
+  return (st1.point > st2.point
+	  || (st1.point == st2.point && st1.rel > st2.rel));
+}
+
+
 /* Returns the step time corresponding to the end time of the given
    effect. */
 StepTime end_time(const Effect& e) {
   if (e.when() == Effect::AT_START) {
-    return STEP_START;
+    return StepTime::AT_START;
   } else {
-    return STEP_END;
+    return StepTime::AT_END;
   }
 }
 
@@ -42,9 +72,11 @@ StepTime end_time(const Effect& e) {
    formula time. */
 StepTime end_time(FormulaTime ft) {
   if (ft == AT_START) {
-    return STEP_START;
+    return StepTime::AT_START;
+  } else if (ft == AT_END) {
+    return StepTime::AT_END;
   } else {
-    return STEP_END;
+    return StepTime::BEFORE_END;
   }
 }
 
@@ -52,10 +84,12 @@ StepTime end_time(FormulaTime ft) {
 /* Returns the step time corresponding to the start time of the given
    literal. */
 StepTime start_time(FormulaTime ft) {
-  if (ft == AT_END) {
-    return STEP_END;
+  if (ft == AT_START) {
+    return StepTime::AT_START;
+  } else if (ft == AT_END) {
+    return StepTime::AT_END;
   } else {
-    return STEP_START;
+    return StepTime::AFTER_START;
   }
 }
 
@@ -248,6 +282,14 @@ bool BinaryOrderings::possibly_before(size_t id1, StepTime t1,
 }
 
 
+/* Checks if the first step could be ordered after or at the same
+   time as the second step. */
+bool BinaryOrderings::possibly_not_before(size_t id1, StepTime t1,
+					  size_t id2, StepTime t2) const {
+  return possibly_after(id1, t1, id2, t2);
+}
+
+
 /* Checks if the first step could be ordered after the second step. */
 bool BinaryOrderings::possibly_after(size_t id1, StepTime t1,
 				     size_t id2, StepTime t2) const {
@@ -263,10 +305,24 @@ bool BinaryOrderings::possibly_after(size_t id1, StepTime t1,
 }
 
 
+/* Checks if the first step could be ordered before or at the same
+   time as the second step. */
+bool BinaryOrderings::possibly_not_after(size_t id1, StepTime t1,
+					 size_t id2, StepTime t2) const {
+  return possibly_before(id1, t1, id2, t2);
+}
+
+
 /* Checks if the two steps are possibly concurrent. */
-bool BinaryOrderings::possibly_concurrent(size_t id1, StepTime t1,
-					  size_t id2, StepTime t2) const {
-  return !before(id1, id2) && !before(id2, id1);
+bool BinaryOrderings::possibly_concurrent(size_t id1, size_t id2,
+					  bool& ss, bool& se,
+					  bool& es, bool& ee) const {
+  if (id1 == id2 || id1 == 0 || id1 == Plan::GOAL_ID
+      || id2 == 0 || id2 == Plan::GOAL_ID) {
+    return false;
+  } else {
+    return ss = se = es = ee = !before(id1, id2) && !before(id2, id1);
+  }
 }
 
 
@@ -275,8 +331,10 @@ const BinaryOrderings*
 BinaryOrderings::refine(const Ordering& new_ordering) const {
   if (new_ordering.before_id() != 0
       && new_ordering.after_id() != Plan::GOAL_ID
-      && possibly_after(new_ordering.before_id(), new_ordering.before_time(),
-			new_ordering.after_id(), new_ordering.after_time())) {
+      && possibly_not_before(new_ordering.before_id(),
+			     new_ordering.before_time(),
+			     new_ordering.after_id(),
+			     new_ordering.after_time())) {
     BinaryOrderings& orderings = *new BinaryOrderings(*this);
     std::map<size_t, BoolVector*> own_data;
     orderings.fill_transitive(own_data, new_ordering);
@@ -332,8 +390,8 @@ float BinaryOrderings::schedule(std::map<size_t, float>& start_times,
 
 /* Returns the makespan of this ordering collection. */
 float
-BinaryOrderings::makespan(const std::map<std::pair<size_t, StepTime>,
-			  float>& min_times) const {
+BinaryOrderings::makespan(const std::map<std::pair<size_t,
+			  StepTime::StepPoint>, float>& min_times) const {
   std::map<size_t, float> start_times, end_times;
   float max_dist = 0.0f;
   size_t n = before_.size() + 1;
@@ -343,8 +401,8 @@ BinaryOrderings::makespan(const std::map<std::pair<size_t, StepTime>,
       max_dist = ed;
     }
   }
-  std::map<std::pair<size_t, StepTime>, float>::const_iterator md =
-    min_times.find(std::make_pair(Plan::GOAL_ID, STEP_START));
+  std::map<std::pair<size_t, StepTime::StepPoint>, float>::const_iterator md =
+    min_times.find(std::make_pair(Plan::GOAL_ID, StepTime::START));
   if (md != min_times.end()) {
     if ((*md).second > max_dist) {
       max_dist = (*md).second;
@@ -383,8 +441,8 @@ float BinaryOrderings::schedule(std::map<size_t, float>& start_times,
 float
 BinaryOrderings::schedule(std::map<size_t, float>& start_times,
 			  std::map<size_t, float>& end_times, size_t step_id,
-			  const std::map<std::pair<size_t, StepTime>,
-			  float>& min_times) const {
+			  const std::map<std::pair<size_t,
+			  StepTime::StepPoint>, float>& min_times) const {
   std::map<size_t, float>::const_iterator d = start_times.find(step_id);
   if (d != start_times.end()) {
     return (*d).second;
@@ -399,10 +457,10 @@ BinaryOrderings::schedule(std::map<size_t, float>& start_times,
 	}
       }
     }
-    std::map<std::pair<size_t, StepTime>, float>::const_iterator md =
-      min_times.find(std::make_pair(step_id, STEP_START));
+    std::map<std::pair<size_t, StepTime::StepPoint>, float>::const_iterator
+      md = min_times.find(std::make_pair(step_id, StepTime::START));
     if (md == min_times.end()) {
-      md = min_times.find(std::make_pair(step_id, STEP_END));
+      md = min_times.find(std::make_pair(step_id, StepTime::END));
     }
     if (md != min_times.end()) {
       if ((*md).second > sd) {
@@ -509,7 +567,7 @@ TemporalOrderings::TemporalOrderings(const TemporalOrderings& o)
   for (size_t i = 0; i < n; i++) {
     IntVector::register_use(distance_[i]);
   }
-  Chain<size_t>::register_use(goal_achievers_);
+  RCObject::ref(goal_achievers_);
 }
 
 
@@ -519,7 +577,7 @@ TemporalOrderings::~TemporalOrderings() {
   for (size_t i = 0; i < n; i++) {
     IntVector::unregister_use(distance_[i]);
   }
-  Chain<size_t>::unregister_use(goal_achievers_);
+  RCObject::destructive_deref(goal_achievers_);
 }
 
 
@@ -533,7 +591,25 @@ bool TemporalOrderings::possibly_before(size_t id1, StepTime t1,
   } else if (id1 == Plan::GOAL_ID || id2 == 0) {
     return false;
   } else {
-    return distance(time_node(id1, t1), time_node(id2, t2)) > 0;
+    int dist = distance(time_node(id1, t1), time_node(id2, t2));
+    return dist > 0 || (dist == 0 && t1.rel < t2.rel);
+  }
+}
+
+
+/* Checks if the first step could be ordered after or at the same
+   time as the second step. */
+bool TemporalOrderings::possibly_not_before(size_t id1, StepTime t1,
+					    size_t id2, StepTime t2) const {
+  if (id1 == id2 && t1 < t2) {
+    return false;
+  } else if (id1 == 0 || id2 == Plan::GOAL_ID) {
+    return false;
+  } else if (id1 == Plan::GOAL_ID || id2 == 0) {
+    return true;
+  } else {
+    int dist = distance(time_node(id2, t2), time_node(id1, t1));
+    return dist > 0 || (dist == 0 && t2.rel <= t1.rel);
   }
 }
 
@@ -548,18 +624,57 @@ bool TemporalOrderings::possibly_after(size_t id1, StepTime t1,
   } else if (id1 == Plan::GOAL_ID || id2 == 0) {
     return true;
   } else {
-    return distance(time_node(id2, t2), time_node(id1, t1)) > 0;
+    int dist = distance(time_node(id2, t2), time_node(id1, t1));
+    return dist > 0 || (dist == 0 && t2.rel < t1.rel);
   }
 }
 
 
-/* Returns the the ordering collection with the given additions. */
+/* Checks if the first step could be ordered before or at the same
+   time as the second step. */
+bool TemporalOrderings::possibly_not_after(size_t id1, StepTime t1,
+					   size_t id2, StepTime t2) const {
+  if (id1 == id2 && t1 > t2) {
+    return false;
+  } else if (id1 == 0 || id2 == Plan::GOAL_ID) {
+    return true;
+  } else if (id1 == Plan::GOAL_ID || id2 == 0) {
+    return false;
+  } else {
+    int dist = distance(time_node(id1, t1), time_node(id2, t2));
+    return dist > 0 || (dist == 0 && t1.rel <= t2.rel);
+  }
+}
+
+
+/* Checks if the two steps are possibly concurrent. */
+bool TemporalOrderings::possibly_concurrent(size_t id1, size_t id2,
+					    bool& ss, bool& se,
+					    bool& es, bool& ee) const {
+  if (id1 == id2 || id1 == 0 || id1 == Plan::GOAL_ID
+      || id2 == 0 || id2 == Plan::GOAL_ID) {
+    return false;
+  } else {
+    size_t t1s = time_node(id1, StepTime::AT_START);
+    size_t t1e = time_node(id1, StepTime::AT_END);
+    size_t t2s = time_node(id2, StepTime::AT_START);
+    size_t t2e = time_node(id2, StepTime::AT_END);
+    ss = distance(t1s, t2s) >= 0 && distance(t2s, t1s) >= 0;
+    se = distance(t1s, t2e) >= 0 && distance(t2e, t1s) >= 0;
+    es = distance(t1e, t2s) >= 0 && distance(t2s, t1e) >= 0;
+    ee = distance(t1e, t2e) >= 0 && distance(t2e, t1e) >= 0;
+    return ss || se || es || ee;
+  }
+}
+
+
+/* Returns the ordering collection with the given additions. */
 const TemporalOrderings* TemporalOrderings::refine(size_t step_id,
 						   float min_start,
 						   float min_end) const {
   if (step_id != 0 && step_id != Plan::GOAL_ID) {
-    size_t i = time_node(step_id, STEP_START);
-    size_t j = time_node(step_id, STEP_END);
+    size_t i = time_node(step_id, StepTime::AT_START);
+    size_t j = time_node(step_id, StepTime::AT_END);
     int start = int(min_start/threshold + 0.5);
     int end = int(min_end/threshold + 0.5);
     if (-distance(i, 0) >= start && -distance(j, 0) >= end) {
@@ -627,13 +742,21 @@ const TemporalOrderings*
 TemporalOrderings::refine(const Ordering& new_ordering) const {
   if (new_ordering.before_id() != 0
       && new_ordering.after_id() != Plan::GOAL_ID
-      && possibly_after(new_ordering.before_id(), new_ordering.before_time(),
-			new_ordering.after_id(), new_ordering.after_time())) {
+      && possibly_not_before(new_ordering.before_id(),
+			     new_ordering.before_time(),
+			     new_ordering.after_id(),
+			     new_ordering.after_time())) {
     TemporalOrderings& orderings = *new TemporalOrderings(*this);
     std::map<size_t, IntVector*> own_data;
     size_t i = time_node(new_ordering.before_id(), new_ordering.before_time());
     size_t j = time_node(new_ordering.after_id(), new_ordering.after_time());
-    if (orderings.fill_transitive(own_data, i, j, 1)) {
+    int dist;
+    if (new_ordering.before_time().rel < new_ordering.after_time().rel) {
+      dist = 0;
+    } else {
+      dist = 1;
+    }
+    if (orderings.fill_transitive(own_data, i, j, dist)) {
       return &orderings;
     } else {
       delete &orderings;
@@ -703,7 +826,13 @@ TemporalOrderings::refine(const Ordering& new_ordering,
 			     new_ordering.before_time());
 	size_t j = time_node(new_ordering.after_id(),
 			     new_ordering.after_time());
-	if (orderings.fill_transitive(own_data, i, j, 1)) {
+	int dist;
+	if (new_ordering.before_time().rel < new_ordering.after_time().rel) {
+	  dist = 0;
+	} else {
+	  dist = 1;
+	}
+	if (orderings.fill_transitive(own_data, i, j, dist)) {
 	  return &orderings;
 	} else {
 	  delete &orderings;
@@ -713,7 +842,7 @@ TemporalOrderings::refine(const Ordering& new_ordering,
 	orderings.goal_achievers_ =
 	  new Chain<size_t>(new_ordering.before_id(),
 			    orderings.goal_achievers_);
-	Chain<size_t>::register_use(orderings.goal_achievers_);
+	RCObject::ref(orderings.goal_achievers_);
       }
     }
     return &orderings;
@@ -731,9 +860,9 @@ TemporalOrderings::schedule(std::map<size_t, float>& start_times,
   float max_dist = 0.0f;
   size_t n = distance_.size()/2;
   for (size_t i = 1; i <= n; i++) {
-    float sd = -distance(time_node(i, STEP_START), 0)*threshold;
+    float sd = -distance(time_node(i, StepTime::AT_START), 0)*threshold;
     start_times.insert(std::make_pair(i, sd));
-    float ed = -distance(time_node(i, STEP_END), 0)*threshold;
+    float ed = -distance(time_node(i, StepTime::AT_END), 0)*threshold;
     end_times.insert(std::make_pair(i, ed));
     if (ed > max_dist
 	&& goal_achievers_ != NULL && goal_achievers_->contains(i)) {
@@ -746,12 +875,12 @@ TemporalOrderings::schedule(std::map<size_t, float>& start_times,
 
 /* Returns the makespan of this ordering collection. */
 float
-TemporalOrderings::makespan(const std::map<std::pair<size_t, StepTime>,
-			    float>& min_times) const {
+TemporalOrderings::makespan(const std::map<std::pair<size_t,
+			    StepTime::StepPoint>, float>& min_times) const {
   float max_dist = 0.0f;
   size_t n = distance_.size()/2;
   for (size_t i = 1; i <= n; i++) {
-    float ed = -distance(time_node(i, STEP_END), 0)*threshold;
+    float ed = -distance(time_node(i, StepTime::AT_END), 0)*threshold;
     if (ed > max_dist
 	&& goal_achievers_ != NULL && goal_achievers_->contains(i)) {
       max_dist = ed;

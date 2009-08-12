@@ -2,7 +2,7 @@
 /*
  * Partial plans, and their components.
  *
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2002-2004 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -169,6 +169,9 @@ struct Plan {
   /* Returns the number of open conditions in this plan. */
   size_t num_open_conds() const { return num_open_conds_; }
 
+  /* Returns the mutex threats of this plan. */
+  const Chain<MutexThreat>* mutex_threats() const { return mutex_threats_; }
+
   /* Checks if this plan is complete. */
   bool complete() const;
 
@@ -194,7 +197,7 @@ struct Plan {
   /* Checks if the given threat is separable. */
   int separable(const Unsafe& unsafe) const;
 
-  /* Checks if the given open conditions is threatened. */
+  /* Checks if the given open condition is threatened. */
   bool unsafe_open_condition(const OpenCondition& open_cond) const;
 
   /* Counts the number of refinements for the given open condition, and
@@ -240,6 +243,8 @@ private:
   const Chain<OpenCondition>* open_conds_;
   /* Number of open conditions. */
   const size_t num_open_conds_;
+  /* Chain of mutex threats. */
+  const Chain<MutexThreat>* mutex_threats_;
   /* Rank of this plan. */
   mutable std::vector<float> rank_;
   /* Plan id (serial number). */
@@ -259,7 +264,7 @@ private:
        const Orderings& orderings, const Bindings& bindings,
        const Chain<Unsafe>* unsafes, size_t num_unsafes,
        const Chain<OpenCondition>* open_conds, size_t num_open_conds,
-       const Plan* parent);
+       const Chain<MutexThreat>* mutex_threats, const Plan* parent);
 
   /* Returns the next flaw to work on. */
   const Flaw& get_flaw(const FlawSelectionOrder& flaw_order) const;
@@ -272,21 +277,40 @@ private:
   void handle_unsafe(PlanList& plans, const Unsafe& unsafe) const;
 
   /* Handles an unsafe link through separation. */
-  int separate(PlanList& new_plans, const Unsafe& unsafe,
+  int separate(PlanList& plans, const Unsafe& unsafe,
 		const BindingList& unifier, bool test_only = false) const;
 
   /* Handles an unsafe link through demotion. */
-  int demote(PlanList& new_plans, const Unsafe& unsafe,
+  int demote(PlanList& plans, const Unsafe& unsafe,
 	     bool test_only = false) const;
 
   /* Handles an unsafe link through promotion. */
-  int promote(PlanList& new_plans, const Unsafe& unsasfe,
+  int promote(PlanList& plans, const Unsafe& unsasfe,
 	      bool test_only = false) const;
 
   /* Adds a plan to the given plan list with an ordering added. */
   void new_ordering(PlanList& plans, size_t before_id, StepTime t1,
 		    size_t after_id, StepTime t2,
 		    const Unsafe& unsafe) const;
+
+  /* Handles a mutex threat. */
+  void handle_mutex_threat(PlanList& plans,
+			   const MutexThreat& mutex_threat) const;
+
+  /* Handles a mutex threat through separation. */
+  void separate(PlanList& plans, const MutexThreat& mutex_threat,
+		const BindingList& unifier) const;
+
+  /* Handles a mutex threat through demotion. */
+  void demote(PlanList& plans, const MutexThreat& mutex_threat) const;
+
+  /* Handles a mutex threat through promotion. */
+  void promote(PlanList& plans, const MutexThreat& mutex_threat) const;
+
+  /* Adds a plan to the given plan list with an ordering added. */
+  void new_ordering(PlanList& plans, size_t before_id, StepTime t1,
+		    size_t after_id, StepTime t2,
+		    const MutexThreat& mutex_threat) const;
 
   /* Handles an open condition. */
   void handle_open_condition(PlanList& plans,

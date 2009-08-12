@@ -1,0 +1,103 @@
+#! /bin/bash
+
+if (test -z "$1") then
+    mem=512
+else
+    mem=$1
+fi
+if (test -z "$2") then
+    time=15
+else
+    time=$2
+fi
+ulimit -v `expr $mem '*' 1024`
+echo "memory limit: `ulimit -v` kbytes"
+
+pddldir=examples
+outdir=aips2002data
+
+if (test ! -e $outdir) then
+    mkdir $outdir
+fi
+
+problems="\
+ gripper-domain gripper-4 gripper-6 gripper-8 gripper-10 gripper-12 gripper-20\
+ rocket-domain rocket-ext-a rocket-ext-b\
+ logistics-domain logistics-a logistics-b logistics-c logistics-d"
+for p in $problems; do
+    if (test ! -z "`echo $p | grep '\-domain'`") then
+	domain=$p
+	continue
+    fi
+    echo -n $p
+    for type in ground all domains static heuristic oc; do
+	echo -n ' '$type
+	case $type in
+	ground)
+	    params='-g -h ADD/ADD_WORK/BUC/LIFO'
+	    ;;
+	all)
+	    params='-d -h ADD/ADD_WORK/BUC/LIFO -f STATIC'
+	    ;;
+	domains)
+	    params='-d -h ADD/ADD_WORK/BUC/LIFO'
+	    ;;
+	static)
+	    params='-h ADD/ADD_WORK/BUC/LIFO -f STATIC'
+	    ;;
+	heuristic)
+	    params='-h ADD/ADD_WORK/BUC/LIFO'
+	    ;;
+	oc)
+	    params='-h S+OC/LIFO'
+	    ;;
+	esac
+	outfile=$outdir/$p-$type.out
+	if (test ! -f $outfile) then
+	    ./vhpop -v1 -T $time $params examples/$domain.pddl examples/$p.pddl > $outfile 2>&1
+	fi
+    done
+    echo
+done
+
+i=2
+while (test $i -le 30) do
+    echo -n blocks-$i
+    for type in ground all; do
+	echo -n ' '$type
+	case $type in
+	ground)
+	    params='-g -h ADD/ADD_WORK/BUC/LIFO'
+	    ;;
+	all)
+	    params='-d -h ADD/ADD_WORK/BUC/LIFO -f STATIC'
+	    ;;
+	esac
+	outfile=$outdir/blocks-$i-$type.out
+	if (test ! -f $outfile) then
+	    $pddldir/blocks.sh $i | cat $pddldir/blocks-domain.pddl - | ./vhpop -v1 $params > $outfile 2>&1
+	fi
+    done
+    echo
+    i=`expr $i + 1`
+done
+
+domain=grid-domain
+p=simple-grid2
+echo -n $p
+for type in ground lifted; do
+    echo -n ' '$type
+    case $type in
+    ground)
+	params='-g -h ADD/ADD_WORK/BUC/LIFO -f LCFR'
+	;;
+    lifted)
+	params='-d0 -h ADD/ADD_WORK/BUC/LIFO -f LCFR'
+	;;
+    esac
+    outfile=$outdir/$p-$type.out
+    if (test ! -f $outfile) then
+	./vhpop -v1 $params examples/$domain.pddl examples/$p.pddl > $outfile 2>&1
+    fi
+done
+echo

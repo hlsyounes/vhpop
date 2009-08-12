@@ -2,7 +2,7 @@
 /*
  * Domain descriptions.
  *
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2002-2004 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -87,6 +87,9 @@ struct Domain {
   /* Returns the function table of this domain. */
   const FunctionTable& functions() const { return functions_; }
 
+  /* Returns the `total-time' function. */
+  const Function& total_time() const { return total_time_; }
+
   /* Returns the term table of this domain. */
   TermTable& terms() { return terms_; }
 
@@ -100,10 +103,6 @@ struct Domain {
      undefined. */
   const ActionSchema* find_action(const std::string& name) const;
 
-  /* Fills the provided object list with constants that are compatible
-     with the given type. */
-  void compatible_constants(ObjectList& constants, Type type) const;
-
 private:
   /* Table of all defined domains. */
   static DomainMap domains;
@@ -116,6 +115,8 @@ private:
   PredicateTable predicates_;
   /* Domain functions. */
   FunctionTable functions_;
+  /* The `total-time' function. */
+  Function total_time_;
   /* Domain terms. */
   TermTable terms_;
   /* Domain action schemas. */
