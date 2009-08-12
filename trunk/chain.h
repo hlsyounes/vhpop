@@ -22,7 +22,7 @@
 #define CHAIN_H
 
 #include <config.h>
-#include <refcount.h>
+#include "refcount.h"
 
 
 /* ====================================================================== */
@@ -50,9 +50,9 @@ struct Chain : RCObject {
   }
 
   /* Returns the size of this chain. */
-  size_t size() const {
-    size_t result = 0;
-    for (const Chain<T>* ci = this; ci != NULL; ci = ci->tail) {
+  int size() const {
+    int result = 0;
+    for (const Chain<T>* ci = this; ci != 0; ci = ci->tail) {
       result++;
     }
     return result;
@@ -60,7 +60,7 @@ struct Chain : RCObject {
 
   /* Checks if this chain contains the given element. */
   bool contains(const T& h) const {
-    for (const Chain<T>* ci = this; ci != NULL; ci = ci->tail) {
+    for (const Chain<T>* ci = this; ci != 0; ci = ci->tail) {
       if (h == ci->head) {
 	return true;
       }
@@ -72,16 +72,16 @@ struct Chain : RCObject {
   const Chain<T>* remove(const T& h) const {
     if (h == head) {
       return tail;
-    } else if (tail != NULL) {
-      Chain<T>* prev = new Chain<T>(head, NULL);
+    } else if (tail != 0) {
+      Chain<T>* prev = new Chain<T>(head, 0);
       const Chain<T>* top = prev;
-      for (const Chain<T>* ci = tail; ci != NULL; ci = ci->tail) {
+      for (const Chain<T>* ci = tail; ci != 0; ci = ci->tail) {
 	if (h == ci->head) {
 	  prev->tail = ci->tail;
 	  ref(ci->tail);
 	  break;
 	} else {
-	  Chain<T>* tmp = new Chain<T>(ci->head, NULL);
+	  Chain<T>* tmp = new Chain<T>(ci->head, 0);
 	  prev->tail = tmp;
 	  ref(tmp);
 	  prev = tmp;
