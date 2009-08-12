@@ -15,7 +15,6 @@
  *
  * $Id: plans.cc,v 6.17 2003-12-10 03:44:19 lorens Exp $
  */
-#include "mathport.h"
 #include "plans.h"
 #include "heuristics.h"
 #include "bindings.h"
@@ -26,9 +25,9 @@
 #include "parameters.h"
 #include "debug.h"
 #include <algorithm>
+#include <limits>
 #include <queue>
 #include <typeinfo>
-#include <climits>
 #include <sys/time.h>
 
 
@@ -109,7 +108,7 @@ struct PlanQueue : public std::priority_queue<const Plan*> {
 
 
 /* Id of goal step. */
-const size_t Plan::GOAL_ID = UINT_MAX;
+const size_t Plan::GOAL_ID = std::numeric_limits<size_t>::max();
 
 
 /* Adds goal to chain of open conditions, and returns true if and only
@@ -614,10 +613,10 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
       && params->search_algorithm == Parameters::IDA_STAR) {
     f_limit = current_plan->primary_rank();
   } else {
-    f_limit = INFINITY;
+    f_limit = std::numeric_limits<float>::infinity();
   }
   do {
-    float next_f_limit = INFINITY;
+    float next_f_limit = std::numeric_limits<float>::infinity();
     while (current_plan != NULL && !current_plan->complete()) {
       /* Do a little amortized cleanup of dead queues. */
       for (size_t dq = 0; dq < 4 && !dead_queues.empty(); dq++) {
@@ -676,7 +675,7 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
 	const Plan& new_plan = **pi;
 	/* N.B. Must set id before computing rank, because it may be used. */
 	new_plan.id_ = num_generated_plans;
-	if (!isinf(new_plan.primary_rank())
+	if (new_plan.primary_rank() != std::numeric_limits<float>::infinity()
 	    && (generated_plans[current_flaw_order]
 		< params->search_limits[current_flaw_order])) {
 	  if (params->search_algorithm == Parameters::IDA_STAR
@@ -789,7 +788,7 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
 	  }
 	}
       } else {
-	if (!isinf(next_f_limit)) {
+	if (next_f_limit != std::numeric_limits<float>::infinity()) {
 	  current_plan = NULL;
 	}
 	break;
@@ -799,14 +798,14 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
       break;
     }
     f_limit = next_f_limit;
-    if (!isinf(f_limit)) {
+    if (f_limit != std::numeric_limits<float>::infinity()) {
       /* Restart search. */
       if (current_plan != NULL && current_plan != initial_plan) {
 	delete current_plan;
       }
       current_plan = initial_plan;
     }
-  } while (!isinf(f_limit));
+  } while (f_limit != std::numeric_limits<float>::infinity());
   if (verbosity > 0) {
     /*
      * Print statistics.

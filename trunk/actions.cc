@@ -18,7 +18,7 @@
 #include "actions.h"
 #include "bindings.h"
 #include "problems.h"
-#include "mathport.h"
+#include <limits>
 #include <stack>
 #include <typeinfo>
 
@@ -34,7 +34,8 @@ size_t Action::next_id = 0;
 Action::Action(const std::string& name, bool durative)
   : id_(next_id++), name_(name), condition_(&Formula::TRUE),
     durative_(durative), min_duration_(new Value(0.0f)),
-    max_duration_(new Value(durative ? INFINITY : 0.0f)) {
+    max_duration_(new Value(durative ?
+                            std::numeric_limits<float>::infinity() : 0.0f)) {
   Formula::register_use(condition_);
   RCObject::ref(min_duration_);
   RCObject::ref(max_duration_);

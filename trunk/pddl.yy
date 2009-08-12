@@ -24,7 +24,6 @@
 #include "domains.h"
 #include "formulas.h"
 #include "types.h"
-#include "mathport.h"
 #include <typeinfo>
 #include <utility>
 #include <cstdlib>
