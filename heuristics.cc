@@ -24,11 +24,10 @@
 #include "problems.h"
 #include "domains.h"
 #include "debug.h"
-#include "mathport.h"
+#include <limits>
 #include <typeinfo>
 #include <set>
 #include <utility>
-#include <climits>
 
 
 /* Generates a random number in the interval [0,1). */
@@ -39,7 +38,8 @@ static double rand01ex() {
 
 /* Returns the sum of two integers, avoiding overflow. */
 static int sum(int n, int m) {
-  return (INT_MAX - n > m) ? n + m : INT_MAX;
+  return (std::numeric_limits<int>::max() - n > m) ?
+      n + m : std::numeric_limits<int>::max();
 }
 
 
@@ -159,7 +159,10 @@ const HeuristicValue HeuristicValue::ZERO_COST_UNIT_WORK =
 HeuristicValue(0.0f, 1, Orderings::threshold);
 /* An infinite heuristic value. */
 const HeuristicValue
-HeuristicValue::INFINITE = HeuristicValue(INFINITY, INT_MAX, INFINITY);
+HeuristicValue::INFINITE = HeuristicValue(
+    std::numeric_limits<float>::infinity(),
+    std::numeric_limits<int>::max(),
+    std::numeric_limits<float>::infinity());
 
 
 /* Checks if this heuristic value is zero. */
@@ -170,7 +173,7 @@ bool HeuristicValue::zero() const {
 
 /* Checks if this heuristic value is infinite. */
 bool HeuristicValue::infinite() const {
-  return isinf(makespan());
+  return makespan() == std::numeric_limits<float>::infinity();
 }
 
 
@@ -1040,22 +1043,22 @@ void Heuristic::plan_rank(std::vector<float>& rank, const Plan& plan,
 	}
       }
       if (h == ADD) {
-	if (add_cost < INT_MAX) {
+	if (add_cost < std::numeric_limits<int>::max()) {
 	  rank.push_back(plan.num_steps() + weight*add_cost);
 	} else {
-	  rank.push_back(INFINITY);
+	  rank.push_back(std::numeric_limits<float>::infinity());
 	}
       } else if (h == ADD_COST) {
-	if (add_cost < INT_MAX) {
+	if (add_cost < std::numeric_limits<int>::max()) {
 	  rank.push_back(add_cost);
 	} else {
-	  rank.push_back(INFINITY);
+	  rank.push_back(std::numeric_limits<float>::infinity());
 	}
       } else {
-	if (add_work < INT_MAX) {
+	if (add_work < std::numeric_limits<int>::max()) {
 	  rank.push_back(add_work);
 	} else {
-	  rank.push_back(INFINITY);
+	  rank.push_back(std::numeric_limits<float>::infinity());
 	}
       }
       break;
@@ -1075,22 +1078,22 @@ void Heuristic::plan_rank(std::vector<float>& rank, const Plan& plan,
 	}
       }
       if (h == ADDR) {
-	if (addr_cost < INT_MAX) {
+	if (addr_cost < std::numeric_limits<int>::max()) {
 	  rank.push_back(plan.num_steps() + weight*addr_cost);
 	} else {
-	  rank.push_back(INFINITY);
+	  rank.push_back(std::numeric_limits<float>::infinity());
 	}
       } else if (h == ADDR_COST) {
-	if (addr_cost < INT_MAX) {
+	if (addr_cost < std::numeric_limits<int>::max()) {
 	  rank.push_back(addr_cost);
 	} else {
-	  rank.push_back(INFINITY);
+	  rank.push_back(std::numeric_limits<float>::infinity());
 	}
       } else {
-	if (addr_work < INT_MAX) {
+	if (addr_work < std::numeric_limits<int>::max()) {
 	  rank.push_back(addr_work);
 	} else {
-	  rank.push_back(INFINITY);
+	  rank.push_back(std::numeric_limits<float>::infinity());
 	}
       }
       break;
@@ -1190,7 +1193,7 @@ std::ostream& operator<<(std::ostream& os, const SelectionCriterion& c) {
     first = false;
   }
   os << '}';
-  if (c.max_refinements < INT_MAX) {
+  if (c.max_refinements < std::numeric_limits<int>::max()) {
     os << c.max_refinements;
   }
   switch (c.order) {
@@ -1357,9 +1360,9 @@ FlawSelectionOrder& FlawSelectionOrder::operator=(const std::string& name) {
   }
   selection_criteria_.clear();
   needs_pg_ = false;
-  first_unsafe_criterion_ = INT_MAX;
+  first_unsafe_criterion_ = std::numeric_limits<int>::max();
   last_unsafe_criterion_ = 0;
-  first_open_cond_criterion_ = INT_MAX;
+  first_open_cond_criterion_ = std::numeric_limits<int>::max();
   last_open_cond_criterion_ = 0;
   int non_separable_max_refinements = -1;
   int separable_max_refinements = -1;
@@ -1480,7 +1483,7 @@ FlawSelectionOrder& FlawSelectionOrder::operator=(const std::string& name) {
       criterion.max_refinements = atoi(number.c_str());
       pos = next_pos;
     } else {
-      criterion.max_refinements = INT_MAX;
+      criterion.max_refinements = std::numeric_limits<int>::max();
     }
     next_pos = name.find('/', pos);
     std::string key = name.substr(pos, next_pos - pos);
@@ -1583,9 +1586,9 @@ FlawSelectionOrder& FlawSelectionOrder::operator=(const std::string& name) {
       }
     }
   }
-  if (non_separable_max_refinements < INT_MAX
-      || separable_max_refinements < INT_MAX
-      || open_cond_max_refinements < INT_MAX) {
+  if (non_separable_max_refinements < std::numeric_limits<int>::max()
+      || separable_max_refinements < std::numeric_limits<int>::max()
+      || open_cond_max_refinements < std::numeric_limits<int>::max()) {
     /* Incomplete flaw selection order. */
     throw InvalidFlawSelectionOrder(name);
   }
@@ -1605,7 +1608,7 @@ int FlawSelectionOrder::select_unsafe(FlawSelection& selection,
 				      int first_criterion,
 				      int last_criterion) const {
   if (first_criterion > last_criterion || plan.unsafes() == NULL) {
-    return INT_MAX;
+    return std::numeric_limits<int>::max();
   }
   /* Loop through usafes. */
   for (const Chain<Unsafe>* uc = plan.unsafes();
@@ -1688,7 +1691,8 @@ int FlawSelectionOrder::select_unsafe(FlawSelection& selection,
 	      selection.flaw = &unsafe;
 	      selection.criterion = c;
 	      plan.unsafe_refinements(refinements, separable, promotable,
-				      demotable, unsafe, INT_MAX);
+				      demotable, unsafe,
+                                      std::numeric_limits<int>::max());
 	      selection.rank = refinements;
 	      last_criterion = (refinements == 0) ? c - 1 : c;
 	      if (verbosity > 1) {
@@ -1701,7 +1705,8 @@ int FlawSelectionOrder::select_unsafe(FlawSelection& selection,
 	    break;
 	  case SelectionCriterion::MR:
 	    plan.unsafe_refinements(refinements, separable, promotable,
-				    demotable, unsafe, INT_MAX);
+				    demotable, unsafe,
+                                    std::numeric_limits<int>::max());
 	    if (c < selection.criterion
 		|| refinements > selection.rank) {
 	      selection.flaw = &unsafe;
@@ -1736,7 +1741,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 					 int first_criterion,
 					 int last_criterion) const {
   if (first_criterion > last_criterion || plan.open_conds() == NULL) {
-    return INT_MAX;
+    return std::numeric_limits<int>::max();
   }
   size_t local_id = 0;
   /* Loop through open conditions. */
@@ -1782,7 +1787,7 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 	  || (criterion.unsafe_open_cond && is_unsafe > 0)) {
 	/* Right type of open condition, so now check if the
            refinement constraint is satisfied. */
-	if (criterion.max_refinements == INT_MAX
+	if (criterion.max_refinements == std::numeric_limits<int>::max()
 	    || plan.open_cond_refinements(refinements, addable, reusable,
 					  open_cond,
 					  criterion.max_refinements)) {
@@ -1833,7 +1838,8 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 	      selection.flaw = &open_cond;
 	      selection.criterion = c;
 	      plan.open_cond_refinements(refinements, addable, reusable,
-					 open_cond, INT_MAX);
+					 open_cond,
+                                         std::numeric_limits<int>::max());
 	      selection.rank = refinements;
 	      last_criterion = (refinements == 0) ? c - 1 : c;
 	      if (verbosity > 1) {
@@ -1846,7 +1852,8 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 	    break;
 	  case SelectionCriterion::MR:
 	    plan.open_cond_refinements(refinements, addable, reusable,
-				       open_cond, INT_MAX);
+				       open_cond,
+                                       std::numeric_limits<int>::max());
 	    if (c < selection.criterion
 		|| refinements > selection.rank) {
 	      selection.flaw = &open_cond;
@@ -2014,7 +2021,7 @@ const Flaw& FlawSelectionOrder::select(const Plan& plan,
 				       const PlanningGraph* pg) const {
   FlawSelection selection;
   selection.flaw = NULL;
-  selection.criterion = INT_MAX;
+  selection.criterion = std::numeric_limits<int>::max();
   int last_criterion = select_unsafe(selection, plan, problem,
 				     first_unsafe_criterion_,
 				     last_unsafe_criterion_);

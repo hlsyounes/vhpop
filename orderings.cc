@@ -21,8 +21,7 @@
 #include "domains.h"
 #include "expressions.h"
 #include "debug.h"
-#include "mathport.h"
-
+#include <limits>
 
 /* ====================================================================== */
 /* StepTime */
@@ -812,7 +811,7 @@ TemporalOrderings::refine(const Ordering& new_ordering,
       fv = new IntVector(4*new_step.id(), INT_MAX);
       /* Earliest time for end of new step. */
       (*fv)[4*new_step.id() - 1] = -int(end_time/threshold + 0.5);
-      if (!isinf(max_v->value())) {
+      if (max_v->value() != std::numeric_limits<float>::infinity()) {
 	(*fv)[2*new_step.id() - 1] = int(max_v->value()/threshold + 0.5);
       }
       (*fv)[2*new_step.id()] = -int(min_v->value()/threshold + 0.5);
