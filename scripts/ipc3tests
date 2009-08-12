@@ -1,0 +1,116 @@
+#! /bin/bash
+
+if (test -z "$1") then
+    mem=512
+else
+    mem=$1
+fi
+if (test -z "$2") then
+    time=15
+else
+    time=$2
+fi
+ulimit -v `expr $mem '*' 1024`
+echo "memory limit: `ulimit -v` kbytes"
+
+pddldir=~/research/IPC3
+outdir=ipc3data
+
+if (test ! -e $outdir) then
+    mkdir $outdir
+fi
+
+problems="\
+ Tests1/Depots/Strips/Depots.pddl Tests1/Depots/Strips\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22\
+ Tests1/DriverLog/Strips/driverlog.pddl Tests1/DriverLog/Strips\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20\
+ Tests1/ZenoTravel/Strips/zenotravelStrips.pddl Tests1/ZenoTravel/Strips\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20\
+ Tests2/Satellite/Strips/adlSat.pddl Tests2/Satellite/Strips\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20\
+ Tests2/Rovers/Strips/StripsRover.pddl Tests2/Rovers/Strips\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20\
+ Tests3/FreeCell/Strips/free.pddl Tests3/FreeCell/Strips\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20\
+ Tests1/Depots/SimpleTime/DepotsSimpleTime.pddl Tests1/Depots/SimpleTime\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22\
+ Tests1/DriverLog/SimpleTime/driverlogSimpleTime.pddl Tests1/DriverLog/SimpleTime\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20\
+ Tests1/ZenoTravel/SimpleTime/zenoSimpleTime.pddl Tests1/ZenoTravel/SimpleTime\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20\
+ Tests2/Satellite/SimpleTime/adlsimpleTimeSat.pddl Tests2/Satellite/SimpleTime\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20\
+ Tests2/Rovers/SimpleTime/STRover.pddl Tests2/Rovers/SimpleTime\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20\
+ Tests1/Depots/Time/DepotsTime.pddl Tests1/Depots/Time\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22\
+ Tests1/DriverLog/Time/driverlogTimed.pddl Tests1/DriverLog/Time\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20\
+ Tests2/Satellite/Time/adlcomputedDurationsDat.pddl Tests2/Satellite/Time\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20"
+
+for p in $problems; do
+    if (test ! -z "`echo $p | grep '\.pddl'`") then
+	domain=$p
+	pdir=""
+	continue
+    fi
+    if (test -z "$pdir") then
+	pdir=$p
+	continue
+    fi
+    echo -n $domain$p
+    for heuristic in addr; do
+	case $heuristic in
+	addr)
+	    h="-h ADDR/ADDR_WORK/BUC/LIFO"
+	    ;;
+	add)
+	    h="-h ADD/ADD_WORK/BUC/LIFO"
+	    ;;
+	oc)
+	    h="-h S+OC/OC/BUC/LIFO"
+	    ;;
+	esac
+	for flaw in mw-loc mw-loc-conf lcfr-loc lcfr-loc-conf all; do
+	    case $flaw in
+	    lcfr-loc)
+		f="-f LCFR-loc"
+		;;
+	    lcfr-loc-conf)
+		f="-f LCFR-loc-conf"
+		;;
+	    mw-loc)
+		f="-f {n,s}LR/{l}MW_add"
+		;;
+	    mw-loc-conf)
+		f="-f {n,s}LR/{u}MW_add/{l}MW_add"
+		;;
+	    ucpop)
+		f="UCPOP"
+		;;
+	    all)
+		if (test -z "`grep 'Number of steps:' $outdir/$pdir/pfile$p-$heuristic-*.out`") then
+		    continue
+		fi
+		if (test -z "`grep ':durative-actions' $pddldir/$domain`") then
+		    f="-f {n,s}LR/{l}MW_add -l 10000 -f {n,s}LR/{u}MW_add/{l}MW_add -l 100000 -f {n,s,l}LR -l 200000 -f {n,s,u}LR/{l}LR -l unlimited"
+		else
+		    f="-f {n,s}LR/{l}MW_add -l 12000 -f {n,s}LR/{u}MW_add/{l}MW_add -l 100000 -f {n,s,l}LR -l 240000 -f {n,s,u}LR/{l}LR -l unlimited"
+		fi
+	    esac
+	    echo -n " "$heuristic"-"$flaw
+	    params="-T $time -v1 -g $h $f"
+	    outfile=$outdir/$pdir/pfile$p-$heuristic-$flaw.out
+	    if (test ! -e $outdir/$pdir) then
+		mkdir -p $outdir/$pdir
+	    fi
+	    if (test ! -f $outfile) then
+		./vhpop $params $pddldir/$domain $pddldir/$pdir/pfile$p > $outfile 2>&1
+		sleep 1
+	    fi
+	done
+    done
+    echo
+done

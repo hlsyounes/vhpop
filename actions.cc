@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2002-2004 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -32,20 +32,20 @@ size_t Action::next_id = 0;
 
 /* Constructs an action with the given name. */
 Action::Action(const std::string& name, bool durative)
-  : id_(next_id++), name_(name), condition_(&Condition::TRUE),
+  : id_(next_id++), name_(name), condition_(&Formula::TRUE),
     durative_(durative), min_duration_(new Value(0.0f)),
     max_duration_(new Value(durative ? INFINITY : 0.0f)) {
-  Condition::register_use(condition_);
-  Expression::register_use(min_duration_);
-  Expression::register_use(max_duration_);
+  Formula::register_use(condition_);
+  RCObject::ref(min_duration_);
+  RCObject::ref(max_duration_);
 }
 
 
 /* Deletes this action. */
 Action::~Action() {
-  Condition::unregister_use(condition_);
-  Expression::unregister_use(min_duration_);
-  Expression::unregister_use(max_duration_);
+  Formula::unregister_use(condition_);
+  RCObject::destructive_deref(min_duration_);
+  RCObject::destructive_deref(max_duration_);
   for (EffectList::const_iterator ei = effects().begin();
        ei != effects().end(); ei++) {
     delete *ei;
@@ -54,10 +54,10 @@ Action::~Action() {
 
 
 /* Sets the condition for this action. */
-void Action::set_condition(const Condition& condition) {
+void Action::set_condition(const Formula& condition) {
   if (condition_ != &condition) {
-    Condition::register_use(&condition);
-    Condition::unregister_use(condition_);
+    Formula::register_use(&condition);
+    Formula::unregister_use(condition_);
     condition_ = &condition;
   }
 }
@@ -73,8 +73,8 @@ void Action::add_effect(const Effect& effect) {
 void Action::set_min_duration(const Expression& min_duration) {
   const Expression& md = Maximum::make(*min_duration_, min_duration);
   if (&md != min_duration_) {
-    Expression::register_use(&md);
-    Expression::unregister_use(min_duration_);
+    RCObject::ref(&md);
+    RCObject::destructive_deref(min_duration_);
     min_duration_ = &md;
   }
 }
@@ -84,8 +84,8 @@ void Action::set_min_duration(const Expression& min_duration) {
 void Action::set_max_duration(const Expression& max_duration) {
   const Expression& md = Minimum::make(*max_duration_, max_duration);
   if (&md != max_duration_) {
-    Expression::register_use(&md);
-    Expression::unregister_use(max_duration_);
+    RCObject::ref(&md);
+    RCObject::destructive_deref(max_duration_);
     max_duration_ = &md;
   }
 }
@@ -108,7 +108,7 @@ void Action::strengthen_effects(const Domain& domain) {
     const Effect& ei = *effects_[i];
     if (typeid(ei.literal()) == typeid(Negation)) {
       const Negation& neg = dynamic_cast<const Negation&>(ei.literal());
-      const Condition* cond = &Condition::TRUE;
+      const Formula* cond = &Formula::TRUE;
       for (EffectList::const_iterator j = effects_.begin();
 	   j != effects_.end() && !cond->contradiction(); j++) {
 	const Effect& ej = **j;
@@ -123,16 +123,14 @@ void Action::strengthen_effects(const Domain& domain) {
 	    /* Only separate two effects with same universally
 	       quantified variables. */
 	    BindingList mgu;
-	    if (Bindings::unifiable(mgu, neg.atom(), 1, ej.literal(), 1,
-				    domain.types(), domain.terms())) {
+	    if (Bindings::unifiable(mgu, neg.atom(), 1, ej.literal(), 1)) {
 	      const Formula* sep = &Formula::FALSE;
 	      for (BindingList::const_iterator si = mgu.begin();
 		   si != mgu.end(); si++) {
 		const Binding& subst = *si;
 		sep = &(*sep || Inequality::make(subst.var(), subst.term()));
 	      }
-	      cond = &(*cond && (Condition::make(*sep, AT_START)
-				 || !ej.condition()));
+	      cond = &(*cond && (*sep || !ej.condition()));
 	    }
 	  }
 	}
@@ -148,20 +146,8 @@ void Action::strengthen_effects(const Domain& domain) {
    */
   for (size_t i = 0; i < effects_.size(); i++) {
     const Effect& ei = *effects_[i];
-    const Literal& literal = ei.literal();
-    const Formula* cond = &condition().over_all().separator(literal, domain);
     ei.set_link_condition(ei.link_condition()
-			  && Condition::make(*cond, OVER_ALL));
-    if (ei.when() != Effect::AT_END) {
-      cond = &condition().at_start().separator(literal, domain);
-      ei.set_link_condition(ei.link_condition()
-			    && Condition::make(*cond, AT_START));
-    }
-    if (ei.when() != Effect::AT_START) {
-      cond = &condition().at_end().separator(literal, domain);
-      ei.set_link_condition(ei.link_condition()
-			    && Condition::make(*cond, AT_END));
-    }
+			  && condition().separator(ei, domain));
   }
 }
 
@@ -196,23 +182,23 @@ void ActionSchema::instantiations(GroundActionList& actions,
     std::vector<const ObjectList*> arguments(n);
     std::vector<ObjectList::const_iterator> next_arg;
     for (size_t i = 0; i < n; i++) {
-      Type t = problem.domain().terms().type(parameters()[i]);
-      arguments[i] = &problem.compatible_objects(t);
+      const Type& t = TermTable::type(parameters()[i]);
+      arguments[i] = &problem.terms().compatible_objects(t);
       if (arguments[i]->empty()) {
 	return;
       }
       next_arg.push_back(arguments[i]->begin());
     }
-    std::stack<const Condition*> conds;
+    std::stack<const Formula*> conds;
     conds.push(&condition());
-    Condition::register_use(conds.top());
+    Formula::register_use(conds.top());
     for (size_t i = 0; i < n; ) {
       args.insert(std::make_pair(parameters()[i], *next_arg[i]));
       SubstitutionMap pargs;
       pargs.insert(std::make_pair(parameters()[i], *next_arg[i]));
-      const Condition& inst_cond = conds.top()->instantiation(pargs, problem);
+      const Formula& inst_cond = conds.top()->instantiation(pargs, problem);
       conds.push(&inst_cond);
-      Condition::register_use(conds.top());
+      Formula::register_use(conds.top());
       if (i + 1 == n || inst_cond.contradiction()) {
 	if (!inst_cond.contradiction()) {
 	  const GroundAction* inst_action =
@@ -222,7 +208,7 @@ void ActionSchema::instantiations(GroundActionList& actions,
 	  }
 	}
 	for (int j = i; j >= 0; j--) {
-	  Condition::unregister_use(conds.top());
+	  Formula::unregister_use(conds.top());
 	  conds.pop();
 	  args.erase(parameters()[j]);
 	  next_arg[j]++;
@@ -243,7 +229,7 @@ void ActionSchema::instantiations(GroundActionList& actions,
       }
     }
     while (!conds.empty()) {
-      Condition::unregister_use(conds.top());
+      Formula::unregister_use(conds.top());
       conds.pop();
     }
   }
@@ -254,7 +240,7 @@ void ActionSchema::instantiations(GroundActionList& actions,
 const GroundAction*
 ActionSchema::instantiation(const SubstitutionMap& args,
 			    const Problem& problem,
-			    const Condition& condition) const {
+			    const Formula& condition) const {
   EffectList inst_effects;
   size_t useful = 0;
   for (EffectList::const_iterator ei = effects().begin();
@@ -266,15 +252,17 @@ ActionSchema::instantiation(const SubstitutionMap& args,
     size_t n = parameters().size();
     for (size_t i = 0; i < n; i++) {
       SubstitutionMap::const_iterator si = args.find(parameters()[i]);
-      ga.add_argument((*si).second);
+      ga.add_argument((*si).second.as_object());
     }
     ga.set_condition(condition);
     for (EffectList::const_iterator ei = inst_effects.begin();
 	 ei != inst_effects.end(); ei++) {
       ga.add_effect(**ei);
     }
-    ga.set_min_duration(min_duration().instantiation(args, problem));
-    ga.set_max_duration(max_duration().instantiation(args, problem));
+    ga.set_min_duration(min_duration().instantiation(args,
+						     problem.init_values()));
+    ga.set_max_duration(max_duration().instantiation(args,
+						     problem.init_values()));
     const Value* v1 = dynamic_cast<const Value*>(&ga.min_duration());
     if (v1 != NULL) {
       const Value* v2 = dynamic_cast<const Value*>(&ga.max_duration());
@@ -297,43 +285,37 @@ ActionSchema::instantiation(const SubstitutionMap& args,
 
 
 /* Prints this action on the given stream. */
-void ActionSchema::print(std::ostream& os, const PredicateTable& predicates,
-			 const FunctionTable& functions,
-			 const TermTable& terms) const {
+void ActionSchema::print(std::ostream& os) const {
   os << "  " << name();
   os << std::endl << "    parameters:";
   for (VariableList::const_iterator vi = parameters().begin();
        vi != parameters().end(); vi++) {
-    os << ' ';
-    terms.print_term(os, *vi);
+    os << ' ' << *vi;
   }
   if (durative()) {
-    os << std::endl << "    duration: [";
-    min_duration().print(os, functions, terms);
-    os << ',';
-    max_duration().print(os, functions, terms);
-    os << "]";
+    os << std::endl << "    duration: [" << min_duration() << ','
+       << max_duration() << "]";
   }
   os << std::endl << "    condition: ";
-  condition().print(os, predicates, terms, 0, Bindings::EMPTY);
+  condition().print(os, 0, Bindings::EMPTY);
   os << std::endl << "    effect: (and";
   for (EffectList::const_iterator ei = effects().begin();
        ei != effects().end(); ei++) {
     os << ' ';
-    (*ei)->print(os, predicates, terms);
+    (*ei)->print(os);
   }
   os << ")";
 }
 
 
 /* Prints this action on the given stream with the given bindings. */
-void ActionSchema::print(std::ostream& os, const TermTable& terms,
+void ActionSchema::print(std::ostream& os,
 			 size_t step_id, const Bindings& bindings) const {
   os << '(' << name();
   for (VariableList::const_iterator ti = parameters().begin();
        ti != parameters().end(); ti++) {
     os << ' ';
-    terms.print_term(os, *ti, step_id, bindings);
+    bindings.print_term(os, *ti, step_id);
   }
   os << ')';
 }
@@ -354,13 +336,12 @@ void GroundAction::add_argument(Object arg) {
 
 
 /* Prints this action on the given stream with the given bindings. */
-void GroundAction::print(std::ostream& os, const TermTable& terms,
+void GroundAction::print(std::ostream& os,
 			 size_t step_id, const Bindings& bindings) const {
   os << '(' << name();
   for (ObjectList::const_iterator ni = arguments().begin();
        ni != arguments().end(); ni++) {
-    os << ' ';
-    terms.print_term(os, *ni, step_id, bindings);
+    os << ' ' << *ni;
   }
   os << ')';
 }

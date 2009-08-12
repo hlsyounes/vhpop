@@ -1,20 +1,24 @@
 /* -*-C++-*- */
 /*
- * Expressions.
+ * PDDL expressions.
  *
- * Copyright (C) 2003 Carnegie Mellon University
- * Written by Håkan L. S. Younes.
+ * Copyright (C) 2002-2005 Carnegie Mellon University
  *
- * Permission is hereby granted to distribute this software for
- * non-commercial research purposes, provided that this copyright
- * notice is included with any such distribution.
+ * This file is part of VHPOP.
  *
- * THIS SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND,
- * EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE
- * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
- * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
+ * VHPOP is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * VHPOP is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with VHPOP; if not, write to the Free Software Foundation,
+ * Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
  * $Id: expressions.h,v 6.1 2003-12-05 23:19:02 lorens Exp $
  */
@@ -22,12 +26,12 @@
 #define EXPRESSIONS_H
 
 #include <config.h>
+#include "refcount.h"
 #include "functions.h"
 #include "terms.h"
 #include <iostream>
+#include <map>
 #include <set>
-
-struct Problem;
 
 
 /* ====================================================================== */
@@ -38,46 +42,23 @@ struct ValueMap;
 /*
  * An abstract expression.
  */
-struct Expression {
-  /* Register use of the given expression. */
-  static void register_use(const Expression* e) {
-    if (e != NULL) {
-      e->ref_count_++;
-    }
-  }
-
-  /* Unregister use of the given expression. */
-  static void unregister_use(const Expression* e) {
-    if (e != NULL) {
-      e->ref_count_--;
-      if (e->ref_count_ == 0) {
-	delete e;
-      }
-    }
-  }
-
-  /* Deletes this expression. */
-  virtual ~Expression();
-
+struct Expression : public RCObject {
   /* Returns the value of this expression in the given state. */
   virtual float value(const ValueMap& values) const = 0;
 
   /* Returns an instantiation of this expression. */
   virtual const Expression& instantiation(const SubstitutionMap& subst,
-					  const Problem& problem) const = 0;
-
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os, const FunctionTable& functions,
-		     const TermTable& terms) const = 0;
+					  const ValueMap& values) const = 0;
 
 protected:
-  /* Constructs an expression. */
-  Expression();
+  /* Prints this object on the given stream. */
+  virtual void print(std::ostream& os) const = 0;
 
-private:
-  /* Reference counter. */
-  mutable size_t ref_count_;
+  friend std::ostream& operator<<(std::ostream& os, const Expression& e);
 };
+
+/* Output operator for expressions. */
+std::ostream& operator<<(std::ostream& os, const Expression& e);
 
 
 /* ====================================================================== */
@@ -88,7 +69,7 @@ private:
  */
 struct Value : public Expression {
   /* Constructs a constant value. */
-  Value(float value) : value_(value) {}
+  explicit Value(float value) : value_(value) {}
 
   /* Returns the value of this expression. */
   float value() const { return value_; }
@@ -98,11 +79,11 @@ struct Value : public Expression {
 
   /* Returns an instantiation of this expression. */
   virtual const Value& instantiation(const SubstitutionMap& subst,
-				     const Problem& problem) const;
+				     const ValueMap& values) const;
 
+protected:
   /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os, const FunctionTable& functions,
-		     const TermTable& terms) const;
+  virtual void print(std::ostream& os) const;
 
 private:
   /* The value. */
@@ -111,89 +92,85 @@ private:
 
 
 /* ====================================================================== */
-/* Application */
+/* Fluent */
 
 /*
- * A function application.
+ * A fluent.
  */
-struct Application : public Expression {
-  /* Returns a function application with the given function and terms. */
-  static const Application& make(Function function, const TermList& terms);
+struct Fluent : public Expression {
+  /* Returns a fluent with the given function and terms. */
+  static const Fluent& make(const Function& function, const TermList& terms);
 
-  /* Deletes this function application. */
-  virtual ~Application();
+  /* Deletes this fluent. */
+  virtual ~Fluent();
 
-  /* Returns the id for this application (zero if lifted). */
+  /* Returns the id for this fluent (zero if lifted). */
   size_t id() const { return id_; }
 
-  /* Returns the function of this function application. */
-  Function function() const { return function_; }
+  /* Returns the function of this fluent. */
+  const Function& function() const { return function_; }
 
-  /* Returns the number of terms of this function application. */
-  size_t arity() const { return terms_.size(); }
-
-  /* Returns the ith term of this function application. */
-  Term term(size_t i) const { return terms_[i]; }
+  /* Returns the terms of this fluent. */
+  const TermList& terms() const { return terms_; }
 
   /* Returns the value of this expression in the given state. */
   virtual float value(const ValueMap& values) const;
 
-  /* Returns this application subject to the given substitution. */
-  const Application& substitution(const SubstitutionMap& subst) const;
+  /* Returns this fluent subject to the given substitution. */
+  const Fluent& substitution(const SubstitutionMap& subst) const;
 
   /* Returns an instantiation of this expression. */
   virtual const Expression& instantiation(const SubstitutionMap& subst,
-					  const Problem& problem) const;
-
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os, const FunctionTable& functions,
-		     const TermTable& terms) const;
+					  const ValueMap& values) const;
 
 protected:
-  /* Assigns an id to this application. */
+  /* Assigns an id to this fluent. */
   void assign_id(bool ground);
 
+  /* Prints this object on the given stream. */
+  virtual void print(std::ostream& os) const;
+
 private:
-  /* Less-than comparison function object for function applications. */
-  struct ApplicationLess
-    : public std::binary_function<const Application*, const Application*,
-				  bool> {
+  /* Less-than comparison function object for fluents. */
+  struct FluentLess
+    : public std::binary_function<const Fluent*, const Fluent*, bool> {
     /* Comparison function. */
-    bool operator()(const Application* a1, const Application* a2) const;
+    bool operator()(const Fluent* f1, const Fluent* f2) const;
   };
 
-  /* A table of function applications. */
-  struct ApplicationTable : std::set<const Application*, ApplicationLess> {
+  /* A table of fluents. */
+  struct FluentTable : std::set<const Fluent*, FluentLess> {
   };
 
-  /* Table of function applications. */
-  static ApplicationTable applications;
-  /* Next id for ground applications. */
+  /* Table of fluents. */
+  static FluentTable fluents;
+  /* Next id for ground fluents. */
   static size_t next_id;
 
-  /* Unique id for ground applications (zero if lifted). */
+  /* Unique id for ground fluents (zero if lifted). */
   size_t id_;
-  /* Function of this function application. */
+  /* Function of this fluent. */
   Function function_;
-  /* Terms of this function application. */
+  /* Terms of this fluent. */
   TermList terms_;
 
-  /* Constructs a function application with the given function. */
-  Application(Function function) : function_(function) {}
+  /* Constructs a fluent with the given function. */
+  explicit Fluent(const Function& function) : function_(function) {}
 
-  /* Adds a term to this function application. */
+  /* Adds a term to this fluent. */
   void add_term(Term term) { terms_.push_back(term); }
 };
 
 /*
- * Less than function object for application pointers.
+ * Less than function object for fluent pointers.
  */
 namespace std {
-  struct less<const Application*>
-    : public binary_function<const Application*, const Application*, bool> {
+  template<>
+  struct less<const Fluent*>
+    : public binary_function<const Fluent*, const Fluent*, bool> {
     /* Comparison function operator. */
-    bool operator()(const Application* a1, const Application* a2) const {
-      return a1->id() < a2->id();
+    bool operator()(const Fluent* f1, const Fluent* f2) const {
+      return f1->id() < f2->id();
     }
   };
 }
@@ -243,11 +220,11 @@ struct Addition : public Computation {
 
   /* Returns an instantiation of this expression. */
   virtual const Expression& instantiation(const SubstitutionMap& subst,
-					  const Problem& problem) const;
+					  const ValueMap& values) const;
 
+protected:
   /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os, const FunctionTable& functions,
-		     const TermTable& terms) const;
+  virtual void print(std::ostream& os) const;
 
 private:
   /* Constructs an addition. */
@@ -272,11 +249,11 @@ struct Subtraction : public Computation {
 
   /* Returns an instantiation of this expression. */
   virtual const Expression& instantiation(const SubstitutionMap& subst,
-					  const Problem& problem) const;
+					  const ValueMap& values) const;
 
+protected:
   /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os, const FunctionTable& functions,
-		     const TermTable& terms) const;
+  virtual void print(std::ostream& os) const;
 
 private:
   /* Constructs a subtraction. */
@@ -301,11 +278,11 @@ struct Multiplication : public Computation {
 
   /* Returns an instantiation of this expression. */
   virtual const Expression& instantiation(const SubstitutionMap& subst,
-					  const Problem& problem) const;
+					  const ValueMap& values) const;
 
+protected:
   /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os, const FunctionTable& functions,
-		     const TermTable& terms) const;
+  virtual void print(std::ostream& os) const;
 
 private:
   /* Constructs a multiplication. */
@@ -330,11 +307,11 @@ struct Division : public Computation {
 
   /* Returns an instantiation of this expression. */
   virtual const Expression& instantiation(const SubstitutionMap& subst,
-					  const Problem& problem) const;
+					  const ValueMap& values) const;
 
+protected:
   /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os, const FunctionTable& functions,
-		     const TermTable& terms) const;
+  virtual void print(std::ostream& os) const;
 
 private:
   /* Constructs a division. */
@@ -359,11 +336,11 @@ struct Minimum : public Computation {
 
   /* Returns an instantiation of this expression. */
   virtual const Expression& instantiation(const SubstitutionMap& subst,
-					  const Problem& problem) const;
+					  const ValueMap& values) const;
 
+protected:
   /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os, const FunctionTable& functions,
-		     const TermTable& terms) const;
+  virtual void print(std::ostream& os) const;
 
 private:
   /* Constructs a minimum. */
@@ -388,11 +365,11 @@ struct Maximum : public Computation {
 
   /* Returns an instantiation of this expression. */
   virtual const Expression& instantiation(const SubstitutionMap& subst,
-					  const Problem& problem) const;
+					  const ValueMap& values) const;
 
+protected:
   /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os, const FunctionTable& functions,
-		     const TermTable& terms) const;
+  virtual void print(std::ostream& os) const;
 
 private:
   /* Constructs a maximum. */
@@ -405,9 +382,9 @@ private:
 /* ValueMap */
 
 /*
- * Mapping from function applications to values.
+ * Mapping from fluents to values.
  */
-struct ValueMap : public std::map<const Application*, float> {
+struct ValueMap : public std::map<const Fluent*, float> {
 };
 
 

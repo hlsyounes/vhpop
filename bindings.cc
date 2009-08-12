@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2002-2004 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -51,29 +51,33 @@ struct VariableSet : public std::set<StepVariable> {
  */
 struct Varset {
   /* Constructs a varset. */
-  Varset(Object constant, const Chain<StepVariable>* cd_set,
-	 const Chain<StepVariable>* ncd_set, Type type)
-    : constant_(constant), cd_set_(cd_set), ncd_set_(ncd_set), type_(type) {
-    Chain<StepVariable>::register_use(cd_set_);
-    Chain<StepVariable>::register_use(ncd_set_);
+  Varset(const Object* constant, const Chain<StepVariable>* cd_set,
+	 const Chain<StepVariable>* ncd_set, const Type& type)
+    : constant_((constant != 0) ? new Object(*constant) : 0),
+      cd_set_(cd_set), ncd_set_(ncd_set), type_(type) {
+    RCObject::ref(cd_set_);
+    RCObject::ref(ncd_set_);
   }
 
   /* Constructs a varset. */
   Varset(const Varset& vs)
-    : constant_(vs.constant_), cd_set_(vs.cd_set_), ncd_set_(vs.ncd_set_),
-      type_(vs.type_) {
-    Chain<StepVariable>::register_use(cd_set_);
-    Chain<StepVariable>::register_use(ncd_set_);
+    : constant_((vs.constant_ != 0) ? new Object(*vs.constant_) : 0),
+      cd_set_(vs.cd_set_), ncd_set_(vs.ncd_set_), type_(vs.type_) {
+    RCObject::ref(cd_set_);
+    RCObject::ref(ncd_set_);
   }
 
   /* Deletes this varset. */
   ~Varset() {
-    Chain<StepVariable>::unregister_use(cd_set_);
-    Chain<StepVariable>::unregister_use(ncd_set_);
+    if (constant_ != 0) {
+      delete constant_;
+    }
+    RCObject::destructive_deref(cd_set_);
+    RCObject::destructive_deref(ncd_set_);
   }
 
-  /* The constant of this varset, or NULL. */
-  Object constant() const { return constant_; }
+  /* Pointer to the constant of this varset, or 0. */
+  const Object* constant() const { return constant_; }
 
   /* The codesignation list. */
   const Chain<StepVariable>* cd_set() const { return cd_set_; }
@@ -81,12 +85,14 @@ struct Varset {
   /* The non-codesignation list. */
   const Chain<StepVariable>* ncd_set() const { return ncd_set_; }
 
-  /* Checks if this varset includes the given name. */
-  bool includes(Object name) const { return constant() == name; }
+  /* Checks if this varset includes the given object. */
+  bool includes(const Object& obj) const {
+    return constant() != 0 && *constant() == obj;
+  }
 
   /* Checks if this varset includes the given variable. */
-  bool includes(Variable var, size_t step_id) const {
-    for (const Chain<StepVariable>* vc = cd_set(); vc != NULL; vc = vc->tail) {
+  bool includes(const Variable& var, size_t step_id) const {
+    for (const Chain<StepVariable>* vc = cd_set(); vc != 0; vc = vc->tail) {
       if (vc->head.first == var && vc->head.second == step_id) {
 	return true;
       }
@@ -95,9 +101,8 @@ struct Varset {
   }
 
   /* Checks if this varset excludes the given variable. */
-  bool excludes(Variable var, size_t step_id) const {
-    for (const Chain<StepVariable>* vc = ncd_set();
-	 vc != NULL; vc = vc->tail) {
+  bool excludes(const Variable& var, size_t step_id) const {
+    for (const Chain<StepVariable>* vc = ncd_set(); vc != 0; vc = vc->tail) {
       if (vc->head.first == var && vc->head.second == step_id) {
 	return true;
       }
@@ -105,43 +110,56 @@ struct Varset {
     return false;
   }
 
-  /* Returns the varset obtained by adding the given name to this
-     varset, or NULL if the name is inconsistent with the current
-     constant. */
-  const Varset* add(const Chain<Varset>*& vsc, Object name,
-		    const TypeTable& types, const TermTable& terms) const {
-    if (constant() != Object(NULL_TERM)) {
-      return (constant() == name) ? this : NULL;
+  /* Returns the varset obtained by adding the given object to this
+     varset, or 0 if the object is excluded from this varset. */
+  const Varset* add(const Chain<Varset>*& vsc, const Object& obj) const {
+    if (constant() != 0) {
+      return (*constant() == obj) ? this : 0;
     } else {
-      Type ot = terms.type(name);
-      if (types.subtype(ot, type_)) {
-	vsc = new Chain<Varset>(Varset(name, cd_set(), ncd_set(), ot), vsc);
+      const Type& ot = TermTable::type(obj);
+      if (TypeTable::subtype(ot, type_)) {
+	vsc = new Chain<Varset>(Varset(&obj, cd_set(), ncd_set(), ot), vsc);
 	return &vsc->head;
       } else {
-	return NULL;
+	return 0;
       }
     }
   }
 
-  /* Returns the varset obtained by adding the given term to this
-     varset, or NULL if the term is excluded from this varset. */
-  const Varset* add(const Chain<Varset>*& vsc, Term term, size_t step_id,
-		    const TypeTable& types, const TermTable& terms) const {
-    if (is_object(term)) {
-      return add(vsc, term, types, terms);
-    } else if (excludes(term, step_id)) {
-      return NULL;
+  /* Returns the varset obtained by adding the given variable to this
+     varset, or 0 if the variable is excluded from this varset. */
+  const Varset* add(const Chain<Varset>*& vsc, const Variable& var,
+		    size_t step_id) const {
+    if (excludes(var, step_id)) {
+      return 0;
     } else {
-      Type tt = terms.type(term);
-      if (types.subtype(type_, tt)) {
-	tt = type_;
-      } else if (!types.subtype(tt, type_)) {
-	return NULL;
+      const Type* tt;
+      if (constant() != 0) {
+	if (!TypeTable::subtype(type_, TermTable::type(var))) {
+	  return 0;
+	}
+	tt = &type_;
+      } else {
+	tt = TypeTable::most_specific(type_, TermTable::type(var));
+	if (tt == 0) {
+	  return 0;
+	}
       }
       const Chain<StepVariable>* new_cd =
-	new Chain<StepVariable>(std::make_pair(term, step_id), cd_set());
-      vsc = new Chain<Varset>(Varset(constant(), new_cd, ncd_set(), tt), vsc);
+	new Chain<StepVariable>(std::make_pair(var, step_id), cd_set());
+      vsc = new Chain<Varset>(Varset(constant(), new_cd, ncd_set(), *tt), vsc);
       return &vsc->head;
+    }
+  }
+
+  /* Returns the varset obtained by adding the given term to this
+     varset, or 0 if the term is excluded from this varset. */
+  const Varset* add(const Chain<Varset>*& vsc, const Term& term,
+		    size_t step_id) const {
+    if (term.object()) {
+      return add(vsc, term.as_object());
+    } else {
+      return add(vsc, term.as_variable(), step_id);
     }
   }
 
@@ -149,120 +167,134 @@ struct Varset {
      non-codesignation list of this varset; N.B. assumes that the
      variable is not included in the varset already. */
   const Varset* restrict(const Chain<Varset>*& vsc,
-			 Variable var, size_t step_id) const {
+			 const Variable& var, size_t step_id) const {
     const Chain<StepVariable>* new_ncd =
       new Chain<StepVariable>(std::make_pair(var, step_id), ncd_set());
     vsc = new Chain<Varset>(Varset(constant(), cd_set(), new_ncd, type_), vsc);
     return &vsc->head;
   }
 
-  /* Returns the combination of this and the given varset, or NULL if
+  /* Returns the combination of this and the given varset, or 0 if
      the combination is inconsistent. */
-  const Varset* combine(const Chain<Varset>*& vsc, const Varset& vs,
-			const TypeTable& types) const {
-    if (constant() != Object(NULL_TERM) && vs.constant() != Object(NULL_TERM)
-	&& constant() != vs.constant()) {
-      return NULL;
-    }
-    Type type;
-    if (types.subtype(type_, vs.type_)) {
-      type = type_;
-    } else if (types.subtype(vs.type_, type_)) {
-      type = vs.type_;
+  const Varset* combine(const Chain<Varset>*& vsc, const Varset& vs) const {
+    const Object* comb_obj;
+    const Type* tt;
+    if (constant() != 0) {
+      if (vs.constant() != 0) {
+	if (constant() != vs.constant()) {
+	  return 0;
+	}
+      } else if (!TypeTable::subtype(type_, vs.type_)) {
+	return 0;
+      }
+      comb_obj = constant();
+      tt = &type_;
+    } else if (vs.constant() != 0) {
+      if (!TypeTable::subtype(vs.type_, type_)) {
+	return 0;
+      }
+      comb_obj = vs.constant();
+      tt = &vs.type_;
     } else {
-      return NULL;
+      comb_obj = 0;
+      tt = TypeTable::most_specific(type_, vs.type_);
+      if (tt == 0) {
+	return 0;
+      }
     }
-    Object comb_const =
-      (constant() != Object(NULL_TERM)) ? constant() : vs.constant();
     const Chain<StepVariable>* comb_cd = cd_set();
-    for (const Chain<StepVariable>* vc = vs.cd_set();
-	 vc != NULL; vc = vc->tail) {
+    for (const Chain<StepVariable>* vc = vs.cd_set(); vc != 0; vc = vc->tail) {
       const StepVariable& step_var = vc->head;
       if (excludes(step_var.first, step_var.second)) {
-	Chain<StepVariable>::register_use(comb_cd);
-	Chain<StepVariable>::unregister_use(comb_cd);
-	return NULL;
+	RCObject::ref(comb_cd);
+	RCObject::destructive_deref(comb_cd);
+	return 0;
       } else {
 	comb_cd = new Chain<StepVariable>(step_var, comb_cd);
       }
     }
     const Chain<StepVariable>* comb_ncd = ncd_set();
     for (const Chain<StepVariable>* vc = vs.ncd_set();
-	 vc != NULL; vc = vc->tail) {
+	 vc != 0; vc = vc->tail) {
       const StepVariable& step_var = vc->head;
       if (includes(step_var.first, step_var.second)) {
-	Chain<StepVariable>::register_use(comb_cd);
-	Chain<StepVariable>::unregister_use(comb_cd);
-	Chain<StepVariable>::register_use(comb_ncd);
-	Chain<StepVariable>::unregister_use(comb_ncd);
-	return NULL;
+	RCObject::ref(comb_cd);
+	RCObject::destructive_deref(comb_cd);
+	RCObject::ref(comb_ncd);
+	RCObject::destructive_deref(comb_ncd);
+	return 0;
       } else if (!excludes(step_var.first, step_var.second)) {
 	comb_ncd = new Chain<StepVariable>(step_var, comb_ncd);
       }
     }
-    vsc = new Chain<Varset>(Varset(comb_const, comb_cd, comb_ncd, type), vsc);
+    vsc = new Chain<Varset>(Varset(comb_obj, comb_cd, comb_ncd, *tt), vsc);
     return &vsc->head;
   }
 
   /* Returns the varset representing the given equality binding. */
   static const Varset* make(const Chain<Varset>*& vsc, const Binding& b,
-			    const TypeTable& types, const TermTable& terms,
 			    bool reverse = false) {
     if (b.equality()) {
       const Chain<StepVariable>* cd_set =
-	new Chain<StepVariable>(std::make_pair(b.var(), b.var_id()), NULL);
-      Type tt = terms.type(b.term());
-      if (is_variable(b.term())) {
-	Type vt = terms.type(b.var());
-	if (types.subtype(vt, tt)) {
-	  tt = vt;
-	}
-	cd_set = new Chain<StepVariable>(std::make_pair(b.term(), b.term_id()),
-					 cd_set);
-	vsc = new Chain<Varset>(Varset(NULL_TERM, cd_set, NULL, tt), vsc);
+	new Chain<StepVariable>(std::make_pair(b.var(), b.var_id()), 0);
+      if (b.term().object()) {
+	Object obj = b.term().as_object();
+	vsc = new Chain<Varset>(Varset(&obj, cd_set, 0,
+				       TermTable::type(b.term())),
+				vsc);
       } else {
-	vsc = new Chain<Varset>(Varset(b.term(), cd_set, NULL, tt), vsc);
+	const Type* tt = TypeTable::most_specific(TermTable::type(b.var()),
+						  TermTable::type(b.term()));
+	if (tt == 0) {
+	  RCObject::ref(cd_set);
+	  RCObject::destructive_deref(cd_set);
+	  return 0;
+	}
+	cd_set = new Chain<StepVariable>(std::make_pair(b.term().as_variable(),
+							b.term_id()),
+					 cd_set);
+	vsc = new Chain<Varset>(Varset(0, cd_set, 0, *tt), vsc);
       }
       return &vsc->head;
     } else {
-      Object constant;
-      const Chain<StepVariable>* cd_set;
-      const Chain<StepVariable>* ncd_set;
-      Type type;
       if (reverse) {
-	type = terms.type(b.term());
-	if (is_variable(b.term())) {
-	  constant = NULL_TERM;
-	  cd_set = new Chain<StepVariable>(std::make_pair(b.term(),
-							  b.term_id()),
-					   NULL);
+	const Chain<StepVariable>* ncd_set =
+	  new Chain<StepVariable>(std::make_pair(b.var(), b.var_id()), 0);
+	if (b.term().object()) {
+	  Object obj = b.term().as_object();
+	  vsc = new Chain<Varset>(Varset(&obj, 0, ncd_set,
+					 TermTable::type(b.term())),
+				  vsc);
 	} else {
-	  constant = b.term();
-	  cd_set = NULL;
+	  Variable var = b.term().as_variable();
+	  const Chain<StepVariable>* cd_set =
+	    new Chain<StepVariable>(std::make_pair(var, b.term_id()), 0);
+	  vsc = new Chain<Varset>(Varset(0, cd_set, ncd_set,
+					 TermTable::type(b.term())),
+				  vsc);
 	}
-	ncd_set = new Chain<StepVariable>(std::make_pair(b.var(), b.var_id()),
-					  NULL);
+	return &vsc->head;
       } else { /* !reverse */
-	type = terms.type(b.var());
-	if (is_variable(b.term())) {
-	  constant = NULL_TERM;
-	  cd_set = new Chain<StepVariable>(std::make_pair(b.var(), b.var_id()),
-					   NULL);
-	  ncd_set = new Chain<StepVariable>(std::make_pair(b.term(),
-							   b.term_id()),
-					    NULL);
+	if (b.term().object()) {
+	  return 0;
 	} else {
-	  return NULL;
+	  Variable var = b.term().as_variable();
+	  const Chain<StepVariable>* cd_set =
+	    new Chain<StepVariable>(std::make_pair(b.var(), b.var_id()), 0);
+	  const Chain<StepVariable>* ncd_set =
+	    new Chain<StepVariable>(std::make_pair(var, b.term_id()), 0);
+	  vsc = new Chain<Varset>(Varset(0, cd_set, ncd_set,
+					 TermTable::type(b.var())),
+				  vsc);
+	  return &vsc->head;
 	}
       }
-      vsc = new Chain<Varset>(Varset(constant, cd_set, ncd_set, type), vsc);
-      return &vsc->head;
     }
   }
 
 private:
-  /* The constant of this varset, or NULL. */
-  Object constant_;
+  /* Pointer to the constant of this varset, or 0. */
+  const Object* constant_;
   /* The codesignation list. */
   const Chain<StepVariable>* cd_set_;
   /* The non-codesignation list. */
@@ -272,32 +304,39 @@ private:
 };
 
 
-/* Returns the varset containing the given constant, or NULL if none do. */
+/* Returns the varset containing the given object, or 0 if none do. */
 static const Varset* find_varset(const Chain<Varset>* varsets,
-				 Object constant) {
-  for (const Chain<Varset>* vsc = varsets; vsc != NULL; vsc = vsc->tail) {
+				 const Object& obj) {
+  for (const Chain<Varset>* vsc = varsets; vsc != 0; vsc = vsc->tail) {
     const Varset& vs = vsc->head;
-    if (vs.includes(constant)) {
+    if (vs.includes(obj)) {
       return &vs;
     }
   }
-  return NULL;
+  return 0;
 }
 
 
-/* Returns the varset containing the given term, or NULL if none do. */
+/* Returns the varset containing the given variable, or 0 if none do. */
 static const Varset* find_varset(const Chain<Varset>* varsets,
-				 Term t, size_t step_id) {
-  if (is_object(t)) {
-    return find_varset(varsets, t);
-  } else {
-    for (const Chain<Varset>* vsc = varsets; vsc != NULL; vsc = vsc->tail) {
-      const Varset& vs = vsc->head;
-      if (vs.includes(t, step_id)) {
-	return &vs;
-      }
+				 const Variable& var, size_t step_id) {
+  for (const Chain<Varset>* vsc = varsets; vsc != 0; vsc = vsc->tail) {
+    const Varset& vs = vsc->head;
+    if (vs.includes(var, step_id)) {
+      return &vs;
     }
-    return NULL;
+  }
+  return 0;
+}
+
+
+/* Returns the varset containing the given term, or 0 if none do. */
+static const Varset* find_varset(const Chain<Varset>* varsets,
+				 const Term& term, size_t step_id) {
+  if (term.object()) {
+    return find_varset(varsets, term.as_object());
+  } else {
+    return find_varset(varsets, term.as_variable(), step_id);
   }
 }
 
@@ -338,25 +377,25 @@ struct StepDomain {
 
   /* Returns the index of the variable in this step domain, or -1 if
      the variable is not included. */
-  int index_of(Variable v) const {
+  int index_of(const Variable& var) const {
     VariableList::const_iterator vi = find(parameters().begin(),
-					   parameters().end(), v);
+					   parameters().end(), var);
     return (vi != parameters().end()) ? vi - parameters().begin() : -1;
   }
 
-  /* Checks if this step domain includes the given name in the given
+  /* Checks if this step domain includes the given object in the given
      column. */
-  bool includes(Object name, size_t column) const {
+  bool includes(const Object& obj, size_t column) const {
     for (TupleList::const_iterator ti = domain().tuples().begin();
 	 ti != domain().tuples().end(); ti++) {
-      if ((**ti)[column] == name) {
+      if ((**ti)[column] == obj) {
 	return true;
       }
     }
     return false;
   }
 
-  /* Returns the set of names from the given column. */
+  /* Returns the set of objects from the given column. */
   const NameSet& projection(size_t column) const {
     return domain().projection(column);
   }
@@ -367,12 +406,12 @@ struct StepDomain {
   }
 
   /* Returns a domain where the given column has been restricted to
-     the given name, or NULL if this would leave an empty domain. */
+     the given object, or 0 if this would leave an empty domain. */
   const StepDomain* restrict(const Chain<StepDomain>*& sdc,
-			     Object name, size_t column) const {
-    const ActionDomain* ad = domain().restrict(name, column);
-    if (ad == NULL) {
-      return NULL;
+			     const Object& obj, size_t column) const {
+    const ActionDomain* ad = domain().restrict(obj, column);
+    if (ad == 0) {
+      return 0;
     } else if (ad == &domain()) {
       return this;
     } else {
@@ -382,13 +421,13 @@ struct StepDomain {
   }
 
   /* Returns a domain where the given column has been restricted to
-     the given set of names, or NULL if this would leave an empty
+     the given set of objects, or 0 if this would leave an empty
      domain. */
   const StepDomain* restrict(const Chain<StepDomain>*& sdc,
 			     const NameSet& names, size_t column) const {
     const ActionDomain* ad = domain().restrict(names, column);
-    if (ad == NULL) {
-      return NULL;
+    if (ad == 0) {
+      return 0;
     } else if (ad == &domain()) {
       return this;
     } else {
@@ -397,13 +436,13 @@ struct StepDomain {
     }
   }
 
-  /* Returns a domain where the given column exclues the given name,
-     or NULL if this would leave an empty domain. */
+  /* Returns a domain where the given column exclues the given object,
+     or 0 if this would leave an empty domain. */
   const StepDomain* exclude(const Chain<StepDomain>*& sdc,
-			    Object name, size_t column) const {
-    const ActionDomain* ad = domain().exclude(name, column);
-    if (ad == NULL) {
-      return NULL;
+			    const Object& obj, size_t column) const {
+    const ActionDomain* ad = domain().exclude(obj, column);
+    if (ad == 0) {
+      return 0;
     } else if (ad == &domain()) {
       return this;
     } else {
@@ -413,7 +452,7 @@ struct StepDomain {
   }
 
   /* Prints this object on the given stream. */
-  void print(std::ostream& os, const TermTable& terms) const;
+  void print(std::ostream& os) const;
 
 private:
   /* The id of the step. */
@@ -426,30 +465,28 @@ private:
 
 
 /* Prints this object on the given stream. */
-void StepDomain::print(std::ostream& os, const TermTable& terms) const {
+void StepDomain::print(std::ostream& os) const {
   os << "<";
   for (VariableList::const_iterator vi = parameters().begin();
        vi != parameters().end(); vi++) {
     if (vi != parameters().begin()) {
       os << ' ';
     }
-    terms.print_term(os, *vi);
-    os << '(' << id() << ')';
+    os << *vi << '(' << id() << ')';
   }
   os << "> in ";
-  domain().print(os, terms);
+  domain().print(os);
 }
 
 
 /* Returns the step domain containing the given variable and the
-   column of the variable, or NULL no step domain contains the
+   column of the variable, or 0 no step domain contains the
    variable. */
 static std::pair<const StepDomain*, size_t>
 find_step_domain(const Chain<StepDomain>* step_domains,
-		 Variable var, size_t step_id) {
+		 const Variable& var, size_t step_id) {
   if (step_id > 0) {
-    for (const Chain<StepDomain>* sd = step_domains;
-	 sd != NULL; sd = sd->tail) {
+    for (const Chain<StepDomain>* sd = step_domains; sd != 0; sd = sd->tail) {
       const StepDomain& step_domain = sd->head;
       if (step_domain.id() == step_id) {
 	int column = step_domain.index_of(var);
@@ -461,7 +498,7 @@ find_step_domain(const Chain<StepDomain>* step_domains,
       }
     }
   }
-  return std::pair<const StepDomain*, size_t>(NULL, 0);
+  return std::pair<const StepDomain*, size_t>(0, 0);
 }
 
 
@@ -521,21 +558,22 @@ const size_t ActionDomain::projection_size(size_t column) const {
 
 
 /* Returns a domain where the given column has been restricted to
-   the given name, or NULL if this would leave an empty domain. */
-const ActionDomain* ActionDomain::restrict(Object name, size_t column) const {
-  ActionDomain* new_domain = NULL;
+   the given object, or 0 if this would leave an empty domain. */
+const ActionDomain* ActionDomain::restrict(const Object& obj,
+					   size_t column) const {
+  ActionDomain* new_domain = 0;
   for (TupleList::const_iterator ti = tuples().begin();
        ti != tuples().end(); ti++) {
     const ObjectList& tuple = **ti;
-    if (tuple[column] == name) {
-      if (new_domain == NULL) {
+    if (tuple[column] == obj) {
+      if (new_domain == 0) {
 	new_domain = new ActionDomain(tuple);
       } else {
 	new_domain->add(tuple);
       }
     }
   }
-  if (new_domain != NULL && new_domain->size() == size()) {
+  if (new_domain != 0 && new_domain->size() == size()) {
     ActionDomain::register_use(new_domain);
     ActionDomain::unregister_use(new_domain);
     return this;
@@ -546,23 +584,23 @@ const ActionDomain* ActionDomain::restrict(Object name, size_t column) const {
 
 
 /* Returns a domain where the given column has been restricted to
-   the given set of names, or NULL if this would leave an empty
+   the given set of names, or 0 if this would leave an empty
    domain. */
 const ActionDomain* ActionDomain::restrict(const NameSet& names,
 					   size_t column) const {
-  ActionDomain* new_domain = NULL;
+  ActionDomain* new_domain = 0;
   for (TupleList::const_iterator ti = tuples().begin();
        ti != tuples().end(); ti++) {
     const ObjectList& tuple = **ti;
     if (names.find(tuple[column]) != names.end()) {
-      if (new_domain == NULL) {
+      if (new_domain == 0) {
 	new_domain = new ActionDomain(tuple);
       } else {
 	new_domain->add(tuple);
       }
     }
   }
-  if (new_domain != NULL && new_domain->size() == size()) {
+  if (new_domain != 0 && new_domain->size() == size()) {
     ActionDomain::register_use(new_domain);
     ActionDomain::unregister_use(new_domain);
     return this;
@@ -572,22 +610,23 @@ const ActionDomain* ActionDomain::restrict(const NameSet& names,
 }
 
 
-/* Returns a domain where the given column exclues the given name,
-   or NULL if this would leave an empty domain. */
-const ActionDomain* ActionDomain::exclude(Object name, size_t column) const {
-  ActionDomain* new_domain = NULL;
+/* Returns a domain where the given column exclues the given object,
+   or 0 if this would leave an empty domain. */
+const ActionDomain* ActionDomain::exclude(const Object& obj,
+					  size_t column) const {
+  ActionDomain* new_domain = 0;
   for (TupleList::const_iterator ti = tuples().begin();
        ti != tuples().end(); ti++) {
     const ObjectList& tuple = **ti;
-    if (tuple[column] != name) {
-      if (new_domain == NULL) {
+    if (tuple[column] != obj) {
+      if (new_domain == 0) {
 	new_domain = new ActionDomain(tuple);
       } else {
 	new_domain->add(tuple);
       }
     }
   }
-  if (new_domain != NULL && new_domain->size() == size()) {
+  if (new_domain != 0 && new_domain->size() == size()) {
     ActionDomain::register_use(new_domain);
     ActionDomain::unregister_use(new_domain);
     return this;
@@ -598,7 +637,7 @@ const ActionDomain* ActionDomain::exclude(Object name, size_t column) const {
 
 
 /* Prints this object on the given stream. */
-void ActionDomain::print(std::ostream& os, const TermTable& terms) const {
+void ActionDomain::print(std::ostream& os) const {
   os << '{';
   for (TupleList::const_iterator ti = tuples().begin();
        ti != tuples().end(); ti++) {
@@ -612,7 +651,7 @@ void ActionDomain::print(std::ostream& os, const TermTable& terms) const {
       if (ni != tuple.begin()) {
 	os << ' ';
       }
-      terms.print_term(os, *ni);
+      os << *ni;
     }
     os << '>';
   }
@@ -628,10 +667,9 @@ const Bindings Bindings::EMPTY = Bindings();
 
 /* Checks if the given formulas can be unified. */
 bool Bindings::unifiable(const Literal& l1, size_t id1,
-			 const Literal& l2, size_t id2,
-			 const TypeTable& types, const TermTable& terms) {
+			 const Literal& l2, size_t id2) {
   BindingList dummy;
-  return unifiable(dummy, l1, id1, l2, id2, types, terms);
+  return unifiable(dummy, l1, id1, l2, id2);
 }
 
 
@@ -639,15 +677,14 @@ bool Bindings::unifiable(const Literal& l1, size_t id1,
    unifier is added to the provided substitution list. */
 bool Bindings::unifiable(BindingList& mgu,
 			 const Literal& l1, size_t id1,
-			 const Literal& l2, size_t id2,
-			 const TypeTable& types, const TermTable& terms) {
-  return EMPTY.unify(mgu, l1, id1, l2, id2, types, terms);
+			 const Literal& l2, size_t id2) {
+  return EMPTY.unify(mgu, l1, id1, l2, id2);
 }
 
 
 /* Constructs an empty binding collection. */
 Bindings::Bindings()
-  : varsets_(NULL), high_step_(0), step_domains_(NULL), ref_count_(1) {
+  : varsets_(0), high_step_(0), step_domains_(0), ref_count_(1) {
 }
 
 
@@ -659,8 +696,8 @@ Bindings::Bindings(const Chain<Varset>* varsets, size_t high_step,
 #ifdef DEBUG_MEMORY
   created_bindings++;
 #endif
-  Chain<Varset>::register_use(varsets_);
-  Chain<StepDomain>::register_use(step_domains_);
+  RCObject::ref(varsets_);
+  RCObject::ref(step_domains_);
 }
 
 
@@ -669,48 +706,48 @@ Bindings::~Bindings() {
 #ifdef DEBUG_MEMORY
   deleted_bindings++;
 #endif
-  Chain<Varset>::unregister_use(varsets_);
-  Chain<StepDomain>::unregister_use(step_domains_);
+  RCObject::destructive_deref(varsets_);
+  RCObject::destructive_deref(step_domains_);
 }
 
 
 /* Returns the binding for the given term, or the term itself if it is
-     not bound to a single name. */
-Term Bindings::binding(Term t, size_t step_id) const {
-  if (is_variable(t)) {
+     not bound to a single object. */
+Term Bindings::binding(const Term& term, size_t step_id) const {
+  if (term.variable()) {
     const Varset* vs =
-      (step_id <= high_step_) ? find_varset(varsets_, t, step_id) : NULL;
-    if (vs != NULL && vs->constant() != Object(NULL_TERM)) {
-      return vs->constant();
+      ((step_id <= high_step_)
+       ? find_varset(varsets_, term.as_variable(), step_id) : 0);
+    if (vs != 0 && vs->constant() != 0) {
+      return *vs->constant();
     }
   }
-  return t;
+  return term;
 }
 
 
 /* Returns the domain for the given step variable. */
-const NameSet& Bindings::domain(Variable v, size_t step_id,
+const NameSet& Bindings::domain(const Variable& var, size_t step_id,
 				const Problem& problem) const {
   std::pair<const StepDomain*, size_t> sd =
-    find_step_domain(step_domains_, v, step_id);
-  if (sd.first != NULL) {
+    find_step_domain(step_domains_, var, step_id);
+  if (sd.first != 0) {
     return sd.first->projection(sd.second);
   } else {
     const ObjectList& objects =
-      problem.compatible_objects(problem.terms().type(v));
+      problem.terms().compatible_objects(TermTable::type(var));
     NameSet* names = new NameSet();
     names->insert(objects.begin(), objects.end());
     const Varset* vs =
-      (step_id <= high_step_) ? find_varset(varsets_, v, step_id) : NULL;
-    if (vs != NULL) {
+      (step_id <= high_step_) ? find_varset(varsets_, var, step_id) : 0;
+    if (vs != 0) {
       for (const Chain<StepVariable>* vc = vs->ncd_set();
-	   vc != NULL; vc = vc->tail) {
+	   vc != 0; vc = vc->tail) {
 	const StepVariable& sv = vc->head;
-	const Varset* vs2 = ((step_id <= high_step_)
-			     ? find_varset(varsets_, sv.first, sv.second)
-			     : NULL);
-	if (vs2 != NULL && vs2->constant() != Object(NULL_TERM)) {
-	  names->erase(vs2->constant());
+	const Varset* vs2 = ((sv.second <= high_step_)
+			     ? find_varset(varsets_, sv.first, sv.second) : 0);
+	if (vs2 != 0 && vs2->constant() != 0) {
+	  names->erase(*vs2->constant());
 	}
       }
     }
@@ -722,10 +759,9 @@ const NameSet& Bindings::domain(Variable v, size_t step_id,
 /* Checks if one of the given formulas is the negation of the other,
    and the atomic formulas can be unified. */
 bool Bindings::affects(const Literal& l1, size_t id1,
-		       const Literal& l2, size_t id2,
-		       const TypeTable& types, const TermTable& terms) const {
+		       const Literal& l2, size_t id2) const {
   BindingList dummy;
-  return affects(dummy, l1, id1, l2, id2, types, terms);
+  return affects(dummy, l1, id1, l2, id2);
 }
 
 
@@ -733,15 +769,14 @@ bool Bindings::affects(const Literal& l1, size_t id1,
    and the atomic formulas can be unified; the most general unifier
    is added to the provided substitution list. */
 bool Bindings::affects(BindingList& mgu, const Literal& l1, size_t id1,
-		       const Literal& l2, size_t id2,
-		       const TypeTable& types, const TermTable& terms) const {
+		       const Literal& l2, size_t id2) const {
   const Negation* negation = dynamic_cast<const Negation*>(&l1);
-  if (negation != NULL) {
-    return unify(mgu, l2, id2, negation->atom(), id1, types, terms);
+  if (negation != 0) {
+    return unify(mgu, l2, id2, negation->atom(), id1);
   } else {
     negation = dynamic_cast<const Negation*>(&l2);
-    if (negation != NULL) {
-      return unify(mgu, negation->atom(), id2, l1, id1, types, terms);
+    if (negation != 0) {
+      return unify(mgu, negation->atom(), id2, l1, id1);
     } else {
       return false;
     }
@@ -751,18 +786,16 @@ bool Bindings::affects(BindingList& mgu, const Literal& l1, size_t id1,
 
 /* Checks if the given formulas can be unified. */
 bool Bindings::unify(const Literal& l1, size_t id1,
-		     const Literal& l2, size_t id2,
-		     const TypeTable& types, const TermTable& terms) const {
+		     const Literal& l2, size_t id2) const {
   BindingList dummy;
-  return unify(dummy, l1, id1, l2, id2, types, terms);
+  return unify(dummy, l1, id1, l2, id2);
 }
 
 
 /* Checks if the given formulas can be unified; the most general
    unifier is added to the provided substitution list. */
 bool Bindings::unify(BindingList& mgu, const Literal& l1, size_t id1,
-		     const Literal& l2, size_t id2,
-		     const TypeTable& types, const TermTable& terms) const {
+		     const Literal& l2, size_t id2) const {
   if (l1.id() > 0 && l2.id() > 0) {
     /* Both literals are fully instantiated. */
     return &l1 == &l2;
@@ -789,33 +822,33 @@ bool Bindings::unify(BindingList& mgu, const Literal& l1, size_t id1,
     SubstitutionMap bind;
     size_t n = ll->arity();
     for (size_t i = 0; i < n; i++) {
-      Term t1 = ll->term(i);
-      Object o2 = lg->term(i);
-      if (is_object(t1)) {
-	if (Object(t1) != o2) {
+      const Term& term1 = ll->term(i);
+      Object obj2 = lg->term(i).as_object();
+      if (term1.object()) {
+	if (term1 != obj2) {
 	  return false;
 	}
       } else {
-	SubstitutionMap::const_iterator b = bind.find(t1);
+	Variable var1 = term1.as_variable();
+	SubstitutionMap::const_iterator b = bind.find(var1);
 	if (b != bind.end()) {
-	  if ((*b).second != o2) {
+	  if ((*b).second != obj2) {
 	    return false;
 	  }
 	} else {
-	  Term bt = binding(t1, idl);
-	  if (is_object(bt)) {
-	    if (Object(bt) != o2) {
+	  Term bt = binding(term1, idl);
+	  if (bt.object()) {
+	    if (bt != obj2) {
 	      return false;
 	    }
 	  } else {
-	    Type type1 = terms.type(t1);
-	    Type type2 = terms.type(o2);
-	    if (!types.subtype(type2, type1)) {
+	    if (!TypeTable::subtype(TermTable::type(obj2),
+				    TermTable::type(term1))) {
 	      return false;
 	    }
-	    mgu.push_back(Binding(t1, idl, o2, 0, true));
+	    mgu.push_back(Binding(var1, idl, obj2, 0, true));
 	  }
-	  bind.insert(std::make_pair(t1, o2));
+	  bind.insert(std::make_pair(var1, obj2));
 	}
       }
     }
@@ -829,91 +862,74 @@ bool Bindings::unify(BindingList& mgu, const Literal& l1, size_t id1,
       /*
        * Try to unify a pair of terms.
        */
-      Term term1 = l1.term(i);
-      Term term2 = l2.term(i);
-      if (is_object(term1)) {
-	/* The first term is a name. */
-	if (is_object(term2)) {
+      const Term& term1 = l1.term(i);
+      const Term& term2 = l2.term(i);
+      if (term1.object()) {
+	/* The first term is an object. */
+	if (term2.object()) {
 	  /*
-	   * Both terms are names.
+	   * Both terms are objects.
 	   */
 	  if (term1 != term2) {
-	    /* The two terms are different names. */
+	    /* The two terms are different objects. */
 	    return false;
 	  }
 	} else {
 	  /*
-	   * The first term is a name and the second is a variable.
+	   * The first term is an object and the second is a variable.
 	   */
-	  Type type1 = terms.type(term1);
-	  Type type2 = terms.type(term2);
-	  if (!types.subtype(type1, type2)) {
+	  if (!TypeTable::subtype(TermTable::type(term1),
+				  TermTable::type(term2))) {
 	    /* Incompatible term types. */
 	    return false;
 	  }
-	  mgu.push_back(Binding(term2, id2, term1, 0, true));
+	  mgu.push_back(Binding(term2.as_variable(), id2, term1, 0, true));
 	}
       } else {
 	/*
 	 * The first term is a variable.
 	 */
-	Type type1 = terms.type(term1);
-	Type type2 = terms.type(term2);
-	if (is_object(term2)) {
-	  if (!types.subtype(type2, type1)) {
+	if (term2.object()) {
+	  if (!TypeTable::subtype(TermTable::type(term2),
+				  TermTable::type(term1))) {
 	    /* Incompatible term types. */
 	    return false;
 	  }
-	} else {
-	  if (!(types.subtype(type1, type2) || types.subtype(type2, type1))) {
-	    /* Incompatible term types. */
-	    return false;
-	  }
+	} else if (!TypeTable::compatible(TermTable::type(term1),
+					  TermTable::type(term2))) {
+	  /* Incompatible term types. */
+	  return false;
 	}
-	mgu.push_back(Binding(term1, id1, term2, id2, true));
+	mgu.push_back(Binding(term1.as_variable(), id1, term2, id2, true));
       }
     }
-    if (add(mgu, types, terms, true) == NULL) {
-      /* Unification is inconsistent with current bindings. */
-      return false;
-    }
   }
-  /* Successful unification. */
-  return true;
+  if (add(mgu, true) == 0) {
+    /* Unification is inconsistent with current bindings. */
+    return false;
+  } else {
+    /* Successful unification. */
+    return true;
+  }
 }
 
 
 /* Checks if the given equality is consistent with the current
    bindings. */
 bool Bindings::consistent_with(const Equality& eq, size_t step_id) const {
-  Variable var;
-  size_t var_id;
-  Term term;
-  size_t term_id;
-  if (is_variable(eq.term1())) {
-    var = eq.term1();
-    var_id = eq.step_id1(step_id);
-    term = eq.term2();
-    term_id = eq.step_id2(step_id);
-  } else if (is_variable(eq.term2())) {
-    var = eq.term2();
-    var_id = eq.step_id2(step_id);
-    term = eq.term1();
-    term_id = eq.step_id1(step_id);
-  } else {
-    return eq.term1() == eq.term2();
-  }
+  size_t var_id = eq.step_id1(step_id);
+  size_t term_id = eq.step_id2(step_id);
   const Varset* vs =
-    (term_id <= high_step_) ? find_varset(varsets_, term, term_id) : NULL;
-  if (vs == NULL || vs->includes(var, var_id)) {
+    (term_id <= high_step_) ? find_varset(varsets_, eq.term(), term_id) : 0;
+  if (vs == 0 || vs->includes(eq.variable(), var_id)) {
     return true;
-  } else if (vs->excludes(var, var_id)) {
+  } else if (vs->excludes(eq.variable(), var_id)) {
     return false;
-  } else if (vs->constant() != Object(NULL_TERM)) {
+  } else if (vs->constant() != 0) {
     std::pair<const StepDomain*, size_t> sd =
-      find_step_domain(step_domains_, var, var_id);
-    if (sd.first != NULL) {
-      return sd.first->includes(vs->constant(), sd.second);
+      find_step_domain(step_domains_, eq.variable(), var_id);
+    if (sd.first != 0) {
+      return sd.first->includes(*vs->constant(), sd.second);
     }
   }
   return true;
@@ -923,27 +939,13 @@ bool Bindings::consistent_with(const Equality& eq, size_t step_id) const {
 /* Checks if the given inequality is consistent with the current
    bindings. */
 bool Bindings::consistent_with(const Inequality& neq, size_t step_id) const {
-  Variable var;
-  size_t var_id;
-  Term term;
-  size_t term_id;
-  if (is_variable(neq.term1())) {
-    var = neq.term1();
-    var_id = neq.step_id1(step_id);
-    term = neq.term2();
-    term_id = neq.step_id2(step_id);
-  } else if (is_variable(neq.term2())) {
-    var = neq.term2();
-    var_id = neq.step_id2(step_id);
-    term = neq.term1();
-    term_id = neq.step_id1(step_id);
-  } else {
-    return neq.term1() != neq.term2();
-  }
+  size_t var_id = neq.step_id1(step_id);
+  size_t term_id = neq.step_id2(step_id);
   const Varset* vs =
-    (term_id <= high_step_) ? find_varset(varsets_, term, term_id) : NULL;
-  return (vs == NULL
-	  || !vs->includes(var, var_id) || vs->excludes(var, var_id));
+    (term_id <= high_step_) ? find_varset(varsets_, neq.term(), term_id) : 0;
+  return (vs == 0
+	  || !vs->includes(neq.variable(), var_id)
+	  || vs->excludes(neq.variable(), var_id));
 }
 
 
@@ -964,10 +966,9 @@ static void add_domain_bindings(BindingList& bindings,
 
 
 /* Returns the binding collection obtained by adding the given
-   bindings to this binding collection, or NULL if the new bindings
+   bindings to this binding collection, or 0 if the new bindings
    are inconsistent with the current. */
 const Bindings* Bindings::add(const BindingList& new_bindings,
-			      const TypeTable& types, const TermTable& terms,
 			      bool test_only) const {
   if (new_bindings.empty()) {
     /* No new bindings. */
@@ -1009,40 +1010,43 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 	  high_step = bind.var_id();
 	}
 	high_step_vars.insert(sv);
-	vs1 = NULL;
+	vs1 = 0;
       }
       /* Varset for term. */
       const Varset* vs2;
-      sv = std::make_pair(bind.term(), bind.term_id());
-      if (!is_variable(sv.first) || bind.term_id() <= high_step_
-	  || high_step_vars.find(sv) != high_step_vars.end()) {
-	vs2 = find_varset(varsets, bind.term(), bind.term_id());
+      if (bind.term().object()) {
+	vs2 = find_varset(varsets, bind.term().as_object());
       } else {
-	if (bind.term_id() > high_step) {
-	  high_step = bind.term_id();
+	StepVariable sv(bind.term().as_variable(), bind.term_id());
+	if (bind.term_id() <= high_step_
+	    || high_step_vars.find(sv) != high_step_vars.end()) {
+	  vs2 = find_varset(varsets, sv.first, bind.term_id());
+	} else {
+	  if (bind.term_id() > high_step) {
+	    high_step = bind.term_id();
+	  }
+	  high_step_vars.insert(sv);
+	  vs2 = 0;
 	}
-	high_step_vars.insert(sv);
-	vs2 = NULL;
       }
-      /* Combined varset, or NULL if binding is inconsistent with
+      /* Combined varset, or 0 if binding is inconsistent with
          current bindings. */
       const Varset* comb;
-      if (vs1 != NULL || vs2 != NULL) {
+      if (vs1 != 0 || vs2 != 0) {
 	/* At least one of the terms is already bound. */
 	if (vs1 != vs2) {
 	  /* The terms are not yet bound to eachother. */
-	  if (vs1 == NULL) {
+	  if (vs1 == 0) {
 	    /* The first term is unbound, so add it to the varset of
                the second. */
-	    comb = vs2->add(varsets, bind.var(), bind.var_id(), types, terms);
-	  } else if (vs2 == NULL) {
+	    comb = vs2->add(varsets, bind.var(), bind.var_id());
+	  } else if (vs2 == 0) {
 	    /* The second term is unbound, so add it to the varset of
                the first. */
-	    comb = vs1->add(varsets, bind.term(), bind.term_id(),
-			    types, terms);
+	    comb = vs1->add(varsets, bind.term(), bind.term_id());
 	  } else {
 	    /* Both terms are bound, so combine their varsets. */
-	    comb = vs1->combine(varsets, *vs2, types);
+	    comb = vs1->combine(varsets, *vs2);
 	  }
 	} else {
 	  /* The terms are already bound to eachother. */
@@ -1050,36 +1054,36 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 	}
       } else {
 	/* None of the terms are already bound. */
-	comb = Varset::make(varsets, bind, types, terms);
+	comb = Varset::make(varsets, bind);
       }
-      if (comb == NULL) {
+      if (comb == 0) {
 	/* Binding is inconsistent with current bindings. */
-	Chain<Varset>::register_use(varsets);
-	Chain<Varset>::unregister_use(varsets);
-	Chain<StepDomain>::register_use(step_domains);
-	Chain<StepDomain>::unregister_use(step_domains);
-	return NULL;
+	RCObject::ref(varsets);
+	RCObject::destructive_deref(varsets);
+	RCObject::ref(step_domains);
+	RCObject::destructive_deref(step_domains);
+	return 0;
       } else {
 	/* Binding is consistent with current bindings. */
 	if (comb != vs1) {
 	  /* Combined varset is new, so add it to the chain of varsets. */
-	  Object name = comb->constant();
+	  const Object* obj = comb->constant();
 	  /* Restrict step domain for all codesignated variables. */
-	  const NameSet* intersection = NULL;
+	  const NameSet* intersection = 0;
 	  bool new_intersection = false;
-	  const Chain<StepVariable>* vc = NULL;
+	  const Chain<StepVariable>* vc = 0;
 	  int phase = 0;
-	  while (phase < 4 || (intersection != NULL && phase < 8)) {
-	    Variable var = NULL_TERM;
+	  while (phase < 4 || (intersection != 0 && phase < 8)) {
+	    const Variable* var = 0;
 	    size_t var_id = 0;
 	    switch (phase) {
 	    case 0:
 	    case 4:
-	      if (vs1 == NULL) {
-		var = bind.var();
+	      if (vs1 == 0) {
+		var = new Variable(bind.var());
 		var_id = bind.var_id();
 		phase += 2;
-	      } else if (vs1->constant() == Object(NULL_TERM)) {
+	      } else if (vs1->constant() == 0) {
 		vc = vs1->cd_set();
 		phase++;
 	      } else {
@@ -1090,22 +1094,23 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 	    case 3:
 	    case 5:
 	    case 7:
-	      if (vc != NULL) {
-		var = vc->head.first;
+	      if (vc != 0) {
+		var = new Variable(vc->head.first);
 		var_id = vc->head.second;
 		vc = vc->tail;
 	      } else {
-		var = NULL_TERM;
+		var = 0;
 		phase++;
 	      }
 	      break;
 	    case 2:
 	    case 6:
-	      if (vs2 == NULL) {
-		var = bind.term();
+	      if (vs2 == 0) {
+		var = (bind.term().variable()
+		       ? new Variable(bind.term().as_variable()) : 0);
 		var_id = bind.term_id();
 		phase += 2;
-	      } else if (vs2->constant() == Object(NULL_TERM)) {
+	      } else if (vs2->constant() == 0) {
 		vc = vs2->cd_set();
 		phase++;
 	      } else {
@@ -1113,24 +1118,25 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 	      }
 	      break;
 	    }
-	    if (is_variable(var)) {
+	    if (var != 0) {
 	      /* Step domain for variable. */
 	      std::pair<const StepDomain*, size_t> sd =
-		find_step_domain(step_domains, var, var_id);
-	      if (sd.first != NULL) {
-		if (name != Object(NULL_TERM)) {
+		find_step_domain(step_domains, *var, var_id);
+	      delete var;
+	      if (sd.first != 0) {
+		if (obj != 0) {
 		  const StepDomain* new_sd =
-		    sd.first->restrict(step_domains, name, sd.second);
-		  if (new_sd == NULL) {
+		    sd.first->restrict(step_domains, *obj, sd.second);
+		  if (new_sd == 0) {
 		    /* Domain became empty. */
-		    Chain<Varset>::register_use(varsets);
-		    Chain<Varset>::unregister_use(varsets);
-		    Chain<StepDomain>::register_use(step_domains);
-		    Chain<StepDomain>::unregister_use(step_domains);
+		    RCObject::ref(varsets);
+		    RCObject::destructive_deref(varsets);
+		    RCObject::ref(step_domains);
+		    RCObject::destructive_deref(step_domains);
 		    if (new_intersection) {
 		      delete intersection;
 		    }
-		    return NULL;
+		    return 0;
 		  }
 		  if (sd.first != new_sd) {
 		    add_domain_bindings(new_binds, *sd.first, *new_sd,
@@ -1141,21 +1147,21 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 		    const StepDomain* new_sd =
 		      sd.first->restrict(step_domains,
 					 *intersection, sd.second);
-		    if (new_sd == NULL) {
+		    if (new_sd == 0) {
 		      /* Domain became empty. */
-		      Chain<Varset>::register_use(varsets);
-		      Chain<Varset>::unregister_use(varsets);
-		      Chain<StepDomain>::register_use(step_domains);
-		      Chain<StepDomain>::unregister_use(step_domains);
+		      RCObject::ref(varsets);
+		      RCObject::destructive_deref(varsets);
+		      RCObject::ref(step_domains);
+		      RCObject::destructive_deref(step_domains);
 		      if (new_intersection) {
 			delete intersection;
 		      }
-		      return NULL;
+		      return 0;
 		    }
 		    if (sd.first != new_sd) {
 		      add_domain_bindings(new_binds, *sd.first, *new_sd);
 		    }
-		  } else if (intersection == NULL) {
+		  } else if (intersection == 0) {
 		    intersection = &sd.first->projection(sd.second);
 		  } else {
 		    NameSet* cut = new NameSet();
@@ -1171,14 +1177,14 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 		    new_intersection = true;
 		    if (intersection->empty()) {
 		      /* Domain became empty. */
-		      Chain<Varset>::register_use(varsets);
-		      Chain<Varset>::unregister_use(varsets);
-		      Chain<StepDomain>::register_use(step_domains);
-		      Chain<StepDomain>::unregister_use(step_domains);
+		      RCObject::ref(varsets);
+		      RCObject::destructive_deref(varsets);
+		      RCObject::ref(step_domains);
+		      RCObject::destructive_deref(step_domains);
 		      if (new_intersection) {
 			delete intersection;
 		      }
-		      return NULL;
+		      return 0;
 		    }
 		  }
 		}
@@ -1205,54 +1211,59 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 	  high_step = bind.var_id();
 	}
 	high_step_vars.insert(sv);
-	vs1 = NULL;
+	vs1 = 0;
       }
       /* Varset for term. */
       const Varset* vs2;
-      sv = std::make_pair(bind.term(), bind.term_id());
-      if (!is_variable(sv.first) || bind.term_id() <= high_step_
-	  || high_step_vars.find(sv) != high_step_vars.end()) {
-	vs2 = find_varset(varsets, bind.term(), bind.term_id());
+      if (bind.term().object()) {
+	vs2 = find_varset(varsets, bind.term().as_object());
       } else {
-	if (bind.term_id() > high_step) {
-	  high_step = bind.term_id();
+	StepVariable sv(bind.term().as_variable(), bind.term_id());
+	if (bind.term_id() <= high_step_
+	    || high_step_vars.find(sv) != high_step_vars.end()) {
+	  vs2 = find_varset(varsets, sv.first, bind.term_id());
+	} else {
+	  if (bind.term_id() > high_step) {
+	    high_step = bind.term_id();
+	  }
+	  high_step_vars.insert(sv);
+	  vs2 = 0;
 	}
-	high_step_vars.insert(sv);
-	vs2 = NULL;
       }
-      if (vs1 != NULL && vs2 != NULL && vs1 == vs2) {
+      if (vs1 != 0 && vs2 != 0 && vs1 == vs2) {
 	/* The terms are already bound to eachother. */
-	Chain<Varset>::register_use(varsets);
-	Chain<Varset>::unregister_use(varsets);
-	Chain<StepDomain>::register_use(step_domains);
-	Chain<StepDomain>::unregister_use(step_domains);
-	return NULL;
+	RCObject::ref(varsets);
+	RCObject::destructive_deref(varsets);
+	RCObject::ref(step_domains);
+	RCObject::destructive_deref(step_domains);
+	return 0;
       } else {
 	/* The terms are not bound to eachother. */
 	bool separate1 = true;
 	bool separate2 = true;
-	if (vs1 == NULL) {
+	if (vs1 == 0) {
 	  /* The first term is unbound, so create a new varset for it. */
-	  vs1 = Varset::make(varsets, bind, types, terms);
+	  vs1 = Varset::make(varsets, bind);
 	} else {
-	  if (is_variable(bind.term())) {
+	  if (bind.term().variable()) {
 	    /* The second term is a variable. */
-	    if (vs1->excludes(bind.term(), bind.term_id())) {
+	    Variable var = bind.term().as_variable();
+	    if (vs1->excludes(var, bind.term_id())) {
 	      /* The second term is already separated from the first. */
 	      separate1 = false;
 	    } else {
 	      /* Separate the second term from the first. */
-	      vs1 = vs1->restrict(varsets, bind.term(), bind.term_id());
+	      vs1 = vs1->restrict(varsets, var, bind.term_id());
 	    }
 	  } else {
-	    /* The second term is a name, so the terms are separated
+	    /* The second term is an object, so the terms are separated
                in the varset for the second term. */
 	    separate1 = false;
 	  }
 	}
-	if (vs2 == NULL) {
+	if (vs2 == 0) {
 	  /* The second term is unbound, so create a new varset for it. */
-	  vs2 = Varset::make(varsets, bind, types, terms, true);
+	  vs2 = Varset::make(varsets, bind, true);
 	} else if (vs2->excludes(bind.var(), bind.var_id())) {
 	  /* The first term is already separated from the second. */
 	  separate2 = false;
@@ -1260,24 +1271,24 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 	  /* Separate the first term from the second. */
 	  vs2 = vs2->restrict(varsets, bind.var(), bind.var_id());
 	}
-	if (separate1 && vs1 != NULL) {
+	if (separate1 && vs1 != 0) {
 	  /* The second term was not separated from the first already. */
-	  if (vs1->constant() != Object(NULL_TERM) && vs2 != NULL) {
+	  if (vs1->constant() != 0 && vs2 != 0) {
 	    for (const Chain<StepVariable>* vc = vs2->cd_set();
-		 vc != NULL; vc = vc->tail) {
+		 vc != 0; vc = vc->tail) {
 	      std::pair<const StepDomain*, size_t> sd =
 		find_step_domain(step_domains,
 				 vc->head.first, vc->head.second);
-	      if (sd.first != NULL) {
+	      if (sd.first != 0) {
 		const StepDomain* new_sd =
-		  sd.first->exclude(step_domains, vs1->constant(), sd.second);
-		if (new_sd == NULL) {
+		  sd.first->exclude(step_domains, *vs1->constant(), sd.second);
+		if (new_sd == 0) {
 		  /* Domain became empty. */
-		  Chain<Varset>::register_use(varsets);
-		  Chain<Varset>::unregister_use(varsets);
-		  Chain<StepDomain>::register_use(step_domains);
-		  Chain<StepDomain>::unregister_use(step_domains);
-		  return NULL;
+		  RCObject::ref(varsets);
+		  RCObject::destructive_deref(varsets);
+		  RCObject::ref(step_domains);
+		  RCObject::destructive_deref(step_domains);
+		  return 0;
 		}
 		if (sd.first != new_sd) {
 		  add_domain_bindings(new_binds, *sd.first, *new_sd);
@@ -1286,34 +1297,33 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 	    }
 	  }
 	}
-	if (separate2 && vs2 != NULL) {
+	if (separate2 && vs2 != 0) {
 	  /* The first term was not separated from the second already. */
-	  if (vs2->constant() != Object(NULL_TERM)) {
-	    const Chain<StepVariable>* vc =
-	      (vs1 != NULL) ? vs1->cd_set() : NULL;
-	    Variable var = (vc != NULL) ? vc->head.first : bind.var();
-	    size_t var_id = (vc != NULL) ? vc->head.second : bind.var_id();
-	    while (is_variable(var)) {
+	  if (vs2->constant() != 0) {
+	    const Chain<StepVariable>* vc = (vs1 != 0) ? vs1->cd_set() : 0;
+	    const Variable* var = (vc != 0) ? &vc->head.first : &bind.var();
+	    size_t var_id = (vc != 0) ? vc->head.second : bind.var_id();
+	    while (var != 0) {
 	      std::pair<const StepDomain*, size_t> sd =
-		find_step_domain(step_domains, var, var_id);
-	      if (sd.first != NULL) {
+		find_step_domain(step_domains, *var, var_id);
+	      if (sd.first != 0) {
 		const StepDomain* new_sd =
-		  sd.first->exclude(step_domains, vs2->constant(), sd.second);
-		if (new_sd == NULL) {
+		  sd.first->exclude(step_domains, *vs2->constant(), sd.second);
+		if (new_sd == 0) {
 		  /* Domain became empty. */
-		  Chain<Varset>::register_use(varsets);
-		  Chain<Varset>::unregister_use(varsets);
-		  Chain<StepDomain>::register_use(step_domains);
-		  Chain<StepDomain>::unregister_use(step_domains);
-		  return NULL;
+		  RCObject::ref(varsets);
+		  RCObject::destructive_deref(varsets);
+		  RCObject::ref(step_domains);
+		  RCObject::destructive_deref(step_domains);
+		  return 0;
 		}
 		if (sd.first != new_sd) {
 		  add_domain_bindings(new_binds, *sd.first, *new_sd);
 		}
 	      }
-	      vc = (vs1 != NULL) ? vc->tail : NULL;
-	      var = (vc != NULL) ? vc->head.first : NULL_TERM;
-	      var_id = (vc != NULL) ? vc->head.second : 0;
+	      vc = (vs1 != 0) ? vc->tail : 0;
+	      var = (vc != 0) ? &vc->head.first : 0;
+	      var_id = (vc != 0) ? vc->head.second : 0;
 	    }
 	  }
 	}
@@ -1324,10 +1334,10 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
   if (test_only
       || (varsets == varsets_ && high_step == high_step_
 	  && step_domains == step_domains_)) {
-    Chain<Varset>::register_use(varsets);
-    Chain<Varset>::unregister_use(varsets);
-    Chain<StepDomain>::register_use(step_domains);
-    Chain<StepDomain>::unregister_use(step_domains);
+    RCObject::ref(varsets);
+    RCObject::destructive_deref(varsets);
+    RCObject::ref(step_domains);
+    RCObject::destructive_deref(step_domains);
     return this;
   } else {
     return new Bindings(varsets, high_step, step_domains);
@@ -1337,16 +1347,16 @@ const Bindings* Bindings::add(const BindingList& new_bindings,
 
 /* Returns the binding collection obtained by adding the constraints
    associated with the given step to this binding collection, or
-   NULL if the new binding collection would be inconsistent. */
+   0 if the new binding collection would be inconsistent. */
 const Bindings* Bindings::add(size_t step_id, const Action& step_action,
 			      const PlanningGraph& pg, bool test_only) const {
   const ActionSchema* action = dynamic_cast<const ActionSchema*>(&step_action);
-  if (action == NULL || action->parameters().empty()) {
+  if (action == 0 || action->parameters().empty()) {
     return this;
   }
   const ActionDomain* domain = pg.action_domain(action->name());
-  if (domain == NULL) {
-    return NULL;
+  if (domain == 0) {
+    return 0;
   }
   const Chain<StepDomain>* step_domains =
     new Chain<StepDomain>(StepDomain(step_id, action->parameters(), *domain),
@@ -1359,10 +1369,10 @@ const Bindings* Bindings::add(size_t step_id, const Action& step_action,
       const Chain<StepVariable>* cd_set =
 	new Chain<StepVariable>(std::make_pair(step_domain.parameters()[c],
 					       step_domain.id()),
-				NULL);
-      Type type = pg.problem().terms().type(step_domain.parameters()[c]);
-      varsets = new Chain<Varset>(Varset(*step_domain.projection(c).begin(),
-					 cd_set, NULL, type),
+				0);
+      Type type = TermTable::type(step_domain.parameters()[c]);
+      varsets = new Chain<Varset>(Varset(&*step_domain.projection(c).begin(),
+					 cd_set, 0, type),
 				  varsets);
       if (step_id > high_step) {
 	high_step = step_id;
@@ -1372,10 +1382,10 @@ const Bindings* Bindings::add(size_t step_id, const Action& step_action,
   if (test_only
       || (varsets == varsets_ && high_step == high_step_
 	  && step_domains == step_domains_)) {
-    Chain<Varset>::register_use(varsets);
-    Chain<Varset>::unregister_use(varsets);
-    Chain<StepDomain>::register_use(step_domains);
-    Chain<StepDomain>::unregister_use(step_domains);
+    RCObject::ref(varsets);
+    RCObject::destructive_deref(varsets);
+    RCObject::ref(step_domains);
+    RCObject::destructive_deref(step_domains);
     return this;
   } else {
     return new Bindings(varsets, high_step, step_domains);
@@ -1384,12 +1394,12 @@ const Bindings* Bindings::add(size_t step_id, const Action& step_action,
 
 
 /* Prints this object on the given stream. */
-void Bindings::print(std::ostream& os, const TermTable& terms) const {
+void Bindings::print(std::ostream& os) const {
   std::map<size_t, std::vector<Variable> > seen_vars;
-  std::vector<Object> seen_names;
-  for (const Chain<Varset>* vsc = varsets_; vsc != NULL; vsc = vsc->tail) {
+  std::vector<Object> seen_objs;
+  for (const Chain<Varset>* vsc = varsets_; vsc != 0; vsc = vsc->tail) {
     const Varset& vs = vsc->head;
-    if (vs.cd_set() != NULL) {
+    if (vs.cd_set() != 0) {
       const Chain<StepVariable>* vc = vs.cd_set();
       if (find(seen_vars[vc->head.second].begin(),
 	       seen_vars[vc->head.second].end(), vc->head.first)
@@ -1397,48 +1407,53 @@ void Bindings::print(std::ostream& os, const TermTable& terms) const {
 	continue;
       }
       os << std::endl << "{";
-      for (; vc != NULL; vc = vc->tail) {
+      for (; vc != 0; vc = vc->tail) {
 	const StepVariable& step_var = vc->head;
-	os << ' ';
-	terms.print_term(os, step_var.first);
-	os << '(' << step_var.second << ')';
+	os << ' ' << step_var.first << '(' << step_var.second << ')';
 	seen_vars[step_var.second].push_back(step_var.first);
       }
       os << " }";
-      if (vs.constant() != Object(NULL_TERM)) {
+      if (vs.constant() != 0) {
 	os << " == ";
       }
     }
-    if (vs.constant() != Object(NULL_TERM)) {
-      Object name = vs.constant();
-      if (find(seen_names.begin(), seen_names.end(), name)
-	  != seen_names.end()) {
+    if (vs.constant() != 0) {
+      const Object& obj = *vs.constant();
+      if (find(seen_objs.begin(), seen_objs.end(), obj) != seen_objs.end()) {
 	continue;
       }
-      if (vs.cd_set() == NULL) {
+      if (vs.cd_set() == 0) {
 	os << std::endl;
       }
-      terms.print_term(os, name);
-      seen_names.push_back(name);
+      os << obj;
+      seen_objs.push_back(obj);
     }
-    if (vs.ncd_set() != NULL) {
+    if (vs.ncd_set() != 0) {
       os << " != {";
       for (const Chain<StepVariable>* vc =
-	     vs.ncd_set(); vc != NULL; vc = vc->tail) {
-	os << ' ';
-	terms.print_term(os, vc->head.first);
-	os << '(' << vc->head.second << ')';
+	     vs.ncd_set(); vc != 0; vc = vc->tail) {
+	os << ' ' << vc->head.first << '(' << vc->head.second << ')';
       }
       os << " }";
     }
   }
   std::set<size_t> seen_steps;
-  for (const Chain<StepDomain>* sd = step_domains_;
-       sd != NULL; sd = sd->tail) {
+  for (const Chain<StepDomain>* sd = step_domains_; sd != 0; sd = sd->tail) {
     if (seen_steps.find(sd->head.id()) == seen_steps.end()) {
       seen_steps.insert(sd->head.id());
       os << std::endl;
-      sd->head.print(os, terms);
+      sd->head.print(os);
     }
+  }
+}
+
+
+/* Prints the given term on the given stream. */
+void Bindings::print_term(std::ostream& os,
+			  const Term& term, size_t step_id) const {
+  Term t = binding(term, step_id);
+  os << t;
+  if (t.variable()) {
+    os << '(' << step_id << ')';
   }
 }

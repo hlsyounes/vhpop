@@ -1,0 +1,286 @@
+#! /bin/sh
+
+outdir=aips2002data
+
+echo '\documentclass{article}'
+echo
+echo '\usepackage{fullpage}'
+echo '\usepackage{times}'
+echo
+echo '\newcommand{\oom}[1]{\multicolumn{2}{c}{$>$#1$\dagger$}}'
+echo '\newcommand{\oot}[1]{\multicolumn{2}{c}{$>$#1$\ddagger$}}'
+echo '\newcommand{\tum}{\multicolumn{2}{c}{$<$60000$\dagger$}}'
+echo '\newcommand{\nof}{\multicolumn{2}{c}{*}}'
+echo
+echo '\begin{document}'
+
+problems="\
+ gripper-domain gripper-4 gripper-6 gripper-8 gripper-10 gripper-12 gripper-20\
+ rocket-domain rocket-ext-a rocket-ext-b\
+ logistics-domain logistics-a logistics-b logistics-c logistics-d"
+
+echo
+echo '\begin{table*}'
+echo '\footnotesize'
+echo '\centering'
+echo '\begin{tabular}{@{}l|r@{ / }l r@{ / }l r@{ / }l r@{ / }l r@{ / }l r@{ / }ll@{}}'
+echo '\hline'
+echo -n '\textbf{Problem} '
+for f in oc heuristic static domains all ground; do
+    echo -n "& \multicolumn{2}{c}{\textbf{$f}} "
+done
+echo '\\'
+for p in $problems; do
+    if (test ! -z "`echo $p | grep '\-domain'`") then
+	echo '\hline'
+	continue
+    fi
+    echo -n $p
+    for f in oc heuristic static domains all ground; do
+	file=$outdir/$p-$f.out
+	if (test ! -f $file) then
+	    echo -n ' & \nof'
+	    continue
+	fi
+	l=`grep 'Search limit reached.' $file`
+	g=`grep 'Plans generated: ' $file | sed 's/Plans generated: //g'`
+	v=`grep 'Plans visited: ' $file | sed 's/Plans visited: //g'`
+	if (echo $g | grep '\[' > /dev/null) then
+	    g=`echo $g | sed 's/[0-9]* \[//g' | sed 's/\]//g'`
+	fi
+	if (echo $v | grep '\[' > /dev/null) then
+	    v=`echo $v | sed 's/[0-9]* \[//g' | sed 's/\]//g'`
+	fi
+	if (test ! -z "$l") then
+	    echo -n " & \oot{`sed 's/[^.]//g' $file | wc -L`000}"
+	elif (test ! -z "$g") then
+	    echo -n " & $g & $v"
+	else
+	    echo -n " & \oom{`sed 's/[^.]//g' $file | wc -L`000}"
+	fi
+    done
+    echo ' \\'
+done
+echo '\hline'
+echo '\end{tabular}'
+echo '\end{table*}'
+echo
+echo '\begin{table*}'
+echo '\footnotesize'
+echo '\centering'
+echo '\begin{tabular}{@{}l|r@{ / }l r@{ / }l r@{ / }l r@{ / }l r@{ / }l r@{ / }ll@{}}'
+echo '\hline'
+echo -n '\textbf{Problem} '
+for f in oc heuristic static domains all ground; do
+    echo -n "& \multicolumn{2}{c}{\textbf{$f}} "
+done
+echo '\\'
+for p in $problems; do
+    if (test ! -z "`echo $p | grep '\-domain'`") then
+	echo '\hline'
+	continue
+    fi
+    echo -n $p
+    for f in oc heuristic static domains all ground; do
+	file=$outdir/$p-$f.out
+	if (test ! -f $file) then
+	    echo -n ' & \nof'
+	    continue
+	fi
+	l=`grep 'Search limit reached.' $file`
+	t=`grep 'Time: ' $file | sed 's/Time: //g'`
+	s=`grep 'Number of steps: ' $file | sed 's/Number of steps: //g'`
+	if (test ! -z "$t") then
+	    if (test ! -z "$l") then
+		echo -n "& \oot{$t}"
+	    else
+		echo -n " & $t & $s"
+	    fi
+	else
+	    tl=`sed 's/[^#]//g' $file | grep '#' | wc -L`
+	    tl=`expr $tl '*' 60000`
+	    if (test $tl -gt 0) then
+		echo -n " & \oom{$tl}"
+	    else
+		echo -n ' & \tum'
+	    fi
+	fi
+    done
+    echo ' \\'
+done
+echo '\hline'
+echo '\end{tabular}'
+echo '\end{table*}'
+
+problems="\
+ blocks-domain blocks-2 blocks-3 blocks-4 blocks-5 blocks-6 blocks-7 blocks-8\
+ blocks-9 blocks-10 blocks-11 blocks-12 blocks-13 blocks-14 blocks-15\
+ blocks-16 blocks-17 blocks-18 blocks-19 blocks-20 blocks-21 blocks-22\
+ blocks-23 blocks-24 blocks-25 blocks-26 blocks-27 blocks-28 blocks-29\
+ blocks-30"
+
+echo
+echo '\begin{table*}'
+echo '\footnotesize'
+echo '\centering'
+echo '\begin{tabular}{@{}l|r@{ / }l r@{ / }l@{}}'
+echo '\hline'
+echo -n '\textbf{Problem} '
+for f in all ground; do
+    echo -n "& \multicolumn{2}{c}{\textbf{$f}} "
+done
+echo '\\'
+for p in $problems; do
+    if (test ! -z "`echo $p | grep '\-domain'`") then
+	echo '\hline'
+	continue
+    fi
+    echo -n $p
+    for f in all ground; do
+	file=$outdir/$p-$f.out
+	l=`grep 'Search limit reached.' $file`
+	g=`grep 'Plans generated: ' $file | sed 's/Plans generated: //g'`
+	v=`grep 'Plans visited: ' $file | sed 's/Plans visited: //g'`
+	if (echo $g | grep '\[' > /dev/null) then
+	    g=`echo $g | sed 's/[0-9]* \[//g' | sed 's/\]//g'`
+	fi
+	if (echo $v | grep '\[' > /dev/null) then
+	    v=`echo $v | sed 's/[0-9]* \[//g' | sed 's/\]//g'`
+	fi
+	if (test ! -z "$l") then
+	    echo -n " & \oot{`sed 's/[^.]//g' $file | wc -L`000}"
+	elif (test ! -z "$g") then
+	    echo -n " & $g & $v"
+	else
+	    echo -n " & \oom{`sed 's/[^.]//g' $file | wc -L`000}"
+	fi
+    done
+    echo ' \\'
+done
+echo '\hline'
+echo '\end{tabular}'
+echo '\hspace{3em}'
+echo '\begin{tabular}{@{}l|r@{ / }l r@{ / }l@{}}'
+echo '\hline'
+echo -n '\textbf{Problem} '
+for f in all ground; do
+    echo -n "& \multicolumn{2}{c}{\textbf{$f}} "
+done
+echo '\\'
+for p in $problems; do
+    if (test ! -z "`echo $p | grep '\-domain'`") then
+	echo '\hline'
+	continue
+    fi
+    echo -n $p
+    for f in all ground; do
+	file=$outdir/$p-$f.out
+	t=`grep 'Time: ' $file | sed 's/Time: //g'`
+	s=`grep 'Number of steps: ' $file | sed 's/Number of steps: //g'`
+	if (test ! -z "$t") then
+	    if (test ! -z "$l") then
+		echo -n "& \oot{$t}"
+	    else
+		echo -n " & $t & $s"
+	    fi
+	else
+	    tl=`sed 's/[^#]//g' $file | grep '#' | wc -L`
+	    tl=`expr $tl '*' 60000`
+	    if (test $tl -gt 0) then
+		echo -n " & \oom{$tl}"
+	    else
+		echo -n ' & \tum'
+	    fi
+	fi
+    done
+    echo ' \\'
+done
+echo '\hline'
+echo '\end{tabular}'
+echo '\end{table*}'
+
+problems="\
+ simple-grid-domain simple-grid2"
+
+echo
+echo '\begin{table*}'
+echo '\footnotesize'
+echo '\centering'
+echo '\begin{tabular}{@{}l|r@{ / }l r@{ / }l@{}}'
+echo '\hline'
+echo -n '\textbf{Problem} '
+for f in lifted ground; do
+    echo -n "& \multicolumn{2}{c}{\textbf{$f}} "
+done
+echo '\\'
+for p in $problems; do
+    if (test ! -z "`echo $p | grep '\-domain'`") then
+	echo '\hline'
+	continue
+    fi
+    echo -n $p
+    for f in lifted ground; do
+	file=$outdir/$p-$f.out
+	l=`grep 'Search limit reached.' $file`
+	g=`grep 'Plans generated: ' $file | sed 's/Plans generated: //g'`
+	v=`grep 'Plans visited: ' $file | sed 's/Plans visited: //g'`
+	if (echo $g | grep '\[' > /dev/null) then
+	    g=`echo $g | sed 's/[0-9]* \[//g' | sed 's/\]//g'`
+	fi
+	if (echo $v | grep '\[' > /dev/null) then
+	    v=`echo $v | sed 's/[0-9]* \[//g' | sed 's/\]//g'`
+	fi
+	if (test ! -z "$l") then
+	    echo -n " & \oot{`sed 's/[^.]//g' $file | wc -L`000}"
+	elif (test ! -z "$g") then
+	    echo -n " & $g & $v"
+	else
+	    echo -n " & \oom{`sed 's/[^.]//g' $file | wc -L`000}"
+	fi
+    done
+    echo ' \\'
+done
+echo '\hline'
+echo '\end{tabular}'
+echo '\hspace{3em}'
+echo '\begin{tabular}{@{}l|r@{ / }l r@{ / }l@{}}'
+echo '\hline'
+echo -n '\textbf{Problem} '
+for f in lifted ground; do
+    echo -n "& \multicolumn{2}{c}{\textbf{$f}} "
+done
+echo '\\'
+for p in $problems; do
+    if (test ! -z "`echo $p | grep '\-domain'`") then
+	echo '\hline'
+	continue
+    fi
+    echo -n $p
+    for f in lifted ground; do
+	file=$outdir/$p-$f.out
+	t=`grep 'Time: ' $file | sed 's/Time: //g'`
+	s=`grep 'Number of steps: ' $file | sed 's/Number of steps: //g'`
+	if (test ! -z "$t") then
+	    if (test ! -z "$l") then
+		echo -n "& \oot{$t}"
+	    else
+		echo -n " & $t & $s"
+	    fi
+	else
+	    tl=`sed 's/[^#]//g' $file | grep '#' | wc -L`
+	    tl=`expr $tl '*' 60000`
+	    if (test $tl -gt 0) then
+		echo -n " & \oom{$tl}"
+	    else
+		echo -n ' & \tum'
+	    fi
+	fi
+    done
+    echo ' \\'
+done
+echo '\hline'
+echo '\end{tabular}'
+echo '\end{table*}'
+
+echo
+echo '\end{document}'

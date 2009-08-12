@@ -1,0 +1,139 @@
+#! /bin/sh
+
+outdir=ipc3data
+
+echo '\documentclass{article}'
+echo
+echo '\usepackage{fullpage}'
+echo '\usepackage{times}'
+echo
+echo '\newcommand{\oom}[1]{\multicolumn{2}{c}{$>$#1$\dagger$}}'
+echo '\newcommand{\oot}[1]{\multicolumn{2}{c}{$>$#1$\ddagger$}}'
+echo '\newcommand{\tum}{\multicolumn{2}{c}{$<$60000$\dagger$}}'
+echo '\newcommand{\nof}{\multicolumn{2}{c}{*}}'
+echo
+echo '\begin{document}'
+
+problems="\
+ Tests1/Depots/Strips/Depots.pddl Tests1/Depots/Strips\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22\
+ Tests1/DriverLog/Strips/driverlog.pddl Tests1/DriverLog/Strips\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20\
+ Tests1/ZenoTravel/Strips/zenotravelStrips.pddl Tests1/ZenoTravel/Strips\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20\
+ Tests2/Satellite/Strips/adlSat.pddl Tests2/Satellite/Strips\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20\
+ Tests2/Rovers/Strips/StripsRover.pddl Tests2/Rovers/Strips\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20\
+ Tests3/FreeCell/Strips/free.pddl Tests3/FreeCell/Strips\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20\
+ Tests1/Depots/SimpleTime/DepotsSimpleTime.pddl Tests1/Depots/SimpleTime\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22\
+ Tests1/DriverLog/SimpleTime/driverlogSimpleTime.pddl Tests1/DriverLog/SimpleTime\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20\
+ Tests1/ZenoTravel/SimpleTime/zenoSimpleTime.pddl Tests1/ZenoTravel/SimpleTime\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20\
+ Tests2/Satellite/SimpleTime/adlsimpleTimeSat.pddl Tests2/Satellite/SimpleTime\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20\
+ Tests2/Rovers/SimpleTime/STRover.pddl Tests2/Rovers/SimpleTime\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20\
+ Tests1/Depots/Time/DepotsTime.pddl Tests1/Depots/Time\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22\
+ Tests1/DriverLog/Time/driverlogTimed.pddl Tests1/DriverLog/Time\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20\
+ Tests2/Satellite/Time/adlcomputedDurationsDat.pddl Tests2/Satellite/Time\
+ 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20"
+
+heuristic=addr
+for p in $problems; do
+    if (test ! -z "`echo $p | grep '\.pddl'`") then
+	if (test ! -z "$domain") then
+	    echo '\end{tabular}'
+	    echo "\caption{$domain}"
+	    echo '\end{table*}'
+	    echo
+	    echo '\clearpage'
+	fi
+	domain=$p
+	pdir=""
+	echo
+	echo '\begin{table*}'
+	echo '\footnotesize'
+	echo '\centering'
+	echo -n '\begin{tabular}{@{}l|'
+	for flaw in mw-loc mw-loc-conf lcfr-loc lcfr-loc-conf all; do
+	    echo -n 'r@{ / }l'
+	done
+	echo '@{}}'
+	echo '\hline'
+	echo -n '{\bf Problem} '
+	for flaw in mw-loc mw-loc-conf lcfr-loc lcfr-loc-conf all; do
+	    echo -n "& \multicolumn{2}{c}{\bf $flaw} "
+	done
+	echo '\\'
+	echo '\hline'
+	continue
+    fi
+    if (test -z "$pdir") then
+	pdir=$p
+	continue
+    fi
+    echo -n $p
+    for flaw in mw-loc mw-loc-conf lcfr-loc lcfr-loc-conf all; do
+	file=$outdir/$pdir/pfile$p-$heuristic-$flaw.out
+	if (test ! -f $file) then
+	    echo -n ' & \nof'
+	    continue
+	fi
+	l=`grep 'Search limit reached.' $file`
+	g=`grep 'Plans generated: ' $file | sed 's/Plans generated: //g'`
+	v=`grep 'Plans visited: ' $file | sed 's/Plans visited: //g'`
+	if (echo $g | grep '\[' > /dev/null) then
+	    g=`echo $g | sed 's/[0-9]* \[//g' | sed 's/\]//g'`
+	fi
+	if (echo $v | grep '\[' > /dev/null) then
+	    v=`echo $v | sed 's/[0-9]* \[//g' | sed 's/\]//g'`
+	fi
+	if (test ! -z "$l") then
+	    echo -n " & \oot{`sed 's/[^.]//g' $file | wc -L`000}"
+	elif (test ! -z "$g") then
+	    echo -n " & $g & $v"
+	else
+	    echo -n " & \oom{`sed 's/[^.]//g' $file | wc -L`000}"
+	fi
+    done
+    echo '\\'
+    for flaw in mw-loc mw-loc-conf lcfr-loc lcfr-loc-conf all; do
+	file=$outdir/$pdir/pfile$p-$heuristic-$flaw.out
+	if (test ! -f $file) then
+	    echo -n ' & \nof'
+	    continue
+	fi
+	l=`grep 'Search limit reached.' $file`
+	t=`grep 'Time: ' $file | sed 's/Time: //g'`
+	s=`grep 'Number of steps: ' $file | sed 's/Number of steps: //g'`
+	if (test ! -z "$t") then
+	    if (test ! -z "$l") then
+		echo -n "& \oot{$t}"
+	    else
+		echo -n " & $t & $s"
+	    fi
+	else
+	    tl=`sed 's/[^#]//g' $file | grep '#' | wc -L`
+	    tl=`expr $tl '*' 60000`
+	    if (test $tl -gt 0) then
+		echo -n " & \oom{$tl}"
+	    else
+		echo -n ' & \tum'
+	    fi
+	fi
+    done
+    echo '\\'
+    echo '\hline'
+done
+echo '\end{tabular}'
+echo "\caption{$domain}"
+echo '\end{table*}'
+
+echo
+echo '\end{document}'

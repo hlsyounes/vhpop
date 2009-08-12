@@ -2,7 +2,7 @@
 /*
  * PDDL parser.
  *
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2002-2004 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -47,28 +47,28 @@ struct Context {
     frames_.pop_back();
   }
 
-  void insert(const std::string& name, Variable v) {
-    frames_.back()[name] = v;
+  void insert(const std::string& name, const Variable& v) {
+    frames_.back().insert(std::make_pair(name, v));
   }
 
-  std::pair<Variable, bool> shallow_find(const std::string& name) const {
+  const Variable* shallow_find(const std::string& name) const {
     VariableMap::const_iterator vi = frames_.back().find(name);
     if (vi != frames_.back().end()) {
-      return std::make_pair((*vi).second, true);
+      return &(*vi).second;
     } else {
-      return std::make_pair(0, false);
+      return 0;
     }
   }
 
-  std::pair<Variable, bool> find(const std::string& name) const {
+  const Variable* find(const std::string& name) const {
     for (std::vector<VariableMap>::const_reverse_iterator fi =
 	   frames_.rbegin(); fi != frames_.rend(); fi++) {
       VariableMap::const_iterator vi = (*fi).find(name);
       if (vi != (*fi).end()) {
-	return std::make_pair((*vi).second, true);
+	return &(*vi).second;
       }
     }
-    return std::make_pair(0, false);
+    return 0;
   }
 
 private:
@@ -94,48 +94,42 @@ static bool success = true;
 static Domain* domain;
 /* Domains. */
 static std::map<std::string, Domain*> domains;
-/* Problem being parsed, or NULL if no problem is being parsed. */
+/* Problem being parsed, or 0 if no problem is being parsed. */
 static Problem* problem;
 /* Current requirements. */
 static Requirements* requirements;
 /* Predicate being parsed. */
-static Predicate predicate;
-/* Whether a predicate is being parsed. */
-static bool parsing_predicate;
+static const Predicate* predicate;
 /* Whether predicate declaration is repeated. */
 static bool repeated_predicate;
 /* Function being parsed. */
-static Function function;
-/* Whether a function is being parsed. */
-static bool parsing_function;
+static const Function* function;
 /* Whether function declaration is repeated. */
 static bool repeated_function;
-/* Action being parsed, or NULL if no action is being parsed. */
+/* Action being parsed, or 0 if no action is being parsed. */
 static ActionSchema* action;
+/* Time of current condition. */ 
+static FormulaTime formula_time; 
 /* Time of current effect. */
 static Effect::EffectTime effect_time;
-/* Condition for effect being parsed, or NULL if unconditional effect. */
-static const Condition* effect_condition; 
+/* Condition for effect being parsed, or 0 if unconditional effect. */
+static const Formula* effect_condition; 
 /* Current variable context. */
 static Context context;
 /* Predicate for atomic formula being parsed. */
-static Predicate atom_predicate;
+static const Predicate* atom_predicate;
 /* Whether the predicate of the currently parsed atom was undeclared. */
 static bool undeclared_atom_predicate;
 /* Whether parsing metric fluent. */
 static bool metric_fluent;
-/* Function for function application being parsed. */
-static Function appl_function;
-/* Whether the function of the currently parsed application was undeclared. */
-static bool undeclared_appl_function;
-/* Paramerers for atomic formula or function application being parsed. */
+/* Function for fluent being parsed. */
+static const Function* fluent_function;
+/* Whether the function of the currently parsed fluent was undeclared. */
+static bool undeclared_fluent_function;
+/* Paramerers for atomic formula or fluent being parsed. */
 static TermList term_parameters;
-/* Whether parsing an atom. */
-static bool parsing_atom;
-/* Whether parsing a function application. */
-static bool parsing_application;
 /* Quantified variables for effect or formula being parsed. */
-static VariableList quantified;
+static TermList quantified;
 /* Kind of name map being parsed. */
 static enum { TYPE_KIND, CONSTANT_KIND, OBJECT_KIND, VOID_KIND } name_kind;
 
@@ -157,7 +151,7 @@ static void require_disjunction();
 /* Adds :duration-inequalities to the requirements. */
 static void require_duration_inequalities();
 /* Returns a simple type with the given name. */
-static Type make_type(const std::string* name);
+static const Type& make_type(const std::string* name);
 /* Returns the union of the given types. */
 static Type make_type(const TypeSet& types);
 /* Returns a simple term with the given name. */
@@ -173,27 +167,28 @@ static void add_action();
 /* Prepares for the parsing of a universally quantified effect. */ 
 static void prepare_forall_effect();
 /* Prepares for the parsing of a conditional effect. */ 
-static void prepare_conditional_effect(const Condition& condition);
+static void prepare_conditional_effect(const Formula& condition);
 /* Adds types, constants, or objects to the current domain or problem. */
-static void add_names(const std::vector<const std::string*>* names, Type type);
+static void add_names(const std::vector<const std::string*>* names,
+		      const Type& type);
 /* Adds variables to the current variable list. */
 static void add_variables(const std::vector<const std::string*>* names,
-			  Type type);
+			  const Type& type);
 /* Prepares for the parsing of an atomic formula. */ 
 static void prepare_atom(const std::string* name);
-/* Prepares for the parsing of a function application. */ 
-static void prepare_application(const std::string* name);
+/* Prepares for the parsing of a fluent. */ 
+static void prepare_fluent(const std::string* name);
 /* Adds a term with the given name to the current atomic formula. */
 static void add_term(const std::string* name);
 /* Creates the atomic formula just parsed. */
 static const Atom* make_atom();
-/* Creates the function application just parsed. */
-static const Application* make_application();
+/* Creates the fluent just parsed. */
+static const Fluent* make_fluent();
 /* Creates a subtraction. */
 static const Expression* make_subtraction(const Expression& term,
 					  const Expression* opt_term);
 /* Creates an equality formula. */
-static const Formula* make_equality(Term term1, Term term2);
+static const Formula* make_equality(const Term* term1, const Term* term2);
 /* Creates a negation. */
 static const Formula* make_negation(const Formula& negand);
 /* Prepares for the parsing of an existentially quantified formula. */
@@ -230,26 +225,24 @@ static void add_init_literal(float time, const Literal& literal);
 %token ILLEGAL_TOKEN
 
 %union {
-  const Condition* condition;
   const Formula* formula;
   const Literal* literal;
   const Atom* atom;
   const Expression* expr;
-  const Application* appl;
-  Term term;
-  Type type;
+  const Fluent* fluent;
+  const Term* term;
+  const Type* type;
   TypeSet* types;
   const std::string* str;
   std::vector<const std::string*>* strs;
   float num;
 }
 
-%type <condition> da_gd timed_gd timed_gds
-%type <formula> formula conjuncts disjuncts
+%type <formula> da_gd timed_gd timed_gds formula conjuncts disjuncts
 %type <literal> name_literal
 %type <atom> atomic_name_formula atomic_term_formula
 %type <expr> f_exp opt_f_exp ground_f_exp opt_ground_f_exp
-%type <appl> ground_f_head f_head
+%type <fluent> ground_f_head f_head
 %type <term> term
 %type <strs> name_seq variable_seq
 %type <type> type_spec type
@@ -403,7 +396,7 @@ predicate_decls : /* empty */
                 ;
 
 predicate_decl : '(' predicate { make_predicate($2); } variables ')'
-                   { parsing_predicate = false; }
+                   { predicate = 0; }
                ;
 
 function_decls : /* empty */
@@ -419,7 +412,7 @@ function_type_spec : '-' { require_typing(); } function_type
                    ;
 
 function_decl : '(' function { make_function($2); } variables ')'
-                  { parsing_function = false; }
+                  { function = 0; }
               ;
 
 
@@ -445,8 +438,8 @@ action_body2 : /* empty */
              | effect
              ;
 
-precondition : PRECONDITION formula
-                 { action->set_condition(Condition::make(*$2, OVER_ALL)); }
+precondition : PRECONDITION { formula_time = AT_START; } formula
+                 { action->set_condition(*$3); }
              ;
 
 effect : EFFECT { effect_time = Effect::AT_END; } eff_formula
@@ -496,16 +489,13 @@ da_gd : timed_gd
       | '(' and timed_gds ')' { $$ = $3; }
       ;
 
-timed_gds : /* empty */ { $$ = &Condition::TRUE; }
+timed_gds : /* empty */ { $$ = &Formula::TRUE; }
           | timed_gds timed_gd { $$ = &(*$1 && *$2); }
           ;
 
-timed_gd : '(' at start formula ')'
-             { $$ = &Condition::make(*$4, AT_START); }
-         | '(' at end formula ')'
-             { $$ = &Condition::make(*$4, AT_END); }
-         | '(' over all formula ')'
-             { $$ = &Condition::make(*$4, OVER_ALL); }
+timed_gd : '(' at start { formula_time = AT_START; } formula ')' { $$ = $5; }
+         | '(' at end { formula_time = AT_END; } formula ')' { $$ = $5; }
+         | '(' over all { formula_time = OVER_ALL; } formula ')' { $$ = $5; }
          ;
 
 
@@ -516,9 +506,9 @@ eff_formula : term_literal
             | '(' and eff_formulas ')'
             | '(' forall { prepare_forall_effect(); }
                 '(' variables ')' eff_formula ')' { pop_forall_effect(); }
-            | '(' when formula
-                { prepare_conditional_effect(Condition::make(*$3, OVER_ALL)); }
-                one_eff_formula ')' { effect_condition = NULL; }
+            | '(' when { formula_time = AT_START; } formula
+                { prepare_conditional_effect(*$4); }
+                one_eff_formula ')' { effect_condition = 0; }
             ;
 
 eff_formulas : /* empty */
@@ -543,18 +533,32 @@ da_effect : timed_effect
           | '(' forall { prepare_forall_effect(); }
               '(' variables ')' da_effect ')' { pop_forall_effect(); }
           | '(' when da_gd { prepare_conditional_effect(*$3); }
-              timed_effect ')' { effect_condition = NULL; }
+              timed_effect ')' { effect_condition = 0; }
           ;
 
 da_effects : /* empty */
            | da_effects da_effect
            ;
 
-timed_effect : '(' at start { effect_time = Effect::AT_START; }
-                 one_eff_formula ')'
-             | '(' at end { effect_time = Effect::AT_END; }
-                 one_eff_formula ')'
+timed_effect : '(' at start
+                 { effect_time = Effect::AT_START; formula_time = AT_START; }
+                 a_effect ')'
+             | '(' at end
+                 { effect_time = Effect::AT_END; formula_time = AT_END; }
+                 a_effect ')'
              ;
+
+a_effect : term_literal
+         | '(' and a_effects ')'
+         | '(' forall { prepare_forall_effect(); }
+             '(' variables ')' a_effect ')' { pop_forall_effect(); }
+         | '(' when formula { prepare_conditional_effect(*$3); }
+             one_eff_formula ')' { effect_condition = 0; }
+         ;
+
+a_effects : /* empty */
+          | a_effects a_effect
+          ;
 
 
 /* ====================================================================== */
@@ -617,7 +621,7 @@ metric_spec : '(' METRIC maximize { metric_fluent = true; } ground_f_exp ')'
 /* ====================================================================== */
 /* Formulas. */
 
-formula : atomic_term_formula { $$ = $1; }
+formula : atomic_term_formula { $$ = &TimedLiteral::make(*$1, formula_time); }
         | '(' '=' term term ')' { $$ = make_equality($3, $4); }
         | '(' not formula ')' { $$ = make_negation(*$3); }
         | '(' and conjuncts ')' { $$ = $3; }
@@ -662,13 +666,13 @@ f_exp : NUMBER { $$ = new Value($1); }
       | f_head { $$ = $1; }
       ;
 
-opt_f_exp : /* empty */ { $$ = NULL; }
+opt_f_exp : /* empty */ { $$ = 0; }
           | f_exp
           ;
 
-f_head : '(' function { prepare_application($2); } terms ')'
-           { $$ = make_application(); }
-       | function { prepare_application($1); $$ = make_application(); }
+f_head : '(' function { prepare_fluent($2); } terms ')'
+           { $$ = make_fluent(); }
+       | function { prepare_fluent($1); $$ = make_fluent(); }
        ;
 
 ground_f_exp : NUMBER { $$ = new Value($1); }
@@ -683,13 +687,13 @@ ground_f_exp : NUMBER { $$ = new Value($1); }
              | ground_f_head { $$ = $1; }
              ;
 
-opt_ground_f_exp : /* empty */ { $$ = NULL; }
+opt_ground_f_exp : /* empty */ { $$ = 0; }
                  | ground_f_exp
                  ;
 
-ground_f_head : '(' function { prepare_application($2); } names ')'
-                  { $$ = make_application(); }
-              | function { prepare_application($1); $$ = make_application(); }
+ground_f_head : '(' function { prepare_fluent($2); } names ')'
+                  { $$ = make_fluent(); }
+              | function { prepare_fluent($1); $$ = make_fluent(); }
               ;
 
 
@@ -705,13 +709,14 @@ names : /* empty */
       | names name { add_term($2); }
       ;
 
-term : name { $$ = make_term($1); }
-     | variable { $$ = make_term($1); }
+term : name { $$ = new Term(make_term($1)); }
+     | variable { $$ = new Term(make_term($1)); }
      ;
 
 variables : /* empty */
-          | variable_seq { add_variables($1, OBJECT_TYPE); }
-          | variable_seq type_spec { add_variables($1, $2); } variables
+          | variable_seq { add_variables($1, TypeTable::OBJECT); }
+          | variable_seq type_spec { add_variables($1, *$2); delete $2; }
+              variables
           ;
 
 variable_seq : variable { $$ = new std::vector<const std::string*>(1, $1); }
@@ -719,8 +724,8 @@ variable_seq : variable { $$ = new std::vector<const std::string*>(1, $1); }
              ;
 
 typed_names : /* empty */
-            | name_seq { add_names($1, OBJECT_TYPE); }
-            | name_seq type_spec { add_names($1, $2); } typed_names
+            | name_seq { add_names($1, TypeTable::OBJECT); }
+            | name_seq type_spec { add_names($1, *$2); delete $2; } typed_names
             ;
 
 name_seq : name { $$ = new std::vector<const std::string*>(1, $1); }
@@ -730,9 +735,9 @@ name_seq : name { $$ = new std::vector<const std::string*>(1, $1); }
 type_spec : '-' { require_typing(); } type { $$ = $3; }
           ;
 
-type : object { $$ = OBJECT_TYPE; }
-     | type_name { $$ = make_type($1); }
-     | '(' either types ')' { $$ = make_type(*$3); delete $3; }
+type : object { $$ = new Type(TypeTable::OBJECT); }
+     | type_name { $$ = new Type(make_type($1)); }
+     | '(' either types ')' { $$ = new Type(make_type(*$3)); delete $3; }
      ;
 
 types : object { $$ = new TypeSet(); }
@@ -871,7 +876,7 @@ static void make_domain(const std::string* name) {
   domain = new Domain(*name);
   domains[*name] = domain;
   requirements = &domain->requirements;
-  problem = NULL;
+  problem = 0;
   delete name;
 }
 
@@ -932,93 +937,86 @@ static void require_duration_inequalities() {
 
 
 /* Returns a simple type with the given name. */
-static Type make_type(const std::string* name) {
-  std::pair<Type, bool> t = domain->types().find_type(*name);
-  if (!t.second) {
-    t.first = domain->types().add_type(*name);
+static const Type& make_type(const std::string* name) {
+  const Type* t = domain->types().find_type(*name);
+  if (t == 0) {
+    t = &domain->types().add_type(*name);
     if (name_kind != TYPE_KIND) {
       yywarning("implicit declaration of type `" + *name + "'");
     }
   }
   delete name;
-  return t.first;
+  return *t;
 }
 
 
 /* Returns the union of the given types. */
 static Type make_type(const TypeSet& types) {
-  return domain->types().add_type(types);
+  return TypeTable::union_type(types);
 }
 
 
 /* Returns a simple term with the given name. */
 static Term make_term(const std::string* name) {
   if ((*name)[0] == '?') {
-    std::pair<Variable, bool> v = context.find(*name);
-    if (!v.second) {
-      if (problem != NULL) {
-	v.first = problem->terms().add_variable(OBJECT_TYPE);
-      } else {
-	v.first = domain->terms().add_variable(OBJECT_TYPE);
-      }
-      context.insert(*name, v.first);
+    const Variable* vp = context.find(*name);
+    if (vp != 0) {
+      delete name;
+      return *vp;
+    } else {
+      Variable v = TermTable::add_variable(TypeTable::OBJECT);
+      context.insert(*name, v);
       yyerror("free variable `" + *name + "' used");
+      delete name;
+      return v;
     }
-    delete name;
-    return v.first;
   } else {
-    TermTable& terms = (problem != NULL) ? problem->terms() : domain->terms();
-    const PredicateTable& predicates = domain->predicates();
-    std::pair<Object, bool> o = terms.find_object(*name);
-    if (!o.second) {
+    TermTable& terms = (problem != 0) ? problem->terms() : domain->terms();
+    const Object* o = terms.find_object(*name);
+    if (o == 0) {
       size_t n = term_parameters.size();
-      if (parsing_atom && predicates.arity(atom_predicate) > n) {
-	o.first = terms.add_object(*name,
-				   predicates.parameter(atom_predicate, n));
+      if (atom_predicate != 0
+	  && PredicateTable::parameters(*atom_predicate).size() > n) {
+	const Type& t = PredicateTable::parameters(*atom_predicate)[n];
+	o = &terms.add_object(*name, t);
       } else {
-	o.first = terms.add_object(*name, OBJECT_TYPE);
+	o = &terms.add_object(*name, TypeTable::OBJECT);
       }
+      yywarning("implicit declaration of object `" + *name + "'");
     }
     delete name;
-    return o.first;
+    return *o;
   }
 }
 
 
 /* Creates a predicate with the given name. */
 static void make_predicate(const std::string* name) {
-  repeated_predicate = false;
-  std::pair<Predicate, bool> p = domain->predicates().find_predicate(*name);
-  if (!p.second) {
-    p.first = domain->predicates().add_predicate(*name);
+  predicate = domain->predicates().find_predicate(*name);
+  if (predicate == 0) {
+    repeated_predicate = false;
+    predicate = &domain->predicates().add_predicate(*name);
   } else {
     repeated_predicate = true;
     yywarning("ignoring repeated declaration of predicate `" + *name + "'");
   }
-  predicate = p.first;
-  parsing_predicate = true;
   delete name;
 }
 
 
 /* Creates a function with the given name. */
 static void make_function(const std::string* name) {
-  if (*name == TOTAL_TIME_NAME) {
-    yywarning("ignoring declaration of reserved function `total-time'");
-    repeated_function = true;
-    function = TOTAL_TIME_FUNCTION;
-    parsing_function = true;
+  repeated_function = false;
+  function = domain->functions().find_function(*name);
+  if (function == 0) {
+    function = &domain->functions().add_function(*name);
   } else {
-    repeated_function = false;
-    std::pair<Function, bool> f = domain->functions().find_function(*name);
-    if (!f.second) {
-      f.first = domain->functions().add_function(*name);
+    repeated_function = true;
+    if (*name == "total-time") {
+      yywarning("ignoring declaration of reserved function `" + *name + "'");
     } else {
-      repeated_function = true;
       yywarning("ignoring repeated declaration of function `" + *name + "'");
     }
-    function = f.first;
-    parsing_function = true;
   }
   delete name;
 }
@@ -1041,7 +1039,7 @@ static void make_action(const std::string* name, bool durative) {
 /* Adds the current action to the current domain. */
 static void add_action() {
   context.pop_frame();
-  if (domain->find_action(action->name()) == NULL) {
+  if (domain->find_action(action->name()) == 0) {
     action->strengthen_effects(*domain);
     domain->add_action(*action);
   } else {
@@ -1049,7 +1047,7 @@ static void add_action() {
 	      + action->name() + "'");
     delete action;
   }
-  action = NULL;
+  action = 0;
 }
 
 
@@ -1060,12 +1058,12 @@ static void prepare_forall_effect() {
     requirements->conditional_effects = true;
   }
   context.push_frame();
-  quantified.push_back(NULL_TERM);
+  quantified.push_back(Term(0));
 }
 
 
 /* Prepares for the parsing of a conditional effect. */ 
-static void prepare_conditional_effect(const Condition& condition) {
+static void prepare_conditional_effect(const Formula& condition) {
   if (!requirements->conditional_effects) {
     yywarning("assuming `:conditional-effects' requirement");
     requirements->conditional_effects = true;
@@ -1076,48 +1074,47 @@ static void prepare_conditional_effect(const Condition& condition) {
 
 /* Adds types, constants, or objects to the current domain or problem. */
 static void add_names(const std::vector<const std::string*>* names,
-		      Type type) {
+		      const Type& type) {
   for (std::vector<const std::string*>::const_iterator si = names->begin();
        si != names->end(); si++) {
     const std::string* s = *si;
     if (name_kind == TYPE_KIND) {
-      if (*s == OBJECT_NAME) {
+      if (*s == TypeTable::OBJECT_NAME) {
 	yywarning("ignoring declaration of reserved type `object'");
-      } else if (*s == NUMBER_NAME) {
+      } else if (*s == TypeTable::NUMBER_NAME) {
 	yywarning("ignoring declaration of reserved type `number'");
       } else {
-	std::pair<Type, bool> t = domain->types().find_type(*s);
-	if (!t.second) {
-	  t.first = domain->types().add_type(*s);
+	const Type* t = domain->types().find_type(*s);
+	if (t == 0) {
+	  t = &domain->types().add_type(*s);
 	}
-	if (!domain->types().add_supertype(t.first, type)) {
+	if (!TypeTable::add_supertype(*t, type)) {
 	  yyerror("cyclic type hierarchy");
 	}
       }
     } else if (name_kind == CONSTANT_KIND) {
-      std::pair<Object, bool> o = domain->terms().find_object(*s);
-      if (!o.second) {
+      const Object* o = domain->terms().find_object(*s);
+      if (o == 0) {
 	domain->terms().add_object(*s, type);
       } else {
 	TypeSet components;
-	domain->types().components(components, domain->terms().type(o.first));
+	TypeTable::components(components, TermTable::type(*o));
 	components.insert(type);
-	domain->terms().set_type(o.first, make_type(components));
+	TermTable::set_type(*o, make_type(components));
       }
     } else { /* name_kind == OBJECT_KIND */
-      if (domain->terms().find_object(*s).second) {
+      if (domain->terms().find_object(*s) != 0) {
 	yywarning("ignoring declaration of object `" + *s
 		  + "' previously declared as constant");
       } else {
-	std::pair<Object, bool> o = problem->terms().find_object(*s);
-	if (!o.second) {
+	const Object* o = problem->terms().find_object(*s);
+	if (o == 0) {
 	  problem->terms().add_object(*s, type);
 	} else {
 	  TypeSet components;
-	  domain->types().components(components,
-				     problem->terms().type(o.first));
+	  TypeTable::components(components, TermTable::type(*o));
 	  components.insert(type);
-	  problem->terms().set_type(o.first, make_type(components));
+	  TermTable::set_type(*o, make_type(components));
 	}
       }
     }
@@ -1129,34 +1126,29 @@ static void add_names(const std::vector<const std::string*>* names,
 
 /* Adds variables to the current variable list. */
 static void add_variables(const std::vector<const std::string*>* names,
-			  Type type) {
+			  const Type& type) {
   for (std::vector<const std::string*>::const_iterator si = names->begin();
        si != names->end(); si++) {
     const std::string* s = *si;
-    if (parsing_predicate) {
+    if (predicate != 0) {
       if (!repeated_predicate) {
-	domain->predicates().add_parameter(predicate, type);
+	PredicateTable::add_parameter(*predicate, type);
       }
-    } else if (parsing_function) {
+    } else if (function != 0) {
       if (!repeated_function) {
-	domain->functions().add_parameter(function, type);
+	FunctionTable::add_parameter(*function, type);
       }
     } else {
-      if (context.shallow_find(*s).second) {
+      if (context.shallow_find(*s) != 0) {
 	yyerror("repetition of parameter `" + *s + "'");
-      } else if (context.find(*s).second) {
+      } else if (context.find(*s) != 0) {
 	yywarning("shadowing parameter `" + *s + "'");
       }
-      Variable var;
-      if (problem != NULL) {
-	var = problem->terms().add_variable(type);
-      } else {
-	var = domain->terms().add_variable(type);
-      }
+      Variable var = TermTable::add_variable(type);
       context.insert(*s, var);
       if (!quantified.empty()) {
 	quantified.push_back(var);
-      } else { /* action != NULL */
+      } else { /* action != 0 */
 	action->add_parameter(var);
       }
     }
@@ -1168,51 +1160,45 @@ static void add_variables(const std::vector<const std::string*>* names,
 
 /* Prepares for the parsing of an atomic formula. */ 
 static void prepare_atom(const std::string* name) {
-  std::pair<Predicate, bool> p = domain->predicates().find_predicate(*name);
-  if (!p.second) {
-    atom_predicate = domain->predicates().add_predicate(*name);
+  atom_predicate = domain->predicates().find_predicate(*name);
+  if (atom_predicate == 0) {
+    atom_predicate = &domain->predicates().add_predicate(*name);
     undeclared_atom_predicate = true;
-    if (problem != NULL) {
+    if (problem != 0) {
       yywarning("undeclared predicate `" + *name + "' used");
     } else {
       yywarning("implicit declaration of predicate `" + *name + "'");
     }
   } else {
-    atom_predicate = p.first;
     undeclared_atom_predicate = false;
   }
   term_parameters.clear();
-  parsing_atom = true;
   delete name;
 }
 
 
-/* Prepares for the parsing of a function application. */ 
-static void prepare_application(const std::string* name) {
-  if (*name == TOTAL_TIME_NAME) {
-    appl_function = TOTAL_TIME_FUNCTION;
-    undeclared_appl_function = false;
-    if (!metric_fluent) {
-      yyerror("reserved function `total-time' not allowed here");
+/* Prepares for the parsing of a fluent. */ 
+static void prepare_fluent(const std::string* name) {
+  fluent_function = domain->functions().find_function(*name);
+  if (fluent_function == 0) {
+    fluent_function = &domain->functions().add_function(*name);
+    undeclared_fluent_function = true;
+    if (problem != 0) {
+      yywarning("undeclared function `" + *name + "' used");
+    } else {
+      yywarning("implicit declaration of function `" + *name + "'");
     }
   } else {
-    std::pair<Function, bool> f = domain->functions().find_function(*name);
-    if (!f.second) {
-      appl_function = domain->functions().add_function(*name);
-      undeclared_appl_function = true;
-      if (problem != NULL) {
-	yywarning("undeclared function `" + *name + "' used");
-      } else {
-	yywarning("implicit declaration of function `" + *name + "'");
-      }
-    } else {
-      appl_function = f.first;
-      undeclared_appl_function = false;
+    undeclared_fluent_function = false;
+  }
+  if (*name == "total-time") {
+    if (!metric_fluent) {
+      yyerror("reserved function `" + *name + "' not allowed here");
     }
+  } else {
     require_fluents();
   }
   term_parameters.clear();
-  parsing_application = true;
   delete name;
 }
 
@@ -1220,29 +1206,27 @@ static void prepare_application(const std::string* name) {
 /* Adds a term with the given name to the current atomic formula. */
 static void add_term(const std::string* name) {
   Term term = make_term(name);
-  const TermTable& terms =
-    (problem != NULL) ? problem->terms() : domain->terms();
-  if (parsing_atom) {
-    PredicateTable& predicates = domain->predicates();
+  if (atom_predicate != 0) {
     size_t n = term_parameters.size();
     if (undeclared_atom_predicate) {
-      predicates.add_parameter(atom_predicate, terms.type(term));
-    } else if (predicates.arity(atom_predicate) > n
-	       && !domain->types().subtype(terms.type(term),
-					   predicates.parameter(atom_predicate,
-								n))) {
-      yyerror("type mismatch");
+      PredicateTable::add_parameter(*atom_predicate, TermTable::type(term));
+    } else {
+      const TypeList& params = PredicateTable::parameters(*atom_predicate);
+      if (params.size() > n
+	  && !TypeTable::subtype(TermTable::type(term), params[n])) {
+	yyerror("type mismatch");
+      }
     }
-  } else if (parsing_application) {
-    FunctionTable& functions = domain->functions();
+  } else if (fluent_function != 0) {
     size_t n = term_parameters.size();
-    if (undeclared_appl_function) {
-      functions.add_parameter(appl_function, terms.type(term));
-    } else if (functions.arity(appl_function) > n
-	       && !domain->types().subtype(terms.type(term),
-					   functions.parameter(appl_function,
-							       n))) {
-      yyerror("type mismatch");
+    if (undeclared_fluent_function) {
+      FunctionTable::add_parameter(*fluent_function, TermTable::type(term));
+    } else {
+      const TypeList& params = FunctionTable::parameters(*fluent_function);
+      if (params.size() > n
+	  && !TypeTable::subtype(TermTable::type(term), params[n])) {
+	yyerror("type mismatch");
+      }
     }
   }
   term_parameters.push_back(term);
@@ -1252,37 +1236,39 @@ static void add_term(const std::string* name) {
 /* Creates the atomic formula just parsed. */
 static const Atom* make_atom() {
   size_t n = term_parameters.size();
-  if (domain->predicates().arity(atom_predicate) < n) {
+  if (PredicateTable::parameters(*atom_predicate).size() < n) {
     yyerror("too many parameters passed to predicate `"
-	    + domain->predicates().name(atom_predicate) + "'");
-  } else if (domain->predicates().arity(atom_predicate) > n) {
+	    + PredicateTable::name(*atom_predicate) + "'");
+  } else if (PredicateTable::parameters(*atom_predicate).size() > n) {
     yyerror("too few parameters passed to predicate `"
-	    + domain->predicates().name(atom_predicate) + "'");
+	    + PredicateTable::name(*atom_predicate) + "'");
   }
-  parsing_atom = false;
-  return &Atom::make(atom_predicate, term_parameters);
+  const Atom& atom = Atom::make(*atom_predicate, term_parameters);
+  atom_predicate = 0;
+  return &atom;
 }
 
 
-/* Creates the function application just parsed. */
-static const Application* make_application() {
+/* Creates the fluent just parsed. */
+static const Fluent* make_fluent() {
   size_t n = term_parameters.size();
-  if (domain->functions().arity(appl_function) < n) {
+  if (FunctionTable::parameters(*fluent_function).size() < n) {
     yyerror("too many parameters passed to function `"
-	    + domain->functions().name(appl_function) + "'");
-  } else if (domain->functions().arity(appl_function) > n) {
+	    + FunctionTable::name(*fluent_function) + "'");
+  } else if (FunctionTable::parameters(*fluent_function).size() > n) {
     yyerror("too few parameters passed to function `"
-	    + domain->functions().name(appl_function) + "'");
+	    + FunctionTable::name(*fluent_function) + "'");
   }
-  parsing_application = false;
-  return &Application::make(appl_function, term_parameters);
+  const Fluent& fluent = Fluent::make(*fluent_function, term_parameters);
+  fluent_function = 0;
+  return &fluent;
 }
 
 
 /* Creates a subtraction. */
 static const Expression* make_subtraction(const Expression& term,
 					  const Expression* opt_term) {
-  if (opt_term != NULL) {
+  if (opt_term != 0) {
     return &Subtraction::make(term, *opt_term);
   } else {
     return &Subtraction::make(*new Value(0), term);
@@ -1291,25 +1277,22 @@ static const Expression* make_subtraction(const Expression& term,
 
 
 /* Creates an equality formula. */
-static const Formula* make_equality(Term term1, Term term2) {
+static const Formula* make_equality(const Term* term1, const Term* term2) {
   if (!requirements->equality) {
     yywarning("assuming `:equality' requirement");
     requirements->equality = true;
   }
-  const TermTable& terms =
-    (problem != NULL) ? problem->terms() : domain->terms();
-  if (domain->types().subtype(terms.type(term1), terms.type(term2))
-      || domain->types().subtype(terms.type(term2), terms.type(term1))) {
-    return &Equality::make(term1, term2);
-  } else {
-    return &Formula::FALSE;
-  }
+  const Formula& eq = Equality::make(*term1, *term2);
+  delete term1;
+  delete term2;
+  return &eq;
 }
 
 
 /* Creates a negated formula. */
 static const Formula* make_negation(const Formula& negand) {
-  if (typeid(negand) == typeid(Atom)) {
+  if (typeid(negand) == typeid(Literal)
+      || typeid(negand) == typeid(TimedLiteral)) {
     if (!requirements->negative_preconditions) {
       yywarning("assuming `:negative-preconditions' requirement");
       requirements->negative_preconditions = true;
@@ -1330,7 +1313,7 @@ static void prepare_exists() {
     requirements->existential_preconditions = true;
   }
   context.push_frame();
-  quantified.push_back(NULL_TERM);
+  quantified.push_back(Term(0));
 }
 
 
@@ -1341,7 +1324,7 @@ static void prepare_forall() {
     requirements->universal_preconditions = true;
   }
   context.push_frame();
-  quantified.push_back(NULL_TERM);
+  quantified.push_back(Term(0));
 }
 
 
@@ -1350,20 +1333,20 @@ static const Formula* make_exists(const Formula& body) {
   context.pop_frame();
   size_t m = quantified.size() - 1;
   size_t n = m;
-  while (is_variable(quantified[n])) {
+  while (quantified[n].variable()) {
     n--;
   }
   if (n < m) {
     if (body.tautology() || body.contradiction()) {
-      quantified.resize(n);
+      quantified.resize(n, Term(0));
       return &body;
     } else {
       Exists& exists = *new Exists();
       for (size_t i = n + 1; i <= m; i++) {
-	exists.add_parameter(quantified[i]);
+	exists.add_parameter(quantified[i].as_variable());
       }
       exists.set_body(body);
-      quantified.resize(n);
+      quantified.resize(n, Term(0));
       return &exists;
     }
   } else {
@@ -1378,20 +1361,20 @@ static const Formula* make_forall(const Formula& body) {
   context.pop_frame();
   size_t m = quantified.size() - 1;
   size_t n = m;
-  while (is_variable(quantified[n])) {
+  while (quantified[n].variable()) {
     n--;
   }
   if (n < m) {
     if (body.tautology() || body.contradiction()) {
-      quantified.resize(n);
+      quantified.resize(n, Term(0));
       return &body;
     } else {
       Forall& forall = *new Forall();
       for (size_t i = n + 1; i <= m; i++) {
-	forall.add_parameter(quantified[i]);
+	forall.add_parameter(quantified[i].as_variable());
       }
       forall.set_body(body);
-      quantified.resize(n);
+      quantified.resize(n, Term(0));
       return &forall;
     }
   } else {
@@ -1403,15 +1386,15 @@ static const Formula* make_forall(const Formula& body) {
 
 /* Adds the current effect to the currect action. */
 static void add_effect(const Literal& literal) {
-  domain->predicates().make_dynamic(literal.predicate());
+  PredicateTable::make_dynamic(literal.predicate());
   Effect* effect = new Effect(literal, effect_time);
-  for (VariableList::const_iterator vi = quantified.begin();
+  for (TermList::const_iterator vi = quantified.begin();
        vi != quantified.end(); vi++) {
-    if (is_variable(*vi)) {
-      effect->add_parameter(*vi);
+    if ((*vi).variable()) {
+      effect->add_parameter((*vi).as_variable());
     }
   }
-  if (effect_condition != NULL) {
+  if (effect_condition != 0) {
     effect->set_condition(*effect_condition);
   }
   action->add_effect(*effect);
@@ -1422,10 +1405,10 @@ static void add_effect(const Literal& literal) {
 static void pop_forall_effect() {
   context.pop_frame();
   size_t n = quantified.size() - 1;
-  while (is_variable(quantified[n])) {
+  while (quantified[n].variable()) {
     n--;
   }
-  quantified.resize(n);
+  quantified.resize(n, Term(0));
 }
 
 
@@ -1433,6 +1416,6 @@ static void pop_forall_effect() {
 static void add_init_literal(float time, const Literal& literal) {
   problem->add_init_literal(time, literal);
   if (time > 0.0f) {
-    domain->predicates().make_dynamic(literal.predicate());
+    PredicateTable::make_dynamic(literal.predicate());
   }
 }

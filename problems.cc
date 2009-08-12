@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2002-2004 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -73,7 +73,7 @@ Problem::Problem(const std::string& name, const Domain& domain)
     init_action_(GroundAction("<init 0>", false)), goal_(&Formula::TRUE),
     metric_(new Value(0)) {
   Formula::register_use(goal_);
-  Expression::register_use(metric_);
+  RCObject::ref(metric_);
   const Problem* p = find(name);
   if (p != NULL) {
     delete p;
@@ -87,19 +87,14 @@ Problem::~Problem() {
   problems.erase(name());
   for (ValueMap::const_iterator vi = init_values_.begin();
        vi != init_values_.end(); vi++) {
-    Expression::unregister_use((*vi).first);
+    RCObject::destructive_deref((*vi).first);
   }
   for (TimedActionTable::const_iterator ai = timed_actions_.begin();
        ai != timed_actions_.end(); ai++) {
     delete (*ai).second;
   }
   Formula::unregister_use(goal_);
-  Expression::unregister_use(metric_);
-  for (std::map<Type, const ObjectList*>::const_iterator oi =
-	 compatible_.begin(); oi != compatible_.end(); oi++) {
-    delete (*oi).second;
-  }
-  compatible_.clear();
+  RCObject::destructive_deref(metric_);
 }
 
 
@@ -136,14 +131,13 @@ void Problem::add_init_literal(float time, const Literal& literal) {
 }
 
 
-/* Adds a function application value to the initial conditions of
-   this problem. */
-void Problem::add_init_value(const Application& application, float value) {
-  if (init_values_.find(&application) == init_values_.end()) {
-    init_values_.insert(std::make_pair(&application, value));
-    Expression::register_use(&application);
+/* Adds a fluent value to the initial conditions of this problem. */
+void Problem::add_init_value(const Fluent& fluent, float value) {
+  if (init_values_.find(&fluent) == init_values_.end()) {
+    init_values_.insert(std::make_pair(&fluent, value));
+    RCObject::ref(&fluent);
   } else {
-    init_values_[&application] = value;
+    init_values_[&fluent] = value;
   }
 }
 
@@ -167,15 +161,15 @@ void Problem::set_metric(const Expression& metric, bool negate) {
     real_metric = &metric;
   }
   const Expression& inst_metric =
-    real_metric->instantiation(SubstitutionMap(), *this);
+    real_metric->instantiation(SubstitutionMap(), init_values());
   if (&inst_metric != real_metric) {
-    Expression::register_use(real_metric);
-    Expression::unregister_use(real_metric);
+    RCObject::ref(real_metric);
+    RCObject::destructive_deref(real_metric);
     real_metric = &inst_metric;
   }
   if (real_metric != metric_) {
-    Expression::register_use(real_metric);
-    Expression::unregister_use(metric_);
+    RCObject::ref(real_metric);
+    RCObject::destructive_deref(metric_);
     metric_ = real_metric;
   }
 }
@@ -187,34 +181,6 @@ bool Problem::constant_metric() const {
 }
 
 
-/* Returns a list with objects (including constants declared in the
-   domain) that are compatible with the given type. */
-const ObjectList& Problem::compatible_objects(Type type) const {
-  std::map<Type, const ObjectList*>::const_iterator oi =
-    compatible_.find(type);
-  if (oi != compatible_.end()) {
-    return *(*oi).second;
-  } else {
-    ObjectList& objects = *new ObjectList();
-    domain().compatible_constants(objects, type);
-    Object last = terms().last_object();
-    for (Object i = terms().first_object(); i <= last; i++) {
-      if (domain().types().subtype(terms().type(i), type)) {
-	objects.push_back(i);
-      }
-    }
-    compatible_.insert(std::make_pair(type, &objects));
-    return objects;
-  }
-}
-
-
-/* Returns a new variable for this problem. */
-Variable Problem::new_variable(Type type) const {
-  return terms_.add_variable(type);
-}
-
-
 /* Fills the provided action list with ground actions instantiated
    from the action schemas of the domain. */
 void Problem::instantiated_actions(GroundActionList& actions) const {
@@ -222,11 +188,6 @@ void Problem::instantiated_actions(GroundActionList& actions) const {
        ai != domain().actions().end(); ai++) {
     (*ai).second->instantiations(actions, *this);
   }
-  for (std::map<Type, const ObjectList*>::const_iterator oi =
-	 compatible_.begin(); oi != compatible_.end(); oi++) {
-    delete (*oi).second;
-  }
-  compatible_.clear();
 }
 
 
@@ -234,19 +195,12 @@ void Problem::instantiated_actions(GroundActionList& actions) const {
 std::ostream& operator<<(std::ostream& os, const Problem& p) {
   os << "name: " << p.name();
   os << std::endl << "domain: " << p.domain().name();
-  os << std::endl << "objects:";
-  for (Object i = p.terms().first_object();
-       i <= p.terms().last_object(); i++) {
-    os << std::endl << "  ";
-    p.terms().print_term(os, i);
-    os << " - ";
-    p.domain().types().print_type(os, p.terms().type(i));
-  }
+  os << std::endl << "objects:" << p.terms();
   os << std::endl << "init:";
   for (AtomSet::const_iterator ai = p.init_atoms().begin();
        ai != p.init_atoms().end(); ai++) {
     os << ' ';
-    (*ai)->print(os, p.domain().predicates(), p.terms(), 0, Bindings::EMPTY);
+    (*ai)->print(os, 0, Bindings::EMPTY);
   }
   for (TimedActionTable::const_iterator ai = p.timed_actions().begin();
        ai != p.timed_actions().end(); ai++) {
@@ -255,20 +209,16 @@ std::ostream& operator<<(std::ostream& os, const Problem& p) {
     for (EffectList::const_iterator ei = effects.begin();
 	 ei != effects.end(); ei++) {
       os << " (at " << time << ' ';
-      (*ei)->literal().print(os, p.domain().predicates(), p.terms(),
-			     0, Bindings::EMPTY);
+      (*ei)->literal().print(os, 0, Bindings::EMPTY);
       os << ")";
     }
   }
   for (ValueMap::const_iterator vi = p.init_values_.begin();
        vi != p.init_values_.end(); vi++) {
-    os << std::endl << "  (= ";
-    (*vi).first->print(os, p.domain().functions(), p.terms());
-    os << ' ' << (*vi).second << ")";
+    os << std::endl << "  (= " << *(*vi).first << ' ' << (*vi).second << ")";
   }
   os << std::endl << "goal: ";
-  p.goal().print(os, p.domain().predicates(), p.terms(), 0, Bindings::EMPTY);
-  os << std::endl << "metric: ";
-  p.metric().print(os, p.domain().functions(), p.terms());
+  p.goal().print(os, 0, Bindings::EMPTY);
+  os << std::endl << "metric: " << p.metric();
   return os;
 }

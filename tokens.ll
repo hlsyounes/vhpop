@@ -2,7 +2,7 @@
 /*
  * PDDL tokenizer.
  *
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2002-2004 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -24,10 +24,11 @@ struct Formula;
 struct Literal;
 struct Atom;
 struct Expression;
-struct Application;
+struct Fluent;
+struct Term;
+struct Type;
+struct TypeSet;
 
-#include "terms.h"
-#include "types.h"
 #include <cctype>
 #include <string>
 #include <vector>

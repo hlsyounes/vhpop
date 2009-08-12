@@ -195,7 +195,7 @@ struct TermTable {
   ~TermTable();
 
   /* Constructs a term table extending the given term table. */
-  explicit TermTable(const TermTable& parent) : parent_(&parent) {}
+  TermTable(const TermTable& parent) : parent_(&parent) {}
 
   /* Adds an object with the given name and type to this term table
      and returns the object. */

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2002-2004 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -28,18 +28,18 @@
 
 /* Constructs an effect. */
 Effect::Effect(const Literal& literal, EffectTime when)
-  : condition_(&Condition::TRUE), link_condition_(&Condition::TRUE),
+  : condition_(&Formula::TRUE), link_condition_(&Formula::TRUE),
     literal_(&literal), when_(when) {
-  Condition::register_use(condition_);
-  Condition::register_use(link_condition_);
+  Formula::register_use(condition_);
+  Formula::register_use(link_condition_);
   Formula::register_use(literal_);
 }
 
 
 /* Deletes this effect. */
 Effect::~Effect() {
-  Condition::unregister_use(condition_);
-  Condition::unregister_use(link_condition_);
+  Formula::unregister_use(condition_);
+  Formula::unregister_use(link_condition_);
   Formula::unregister_use(literal_);
 }
 
@@ -51,20 +51,20 @@ void Effect::add_parameter(Variable parameter) {
 
 
 /* Sets the condition of this effect. */
-void Effect::set_condition(const Condition& condition) {
+void Effect::set_condition(const Formula& condition) {
   if (condition_ != &condition) {
-    Condition::register_use(&condition);
-    Condition::unregister_use(condition_);
+    Formula::register_use(&condition);
+    Formula::unregister_use(condition_);
     condition_ = &condition;
   }
 }
 
 
 /* Sets the link condition of this effect. */
-void Effect::set_link_condition(const Condition& link_condition) const {
+void Effect::set_link_condition(const Formula& link_condition) const {
   if (link_condition_ != &link_condition) {
-    Condition::register_use(&link_condition);
-    Condition::unregister_use(link_condition_);
+    Formula::register_use(&link_condition);
+    Formula::unregister_use(link_condition_);
     link_condition_ = &link_condition;
   }
 }
@@ -83,7 +83,7 @@ void Effect::instantiations(EffectList& effects, size_t& useful,
 			    const Problem& problem) const {
   size_t n = arity();
   if (n == 0) {
-    const Condition& inst_cond = condition().instantiation(subst, problem);
+    const Formula& inst_cond = condition().instantiation(subst, problem);
     if (!inst_cond.contradiction()) {
       const Effect* inst_effect = instantiation(subst, problem, inst_cond);
       effects.push_back(inst_effect);
@@ -96,23 +96,23 @@ void Effect::instantiations(EffectList& effects, size_t& useful,
     std::vector<const ObjectList*> arguments(n);
     std::vector<ObjectList::const_iterator> next_arg;
     for (size_t i = 0; i < n; i++) {
-      Type t = problem.domain().terms().type(parameter(i));
-      arguments[i] = &problem.compatible_objects(t);
+      const Type& t = TermTable::type(parameter(i));
+      arguments[i] = &problem.terms().compatible_objects(t);
       if (arguments[i]->empty()) {
 	return;
       }
       next_arg.push_back(arguments[i]->begin());
     }
-    std::stack<const Condition*> conds;
+    std::stack<const Formula*> conds;
     conds.push(&condition().instantiation(args, problem));
-    Condition::register_use(conds.top());
+    Formula::register_use(conds.top());
     for (size_t i = 0; i < n; ) {
       args.insert(std::make_pair(parameter(i), *next_arg[i]));
       SubstitutionMap pargs;
       pargs.insert(std::make_pair(parameter(i), *next_arg[i]));
-      const Condition& inst_cond = conds.top()->instantiation(pargs, problem);
+      const Formula& inst_cond = conds.top()->instantiation(pargs, problem);
       conds.push(&inst_cond);
-      Condition::register_use(conds.top());
+      Formula::register_use(conds.top());
       if (i + 1 == n || inst_cond.contradiction()) {
 	if (!inst_cond.contradiction()) {
 	  const Effect* inst_effect = instantiation(args, problem, inst_cond);
@@ -122,7 +122,7 @@ void Effect::instantiations(EffectList& effects, size_t& useful,
 	  }
 	}
 	for (int j = i; j >= 0; j--) {
-	  Condition::unregister_use(conds.top());
+	  Formula::unregister_use(conds.top());
 	  conds.pop();
 	  args.erase(parameter(j));
 	  next_arg[j]++;
@@ -143,7 +143,7 @@ void Effect::instantiations(EffectList& effects, size_t& useful,
       }
     }
     while (!conds.empty()) {
-      Condition::unregister_use(conds.top());
+      Formula::unregister_use(conds.top());
       conds.pop();
     }
   }
@@ -153,7 +153,7 @@ void Effect::instantiations(EffectList& effects, size_t& useful,
 /* Returns an instantiation of this effect. */
 const Effect* Effect::instantiation(const SubstitutionMap& args,
 				    const Problem& problem,
-				    const Condition& condition) const {
+				    const Formula& condition) const {
   Effect* inst_eff = new Effect(literal().substitution(args), when());
   inst_eff->set_condition(condition);
   inst_eff->set_link_condition(link_condition().instantiation(args, problem));
@@ -162,13 +162,11 @@ const Effect* Effect::instantiation(const SubstitutionMap& args,
 
 
 /* Prints this effect on the given stream. */
-void Effect::print(std::ostream& os, const PredicateTable& predicates,
-		   const TermTable& terms) const {
+void Effect::print(std::ostream& os) const {
   os << '(';
   for (VariableList::const_iterator vi = parameters_.begin();
        vi != parameters_.end(); vi++) {
-    terms.print_term(os, *vi);
-    os << ' ';
+    os << *vi << ' ';
   }
   switch (when()) {
   case Effect::AT_START:
@@ -179,10 +177,10 @@ void Effect::print(std::ostream& os, const PredicateTable& predicates,
     break;
   }
   os << '[';
-  condition().print(os, predicates, terms, 0, Bindings::EMPTY);
+  condition().print(os, 0, Bindings::EMPTY);
   os << ',';
-  link_condition().print(os, predicates, terms, 0, Bindings::EMPTY);
+  link_condition().print(os, 0, Bindings::EMPTY);
   os << "->";
-  literal().print(os, predicates, terms, 0, Bindings::EMPTY);
+  literal().print(os, 0, Bindings::EMPTY);
   os << ']' << ')';
 }

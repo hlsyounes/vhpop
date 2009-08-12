@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2002-2004 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -25,7 +25,14 @@
 /* OpenCondition */
 
 /* Constructs an open condition. */
-OpenCondition::OpenCondition(size_t step_id, const Formula& condition,
+OpenCondition::OpenCondition(size_t step_id, const Formula& condition)
+  : step_id_(step_id), condition_(&condition) {
+  Formula::register_use(condition_);
+}
+
+
+/* Constructs an open condition. */
+OpenCondition::OpenCondition(size_t step_id, const Literal& condition,
 			     FormulaTime when)
   : step_id_(step_id), condition_(&condition), when_(when) {
   Formula::register_use(condition_);
@@ -46,10 +53,10 @@ OpenCondition::~OpenCondition() {
 
 
 /* Checks if this is a static open condition. */
-bool OpenCondition::is_static(const Domain& domain) const {
+bool OpenCondition::is_static() const {
   const Literal* lit = literal();
   return (lit != NULL && step_id() != Plan::GOAL_ID
-	  && domain.predicates().static_predicate(lit->predicate()));
+	  && PredicateTable::static_predicate(lit->predicate()));
 }
 
 
@@ -74,42 +81,33 @@ const Disjunction* OpenCondition::disjunction() const {
 }
 
 
-/* Prints this open condition on the given stream. */
-void OpenCondition::print(std::ostream& os, const PredicateTable& predicates,
-			  const TermTable& terms,
-			  const Bindings& bindings) const {
-  os << "#<OPEN (";
-  switch (when()) {
-  case AT_START:
-    os << "at start ";
-    break;
-  case OVER_ALL:
-    os << "over all ";
-    break;
-  case AT_END:
-    os << "at end ";
-    break;
-  }
-  condition().print(os, predicates, terms, step_id(), bindings);
-  os << ") " << step_id() << ">";
+/* Prints this object on the given stream. */
+void OpenCondition::print(std::ostream& os, const Bindings& bindings) const {
+  os << "#<OPEN ";
+  condition().print(os, step_id(), bindings);
+  os << ' ' << step_id() << ">";
 }
 
 
 /* ====================================================================== */
 /* Unsafe */
 
-/* Constructs a threatened causal link. */
-Unsafe::Unsafe(const Link& link, size_t step_id, const Effect& effect,
-	       const Literal& effect_add)
-  : link_(&link), step_id_(step_id),
-    effect_(&effect), effect_add_(&effect_add) {}
-
-
-/* Prints this threatened causal link on the given stream. */
-void Unsafe::print(std::ostream& os, const PredicateTable& predicates,
-		   const TermTable& terms,
-		   const Bindings& bindings) const {
+/* Prints this object on the given stream. */
+void Unsafe::print(std::ostream& os, const Bindings& bindings) const {
   os << "#<UNSAFE " << link().from_id() << ' ';
-  link().condition().print(os, predicates, terms, link().to_id(), bindings);
+  link().condition().print(os, link().to_id(), bindings);
   os << ' ' << link().to_id() << " step " << step_id() << ">";
+}
+
+
+/* ====================================================================== */
+/* MutexThreat */
+
+/* Prints this object on the given stream. */
+void MutexThreat::print(std::ostream& os, const Bindings& bindings) const {
+  os << "#<MUTEX " << step_id1() << ' ';
+  effect1().literal().print(os, step_id1(), bindings);
+  os << ' ' << step_id2() << ' ';
+  effect2().literal().print(os, step_id2(), bindings);
+  os << '>';
 }

@@ -1,0 +1,80 @@
+#! /bin/sh
+
+pddldir=examples
+outdir=aips2002data
+validator=~/tmp/val/validate
+
+problems="\
+ gripper-domain gripper-4 gripper-6 gripper-8 gripper-10 gripper-12 gripper-20\
+ rocket-domain rocket-ext-a rocket-ext-b\
+ logistics-domain logistics-a logistics-b logistics-c logistics-d"
+for p in $problems; do
+    if (test ! -z "`echo $p | grep '\-domain'`") then
+	domain=$p
+	continue
+    fi
+    for type in ground all domains static heuristic oc; do
+	outfile=$outdir/$p-$type.out
+	if (test ! -e $outfile) then
+	    continue
+	fi
+	if (test ! -z "`grep 'Search limit reached.' $outfile`") then
+	    continue
+	fi
+	if (test ! -z "`grep 'Time:' $outfile`") then
+	    echo -n $outfile...
+	    succ=`grep -v ' actions:\|Plans generated:\|Plans visited:\|Dead ends encountered:\|Number of steps:\|Makespan:\|^[#.]' $outfile | $validator $pddldir/$domain.pddl $pddldir/$p.pddl /dev/stdin | grep 'Plan valid'`
+	    if (test ! -z "$succ") then
+		echo valid
+	    else
+		echo INVALID
+	    fi
+	fi
+    done
+done
+
+i=2
+while (test $i -le 30) do
+    for type in ground all; do
+	outfile=$outdir/blocks-$i-$type.out
+	if (test ! -e $outfile) then
+	    continue
+	fi
+	if (test ! -z "`grep 'Search limit reached.' $outfile`") then
+	    continue
+	fi
+	if (test ! -z "`grep 'Time:' $outfile`") then
+	    echo -n $outfile...
+	    $pddldir/blocks.sh $i > /tmp/problem
+	    succ=`grep -v ' actions:\|Plans generated:\|Plans visited:\|Dead ends encountered:\|Number of steps:\|Makespan:\|^[#.]' $outfile | $validator $pddldir/blocks-domain.pddl /tmp/problem /dev/stdin | grep 'Plan valid'`
+	    rm /tmp/problem
+	    if (test ! -z "$succ") then
+		echo valid
+	    else
+		echo INVALID
+	    fi
+	fi
+    done
+    i=`expr $i + 1`
+done
+
+domain=grid-domain
+p=simple-grid2
+for type in ground lifted; do
+    outfile=$outdir/$p-$type.out
+    if (test ! -e $outfile) then
+	continue
+    fi
+    if (test ! -z "`grep 'Search limit reached.' $outfile`") then
+	continue
+    fi
+    if (test ! -z "`grep 'Time:' $outfile`") then
+	echo -n $outfile...
+	succ=`grep -v ' actions:\|Plans generated:\|Plans visited:\|Dead ends encountered:\|Number of steps:\|Makespan:\|^[#.]' $outfile | $validator $pddldir/$domain.pddl $pddldir/$p.pddl /dev/stdin | grep 'Plan valid'`
+	if (test ! -z "$succ") then
+	    echo valid
+	else
+	    echo INVALID
+	fi
+    fi
+done
