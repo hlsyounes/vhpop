@@ -2,7 +2,8 @@
  * Main program.
  *
  * Copyright (C) 2003 Carnegie Mellon University
- * Written by Håkan L. S. Younes.
+ * Copyright (C) 2013 Google Inc
+ * Written by Haakan Younes.
  *
  * Permission is hereby granted to distribute this software for
  * non-commercial research purposes, provided that this copyright
@@ -14,8 +15,6 @@
  * PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
- *
- * $Id: vhpop.cc,v 3.30 2003-03-01 23:45:53 lorens Exp $
  */
 #include "plans.h"
 #include "reasons.h"
@@ -26,7 +25,9 @@
 #include "debug.h"
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <cerrno>
+#include <limits>
 #include <sys/time.h>
 #if HAVE_GETOPT_LONG
 #ifndef _GNU_SOURCE
@@ -75,7 +76,7 @@ static struct option long_options[] = {
   { "version", no_argument, NULL, 'V' },
   { "weight", required_argument, NULL, 'w' },
   { "warnings", optional_argument, NULL, 'W' },
-  { "help", no_argument, NULL, '?' },
+  { "help", no_argument, NULL, 'H' },
   { 0, 0, 0, 0 }
 };
 static const char OPTION_STRING[] = "d::f:gh:l:rs:S:t:T:v::Vw:W::?";
@@ -132,7 +133,7 @@ static void display_help() {
 	    << "\t\t\t  0 supresses warnings; 1 displays warnings;"
 	    << std::endl
 	    << "\t\t\t  2 treats warnings as errors" << std::endl
-	    << "  -?     --help\t\t"
+	    << "  -H     --help\t\t"
 	    << "display this help and exit" << std::endl
 	    << "  file ...\t\t"
 	    << "files containing domain and problem descriptions;" << std::endl
@@ -147,6 +148,7 @@ static void display_help() {
 static void display_version() {
   std::cout << PACKAGE_STRING << std::endl
 	    << "Copyright (C) 2003 Carnegie Mellon University" << std::endl
+            << "Copyright (C) 2013 Google Inc" << std::endl
 	    << PACKAGE_NAME
 	    << " comes with NO WARRANTY, to the extent permitted by law."
 	    << std::endl
@@ -155,7 +157,7 @@ static void display_version() {
 	    << "see the file named COPYING in the " PACKAGE_NAME
 	    << " distribution." << std::endl
 	    << std::endl
-	    << "Written by H\345kan L. S. Younes." << std::endl;
+	    << "Written by Haakan Younes." << std::endl;
 }
 
 
@@ -296,7 +298,7 @@ int main(int argc, char* argv[]) {
 	no_search_limit = false;
       }
       if (optarg == std::string("unlimited")) {
-	params.search_limits.push_back(UINT_MAX);
+	params.search_limits.push_back(std::numeric_limits<size_t>::max());
       } else {
 	params.search_limits.push_back(atoi(optarg));
       }
@@ -319,7 +321,7 @@ int main(int argc, char* argv[]) {
       break;
     case 't':
       if (optarg == std::string("unlimited")) {
-	TemporalOrderings::threshold = UINT_MAX;
+	TemporalOrderings::threshold = std::numeric_limits<size_t>::max();
       } else {
 	TemporalOrderings::threshold = atof(optarg);
       }
@@ -344,11 +346,9 @@ int main(int argc, char* argv[]) {
     case 'W':
       warning_level = (optarg != NULL) ? atoi(optarg) : 1;
       break;
-    case '?':
-      if (optopt == '?') {
-	display_help();
-	return 0;
-      }
+    case 'H':
+      display_help();
+      return 0;
     case ':':
     default:
       std::cerr << "Try `" PACKAGE " --help' for more information."

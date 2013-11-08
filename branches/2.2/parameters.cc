@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2003 Carnegie Mellon University
- * Written by Håkan L. S. Younes.
+ * Copyright (C) 2013 Google Inc
+ * Written by Haakan Younes.
  *
  * Permission is hereby granted to distribute this software for
  * non-commercial research purposes, provided that this copyright
@@ -17,6 +18,8 @@
  */
 #include "parameters.h"
 
+#include <string.h>
+#include <limits>
 
 /* ====================================================================== */
 /* InvalidSearchAlgorithm */
@@ -31,13 +34,13 @@ InvalidSearchAlgorithm::InvalidSearchAlgorithm(const std::string& name)
 
 /* Constructs default planning parameters. */
 Parameters::Parameters()
-  : time_limit(UINT_MAX), search_algorithm(A_STAR),
-    heuristic("UCPOP"), weight(1.0),
-    random_open_conditions(false), ground_actions(false),
-    domain_constraints(false), keep_static_preconditions(true),
-    transformational(false) {
-  flaw_orders.push_back(FlawSelectionOrder("UCPOP")),
-  search_limits.push_back(UINT_MAX);
+    : time_limit(std::numeric_limits<size_t>::max()), search_algorithm(A_STAR),
+      heuristic("UCPOP"), weight(1.0),
+      random_open_conditions(false), ground_actions(false),
+      domain_constraints(false), keep_static_preconditions(true),
+      transformational(false) {
+  flaw_orders.push_back(FlawSelectionOrder("UCPOP"));
+  search_limits.push_back(std::numeric_limits<size_t>::max());
 }
 
 
