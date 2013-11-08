@@ -2,7 +2,7 @@
 /*
  * Plan flaws.
  *
- * Copyright (C) 2002-2004 Carnegie Mellon University
+ * Copyright (C) 2003 Carnegie Mellon University
  * Written by Håkan L. S. Younes.
  *
  * Permission is hereby granted to distribute this software for
@@ -16,17 +16,21 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: flaws.h,v 6.3 2003-07-21 02:18:14 lorens Exp $
+ * $Id: flaws.h,v 3.8 2003-03-01 18:52:24 lorens Exp $
  */
 #ifndef FLAWS_H
 #define FLAWS_H
 
 #include <config.h>
-#include "formulas.h"
 #include "chain.h"
 #include <iostream>
 
+struct Formula;
+struct Literal;
+struct Inequality;
+struct Disjunction;
 struct Domain;
+struct Reason;
 struct Effect;
 struct Link;
 
@@ -38,9 +42,15 @@ struct Link;
  * Abstract flaw.
  */
 struct Flaw {
+protected:
   /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os, const Bindings& bindings) const = 0;
+  virtual void print(std::ostream& os) const = 0;
+
+  friend std::ostream& operator<<(std::ostream& os, const Flaw& f);
 };
+
+/* Output operator for flaws. */
+std::ostream& operator<<(std::ostream& os, const Flaw& f);
 
 
 /* ====================================================================== */
@@ -51,10 +61,8 @@ struct Flaw {
  */
 struct OpenCondition : public Flaw {
   /* Constructs an open condition. */
-  OpenCondition(size_t step_id, const Formula& condition);
-
-  /* Constructs an open condition. */
-  OpenCondition(size_t step_id, const Literal& condition, FormulaTime when);
+  OpenCondition(size_t step_id, const Formula& condition,
+		const Reason& reason);
 
   /* Constructs an open condition. */
   OpenCondition(const OpenCondition& oc);
@@ -68,15 +76,15 @@ struct OpenCondition : public Flaw {
   /* Returns the open condition. */
   const Formula& condition() const { return *condition_; }
 
+  /* Returns the reason. */
+  const Reason& reason() const;
+
   /* Checks if this is a static open condition. */
-  bool is_static() const;
+  bool is_static(const Domain& domain) const;
 
   /* Returns a literal, or NULL if this is not a literal open
      condition. */
   const Literal* literal() const;
-
-  /* Returns the time stamp associated with a literal open condition. */
-  FormulaTime when() const { return when_; }
 
   /* Returns a inequality, or NULL if this is not an inequality open
      condition. */
@@ -86,22 +94,34 @@ struct OpenCondition : public Flaw {
      condition. */
   const Disjunction* disjunction() const;
 
+protected:
   /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os, const Bindings& bindings) const;
+  virtual void print(std::ostream& os) const;
 
 private:
   /* Id of step to which this open condition belongs. */
   size_t step_id_;
   /* The open condition. */
   const Formula* condition_;
-  /* Time stamp associated with a literal open condition. */
-  FormulaTime when_;
+#ifdef TRANSFORMATIONAL
+  /* Reason for open condition. */
+  const Reason* reason_;
+#endif
 };
 
 /* Equality operator for open conditions. */
 inline bool operator==(const OpenCondition& oc1, const OpenCondition& oc2) {
   return &oc1 == &oc2;
 }
+
+
+/* ====================================================================== */
+/* OpenConditionChain */
+
+/*
+ * Chain of open conditions.
+ */
+typedef CollectibleChain<OpenCondition> OpenConditionChain;
 
 
 /* ====================================================================== */
@@ -112,8 +132,8 @@ inline bool operator==(const OpenCondition& oc1, const OpenCondition& oc2) {
  */
 struct Unsafe : public Flaw {
   /* Constructs a threatened causal link. */
-  Unsafe(const Link& link, size_t step_id, const Effect& effect)
-    : link_(&link), step_id_(step_id), effect_(&effect) {}
+  Unsafe(const Link& link, size_t step_id, const Effect& effect,
+	 const Literal& effect_add);
 
   /* Returns the threatened link. */
   const Link& link() const { return *link_; }
@@ -124,8 +144,12 @@ struct Unsafe : public Flaw {
   /* Returns the threatening effect. */
   const Effect& effect() const { return *effect_; }
 
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os, const Bindings& bindings) const;
+  /* Returns the specific part of effect that threatens link. */
+  const Literal& effect_add() const { return *effect_add_; }
+
+protected:
+  /* Prints this open condition on the given stream. */
+  virtual void print(std::ostream& os) const;
 
 private:
   /* Threatened link. */
@@ -134,6 +158,8 @@ private:
   size_t step_id_;
   /* Threatening effect. */
   const Effect* effect_;
+  /* Specific part of effect that threatens link. */
+  const Literal* effect_add_;
 };
 
 /* Equality operator for unsafe links. */
@@ -143,51 +169,12 @@ inline bool operator==(const Unsafe& u1, const Unsafe& u2) {
 
 
 /* ====================================================================== */
-/* MutexThreat */
+/* UnsafeChain */
 
 /*
- * A mutex threat between effects of two separate steps.
+ * Chain of threatened causal links.
  */
-struct MutexThreat : public Flaw {
-  /* Constructs a mutex threat place hoder. */
-  MutexThreat() : step_id1_(0) {}
-
-  /* Constructs a mutex threat. */
-  MutexThreat(size_t step_id1, const Effect& effect1,
-	      size_t step_id2, const Effect& effect2)
-    : step_id1_(step_id1), effect1_(&effect1),
-      step_id2_(step_id2), effect2_(&effect2) {}
-
-  /* Returns the id for the first step. */
-  size_t step_id1() const { return step_id1_; }
-
-  /* Returns the threatening effect for the first step. */
-  const Effect& effect1() const { return *effect1_; }
-
-  /* Returns the id for the second step. */
-  size_t step_id2() const { return step_id2_; }
-
-  /* Returns the threatening effect for the second step. */
-  const Effect& effect2() const { return *effect2_; }
-
-  /* Prints this object on the given stream. */
-  virtual void print(std::ostream& os, const Bindings& bindings) const;
-
-private:
-  /* The id for the first step. */
-  size_t step_id1_;
-  /* The threatening effect for the first step. */
-  const Effect* effect1_;
-  /* The id for the second step. */
-  size_t step_id2_;
-  /* The threatening effect for the second step. */
-  const Effect* effect2_;
-};
-
-/* Equality operator for mutex threats. */
-inline bool operator==(const MutexThreat& mt1, const MutexThreat& mt2) {
-  return &mt1 == &mt2;
-}
+typedef CollectibleChain<Unsafe> UnsafeChain;
 
 
 #endif /* FLAWS_H */

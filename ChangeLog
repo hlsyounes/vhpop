@@ -1,108 +1,3 @@
-2003-12-09  Håkan L. S. Younes  <lorens@cs.cmu.edu>
-
-	* orderings.cc: Fixed bug returning the incorrect makespan for
-	non-temporal ordering constraints.
-
-	* plans.cc: Fixed bug causing segmentation fault when doing
-	temporal planning without a planning graph.
-
-	* plans.cc: Fixed bug creating bindings for universally quantified
-	effect variables.
-
-2003-12-05  Håkan L. S. Younes  <lorens@cs.cmu.edu>
-
-	* Using standard C++ exceptions instead of custom Exception class.
-
-	* Added support for action costs based on duration.
-
-	* When planning with lifted action, the planner now makes sure all
-	actions are fully instantiated before returning an otherwise
-	complete plan.
-
-	* Fixed bug, reported by Ulrich Scholz, that allowed
-	type-inconsistent bindings.
-
-2003-09-18  Håkan L. S. Younes  <lorens@cs.cmu.edu>
-
-	* Added support for timed initial literals.
-
-	* Changed from floating point to integer representation of
-	temporal ordering constraints to avoid precision errors.
-
-2003-09-08  Håkan L. S. Younes  <lorens@cs.cmu.edu>
-
-	* Changed max heuristic to makespan heuristic.
-
-	* Added ability to add arbitrary temporal constraints to
-	collection of temporal ordering constraints.
-
-2003-09-05  Håkan L. S. Younes  <lorens@cs.cmu.edu>
-
-	* Added support for function declarations.
-
-	* Added support for numeric initial conditions.
-
-	* Added support for action durations that are functions of the
-	action parameters (only when planning with ground actions).
-
-2003-08-29  Håkan L. S. Younes  <lorens@cs.cmu.edu>
-
-	* Merged code for counting refinements and generating refinements.
-
-2003-08-28  Håkan L. S. Younes  <lorens@cs.cmu.edu>
-
-	* Replaced all uses of hashing with standard sets and maps as this
-	seems to make things faster.
-
-2003-08-27  Håkan L. S. Younes  <lorens@cs.cmu.edu>
-
-	* Caching of compatible objects for faster instantiation of
-	actions.
-
-2003-07-28  Håkan L. S. Younes  <lorens@cs.cmu.edu>
-
-	* Fixed longstanding bug in handling of universally quantified
-	effects.
-
-	* Effect class now holds a single literal effect instead of lists
-	of add and delete effects.
-
-2003-07-27  Håkan L. S. Younes  <lorens@cs.cmu.edu>
-
-	* Added support for universally quantified preconditions when
-	planning with lifted actions.
-
-2003-07-21  Håkan L. S. Younes  <lorens@cs.cmu.edu>
-
-	* Added method `universal_base' to formulas to enable support for
-	universally quantified preconditions when planning with lifted
-	actions.
-
-	* No longer creates new objects for identical substitutions and
-	instantiations.
-
-	* Changed name of methods <Classname>::make_<classname> to
-	<Classname>::make.
-
-	* Making sure constant equalities, inequalities, and
-	quantifications are not created.
-
-2003-07-20  Håkan L. S. Younes  <lorens@cs.cmu.edu>
-
-	* Removed time stamp from literal.  Formulas with time annotations
-	are now in a Condition class.
-
-	* Identical ground literals are represented by the same object
-	allowing for faster comparison and hashing of literals.
-
-2003-07-13  Håkan L. S. Younes  <lorens@cs.cmu.edu>
-
-	* Changed CollectibleChain to Chain.
-
-	* New compact representation of predicates, terms, and types.
-
-	* Removed all code related to transformational planning.
-
 2003-03-01  Håkan L. S. Younes  <lorens@cs.cmu.edu>
 
 	* Added -S option for specifying seed to random number generator.
@@ -111,8 +6,8 @@
 
 2002-12-18  Håkan L. S. Younes  <lorens@cs.cmu.edu>
 
-	* Fixed recently introduced bug that made end times equal start
-	times when scheduling steps with temporal orderings.
+	* Fixed bug that made end times equal start times when scheduling
+	steps with temporal orderings.
 
 	* Workaround for bug in Bison 1.35 that disables stack growth.
 
@@ -125,7 +20,7 @@
 
 2002-12-16  Håkan L. S. Younes  <lorens@cs.cmu.edu>
 
-	* Fixed memory leaks of actions, effects, and formulas.
+	* Fixed memory leaks of actions effects, and formulas.
 
 	* All lists are now stored directly in objects, instead of being
 	stored indirectly as pointers to lists.

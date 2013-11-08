@@ -1,8 +1,9 @@
 /*
  * Main program.
  *
- * Copyright (C) 2002-2004 Carnegie Mellon University
- * Written by Håkan L. S. Younes.
+ * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2013 Google Inc
+ * Written by Haakan Younes.
  *
  * Permission is hereby granted to distribute this software for
  * non-commercial research purposes, provided that this copyright
@@ -14,10 +15,9 @@
  * PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
- *
- * $Id: vhpop.cc,v 6.7 2003-12-05 23:19:40 lorens Exp $
  */
 #include "plans.h"
+#include "reasons.h"
 #include "parameters.h"
 #include "heuristics.h"
 #include "domains.h"
@@ -25,7 +25,9 @@
 #include "debug.h"
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <cerrno>
+#include <limits>
 #include <sys/time.h>
 #if HAVE_GETOPT_LONG
 #ifndef _GNU_SOURCE
@@ -47,44 +49,43 @@
 extern int yyparse();
 /* File to parse. */
 extern FILE* yyin;
-
 /* Name of current file. */
-std::string current_file;
+extern std::string current_file;
 /* Level of warnings. */
-int warning_level;
+extern int warning_level;
+
 /* Verbosity level. */
 int verbosity;
 
 
 /* Program options. */
 static struct option long_options[] = {
-  { "action-cost", required_argument, NULL, 'a' },
   { "domain-constraints", optional_argument, NULL, 'd' },
   { "flaw-order", required_argument, NULL, 'f' },
   { "ground-actions", no_argument, NULL, 'g' },
   { "heuristic", required_argument, NULL, 'h' },
   { "limit", required_argument, NULL, 'l' },
-  { "random-open-conditions", no_argument, NULL, 'r' },
+  { "reverse-open-conditions", no_argument, NULL, 'r' },
   { "search-algorithm", required_argument, NULL, 's' },
-  { "seed", required_argument, NULL, 'S' },
   { "tolerance", required_argument, NULL, 't' },
+#ifdef TRANSFORMATIONAL
+  { "transformational", no_argument, NULL, 1 },
+#endif
   { "time-limit", required_argument, NULL, 'T' },
   { "verbose", optional_argument, NULL, 'v' },
   { "version", no_argument, NULL, 'V' },
   { "weight", required_argument, NULL, 'w' },
   { "warnings", optional_argument, NULL, 'W' },
-  { "help", no_argument, NULL, '?' },
+  { "help", no_argument, NULL, 'H' },
   { 0, 0, 0, 0 }
 };
-static const char OPTION_STRING[] = "a:d::f:gh:l:rs:S:t:T:v::Vw:W::?";
+static const char OPTION_STRING[] = "d::f:gh:l:rs:S:t:T:v::Vw:W::?";
 
 
 /* Displays help. */
 static void display_help() {
   std::cout << "usage: " << PACKAGE << " [options] [file ...]" << std::endl
 	    << "options:" << std::endl
-	    << "  -a a,  --action-cost=a" << std::endl
-	    << "\t\t\tuse action cost a" << std::endl
 	    << "  -d[k], --domain-constraints=[k]" << std::endl
 	    << "\t\t\tuse parameter domain constraints;" << std::endl
 	    << "\t\t\t  if k is 0, static preconditions are pruned;"
@@ -111,6 +112,10 @@ static void display_help() {
 	    << "\t\t\t  time stamps less than t appart are considered"
 	    << std::endl
 	    << "\t\t\t  indistinguishable (default is 0.01)" << std::endl
+#ifdef TRANSFORMATIONAL
+	    << "         --transformational" << std::endl
+	    << "\t\t\tuse transformational planner" << std::endl
+#endif
 	    << "  -T t,  --time-limit=t\t"
 	    << "limit search to t minutes" << std::endl
 	    << "  -v[n], --verbose[=n]\t"
@@ -128,7 +133,7 @@ static void display_help() {
 	    << "\t\t\t  0 supresses warnings; 1 displays warnings;"
 	    << std::endl
 	    << "\t\t\t  2 treats warnings as errors" << std::endl
-	    << "  -?     --help\t\t"
+	    << "  -H     --help\t\t"
 	    << "display this help and exit" << std::endl
 	    << "  file ...\t\t"
 	    << "files containing domain and problem descriptions;" << std::endl
@@ -142,8 +147,8 @@ static void display_help() {
 /* Displays version information. */
 static void display_version() {
   std::cout << PACKAGE_STRING << std::endl
-	    << "Copyright (C) 2002-2004 Carnegie Mellon University"
-	    << std::endl
+	    << "Copyright (C) 2003 Carnegie Mellon University" << std::endl
+            << "Copyright (C) 2013 Google Inc" << std::endl
 	    << PACKAGE_NAME
 	    << " comes with NO WARRANTY, to the extent permitted by law."
 	    << std::endl
@@ -152,7 +157,7 @@ static void display_version() {
 	    << "see the file named COPYING in the " PACKAGE_NAME
 	    << " distribution." << std::endl
 	    << std::endl
-	    << "Written by H\345kan L. S. Younes." << std::endl;
+	    << "Written by Haakan Younes." << std::endl;
 }
 
 
@@ -178,11 +183,12 @@ static void cleanup() {
   Domain::clear();
 
 #ifdef DEBUG_MEMORY
-  RCObject::print_statistics(std::cerr);
-  std::cerr << "Formulas created: " << created_formulas << std::endl
+  std::cerr << "Variables created: " << created_variables << std::endl
+	    << "Variables deleted: " << deleted_variables << std::endl
+	    << "Formulas created: " << created_formulas << std::endl
 	    << "Formulas deleted: " << deleted_formulas << std::endl
-	    << "Conditions created: " << created_conditions << std::endl
-	    << "Conditions deleted: " << deleted_conditions << std::endl
+	    << "Name sets created: " << created_name_sets << std::endl
+	    << "Name sets deleted: " << deleted_name_sets << std::endl
 	    << "Action domains created: " << created_action_domains
 	    << std::endl
 	    << "Action domains deleted: " << deleted_action_domains
@@ -196,16 +202,22 @@ static void cleanup() {
 	    << "Orderings created: " << created_orderings << std::endl
 	    << "Orderings deleted: " << deleted_orderings << std::endl
 	    << "Plans created: " << created_plans << std::endl
-	    << "Plans deleted: " << deleted_plans << std::endl;
+	    << "Plans deleted: " << deleted_plans << std::endl
+	    << "Chains created: " << created_chains << std::endl
+	    << "Chains deleted: " << deleted_chains << std::endl
+	    << "Reasons created: " << created_reasons << std::endl
+	    << "Reasons deleted: " << deleted_reasons << std::endl;
 #endif
 }
 
 
 #ifdef DEBUG_MEMORY
+size_t created_variables = 0;
+size_t deleted_variables = 0;
 size_t created_formulas = 0;
 size_t deleted_formulas = 0;
-size_t created_conditions = 0;
-size_t deleted_conditions = 0;
+size_t created_name_sets = 0;
+size_t deleted_name_sets = 0;
 size_t created_action_domains = 0;
 size_t deleted_action_domains = 0;
 size_t created_bindings = 0;
@@ -218,6 +230,10 @@ size_t created_orderings = 0;
 size_t deleted_orderings = 0;
 size_t created_plans = 0;
 size_t deleted_plans = 0;
+size_t created_chains = 0;
+size_t deleted_chains = 0;
+size_t created_reasons = 0;
+size_t deleted_reasons = 0;
 #endif
 
 
@@ -245,16 +261,6 @@ int main(int argc, char* argv[]) {
       break;
     }
     switch (c) {
-    case 'a':
-      try {
-	params.set_action_cost(optarg);
-      } catch (const InvalidActionCost& e) {
-	std::cerr << PACKAGE ": " << e.what() << std::endl
-		  << "Try `" PACKAGE " --help' for more information."
-		  << std::endl;
-	return -1;
-      }
-      break;
     case 'd':
       params.domain_constraints = true;
       params.keep_static_preconditions = (optarg == NULL || atoi(optarg) != 0);
@@ -267,7 +273,7 @@ int main(int argc, char* argv[]) {
 	}
 	params.flaw_orders.push_back(FlawSelectionOrder(optarg));
       } catch (const InvalidFlawSelectionOrder& e) {
-	std::cerr << PACKAGE << ": " << e.what() << std::endl
+	std::cerr << PACKAGE << ": " << e << std::endl
 	     << "Try `" << PACKAGE << " --help' for more information."
 	     << std::endl;
 	return -1;
@@ -280,7 +286,7 @@ int main(int argc, char* argv[]) {
       try {
 	params.heuristic = optarg;
       } catch (const InvalidHeuristic& e) {
-	std::cerr << PACKAGE ": " << e.what() << std::endl
+	std::cerr << PACKAGE ": " << e << std::endl
 		  << "Try `" PACKAGE " --help' for more information."
 		  << std::endl;
 	return -1;
@@ -292,7 +298,7 @@ int main(int argc, char* argv[]) {
 	no_search_limit = false;
       }
       if (optarg == std::string("unlimited")) {
-	params.search_limits.push_back(UINT_MAX);
+	params.search_limits.push_back(std::numeric_limits<size_t>::max());
       } else {
 	params.search_limits.push_back(atoi(optarg));
       }
@@ -304,7 +310,7 @@ int main(int argc, char* argv[]) {
       try {
 	params.set_search_algorithm(optarg);
       } catch (const InvalidSearchAlgorithm& e) {
-	std::cerr << PACKAGE ": " << e.what() << std::endl
+	std::cerr << PACKAGE ": " << e << std::endl
 		  << "Try `" PACKAGE " --help' for more information."
 		  << std::endl;
 	return -1;
@@ -315,11 +321,16 @@ int main(int argc, char* argv[]) {
       break;
     case 't':
       if (optarg == std::string("unlimited")) {
-	Orderings::threshold = UINT_MAX;
+	TemporalOrderings::threshold = std::numeric_limits<size_t>::max();
       } else {
-	Orderings::threshold = atof(optarg);
+	TemporalOrderings::threshold = atof(optarg);
       }
       break;
+#ifdef TRANSFORMATIONAL
+    case 1:
+      params.transformational = true;
+      break;
+#endif
     case 'T':
       params.time_limit = atoi(optarg);
       break;
@@ -335,11 +346,9 @@ int main(int argc, char* argv[]) {
     case 'W':
       warning_level = (optarg != NULL) ? atoi(optarg) : 1;
       break;
-    case '?':
-      if (optopt == '?') {
-	display_help();
-	return 0;
-      }
+    case 'H':
+      display_help();
+      return 0;
     case ':':
     default:
       std::cerr << "Try `" PACKAGE " --help' for more information."
@@ -381,13 +390,13 @@ int main(int argc, char* argv[]) {
        */
       std::cerr << "----------------------------------------"<< std::endl
 		<< "domains:" << std::endl;
-      for (Domain::DomainMap::const_iterator di = Domain::begin();
+      for (Domain::DomainMapIter di = Domain::begin();
 	   di != Domain::end(); di++) {
 	std::cerr << std::endl << *(*di).second << std::endl;
       }
       std::cerr << "----------------------------------------"<< std::endl
 		<< "problems:" << std::endl;
-      for (Problem::ProblemMap::const_iterator pi = Problem::begin();
+      for (Problem::ProblemMapIter pi = Problem::begin();
 	   pi != Problem::end(); pi++) {
 	std::cerr << std::endl << *(*pi).second << std::endl;
       }
@@ -399,7 +408,7 @@ int main(int argc, char* argv[]) {
     /*
      * Solve the problems.
      */
-    for (Problem::ProblemMap::const_iterator pi = Problem::begin();
+    for (Problem::ProblemMapIter pi = Problem::begin();
 	 pi != Problem::end(); ) {
       const Problem& problem = *(*pi).second;
       pi++;
@@ -446,8 +455,8 @@ int main(int argc, char* argv[]) {
 	- (timer.it_value.tv_sec + timer.it_value.tv_usec*1e-6);
       std::cout << "Time: " << std::max(0, int(1000.0*t + 0.5)) << std::endl;
     }
-  } catch (const std::exception& e) {
-    std::cerr << PACKAGE ": " << e.what() << std::endl;
+  } catch (const Exception& e) {
+    std::cerr << PACKAGE ": " << e << std::endl;
     return -1;
   } catch (...) {
     std::cerr << PACKAGE ": fatal error" << std::endl;

@@ -10,7 +10,6 @@ echo
 echo '\newcommand{\oom}[1]{\multicolumn{2}{c}{$>$#1$\dagger$}}'
 echo '\newcommand{\oot}[1]{\multicolumn{2}{c}{$>$#1$\ddagger$}}'
 echo '\newcommand{\tum}{\multicolumn{2}{c}{$<$60000$\dagger$}}'
-echo '\newcommand{\nof}{\multicolumn{2}{c}{*}}'
 echo
 echo '\begin{document}'
 
@@ -38,10 +37,6 @@ for p in $problems; do
     echo -n $p
     for f in oc heuristic static domains all ground; do
 	file=$outdir/$p-$f.out
-	if (test ! -f $file) then
-	    echo -n ' & \nof'
-	    continue
-	fi
 	l=`grep 'Search limit reached.' $file`
 	g=`grep 'Plans generated: ' $file | sed 's/Plans generated: //g'`
 	v=`grep 'Plans visited: ' $file | sed 's/Plans visited: //g'`
@@ -83,10 +78,6 @@ for p in $problems; do
     echo -n $p
     for f in oc heuristic static domains all ground; do
 	file=$outdir/$p-$f.out
-	if (test ! -f $file) then
-	    echo -n ' & \nof'
-	    continue
-	fi
 	l=`grep 'Search limit reached.' $file`
 	t=`grep 'Time: ' $file | sed 's/Time: //g'`
 	s=`grep 'Number of steps: ' $file | sed 's/Number of steps: //g'`

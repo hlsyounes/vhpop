@@ -1,6 +1,7 @@
 /*
- * Copyright (C) 2002-2004 Carnegie Mellon University
- * Written by Håkan L. S. Younes.
+ * Copyright (C) 2003 Carnegie Mellon University
+ * Copyright (C) 2013 Google Inc
+ * Written by Haakan Younes.
  *
  * Permission is hereby granted to distribute this software for
  * non-commercial research purposes, provided that this copyright
@@ -13,25 +14,19 @@
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
  *
- * $Id: parameters.cc,v 6.3 2003-12-05 23:16:43 lorens Exp $
+ * $Id: parameters.cc,v 3.7 2003-03-01 18:47:44 lorens Exp $
  */
 #include "parameters.h"
 
+#include <string.h>
+#include <limits>
 
 /* ====================================================================== */
 /* InvalidSearchAlgorithm */
 
 /* Constructs an invalid search algorithm exception. */
 InvalidSearchAlgorithm::InvalidSearchAlgorithm(const std::string& name)
-  : std::runtime_error("invalid search algorithm `" + name + "'") {}
-
-
-/* ====================================================================== */
-/* InvalidActionCost */
-
-/* Constructs an invalid action cost exception. */
-InvalidActionCost::InvalidActionCost(const std::string& name)
-  : std::runtime_error("invalid action cost `" + name + "'") {}
+  : Exception("invalid search algorithm `" + name + "'") {}
 
 
 /* ====================================================================== */
@@ -39,12 +34,13 @@ InvalidActionCost::InvalidActionCost(const std::string& name)
 
 /* Constructs default planning parameters. */
 Parameters::Parameters()
-  : time_limit(UINT_MAX), search_algorithm(A_STAR),
-    heuristic("UCPOP"), action_cost(UNIT_COST), weight(1.0),
-    random_open_conditions(false), ground_actions(false),
-    domain_constraints(false), keep_static_preconditions(true) {
-  flaw_orders.push_back(FlawSelectionOrder("UCPOP")),
-  search_limits.push_back(UINT_MAX);
+    : time_limit(std::numeric_limits<size_t>::max()), search_algorithm(A_STAR),
+      heuristic("UCPOP"), weight(1.0),
+      random_open_conditions(false), ground_actions(false),
+      domain_constraints(false), keep_static_preconditions(true),
+      transformational(false) {
+  flaw_orders.push_back(FlawSelectionOrder("UCPOP"));
+  search_limits.push_back(std::numeric_limits<size_t>::max());
 }
 
 
@@ -65,20 +61,5 @@ void Parameters::set_search_algorithm(const std::string& name) {
     search_algorithm = HILL_CLIMBING;
   } else {
     throw InvalidSearchAlgorithm(name);
-  }
-}
-
-
-/* Selects an action cost from a name. */
-void Parameters::set_action_cost(const std::string& name) {
-  const char* n = name.c_str();
-  if (strcasecmp(n, "UNIT") == 0) {
-    action_cost = UNIT_COST;
-  } else if (strcasecmp(n, "DURATION") == 0) {
-    action_cost = DURATION;
-  } else if (strcasecmp(n, "RELATIVE") == 0) {
-    action_cost = RELATIVE;
-  } else {
-    throw InvalidActionCost(name);
   }
 }

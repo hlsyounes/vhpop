@@ -1,4 +1,4 @@
-VHPOP 3.0
+VHPOP 2.2
 =========
 
 VHPOP is a versatile heuristic partial order planner loosely based on
@@ -20,7 +20,7 @@ UCPOP with the following main features:
 
   * Implements A*, IDA*, and hill climbing search.
 
-  * Fully supports levels 1 and 3 of PDDL2.1.
+  * Fully supports levels 1 and 3 of PDDL+.
 
 For installation instructions, see `INSTALL'.
 
@@ -36,18 +36,6 @@ options are as follows:
   A for A*.
   IDA for IDA*.
   HC for hill climbing.
-
-
-Action Costs
-------------
-
-VHPOP currently provides three definitions of action costs, selected
-through the -a flag, to use in conjunction with the additive
-heuristic:
-
-  UNIT uses unit cost for all actions.
-  DURATION uses absolute duration as action costs.
-  RELATIVE uses relative duration as action costs.
 
 
 Plan Selection
@@ -168,13 +156,22 @@ strategy.  The first plan, if any, found is returned as the solution
 regardless of which flaw selection strategy was used.
 
 
+Bugs and Missing Features
+-------------------------
+
+* Universally quantified preconditions are not supported when using
+  lifted actions.
+
+
 Plans for Future Improvements
 -----------------------------
+
+* Improve speed of reachability analysis.
 
 * Add better support for plan optimization metric (currently ignored).
 
 * Allow secondary ordering criterion for flaw selection strategies.
 
-* Add support for numeric effects and preconditions (level 2 of PDDL2.1).
+* Add support for durations that depend on action parameters.
 
-* Add support for axioms (PDDL2.2).
+* Add support for numeric effects and preconditions (level 2 of PDDL+).
