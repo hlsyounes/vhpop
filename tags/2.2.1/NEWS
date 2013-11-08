@@ -1,0 +1,30 @@
+Version 2.2 (Mar 1, 2003):
+
+* Added -S option for specifying seed to random number generator.
+
+* Changed -r option to mean random open condition order.
+
+* Further improvements to memory and time efficiency.  All known
+  memory leaks have been eliminated.
+
+Version 2.1 (Sep 21, 2002):
+
+* Improved memory and time efficiency, in particular when planning
+  with lifted action.
+
+
+Version 2.0 (Jul 18, 2002):
+
+* Support for durative actions.
+
+* Support for multiple simultaneous flaw selection strategies.
+
+
+Version 1.1 (Feb 8, 2002):
+
+* PDDL2.1 compatibility.
+
+
+Version 1.0 (Jan 25, 2002):
+
+* Initial release.
