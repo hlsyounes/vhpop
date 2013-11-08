@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2003 Carnegie Mellon University
- * Written by Håkan L. S. Younes.
+ * Copyright (C) 2013 Google Inc
+ * Written by Haakan Younes.
  *
  * Permission is hereby granted to distribute this software for
  * non-commercial research purposes, provided that this copyright
@@ -12,8 +13,6 @@
  * PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
- *
- * $Id: bindings.cc,v 4.8 2003-03-01 18:55:56 lorens Exp $
  */
 #include "bindings.h"
 #include "plans.h"
@@ -23,6 +22,7 @@
 #include "formulas.h"
 #include "types.h"
 #include "debug.h"
+#include <limits>
 #include <typeinfo>
 
 
@@ -1002,10 +1002,11 @@ bool Bindings::consistent_with(const Inequality& neq, size_t step_id) const {
 
 /* Adds bindings to the list as determined by difference between the
    given step domains */
-static void add_domain_bindings(BindingList& bindings,
-				const StepDomain& old_sd,
-				const StepDomain& new_sd,
-				size_t ex_column = UINT_MAX) {
+static void add_domain_bindings(
+    BindingList& bindings,
+    const StepDomain& old_sd,
+    const StepDomain& new_sd,
+    size_t ex_column = std::numeric_limits<size_t>::max()) {
   for (size_t c = 0; c < old_sd.width(); c++) {
     if (c != ex_column && new_sd.projection_size(c) == 1
 	&& old_sd.projection_size(c) > 1) {
