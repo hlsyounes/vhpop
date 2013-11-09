@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2003 Carnegie Mellon University
- * Written by Håkan L. S. Younes.
+ * Copyright (C) 2013 Google Inc
+ * Written by Haakan Younes.
  *
  * Permission is hereby granted to distribute this software for
  * non-commercial research purposes, provided that this copyright
@@ -12,15 +13,13 @@
  * PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
- *
- * $Id: domains.cc,v 4.10 2003-03-01 18:55:49 lorens Exp $
  */
 #include "domains.h"
 #include "bindings.h"
 #include "problems.h"
-#include "mathport.h"
 #include <stack>
 #include <iostream>
+#include <limits>
 
 
 /* ====================================================================== */
@@ -314,8 +313,9 @@ std::ostream& operator<<(std::ostream& os, const Effect& e) {
 
 /* Constructs an action with the given name. */
 Action::Action(const std::string& name, bool durative)
-  : name_(name), precondition_(&Formula::TRUE), durative_(durative),
-    min_duration_(0.0f), max_duration_(durative ? INFINITY : 0.0f) {
+    : name_(name), precondition_(&Formula::TRUE), durative_(durative),
+      min_duration_(0.0f),
+      max_duration_(durative ? std::numeric_limits<float>::infinity() : 0.0f) {
   Formula::register_use(precondition_);
 }
 

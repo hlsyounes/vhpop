@@ -22,8 +22,8 @@
 #include "problems.h"
 #include "domains.h"
 #include "debug.h"
-#include "mathport.h"
 #include <strings.h>
+#include <limits>
 #include <typeinfo>
 #include <set>
 #include <utility>
@@ -1051,19 +1051,19 @@ void Heuristic::plan_rank(std::vector<float>& rank, const Plan& plan,
 	if (add_cost < INT_MAX) {
 	  rank.push_back(plan.num_steps() + weight*add_cost);
 	} else {
-	  rank.push_back(INFINITY);
+	  rank.push_back(std::numeric_limits<float>::infinity());
 	}
       } else if (h == ADD_COST) {
 	if (add_cost < INT_MAX) {
 	  rank.push_back(add_cost);
 	} else {
-	  rank.push_back(INFINITY);
+	  rank.push_back(std::numeric_limits<float>::infinity());
 	}
       } else {
 	if (add_work < INT_MAX) {
 	  rank.push_back(add_work);
 	} else {
-	  rank.push_back(INFINITY);
+	  rank.push_back(std::numeric_limits<float>::infinity());
 	}
       }
       break;
@@ -1086,19 +1086,19 @@ void Heuristic::plan_rank(std::vector<float>& rank, const Plan& plan,
 	if (addr_cost < INT_MAX) {
 	  rank.push_back(plan.num_steps() + weight*addr_cost);
 	} else {
-	  rank.push_back(INFINITY);
+	  rank.push_back(std::numeric_limits<float>::infinity());
 	}
       } else if (h == ADDR_COST) {
 	if (addr_cost < INT_MAX) {
 	  rank.push_back(addr_cost);
 	} else {
-	  rank.push_back(INFINITY);
+	  rank.push_back(std::numeric_limits<float>::infinity());
 	}
       } else {
 	if (addr_work < INT_MAX) {
 	  rank.push_back(addr_work);
 	} else {
-	  rank.push_back(INFINITY);
+	  rank.push_back(std::numeric_limits<float>::infinity());
 	}
       }
       break;
@@ -1127,19 +1127,19 @@ void Heuristic::plan_rank(std::vector<float>& rank, const Plan& plan,
 	if (max_cost < INT_MAX) {
 	  rank.push_back(max_steps + weight*(max_cost - max_steps));
 	} else {
-	  rank.push_back(INFINITY);
+	  rank.push_back(std::numeric_limits<float>::infinity());
 	}
       } else if (h == MAX_COST) {
 	if (max_cost < INT_MAX) {
 	  rank.push_back(max_cost);
 	} else {
-	  rank.push_back(INFINITY);
+	  rank.push_back(std::numeric_limits<float>::infinity());
 	}
       } else {
 	if (max_work < INT_MAX) {
 	  rank.push_back(max_work);
 	} else {
-	  rank.push_back(INFINITY);
+	  rank.push_back(std::numeric_limits<float>::infinity());
 	}
       }
       break;
@@ -1168,19 +1168,19 @@ void Heuristic::plan_rank(std::vector<float>& rank, const Plan& plan,
 	if (maxr_cost < INT_MAX) {
 	  rank.push_back(max_steps + weight*(maxr_cost - max_steps));
 	} else {
-	  rank.push_back(INFINITY);
+	  rank.push_back(std::numeric_limits<float>::infinity());
 	}
       } else if (h == MAXR_COST) {
 	if (maxr_cost < INT_MAX) {
 	  rank.push_back(maxr_cost);
 	} else {
-	  rank.push_back(INFINITY);
+	  rank.push_back(std::numeric_limits<float>::infinity());
 	}
       } else {
 	if (maxr_work < INT_MAX) {
 	  rank.push_back(maxr_work);
 	} else {
-	  rank.push_back(INFINITY);
+	  rank.push_back(std::numeric_limits<float>::infinity());
 	}
       }
       break;

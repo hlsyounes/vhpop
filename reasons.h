@@ -3,7 +3,8 @@
  * Reasons for refinements in a plan.
  *
  * Copyright (C) 2003 Carnegie Mellon University
- * Written by Håkan L. S. Younes.
+ * Copyright (C) 2013 Google Inc
+ * Written by Haakan Younes.
  *
  * Permission is hereby granted to distribute this software for
  * non-commercial research purposes, provided that this copyright
@@ -31,7 +32,7 @@ struct Step;
 
 
 /* ====================================================================== */
-/* Reason
+/* Reason */
 
 /*
  * Abstract reason.

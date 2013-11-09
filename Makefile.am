@@ -16,9 +16,9 @@
 ## ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
 
 bin_PROGRAMS = vhpop
-vhpop_SOURCES = vhpop.cc exceptions.cc exceptions.h parameters.cc parameters.h types.cc types.h formulas.cc formulas.h domains.cc domains.h problems.cc problems.h bindings.cc bindings.h orderings.cc orderings.h flaws.cc flaws.h reasons.cc reasons.h heuristics.cc heuristics.h plans.cc plans.h requirements.cc requirements.h pddl.yy tokens.ll chain.h debug.h hashing.h mathport.h
+vhpop_SOURCES = vhpop.cc exceptions.cc exceptions.h parameters.cc parameters.h types.cc types.h formulas.cc formulas.h domains.cc domains.h problems.cc problems.h bindings.cc bindings.h orderings.cc orderings.h flaws.cc flaws.h reasons.cc reasons.h heuristics.cc heuristics.h plans.cc plans.h requirements.cc requirements.h pddl.yy tokens.ll chain.h debug.h hashing.h
 vhpop_LDADD = @LIBOBJS@
 MAINTAINERCLEANFILES = pddl.cc tokens.cc
-EXTRA_DIST = getopt.c getopt1.c getopt.h ipc3-vhpop examples scripts
+EXTRA_DIST = ipc3-vhpop examples scripts
 
 AM_YFLAGS = -d

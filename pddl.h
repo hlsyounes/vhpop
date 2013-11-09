@@ -163,7 +163,7 @@ typedef union YYSTYPE
 {
 
 /* Line 2068 of yacc.c  */
-#line 206 "pddl.yy"
+#line 204 "pddl.yy"
 
   const Formula* formula;
   const Atom* atom;

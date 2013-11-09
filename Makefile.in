@@ -37,8 +37,8 @@ subdir = .
 DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(srcdir)/config.h.in \
 	$(top_srcdir)/configure AUTHORS COPYING ChangeLog INSTALL NEWS \
-	depcomp getopt.c getopt1.c install-sh missing mkinstalldirs \
-	pddl.cc pddl.h tokens.cc ylwrap
+	depcomp install-sh missing mkinstalldirs pddl.cc pddl.h \
+	tokens.cc ylwrap
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
@@ -190,10 +190,10 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-vhpop_SOURCES = vhpop.cc exceptions.cc exceptions.h parameters.cc parameters.h types.cc types.h formulas.cc formulas.h domains.cc domains.h problems.cc problems.h bindings.cc bindings.h orderings.cc orderings.h flaws.cc flaws.h reasons.cc reasons.h heuristics.cc heuristics.h plans.cc plans.h requirements.cc requirements.h pddl.yy tokens.ll chain.h debug.h hashing.h mathport.h
+vhpop_SOURCES = vhpop.cc exceptions.cc exceptions.h parameters.cc parameters.h types.cc types.h formulas.cc formulas.h domains.cc domains.h problems.cc problems.h bindings.cc bindings.h orderings.cc orderings.h flaws.cc flaws.h reasons.cc reasons.h heuristics.cc heuristics.h plans.cc plans.h requirements.cc requirements.h pddl.yy tokens.ll chain.h debug.h hashing.h
 vhpop_LDADD = @LIBOBJS@
 MAINTAINERCLEANFILES = pddl.cc tokens.cc
-EXTRA_DIST = getopt.c getopt1.c getopt.h ipc3-vhpop examples scripts
+EXTRA_DIST = ipc3-vhpop examples scripts
 AM_YFLAGS = -d
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
@@ -299,8 +299,6 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/getopt.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@$(DEPDIR)/getopt1.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/bindings.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/domains.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/exceptions.Po@am__quote@
@@ -613,7 +611,7 @@ clean-am: clean-binPROGRAMS clean-generic mostlyclean-am
 
 distclean: distclean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
-	-rm -rf $(DEPDIR) ./$(DEPDIR)
+	-rm -rf ./$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-hdr distclean-tags
@@ -661,7 +659,7 @@ installcheck-am:
 maintainer-clean: maintainer-clean-am
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
 	-rm -rf $(top_srcdir)/autom4te.cache
-	-rm -rf $(DEPDIR) ./$(DEPDIR)
+	-rm -rf ./$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
