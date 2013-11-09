@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2003 Carnegie Mellon University
- * Written by Håkan L. S. Younes.
+ * Copyright (C) 2013 Google Inc
+ * Written by Haakan Younes.
  *
  * Permission is hereby granted to distribute this software for
  * non-commercial research purposes, provided that this copyright
@@ -12,8 +13,6 @@
  * PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
- *
- * $Id: orderings.cc,v 4.6 2003-03-01 18:55:11 lorens Exp $
  */
 #include "orderings.h"
 #include "plans.h"
@@ -21,7 +20,8 @@
 #include "domains.h"
 #include "formulas.h"
 #include "debug.h"
-#include "mathport.h"
+#include <math.h>
+#include <limits>
 
 
 /* ====================================================================== */
@@ -575,12 +575,13 @@ TemporalOrderings::TemporalOrderings(const StepChain* steps,
 	&& id_map1_.find(step.id()) == id_map1_.end()) {
       int n = size();
       id_map1_.insert(std::make_pair(step.id(), 2*n));
-      FloatVector* fv = new FloatVector(4*n + 2, INFINITY);
+      FloatVector* fv =
+          new FloatVector(4*n + 2, std::numeric_limits<float>::infinity());
       (*fv)[4*n + 1] = -threshold;
       own_data.insert(std::make_pair(distance_.size(), fv));
       distance_.push_back(fv);
       FloatVector::register_use(fv);
-      fv = new FloatVector(4*n + 4, INFINITY);
+      fv = new FloatVector(4*n + 4, std::numeric_limits<float>::infinity());
       (*fv)[4*n + 3] = -(threshold + step.action().min_duration());
       (*fv)[2*n + 1] = step.action().max_duration();
       (*fv)[2*n + 2] = -step.action().min_duration();
@@ -697,12 +698,13 @@ TemporalOrderings::refine(const Ordering& new_ordering,
       orderings.id_map1_.insert(std::make_pair(new_step.id(), 2*size()));
       orderings.id_map2_.push_back(new_step.id());
       size_t n = size();
-      FloatVector* fv = new FloatVector(4*n + 2, INFINITY);
+      FloatVector* fv =
+          new FloatVector(4*n + 2, std::numeric_limits<float>::infinity());
       (*fv)[4*n + 1] = -threshold;
       own_data.insert(std::make_pair(orderings.distance_.size(), fv));
       orderings.distance_.push_back(fv);
       FloatVector::register_use(fv);
-      fv = new FloatVector(4*n + 4, INFINITY);
+      fv = new FloatVector(4*n + 4, std::numeric_limits<float>::infinity());
       (*fv)[4*n + 3] = -(threshold + new_step.action().min_duration());
       (*fv)[2*n + 1] = new_step.action().max_duration();
       (*fv)[2*n + 2] = -new_step.action().min_duration();

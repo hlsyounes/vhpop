@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2003 Carnegie Mellon University
- * Written by Håkan L. S. Younes.
+ * Copyright (C) 2013 Google Inc
+ * Written by Haakan Younes.
  *
  * Permission is hereby granted to distribute this software for
  * non-commercial research purposes, provided that this copyright
@@ -12,8 +13,6 @@
  * PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
- *
- * $Id: types.cc,v 4.7 2003-03-01 18:53:58 lorens Exp $
  */
 #include "types.h"
 #include <algorithm>
@@ -37,6 +36,7 @@ struct Subtype : public std::binary_function<const Type*, const Type*, bool> {
 /* The object type. */
 const Type& Type::OBJECT = SimpleType::OBJECT_;
 
+Type::~Type() {}
 
 /* Checks if this type is the object type. */
 bool Type::object() const {

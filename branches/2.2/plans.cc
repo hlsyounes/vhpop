@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2003 Carnegie Mellon University
- * Written by Håkan L. S. Younes.
+ * Copyright (C) 2013 Google Inc
+ * Written by Haakan Younes.
  *
  * Permission is hereby granted to distribute this software for
  * non-commercial research purposes, provided that this copyright
@@ -12,10 +13,7 @@
  * PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
- *
- * $Id: plans.cc,v 4.10 2003-03-01 18:47:14 lorens Exp $
  */
-#include "mathport.h"
 #include "plans.h"
 #include "heuristics.h"
 #include "bindings.h"
@@ -26,6 +24,8 @@
 #include "requirements.h"
 #include "parameters.h"
 #include "debug.h"
+#include <math.h>
+#include <limits>
 #include <queue>
 #include <typeinfo>
 #include <climits>
@@ -606,10 +606,10 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
       && params->search_algorithm == Parameters::IDA_STAR) {
     f_limit = current_plan->primary_rank();
   } else {
-    f_limit = INFINITY;
+    f_limit = std::numeric_limits<float>::infinity();
   }
   do {
-    float next_f_limit = INFINITY;
+    float next_f_limit = std::numeric_limits<float>::infinity();
     while (current_plan != NULL && !current_plan->complete()) {
       /* Do a little amortized cleanup of dead queues. */
       for (size_t dq = 0; dq < 4 && !dead_queues.empty(); dq++) {

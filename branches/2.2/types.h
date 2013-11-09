@@ -3,7 +3,8 @@
  * Types.
  *
  * Copyright (C) 2003 Carnegie Mellon University
- * Written by Håkan L. S. Younes.
+ * Copyright (C) 2013 Google Inc
+ * Written by Haakan Younes.
  *
  * Permission is hereby granted to distribute this software for
  * non-commercial research purposes, provided that this copyright
@@ -15,8 +16,6 @@
  * PURPOSE.  THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE
  * SOFTWARE IS WITH YOU.  SHOULD THE PROGRAM PROVE DEFECTIVE, YOU
  * ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
- *
- * $Id: types.h,v 3.17 2003-03-01 18:48:31 lorens Exp $
  */
 #ifndef TYPES_H
 #define TYPES_H
@@ -36,6 +35,8 @@
 struct Type {
   /* The object type. */
   static const Type& OBJECT;
+
+  virtual ~Type();
 
   /* Checks if this type is the object type. */
   bool object() const;

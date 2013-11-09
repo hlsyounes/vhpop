@@ -5287,65 +5287,6 @@ _ACEOF
 fi
 done
 
-for ac_func in getopt_long
-do :
-  ac_fn_c_check_func "$LINENO" "getopt_long" "ac_cv_func_getopt_long"
-if test "x$ac_cv_func_getopt_long" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_GETOPT_LONG 1
-_ACEOF
-
-else
-  case " $LIBOBJS " in
-  *" getopt.$ac_objext "* ) ;;
-  *) LIBOBJS="$LIBOBJS getopt.$ac_objext"
- ;;
-esac
- case " $LIBOBJS " in
-  *" getopt1.$ac_objext "* ) ;;
-  *) LIBOBJS="$LIBOBJS getopt1.$ac_objext"
- ;;
-esac
-
-fi
-done
-
-for ac_func in isinf
-do :
-  ac_fn_c_check_func "$LINENO" "isinf" "ac_cv_func_isinf"
-if test "x$ac_cv_func_isinf" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_ISINF 1
-_ACEOF
-
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-#include <math.h>
-
-_ACEOF
-if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
-  $EGREP "finite" >/dev/null 2>&1; then :
-
-else
-  for ac_header in ieeefp.h
-do :
-  ac_fn_c_check_header_mongrel "$LINENO" "ieeefp.h" "ac_cv_header_ieeefp_h" "$ac_includes_default"
-if test "x$ac_cv_header_ieeefp_h" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_IEEEFP_H 1
-_ACEOF
-
-fi
-
-done
-
-fi
-rm -f conftest*
-
-fi
-done
-
 ac_config_files="$ac_config_files Makefile"
 
 cat >confcache <<\_ACEOF
