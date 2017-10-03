@@ -25,6 +25,7 @@
 #include "domains.h"
 #include "debug.h"
 #include <limits>
+#include <string.h>
 #include <typeinfo>
 #include <set>
 #include <utility>

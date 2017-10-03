@@ -26,6 +26,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cerrno>
+#include <limits>
+#include <string.h>
+
 #include <sys/time.h>
 #if HAVE_GETOPT_LONG
 #ifndef _GNU_SOURCE
@@ -292,7 +295,7 @@ int main(int argc, char* argv[]) {
 	no_search_limit = false;
       }
       if (optarg == std::string("unlimited")) {
-	params.search_limits.push_back(UINT_MAX);
+	params.search_limits.push_back(std::numeric_limits<unsigned int>::max());
       } else {
 	params.search_limits.push_back(atoi(optarg));
       }
@@ -315,7 +318,7 @@ int main(int argc, char* argv[]) {
       break;
     case 't':
       if (optarg == std::string("unlimited")) {
-	Orderings::threshold = UINT_MAX;
+	Orderings::threshold = std::numeric_limits<unsigned int>::max();
       } else {
 	Orderings::threshold = atof(optarg);
       }
