@@ -24,6 +24,7 @@
 #include "types.h"
 #include "debug.h"
 #include <algorithm>
+#include <limits.h>
 #include <typeinfo>
 
 

@@ -25,7 +25,9 @@
 #include "debug.h"
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <cerrno>
+#include <limits.h>
 #include <sys/time.h>
 #if HAVE_GETOPT_LONG
 #ifndef _GNU_SOURCE

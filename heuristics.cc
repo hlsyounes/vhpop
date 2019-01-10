@@ -28,6 +28,7 @@
 #include <typeinfo>
 #include <set>
 #include <utility>
+#include <strings.h>
 
 
 /* Generates a random number in the interval [0,1). */

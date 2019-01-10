@@ -22,6 +22,7 @@
 #include "expressions.h"
 #include "debug.h"
 #include <limits>
+#include <limits.h>
 
 /* ====================================================================== */
 /* StepTime */

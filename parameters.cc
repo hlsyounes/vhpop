@@ -17,6 +17,8 @@
  */
 #include "parameters.h"
 
+#include <limits.h>
+#include <string.h>
 
 /* ====================================================================== */
 /* InvalidSearchAlgorithm */

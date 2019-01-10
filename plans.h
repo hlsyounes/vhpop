@@ -215,7 +215,7 @@ struct Plan {
   /* Counts the number of reuse-step refinements for the given literal
      open condition, and returns true iff the number of refinements
      does not exceed the given limit. */
-  bool reusable_steps(int& refinements, const Literal& open_cond,
+  bool reusable_steps(int& refinements, const Literal& literal,
 		      const OpenCondition& open_cond, int limit) const;
 
 private:
