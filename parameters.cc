@@ -19,7 +19,7 @@
 
 #include "parameters.h"
 
-#include <limits.h>
+#include <limits>
 #include <string.h>
 
 /* ====================================================================== */
@@ -43,12 +43,13 @@ InvalidActionCost::InvalidActionCost(const std::string& name)
 
 /* Constructs default planning parameters. */
 Parameters::Parameters()
-  : time_limit(UINT_MAX), search_algorithm(A_STAR),
+  : time_limit(std::numeric_limits<unsigned int>::max()),
+    search_algorithm(A_STAR),
     heuristic("UCPOP"), action_cost(UNIT_COST), weight(1.0),
     random_open_conditions(false), ground_actions(false),
     domain_constraints(false), keep_static_preconditions(true) {
   flaw_orders.push_back(FlawSelectionOrder("UCPOP")),
-  search_limits.push_back(UINT_MAX);
+  search_limits.push_back(std::numeric_limits<unsigned int>::max());
 }
 
 

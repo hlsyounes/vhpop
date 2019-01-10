@@ -25,6 +25,7 @@
 #include "formulas.h"
 #include "types.h"
 #include "debug.h"
+#include <limits>
 #include <algorithm>
 #include <limits.h>
 #include <typeinfo>
@@ -957,7 +958,7 @@ bool Bindings::consistent_with(const Inequality& neq, size_t step_id) const {
 static void add_domain_bindings(BindingList& bindings,
 				const StepDomain& old_sd,
 				const StepDomain& new_sd,
-				size_t ex_column = UINT_MAX) {
+				size_t ex_column = std::numeric_limits<unsigned int>::max()) {
   for (size_t c = 0; c < old_sd.parameters().size(); c++) {
     if (c != ex_column && new_sd.projection_size(c) == 1
 	&& old_sd.projection_size(c) > 1) {

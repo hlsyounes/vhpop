@@ -707,7 +707,7 @@ TemporalOrderings::refine(float time, const Step& new_step) const {
       && new_step.id() > distance_.size()/2) {
     int itime = int(time/threshold + 0.5);
     TemporalOrderings& orderings = *new TemporalOrderings(*this);
-    IntVector* fv = new IntVector(4*new_step.id() - 2, INT_MAX);
+    IntVector* fv = new IntVector(4*new_step.id() - 2, std::numeric_limits<int>::max());
     /* Time for start of new step. */
     (*fv)[0] = itime;
     (*fv)[4*new_step.id() - 3] = -itime;
@@ -719,7 +719,7 @@ TemporalOrderings::refine(float time, const Step& new_step) const {
     }
     orderings.distance_.push_back(fv);
     IntVector::register_use(fv);
-    fv = new IntVector(4*new_step.id(), INT_MAX);
+    fv = new IntVector(4*new_step.id(), std::numeric_limits<int>::max());
     /* Time for end of new step. */
     (*fv)[0] = itime;
     (*fv)[4*new_step.id() - 1] = -itime;
@@ -805,13 +805,13 @@ TemporalOrderings::refine(const Ordering& new_ordering,
       } else {
 	end_time = threshold + min_v->value();
       }
-      IntVector* fv = new IntVector(4*new_step.id() - 2, INT_MAX);
+      IntVector* fv = new IntVector(4*new_step.id() - 2, std::numeric_limits<int>::max());
       /* Earliest time for start of new step. */
       (*fv)[4*new_step.id() - 3] = -int(start_time/threshold + 0.5);
       own_data.insert(std::make_pair(orderings.distance_.size(), fv));
       orderings.distance_.push_back(fv);
       IntVector::register_use(fv);
-      fv = new IntVector(4*new_step.id(), INT_MAX);
+      fv = new IntVector(4*new_step.id(), std::numeric_limits<int>::max());
       /* Earliest time for end of new step. */
       (*fv)[4*new_step.id() - 1] = -int(end_time/threshold + 0.5);
       if (max_v->value() != std::numeric_limits<float>::infinity()) {
@@ -943,11 +943,11 @@ TemporalOrderings::fill_transitive(std::map<size_t, IntVector*>& own_data,
     size_t n = distance_.size();
     for (size_t k = 0; k <= n; k++) {
       int d_ik = distance(i, k);
-      if (d_ik < INT_MAX && distance(j, k) > d_ik - dist) {
+      if (d_ik < std::numeric_limits<int>::max() && distance(j, k) > d_ik - dist) {
 	for (size_t l = 0; l <= n; l++) {
 	  int d_lj = distance(l, j);
 	  int new_d = d_ik + d_lj - dist;
-	  if (d_lj < INT_MAX && distance(l, k) > new_d) {
+	  if (d_lj < std::numeric_limits<int>::max() && distance(l, k) > new_d) {
 	    set_distance(own_data, l, k, new_d);
 	    if (-distance(k, l) > new_d) {
 	      return false;
@@ -969,7 +969,7 @@ void TemporalOrderings::print(std::ostream& os) const {
     for (size_t c = 0; c <= n; c++) {
       os.width(7);
       int d = distance(r, c);
-      if (d < INT_MAX) {
+      if (d < std::numeric_limits<int>::max()) {
 	os << d;
       } else {
 	os << "inf";
