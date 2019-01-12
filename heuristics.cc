@@ -18,21 +18,23 @@
 // Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 #include "heuristics.h"
-#include "plans.h"
-#include "parameters.h"
-#include "bindings.h"
-#include "orderings.h"
-#include "flaws.h"
-#include "problems.h"
-#include "domains.h"
-#include "debug.h"
-#include <limits>
-#include <string.h>
-#include <typeinfo>
-#include <set>
-#include <utility>
-#include <strings.h>
 
+#include <string.h>
+#include <strings.h>
+#include <limits>
+#include <set>
+#include <typeinfo>
+#include <utility>
+
+#include "bindings.h"
+#include "chain.h"
+#include "debug.h"
+#include "domains.h"
+#include "flaws.h"
+#include "orderings.h"
+#include "parameters.h"
+#include "plans.h"
+#include "problems.h"
 
 /* Generates a random number in the interval [0,1). */
 static double rand01ex() {

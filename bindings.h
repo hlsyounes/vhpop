@@ -22,10 +22,10 @@
 #ifndef BINDINGS_H
 #define BINDINGS_H
 
-#include <config.h>
-#include "terms.h"
-#include "chain.h"
 #include <set>
+
+#include "chain.h"
+#include "terms.h"
 
 struct Literal;
 struct Equality;

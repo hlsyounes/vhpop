@@ -22,7 +22,6 @@
 #ifndef PLANS_H
 #define PLANS_H
 
-#include <config.h>
 #include "chain.h"
 #include "flaws.h"
 #include "orderings.h"

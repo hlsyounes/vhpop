@@ -22,11 +22,11 @@
 #ifndef ORDERINGS_H
 #define ORDERINGS_H
 
-#include <config.h>
-#include "chain.h"
-#include "formulas.h"
 #include <map>
 #include <vector>
+
+#include "chain.h"
+#include "formulas.h"
 
 struct Effect;
 struct Step;
