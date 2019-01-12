@@ -19,38 +19,29 @@
 //
 // Template chain class.
 
-#ifndef CHAIN_H
-#define CHAIN_H
+#ifndef CHAIN_H_
+#define CHAIN_H_
 
-#include <config.h>
 #include "refcount.h"
 
-
-/* ====================================================================== */
-/* Chain */
-
-/*
- * Template chain class.
- */
-template<typename T>
-struct Chain : RCObject {
-  /* The data at this location in the chain. */
+// Template chain class.
+template <typename T>
+class Chain : public RCObject {
+ public:
+  // The data at this location in the chain.
   T head;
-  /* The rest of the chain. */
+  // The rest of the chain.
   const Chain<T>* tail;
 
-  /* Constructs a chain with the given head and tail. */
-  Chain<T>(const T& head, const Chain<T>* tail)
-    : head(head), tail(tail) {
+  // Constructs a chain with the given head and tail.
+  Chain<T>(const T& head, const Chain<T>* tail) : head(head), tail(tail) {
     ref(tail);
   }
 
-  /* Deletes this chain. */
-  ~Chain<T>() {
-    destructive_deref(tail);
-  }
+  // Deletes this chain.
+  ~Chain<T>() { destructive_deref(tail); }
 
-  /* Returns the size of this chain. */
+  // Returns the size of this chain.
   int size() const {
     int result = 0;
     for (const Chain<T>* ci = this; ci != 0; ci = ci->tail) {
@@ -59,17 +50,17 @@ struct Chain : RCObject {
     return result;
   }
 
-  /* Checks if this chain contains the given element. */
+  // Checks if this chain contains the given element.
   bool contains(const T& h) const {
     for (const Chain<T>* ci = this; ci != 0; ci = ci->tail) {
       if (h == ci->head) {
-	return true;
+        return true;
       }
     }
     return false;
   }
 
-  /* Returns a chain with the first occurance of the given element removed. */
+  // Returns a chain with the first occurance of the given element removed.
   const Chain<T>* remove(const T& h) const {
     if (h == head) {
       return tail;
@@ -77,16 +68,16 @@ struct Chain : RCObject {
       Chain<T>* prev = new Chain<T>(head, 0);
       const Chain<T>* top = prev;
       for (const Chain<T>* ci = tail; ci != 0; ci = ci->tail) {
-	if (h == ci->head) {
-	  prev->tail = ci->tail;
-	  ref(ci->tail);
-	  break;
-	} else {
-	  Chain<T>* tmp = new Chain<T>(ci->head, 0);
-	  prev->tail = tmp;
-	  ref(tmp);
-	  prev = tmp;
-	}
+        if (h == ci->head) {
+          prev->tail = ci->tail;
+          ref(ci->tail);
+          break;
+        } else {
+          Chain<T>* tmp = new Chain<T>(ci->head, 0);
+          prev->tail = tmp;
+          ref(tmp);
+          prev = tmp;
+        }
       }
       return top;
     } else {
@@ -95,5 +86,4 @@ struct Chain : RCObject {
   }
 };
 
-
-#endif /* CHAIN_H */
+#endif  // CHAIN_H_
