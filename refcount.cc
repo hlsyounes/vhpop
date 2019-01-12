@@ -19,15 +19,13 @@
 
 #include "refcount.h"
 
-
 #ifdef DEBUG_MEMORY
 std::map<std::string, size_t> RCObject::creation_count;
 std::map<std::string, size_t> RCObject::deletion_count;
 
-
 void RCObject::print_statistics(std::ostream& os) {
   for (std::map<std::string, size_t>::const_iterator ti =
-	 creation_count.begin();
+           creation_count.begin();
        ti != creation_count.end(); ti++) {
     os << (*ti).first << ": " << (*ti).second << '/'
        << deletion_count[(*ti).first] << std::endl;

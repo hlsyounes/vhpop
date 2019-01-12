@@ -19,84 +19,77 @@
 //
 // Reference counters.
 
-#ifndef REFCOUNT_H
-#define REFCOUNT_H
+#ifndef REFCOUNT_H_
+#define REFCOUNT_H_
 
-#include <config.h>
 #ifdef DEBUG_MEMORY
-# include <iostream>
-# include <map>
-# include <typeinfo>
+#include <iostream>
+#include <map>
+#include <typeinfo>
 #endif
 
-
-/* ====================================================================== */
-/* RCObject */
-
-/*
- * An object with a reference counter.
- */
-struct RCObject {
+// An object with a reference counter.
+class RCObject {
+ public:
 #ifdef DEBUG_MEMORY
   static void print_statistics(std::ostream& os);
 #endif
 
-  /* Increases the reference count for the given object. */
+  // Increases the reference count for the given object.
   static void ref(const RCObject* o) {
     if (o != 0) {
       o->ref_count_++;
     }
   }
 
-  /* Decreases the reference count for the given object. */
+  // Decreases the reference count for the given object.
   static void deref(const RCObject* o) {
     if (o != 0) {
       o->ref_count_--;
     }
   }
 
-  /* Decreases the reference count for the given object and deletes it
-     if the reference count becomes zero. */
+  // Decreases the reference count for the given object and deletes it if the
+  // reference count becomes zero.
   static void destructive_deref(const RCObject* o) {
     if (o != 0) {
       o->ref_count_--;
       if (o->ref_count_ == 0) {
-	delete o;
+        delete o;
       }
     }
   }
 
-  /* Deletes this object. */
+  // Deletes this object.
   virtual ~RCObject() {
 #ifdef DEBUG_MEMORY
     deletion_count[typeid(*this).name()]++;
 #endif
   }
 
-protected:
-  /* Constructs an object with a reference counter. */
+ protected:
+  // Constructs an object with a reference counter.
   RCObject() : ref_count_(0) {
 #ifdef DEBUG_MEMORY
     creation_count[typeid(*this).name()]++;
 #endif
   }
 
-  /* Copy constructor. */
+  // Copy constructor.
   RCObject(const RCObject& o) : ref_count_(0) {
 #ifdef DEBUG_MEMORY
     creation_count[typeid(*this).name()]++;
 #endif
   }
 
-private:
+ private:
 #ifdef DEBUG_MEMORY
   static std::map<std::string, size_t> creation_count;
   static std::map<std::string, size_t> deletion_count;
 #endif
 
-  /* Reference counter. */
+  // Reference counter.
   mutable unsigned long ref_count_;
 };
 
-
-#endif /* REFCOUNT_H */
+#endif  // REFCOUNT_H_
