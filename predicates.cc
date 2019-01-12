@@ -36,7 +36,7 @@ std::ostream& operator<<(std::ostream& os, const Predicate& p) {
 /* Predicate names. */
 std::vector<std::string> PredicateTable::names_;
 /* Predicate parameters. */
-std::vector<TypeList> PredicateTable::parameters_;
+std::vector<std::vector<Type>> PredicateTable::parameters_;
 /* Static predicates. */
 PredicateSet PredicateTable::static_predicates_;
 
@@ -55,10 +55,10 @@ const std::string& PredicateTable::name(const Predicate& predicate) {
 
 
 /* Returns the parameter types of the given predicate. */
-const TypeList& PredicateTable::parameters(const Predicate& predicate) {
+const std::vector<Type>& PredicateTable::parameters(
+    const Predicate& predicate) {
   return parameters_[predicate.index_];
 }
-
 
 /* Makes the given predicate dynamic. */
 void PredicateTable::make_dynamic(const Predicate& predicate) {
@@ -79,7 +79,7 @@ const Predicate& PredicateTable::add_predicate(const std::string& name) {
     predicates_.insert(std::make_pair(name, Predicate(names_.size())));
   const Predicate& predicate = (*pi.first).second;
   names_.push_back(name);
-  parameters_.push_back(TypeList());
+  parameters_.push_back(std::vector<Type>());
   static_predicates_.insert(predicate);
   return predicate;
 }
@@ -105,9 +105,9 @@ std::ostream& operator<<(std::ostream& os, const PredicateTable& t) {
        pi != t.predicates_.end(); pi++) {
     const Predicate& p = (*pi).second;
     os << std::endl << "  (" << p;
-    const TypeList& types = PredicateTable::parameters(p);
-    for (TypeList::const_iterator ti = types.begin();
-	 ti != types.end(); ti++) {
+    const std::vector<Type>& types = PredicateTable::parameters(p);
+    for (std::vector<Type>::const_iterator ti = types.begin();
+         ti != types.end(); ti++) {
       os << " ?v - " << *ti;
     }
     os << ")";

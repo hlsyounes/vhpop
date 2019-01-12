@@ -92,7 +92,7 @@ struct PredicateTable {
   static const std::string& name(const Predicate& predicate);
 
   /* Returns the parameter types of the given predicate. */
-  static const TypeList& parameters(const Predicate& predicate);
+  static const std::vector<Type>& parameters(const Predicate& predicate);
 
   /* Makes the given predicate dynamic. */
   static void make_dynamic(const Predicate& predicate);
@@ -112,7 +112,7 @@ private:
   /* Predicate names. */
   static std::vector<std::string> names_;
   /* Predicate parameters. */
-  static std::vector<TypeList> parameters_;
+  static std::vector<std::vector<Type>> parameters_;
   /* Static predicates. */
   static PredicateSet static_predicates_;
 

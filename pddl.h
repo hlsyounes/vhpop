@@ -183,7 +183,7 @@ union YYSTYPE
   const Fluent* fluent;
   const Term* term;
   const Type* type;
-  TypeSet* types;
+  std::set<Type>* types;
   const std::string* str;
   std::vector<const std::string*>* strs;
   float num;

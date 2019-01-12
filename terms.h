@@ -210,9 +210,9 @@ private:
   /* Object names. */
   static std::vector<std::string> names_;
   /* Object types. */
-  static TypeList object_types_;
+  static std::vector<Type> object_types_;
   /* Variable types. */
-  static TypeList variable_types_;
+  static std::vector<Type> variable_types_;
 
   /* Parent term table. */
   const TermTable* parent_;

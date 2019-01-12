@@ -29,9 +29,9 @@ struct Expression;
 struct Fluent;
 struct Term;
 struct Type;
-struct TypeSet;
 
 #include <cctype>
+#include <set>
 #include <string>
 #include <vector>
 #include "pddl.h"

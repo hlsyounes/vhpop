@@ -36,7 +36,7 @@ std::ostream& operator<<(std::ostream& os, const Function& f) {
 /* Function names. */
 std::vector<std::string> FunctionTable::names_;
 /* Function parameters. */
-std::vector<TypeList> FunctionTable::parameters_;
+std::vector<std::vector<Type>> FunctionTable::parameters_;
 /* Static functions. */
 FunctionSet FunctionTable::static_functions_;
 
@@ -54,7 +54,7 @@ const std::string& FunctionTable::name(const Function& function) {
 
 
 /* Returns the parameter types of the given function. */
-const TypeList& FunctionTable::parameters(const Function& function) {
+const std::vector<Type>& FunctionTable::parameters(const Function& function) {
   return parameters_[function.index_];
 }
 
@@ -78,7 +78,7 @@ const Function& FunctionTable::add_function(const std::string& name) {
     functions_.insert(std::make_pair(name, Function(names_.size())));
   const Function& function = (*fi.first).second;
   names_.push_back(name);
-  parameters_.push_back(TypeList());
+  parameters_.push_back(std::vector<Type>());
   static_functions_.insert(function);
   return function;
 }
@@ -103,9 +103,9 @@ std::ostream& operator<<(std::ostream& os, const FunctionTable& t) {
        fi != t.functions_.end(); fi++) {
     const Function& f = (*fi).second;
     os << std::endl << "  (" << f;
-    const TypeList& types = FunctionTable::parameters(f);
-    for (TypeList::const_iterator ti = types.begin();
-	 ti != types.end(); ti++) {
+    const std::vector<Type>& types = FunctionTable::parameters(f);
+    for (std::vector<Type>::const_iterator ti = types.begin();
+         ti != types.end(); ti++) {
       os << " ?v - " << *ti;
     }
     os << ") - " << TypeTable::NUMBER_NAME;

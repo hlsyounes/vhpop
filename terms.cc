@@ -63,9 +63,9 @@ std::ostream& operator<<(std::ostream& os, const Term& t) {
 /* Object names. */
 std::vector<std::string> TermTable::names_;
 /* Object types. */
-TypeList TermTable::object_types_;
+std::vector<Type> TermTable::object_types_;
 /* Variable types. */
-TypeList TermTable::variable_types_;
+std::vector<Type> TermTable::variable_types_;
 
 
 /* Deletes this term table. */

@@ -92,7 +92,7 @@ struct FunctionTable {
   static const std::string& name(const Function& function);
 
   /* Returns the parameter types of the given function. */
-  static const TypeList& parameters(const Function& function);
+  static const std::vector<Type>& parameters(const Function& function);
 
   /* Makes the given function dynamic. */
   static void make_dynamic(const Function& function);
@@ -112,7 +112,7 @@ private:
   /* Function names. */
   static std::vector<std::string> names_;
   /* Function parameters. */
-  static std::vector<TypeList> parameters_;
+  static std::vector<std::vector<Type>> parameters_;
   /* Static functions. */
   static FunctionSet static_functions_;
 

@@ -154,7 +154,7 @@ static void require_duration_inequalities();
 /* Returns a simple type with the given name. */
 static const Type& make_type(const std::string* name);
 /* Returns the union of the given types. */
-static Type make_type(const TypeSet& types);
+static Type make_type(const std::set<Type>& types);
 /* Returns a simple term with the given name. */
 static Term make_term(const std::string* name);
 /* Creates a predicate with the given name. */
@@ -233,7 +233,7 @@ static void add_init_literal(float time, const Literal& literal);
   const Fluent* fluent;
   const Term* term;
   const Type* type;
-  TypeSet* types;
+  std::set<Type>* types;
   const std::string* str;
   std::vector<const std::string*>* strs;
   float num;
@@ -741,8 +741,8 @@ type : object { $$ = new Type(TypeTable::OBJECT); }
      | '(' either types ')' { $$ = new Type(make_type(*$3)); delete $3; }
      ;
 
-types : object { $$ = new TypeSet(); }
-      | type_name { $$ = new TypeSet(); $$->insert(make_type($1)); }
+types : object { $$ = new std::set<Type>(); }
+      | type_name { $$ = new std::set<Type>(); $$->insert(make_type($1)); }
       | types object { $$ = $1; }
       | types type_name { $$ = $1; $$->insert(make_type($2)); }
       ;
@@ -952,10 +952,9 @@ static const Type& make_type(const std::string* name) {
 
 
 /* Returns the union of the given types. */
-static Type make_type(const TypeSet& types) {
+static Type make_type(const std::set<Type>& types) {
   return TypeTable::union_type(types);
 }
-
 
 /* Returns a simple term with the given name. */
 static Term make_term(const std::string* name) {
@@ -1098,7 +1097,7 @@ static void add_names(const std::vector<const std::string*>* names,
       if (o == 0) {
 	domain->terms().add_object(*s, type);
       } else {
-	TypeSet components;
+        std::set<Type> components;
 	TypeTable::components(components, TermTable::type(*o));
 	components.insert(type);
 	TermTable::set_type(*o, make_type(components));
@@ -1112,7 +1111,7 @@ static void add_names(const std::vector<const std::string*>* names,
 	if (o == 0) {
 	  problem->terms().add_object(*s, type);
 	} else {
-	  TypeSet components;
+          std::set<Type> components;
 	  TypeTable::components(components, TermTable::type(*o));
 	  components.insert(type);
 	  TermTable::set_type(*o, make_type(components));
@@ -1212,7 +1211,8 @@ static void add_term(const std::string* name) {
     if (undeclared_atom_predicate) {
       PredicateTable::add_parameter(*atom_predicate, TermTable::type(term));
     } else {
-      const TypeList& params = PredicateTable::parameters(*atom_predicate);
+      const std::vector<Type>& params =
+          PredicateTable::parameters(*atom_predicate);
       if (params.size() > n
 	  && !TypeTable::subtype(TermTable::type(term), params[n])) {
 	yyerror("type mismatch");
@@ -1223,7 +1223,8 @@ static void add_term(const std::string* name) {
     if (undeclared_fluent_function) {
       FunctionTable::add_parameter(*fluent_function, TermTable::type(term));
     } else {
-      const TypeList& params = FunctionTable::parameters(*fluent_function);
+      const std::vector<Type>& params =
+          FunctionTable::parameters(*fluent_function);
       if (params.size() > n
 	  && !TypeTable::subtype(TermTable::type(term), params[n])) {
 	yyerror("type mismatch");
