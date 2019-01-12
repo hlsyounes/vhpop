@@ -18,20 +18,22 @@
 // Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 #include "plans.h"
-#include "heuristics.h"
-#include "bindings.h"
-#include "problems.h"
-#include "domains.h"
-#include "formulas.h"
-#include "requirements.h"
-#include "parameters.h"
-#include "debug.h"
+
+#include <sys/time.h>
 #include <algorithm>
 #include <limits>
 #include <queue>
 #include <typeinfo>
-#include <sys/time.h>
 
+#include "bindings.h"
+#include "debug.h"
+#include "domains.h"
+#include "formulas.h"
+#include "heuristics.h"
+#include "parameters.h"
+#include "problems.h"
+#include "refcount.h"
+#include "requirements.h"
 
 /*
  * Mapping of predicate names to achievers.

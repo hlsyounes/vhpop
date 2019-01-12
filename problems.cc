@@ -18,10 +18,14 @@
 // Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 #include "problems.h"
-#include "domains.h"
-#include "bindings.h"
+
 #include <iostream>
 #include <typeinfo>
+
+#include "bindings.h"
+#include "domains.h"
+#include "refcount.h"
+
 #if HAVE_SSTREAM
 #include <sstream>
 #else

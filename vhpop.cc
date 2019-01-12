@@ -19,18 +19,24 @@
 //
 // Main program.
 
-#include "plans.h"
-#include "parameters.h"
-#include "heuristics.h"
-#include "domains.h"
-#include "problems.h"
-#include "debug.h"
+#include <sys/time.h>
+#include <cerrno>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <cerrno>
 #include <limits>
-#include <sys/time.h>
+
+#include "debug.h"
+#include "domains.h"
+#include "heuristics.h"
+#include "parameters.h"
+#include "plans.h"
+#include "problems.h"
+
+#ifdef DEBUG_MEMORY
+#include "refcount.h"
+#endif
+
 #if HAVE_GETOPT_LONG
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE

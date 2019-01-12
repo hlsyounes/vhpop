@@ -18,18 +18,20 @@
 // Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 #include "bindings.h"
-#include "plans.h"
-#include "heuristics.h"
-#include "problems.h"
-#include "domains.h"
-#include "formulas.h"
-#include "types.h"
-#include "debug.h"
-#include <limits>
-#include <algorithm>
+
 #include <limits.h>
+#include <algorithm>
+#include <limits>
 #include <typeinfo>
 
+#include "debug.h"
+#include "domains.h"
+#include "formulas.h"
+#include "heuristics.h"
+#include "plans.h"
+#include "problems.h"
+#include "refcount.h"
+#include "types.h"
 
 /* ====================================================================== */
 /* StepVariable */

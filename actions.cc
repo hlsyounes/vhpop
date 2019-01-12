@@ -24,6 +24,7 @@
 #include <typeinfo>
 
 #include "problems.h"
+#include "refcount.h"
 
 size_t Action::next_id = 0;
 

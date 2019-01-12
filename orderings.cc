@@ -18,13 +18,16 @@
 // Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 #include "orderings.h"
-#include "plans.h"
-#include "heuristics.h"
+
+#include <limits.h>
+#include <limits>
+
+#include "debug.h"
 #include "domains.h"
 #include "expressions.h"
-#include "debug.h"
-#include <limits>
-#include <limits.h>
+#include "heuristics.h"
+#include "plans.h"
+#include "refcount.h"
 
 /* ====================================================================== */
 /* StepTime */
