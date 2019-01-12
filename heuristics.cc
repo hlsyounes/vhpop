@@ -145,12 +145,18 @@ static void formula_value(HeuristicValue& h, HeuristicValue& hs,
 /* ====================================================================== */
 /* GroundActionSet */
 
+class GroundActionPtrLess {
+ public:
+  bool operator()(const GroundAction* a1, const GroundAction* a2) const {
+    return a1->id() < a2->id();
+  }
+};
+
 /*
  * Set of ground actions.
  */
-struct GroundActionSet : public std::set<const GroundAction*> {
-};
-
+struct GroundActionSet
+    : public std::set<const GroundAction*, GroundActionPtrLess> {};
 
 /* ====================================================================== */
 /* HeuristicValue */
@@ -400,7 +406,7 @@ PlanningGraph::PlanningGraph(const Problem& problem, const Parameters& params)
   /*
    * Find all consistent action instantiations.
    */
-  GroundActionList actions;
+  std::vector<const GroundAction*> actions;
   problem.instantiated_actions(actions);
   if (verbosity > 0) {
     std::cerr << std::endl << "Instantiated actions: " << actions.size()
@@ -411,8 +417,8 @@ PlanningGraph::PlanningGraph(const Problem& problem, const Parameters& params)
    */
   std::map<const Literal*, float> duration_factor;
   if (params.action_cost == Parameters::RELATIVE) {
-    for (GroundActionList::const_iterator ai = actions.begin();
-	 ai != actions.end(); ai++) {
+    for (std::vector<const GroundAction*>::const_iterator ai = actions.begin();
+         ai != actions.end(); ai++) {
       const GroundAction& action = **ai;
       const Value* min_v = dynamic_cast<const Value*>(&action.min_duration());
       if (min_v == NULL) {
@@ -546,8 +552,8 @@ PlanningGraph::PlanningGraph(const Problem& problem, const Parameters& params)
      */
     AtomValueMap new_atom_values;
     AtomValueMap new_negation_values;
-    for (GroundActionList::const_iterator ai = actions.begin();
-	 ai != actions.end(); ai++) {
+    for (std::vector<const GroundAction*>::const_iterator ai = actions.begin();
+         ai != actions.end(); ai++) {
       const GroundAction& action = **ai;
       HeuristicValue pre_value;
       HeuristicValue start_value;
@@ -746,7 +752,7 @@ PlanningGraph::PlanningGraph(const Problem& problem, const Parameters& params)
   /*
    * Delete all actions that are not useful.
    */
-  for (GroundActionList::const_iterator ai = actions.begin();
+  for (std::vector<const GroundAction*>::const_iterator ai = actions.begin();
        ai != actions.end(); ai++) {
     if (useful_actions.find(*ai) == useful_actions.end()) {
       delete *ai;

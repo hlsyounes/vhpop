@@ -185,13 +185,14 @@ bool Problem::constant_metric() const {
 
 /* Fills the provided action list with ground actions instantiated
    from the action schemas of the domain. */
-void Problem::instantiated_actions(GroundActionList& actions) const {
-  for (ActionSchemaMap::const_iterator ai = domain().actions().begin();
+void Problem::instantiated_actions(
+    std::vector<const GroundAction*>& actions) const {
+  for (std::map<std::string, const ActionSchema*>::const_iterator ai =
+           domain().actions().begin();
        ai != domain().actions().end(); ai++) {
     (*ai).second->instantiations(actions, *this);
   }
 }
-
 
 /* Output operator for problems. */
 std::ostream& operator<<(std::ostream& os, const Problem& p) {

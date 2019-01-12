@@ -534,8 +534,9 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
   if (!params->ground_actions) {
     achieves_pred.clear();
     achieves_neg_pred.clear();
-    for (ActionSchemaMap::const_iterator ai = domain->actions().begin();
-	 ai != domain->actions().end(); ai++) {
+    for (std::map<std::string, const ActionSchema*>::const_iterator ai =
+             domain->actions().begin();
+         ai != domain->actions().end(); ai++) {
       const ActionSchema* as = (*ai).second;
       for (EffectList::const_iterator ei = as->effects().begin();
 	   ei != as->effects().end(); ei++) {

@@ -74,7 +74,8 @@ Domain::Domain(const std::string& name)
 /* Deletes a domain. */
 Domain::~Domain() {
   domains.erase(name());
-  for (ActionSchemaMap::const_iterator ai = actions_.begin();
+  for (std::map<std::string, const ActionSchema*>::const_iterator ai =
+           actions_.begin();
        ai != actions_.end(); ai++) {
     delete (*ai).second;
   }
@@ -90,7 +91,8 @@ void Domain::add_action(const ActionSchema& action) {
 /* Returns the action with the given name, or NULL if it is
    undefined. */
 const ActionSchema* Domain::find_action(const std::string& name) const {
-  ActionSchemaMap::const_iterator ai = actions_.find(name);
+  std::map<std::string, const ActionSchema*>::const_iterator ai =
+      actions_.find(name);
   return (ai != actions_.end()) ? (*ai).second : NULL;
 }
 
@@ -103,7 +105,8 @@ std::ostream& operator<<(std::ostream& os, const Domain& d) {
   os << std::endl << "predicates:" << d.predicates();
   os << std::endl << "functions:" << d.functions();
   os << std::endl << "actions:";
-  for (ActionSchemaMap::const_iterator ai = d.actions_.begin();
+  for (std::map<std::string, const ActionSchema*>::const_iterator ai =
+           d.actions_.begin();
        ai != d.actions_.end(); ai++) {
     os << std::endl;
     (*ai).second->print(os);

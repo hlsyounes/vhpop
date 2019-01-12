@@ -119,9 +119,9 @@ struct Problem {
 
   /* Fills the provided action list with ground actions instantiated
      from the action schemas of the domain. */
-  void instantiated_actions(GroundActionList& actions) const;
+  void instantiated_actions(std::vector<const GroundAction*>& actions) const;
 
-private:
+ private:
   /* Table of defined problems. */
   static ProblemMap problems;
 

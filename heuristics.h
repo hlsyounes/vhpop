@@ -28,7 +28,6 @@
 #include <stdexcept>
 
 struct Action;
-struct ActionList;
 struct Problem;
 struct ActionDomain;
 struct Bindings;

@@ -68,7 +68,9 @@ struct Domain {
   const std::string& name() const { return name_; }
 
   /* Domain actions. */
-  const ActionSchemaMap& actions() const { return actions_; }
+  const std::map<std::string, const ActionSchema*>& actions() const {
+    return actions_;
+  }
 
   /* Returns the type table of this domain. */
   TypeTable& types() { return types_; }
@@ -121,7 +123,7 @@ private:
   /* Domain terms. */
   TermTable terms_;
   /* Domain action schemas. */
-  ActionSchemaMap actions_;
+  std::map<std::string, const ActionSchema*> actions_;
 
   friend std::ostream& operator<<(std::ostream& os, const Domain& d);
 };
