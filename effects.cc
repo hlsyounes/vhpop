@@ -18,12 +18,14 @@
 // Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 #include "effects.h"
-#include "bindings.h"
-#include "problems.h"
-#include "formulas.h"
+
 #include <algorithm>
 #include <stack>
 
+#include "bindings.h"
+#include "formulas.h"
+#include "problems.h"
+#include "types.h"
 
 /* ====================================================================== */
 /* Effect */

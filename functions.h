@@ -22,14 +22,13 @@
 #ifndef FUNCTIONS_H
 #define FUNCTIONS_H
 
-#include <config.h>
-#include "types.h"
 #include <iostream>
 #include <map>
 #include <set>
 #include <string>
 #include <vector>
 
+#include "types.h"
 
 /* ====================================================================== */
 /* Function */

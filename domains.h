@@ -22,15 +22,14 @@
 #ifndef DOMAINS_H
 #define DOMAINS_H
 
-#include <config.h>
-#include "requirements.h"
-#include "actions.h"
-#include "functions.h"
-#include "terms.h"
-#include "predicates.h"
-#include "types.h"
 #include <map>
 
+#include "actions.h"
+#include "functions.h"
+#include "predicates.h"
+#include "requirements.h"
+#include "terms.h"
+#include "types.h"
 
 /* ====================================================================== */
 /* Domain */
