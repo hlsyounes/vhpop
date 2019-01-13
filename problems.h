@@ -22,7 +22,6 @@
 #ifndef PROBLEMS_H
 #define PROBLEMS_H
 
-#include <config.h>
 #include "domains.h"
 #include "formulas.h"
 #include "expressions.h"

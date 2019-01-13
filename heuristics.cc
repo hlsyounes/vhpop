@@ -35,6 +35,7 @@
 #include "parameters.h"
 #include "plans.h"
 #include "problems.h"
+#include "terms.h"
 
 /* Generates a random number in the interval [0,1). */
 static double rand01ex() {

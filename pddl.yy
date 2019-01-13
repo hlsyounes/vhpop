@@ -25,6 +25,7 @@
 #include "problems.h"
 #include "domains.h"
 #include "formulas.h"
+#include "terms.h"
 #include "types.h"
 #include <typeinfo>
 #include <utility>

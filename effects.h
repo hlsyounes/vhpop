@@ -22,9 +22,9 @@
 #ifndef EFFECTS_H
 #define EFFECTS_H
 
-#include <config.h>
-#include "terms.h"
 #include <vector>
+
+#include "terms.h"
 
 struct Formula;
 struct Literal;

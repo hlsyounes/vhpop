@@ -34,6 +34,7 @@
 #include "problems.h"
 #include "refcount.h"
 #include "requirements.h"
+#include "terms.h"
 #include "types.h"
 
 /*

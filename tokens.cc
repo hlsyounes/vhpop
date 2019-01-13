@@ -842,8 +842,9 @@ struct Literal;
 struct Atom;
 struct Expression;
 struct Fluent;
-struct Term;
-struct Type;
+
+#include "terms.h"
+#include "types.h"
 
 #include <cctype>
 #include <set>
@@ -861,8 +862,8 @@ static int make_string(const char* s, int token);
 /* Makes a number of the given string, and return the NUMBER token. */
 static int make_number(const char* s);
 
-#line 864 "tokens.cc"
 #line 865 "tokens.cc"
+#line 866 "tokens.cc"
 
 #define INITIAL 0
 
@@ -1077,10 +1078,10 @@ YY_DECL
 		}
 
 	{
-#line 55 "tokens.ll"
+#line 56 "tokens.ll"
 
 
-#line 1083 "tokens.cc"
+#line 1084 "tokens.cc"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -1135,302 +1136,302 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 57 "tokens.ll"
+#line 58 "tokens.ll"
 return make_string(yytext, DEFINE);
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 58 "tokens.ll"
+#line 59 "tokens.ll"
 return make_string(yytext, DOMAIN_TOKEN);
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 59 "tokens.ll"
+#line 60 "tokens.ll"
 return make_string(yytext, PROBLEM);
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 60 "tokens.ll"
+#line 61 "tokens.ll"
 return REQUIREMENTS;
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 61 "tokens.ll"
+#line 62 "tokens.ll"
 return TYPES;
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 62 "tokens.ll"
+#line 63 "tokens.ll"
 return CONSTANTS;
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 63 "tokens.ll"
+#line 64 "tokens.ll"
 return PREDICATES;
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 64 "tokens.ll"
+#line 65 "tokens.ll"
 return FUNCTIONS;
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 65 "tokens.ll"
+#line 66 "tokens.ll"
 return STRIPS;
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 66 "tokens.ll"
+#line 67 "tokens.ll"
 return TYPING;
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 67 "tokens.ll"
+#line 68 "tokens.ll"
 return NEGATIVE_PRECONDITIONS;
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 68 "tokens.ll"
+#line 69 "tokens.ll"
 return DISJUNCTIVE_PRECONDITIONS;
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 69 "tokens.ll"
+#line 70 "tokens.ll"
 return EQUALITY;
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 70 "tokens.ll"
+#line 71 "tokens.ll"
 return EXISTENTIAL_PRECONDITIONS;
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 71 "tokens.ll"
+#line 72 "tokens.ll"
 return UNIVERSAL_PRECONDITIONS;
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 72 "tokens.ll"
+#line 73 "tokens.ll"
 return QUANTIFIED_PRECONDITIONS;
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 73 "tokens.ll"
+#line 74 "tokens.ll"
 return CONDITIONAL_EFFECTS;
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 74 "tokens.ll"
+#line 75 "tokens.ll"
 return FLUENTS;
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 75 "tokens.ll"
+#line 76 "tokens.ll"
 return ADL;
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 76 "tokens.ll"
+#line 77 "tokens.ll"
 return DURATIVE_ACTIONS;
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 77 "tokens.ll"
+#line 78 "tokens.ll"
 return DURATION_INEQUALITIES;
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 78 "tokens.ll"
+#line 79 "tokens.ll"
 return CONTINUOUS_EFFECTS;
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 79 "tokens.ll"
+#line 80 "tokens.ll"
 return TIMED_INITIAL_LITERALS;
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 80 "tokens.ll"
+#line 81 "tokens.ll"
 return ACTION;
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 81 "tokens.ll"
+#line 82 "tokens.ll"
 return DURATIVE_ACTION;
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 82 "tokens.ll"
+#line 83 "tokens.ll"
 return PARAMETERS;
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 83 "tokens.ll"
+#line 84 "tokens.ll"
 return DURATION;
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 84 "tokens.ll"
+#line 85 "tokens.ll"
 return PRECONDITION;
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 85 "tokens.ll"
+#line 86 "tokens.ll"
 return CONDITION;
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 86 "tokens.ll"
+#line 87 "tokens.ll"
 return EFFECT;
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
-#line 87 "tokens.ll"
+#line 88 "tokens.ll"
 return PDOMAIN;
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 88 "tokens.ll"
+#line 89 "tokens.ll"
 return OBJECTS;
 	YY_BREAK
 case 33:
 YY_RULE_SETUP
-#line 89 "tokens.ll"
+#line 90 "tokens.ll"
 return INIT;
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 90 "tokens.ll"
+#line 91 "tokens.ll"
 return GOAL;
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 91 "tokens.ll"
+#line 92 "tokens.ll"
 return METRIC;
 	YY_BREAK
 case 36:
 YY_RULE_SETUP
-#line 92 "tokens.ll"
+#line 93 "tokens.ll"
 return make_string(yytext, NUMBER_TOKEN);
 	YY_BREAK
 case 37:
 YY_RULE_SETUP
-#line 93 "tokens.ll"
+#line 94 "tokens.ll"
 return make_string(yytext, OBJECT_TOKEN);
 	YY_BREAK
 case 38:
 YY_RULE_SETUP
-#line 94 "tokens.ll"
+#line 95 "tokens.ll"
 return make_string(yytext, EITHER);
 	YY_BREAK
 case 39:
 YY_RULE_SETUP
-#line 95 "tokens.ll"
+#line 96 "tokens.ll"
 return make_string(yytext, WHEN);
 	YY_BREAK
 case 40:
 YY_RULE_SETUP
-#line 96 "tokens.ll"
+#line 97 "tokens.ll"
 return make_string(yytext, NOT);
 	YY_BREAK
 case 41:
 YY_RULE_SETUP
-#line 97 "tokens.ll"
+#line 98 "tokens.ll"
 return make_string(yytext, AND);
 	YY_BREAK
 case 42:
 YY_RULE_SETUP
-#line 98 "tokens.ll"
+#line 99 "tokens.ll"
 return make_string(yytext, OR);
 	YY_BREAK
 case 43:
 YY_RULE_SETUP
-#line 99 "tokens.ll"
+#line 100 "tokens.ll"
 return make_string(yytext, IMPLY);
 	YY_BREAK
 case 44:
 YY_RULE_SETUP
-#line 100 "tokens.ll"
+#line 101 "tokens.ll"
 return make_string(yytext, EXISTS);
 	YY_BREAK
 case 45:
 YY_RULE_SETUP
-#line 101 "tokens.ll"
+#line 102 "tokens.ll"
 return make_string(yytext, FORALL);
 	YY_BREAK
 case 46:
 YY_RULE_SETUP
-#line 102 "tokens.ll"
+#line 103 "tokens.ll"
 return make_string(yytext, AT);
 	YY_BREAK
 case 47:
 YY_RULE_SETUP
-#line 103 "tokens.ll"
+#line 104 "tokens.ll"
 return make_string(yytext, OVER);
 	YY_BREAK
 case 48:
 YY_RULE_SETUP
-#line 104 "tokens.ll"
+#line 105 "tokens.ll"
 return make_string(yytext, START);
 	YY_BREAK
 case 49:
 YY_RULE_SETUP
-#line 105 "tokens.ll"
+#line 106 "tokens.ll"
 return make_string(yytext, END);
 	YY_BREAK
 case 50:
 YY_RULE_SETUP
-#line 106 "tokens.ll"
+#line 107 "tokens.ll"
 return make_string(yytext, ALL);
 	YY_BREAK
 case 51:
 YY_RULE_SETUP
-#line 107 "tokens.ll"
+#line 108 "tokens.ll"
 return make_string(yytext, MINIMIZE);
 	YY_BREAK
 case 52:
 YY_RULE_SETUP
-#line 108 "tokens.ll"
+#line 109 "tokens.ll"
 return make_string(yytext, MAXIMIZE);
 	YY_BREAK
 case 53:
 YY_RULE_SETUP
-#line 109 "tokens.ll"
+#line 110 "tokens.ll"
 return make_string(yytext, TOTAL_TIME);
 	YY_BREAK
 case 54:
 YY_RULE_SETUP
-#line 110 "tokens.ll"
+#line 111 "tokens.ll"
 return make_string(yytext, NAME);
 	YY_BREAK
 case 55:
 YY_RULE_SETUP
-#line 111 "tokens.ll"
+#line 112 "tokens.ll"
 return make_string(yytext, DURATION_VAR);
 	YY_BREAK
 case 56:
 YY_RULE_SETUP
-#line 112 "tokens.ll"
+#line 113 "tokens.ll"
 return make_string(yytext, VARIABLE);
 	YY_BREAK
 case 57:
 YY_RULE_SETUP
-#line 113 "tokens.ll"
+#line 114 "tokens.ll"
 return make_number(yytext);
 	YY_BREAK
 case 58:
 YY_RULE_SETUP
-#line 114 "tokens.ll"
+#line 115 "tokens.ll"
 return yytext[0];
 	YY_BREAK
 case 59:
 YY_RULE_SETUP
-#line 115 "tokens.ll"
+#line 116 "tokens.ll"
 return LE;
 	YY_BREAK
 case 60:
 YY_RULE_SETUP
-#line 116 "tokens.ll"
+#line 117 "tokens.ll"
 return GE;
 	YY_BREAK
 case 61:
@@ -1438,31 +1439,31 @@ case 61:
 (yy_c_buf_p) = yy_cp -= 1;
 YY_DO_BEFORE_ACTION; /* set up yytext again */
 YY_RULE_SETUP
-#line 117 "tokens.ll"
+#line 118 "tokens.ll"
 /* comment */
 	YY_BREAK
 case 62:
 YY_RULE_SETUP
-#line 118 "tokens.ll"
+#line 119 "tokens.ll"
 /* whitespace */
 	YY_BREAK
 case 63:
 /* rule 63 can match eol */
 YY_RULE_SETUP
-#line 119 "tokens.ll"
+#line 120 "tokens.ll"
 line_number++;
 	YY_BREAK
 case 64:
 YY_RULE_SETUP
-#line 120 "tokens.ll"
+#line 121 "tokens.ll"
 return ILLEGAL_TOKEN;
 	YY_BREAK
 case 65:
 YY_RULE_SETUP
-#line 122 "tokens.ll"
+#line 123 "tokens.ll"
 ECHO;
 	YY_BREAK
-#line 1465 "tokens.cc"
+#line 1466 "tokens.cc"
 case YY_STATE_EOF(INITIAL):
 	yyterminate();
 
@@ -2431,7 +2432,7 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 122 "tokens.ll"
+#line 123 "tokens.ll"
 
 
 /* Allocates a string containing the lowercase characters of the given

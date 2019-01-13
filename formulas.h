@@ -22,12 +22,12 @@
 #ifndef FORMULAS_H
 #define FORMULAS_H
 
-#include <config.h>
-#include "predicates.h"
-#include "terms.h"
 #include <iostream>
 #include <set>
 #include <vector>
+
+#include "predicates.h"
+#include "terms.h"
 
 #ifdef TRUE
 #undef TRUE

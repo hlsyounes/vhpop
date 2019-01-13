@@ -30,6 +30,7 @@
 #include "bindings.h"
 #include "effects.h"
 #include "expressions.h"
+#include "terms.h"
 
 struct Domain;
 

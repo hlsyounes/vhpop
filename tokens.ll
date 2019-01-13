@@ -27,8 +27,9 @@ struct Literal;
 struct Atom;
 struct Expression;
 struct Fluent;
-struct Term;
-struct Type;
+
+#include "terms.h"
+#include "types.h"
 
 #include <cctype>
 #include <set>
