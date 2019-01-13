@@ -355,9 +355,9 @@ static const Varset* find_varset(const Chain<Varset>* varsets,
  */
 struct StepDomain {
   /* Constructs a step domain. */
-  StepDomain(size_t id, const VariableList& parameters,
-	     const ActionDomain& domain)
-    : id_(id), parameters_(&parameters), domain_(&domain) {
+  StepDomain(size_t id, const std::vector<Variable>& parameters,
+             const ActionDomain& domain)
+      : id_(id), parameters_(&parameters), domain_(&domain) {
     ActionDomain::register_use(domain_);
   }
 
@@ -376,7 +376,7 @@ struct StepDomain {
   size_t id() const { return id_; }
 
   /* Returns the step parameters. */
-  const VariableList& parameters() const { return *parameters_; }
+  const std::vector<Variable>& parameters() const { return *parameters_; }
 
   /* Returns the parameter domains. */
   const ActionDomain& domain() const { return *domain_; }
@@ -384,8 +384,8 @@ struct StepDomain {
   /* Returns the index of the variable in this step domain, or -1 if
      the variable is not included. */
   int index_of(const Variable& var) const {
-    VariableList::const_iterator vi = find(parameters().begin(),
-					   parameters().end(), var);
+    std::vector<Variable>::const_iterator vi =
+        find(parameters().begin(), parameters().end(), var);
     return (vi != parameters().end()) ? vi - parameters().begin() : -1;
   }
 
@@ -464,7 +464,7 @@ private:
   /* The id of the step. */
   size_t id_;
   /* Parameters of the step. */
-  const VariableList* parameters_;
+  const std::vector<Variable>* parameters_;
   /* Domain of the parameters. */
   const ActionDomain* domain_;
 };
@@ -473,7 +473,7 @@ private:
 /* Prints this object on the given stream. */
 void StepDomain::print(std::ostream& os) const {
   os << "<";
-  for (VariableList::const_iterator vi = parameters().begin();
+  for (std::vector<Variable>::const_iterator vi = parameters().begin();
        vi != parameters().end(); vi++) {
     if (vi != parameters().begin()) {
       os << ' ';
@@ -512,14 +512,12 @@ find_step_domain(const Chain<StepDomain>* step_domains,
 /* ActionDomain */
 
 /* Constructs an action domain with a single tuple. */
-ActionDomain::ActionDomain(const ObjectList& tuple)
-  : ref_count_(0) {
+ActionDomain::ActionDomain(const std::vector<Object>& tuple) : ref_count_(0) {
 #ifdef DEBUG_MEMORY
     created_action_domains++;
 #endif
   add(tuple);
 }
-
 
 /* Deletes this action domain. */
 ActionDomain::~ActionDomain() {
@@ -534,10 +532,9 @@ ActionDomain::~ActionDomain() {
 
 
 /* Adds a tuple to this domain. */
-void ActionDomain::add(const ObjectList& tuple) {
+void ActionDomain::add(const std::vector<Object>& tuple) {
   tuples_.push_back(&tuple);
 }
-
 
 /* Returns the set of names from the given column. */
 const NameSet& ActionDomain::projection(size_t column) const {
@@ -548,7 +545,7 @@ const NameSet& ActionDomain::projection(size_t column) const {
     NameSet* projection = new NameSet();
     for (TupleList::const_iterator ti = tuples().begin();
 	 ti != tuples().end(); ti++) {
-      const ObjectList& tuple = **ti;
+      const std::vector<Object>& tuple = **ti;
       projection->insert(tuple[column]);
     }
     projections_.insert(std::make_pair(column, projection));
@@ -570,7 +567,7 @@ const ActionDomain* ActionDomain::restrict(const Object& obj,
   ActionDomain* new_domain = 0;
   for (TupleList::const_iterator ti = tuples().begin();
        ti != tuples().end(); ti++) {
-    const ObjectList& tuple = **ti;
+    const std::vector<Object>& tuple = **ti;
     if (tuple[column] == obj) {
       if (new_domain == 0) {
 	new_domain = new ActionDomain(tuple);
@@ -597,7 +594,7 @@ const ActionDomain* ActionDomain::restrict(const NameSet& names,
   ActionDomain* new_domain = 0;
   for (TupleList::const_iterator ti = tuples().begin();
        ti != tuples().end(); ti++) {
-    const ObjectList& tuple = **ti;
+    const std::vector<Object>& tuple = **ti;
     if (names.find(tuple[column]) != names.end()) {
       if (new_domain == 0) {
 	new_domain = new ActionDomain(tuple);
@@ -623,7 +620,7 @@ const ActionDomain* ActionDomain::exclude(const Object& obj,
   ActionDomain* new_domain = 0;
   for (TupleList::const_iterator ti = tuples().begin();
        ti != tuples().end(); ti++) {
-    const ObjectList& tuple = **ti;
+    const std::vector<Object>& tuple = **ti;
     if (tuple[column] != obj) {
       if (new_domain == 0) {
 	new_domain = new ActionDomain(tuple);
@@ -651,9 +648,9 @@ void ActionDomain::print(std::ostream& os) const {
       os << ' ';
     }
     os << '<';
-    const ObjectList& tuple = **ti;
-    for (ObjectList::const_iterator ni = tuple.begin();
-	 ni != tuple.end(); ni++) {
+    const std::vector<Object>& tuple = **ti;
+    for (std::vector<Object>::const_iterator ni = tuple.begin();
+         ni != tuple.end(); ni++) {
       if (ni != tuple.begin()) {
 	os << ' ';
       }
@@ -740,8 +737,8 @@ const NameSet& Bindings::domain(const Variable& var, size_t step_id,
   if (sd.first != 0) {
     return sd.first->projection(sd.second);
   } else {
-    const ObjectList& objects =
-      problem.terms().compatible_objects(TermTable::type(var));
+    const std::vector<Object>& objects =
+        problem.terms().compatible_objects(TermTable::type(var));
     NameSet* names = new NameSet();
     names->insert(objects.begin(), objects.end());
     const Varset* vs =
@@ -825,7 +822,7 @@ bool Bindings::unify(BindingList& mgu, const Literal& l1, size_t id1,
       lg = &l2;
       idl = id1;
     }
-    SubstitutionMap bind;
+    std::map<Variable, Term> bind;
     size_t n = ll->arity();
     for (size_t i = 0; i < n; i++) {
       const Term& term1 = ll->term(i);
@@ -836,8 +833,8 @@ bool Bindings::unify(BindingList& mgu, const Literal& l1, size_t id1,
 	}
       } else {
 	Variable var1 = term1.as_variable();
-	SubstitutionMap::const_iterator b = bind.find(var1);
-	if (b != bind.end()) {
+        std::map<Variable, Term>::const_iterator b = bind.find(var1);
+        if (b != bind.end()) {
 	  if ((*b).second != obj2) {
 	    return false;
 	  }

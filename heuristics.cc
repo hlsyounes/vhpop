@@ -130,10 +130,11 @@ static void formula_value(HeuristicValue& h, HeuristicValue& hs,
 	  } else {
 	    const Forall* forall = dynamic_cast<const Forall*>(&formula);
 	    if (forall != NULL) {
-	      formula_value(h, hs, forall->universal_base(SubstitutionMap(),
-							  pg.problem()),
-			    step_id, plan, pg, true);
-	    }
+              formula_value(h, hs,
+                            forall->universal_base(std::map<Variable, Term>(),
+                                                   pg.problem()),
+                            step_id, plan, pg, true);
+            }
 	  }
 	}
       }
@@ -383,7 +384,7 @@ void Exists::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
 void Forall::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
 			     const PlanningGraph& pg, size_t step_id,
 			     const Bindings* b) const {
-  const Formula& f = universal_base(SubstitutionMap(), pg.problem());
+  const Formula& f = universal_base(std::map<Variable, Term>(), pg.problem());
   f.heuristic_value(h, hs, pg, step_id, b);
 }
 

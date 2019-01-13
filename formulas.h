@@ -90,15 +90,16 @@ struct Formula {
 				   const Domain& domain) const = 0;
 
   /* Returns this formula subject to the given substitutions. */
-  virtual const Formula& substitution(const SubstitutionMap& subst) const = 0;
+  virtual const Formula& substitution(
+      const std::map<Variable, Term>& subst) const = 0;
 
   /* Returns an instantiation of this formula. */
-  virtual const Formula& instantiation(const SubstitutionMap& subst,
-				       const Problem& problem) const = 0;
+  virtual const Formula& instantiation(const std::map<Variable, Term>& subst,
+                                       const Problem& problem) const = 0;
 
   /* Returns the universal base of this formula. */
-  virtual const Formula& universal_base(const SubstitutionMap& subst,
-					const Problem& problem) const = 0;
+  virtual const Formula& universal_base(const std::map<Variable, Term>& subst,
+                                        const Problem& problem) const = 0;
 
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
@@ -156,15 +157,16 @@ struct Constant : public Formula {
 				   const Domain& domain) const;
 
   /* Returns this formula subject to the given substitutions. */
-  virtual const Constant& substitution(const SubstitutionMap& subst) const;
+  virtual const Constant& substitution(
+      const std::map<Variable, Term>& subst) const;
 
   /* Returns an instantiation of this formula. */
-  virtual const Constant& instantiation(const SubstitutionMap& subst,
-					const Problem& problem) const;
+  virtual const Constant& instantiation(const std::map<Variable, Term>& subst,
+                                        const Problem& problem) const;
 
   /* Returns the universal base of this formula. */
-  virtual const Formula& universal_base(const SubstitutionMap& subst,
-					const Problem& problem) const;
+  virtual const Formula& universal_base(const std::map<Variable, Term>& subst,
+                                        const Problem& problem) const;
 
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
@@ -225,9 +227,10 @@ struct Literal : public Formula {
 				   const Domain& domain) const;
 
   /* Returns this formula subject to the given substitutions. */
-  virtual const Literal& substitution(const SubstitutionMap& subst) const = 0;
+  virtual const Literal& substitution(
+      const std::map<Variable, Term>& subst) const = 0;
 
-protected:
+ protected:
   /* Assigns an id to this literal. */
   void assign_id(bool ground);
 
@@ -262,7 +265,8 @@ namespace std {
  */
 struct Atom : public Literal {
   /* Returns an atomic formula with the given predicate and terms. */
-  static const Atom& make(const Predicate& predicate, const TermList& terms);
+  static const Atom& make(const Predicate& predicate,
+                          const std::vector<Term>& terms);
 
   /* Deletes this atomic formula. */
   virtual ~Atom();
@@ -280,15 +284,15 @@ struct Atom : public Literal {
   virtual const Atom& atom() const { return *this; }
 
   /* Returns this formula subject to the given substitutions. */
-  virtual const Atom& substitution(const SubstitutionMap& subst) const;
+  virtual const Atom& substitution(const std::map<Variable, Term>& subst) const;
 
   /* Returns an instantiation of this formula. */
-  virtual const Formula& instantiation(const SubstitutionMap& subst,
-				       const Problem& problem) const;
+  virtual const Formula& instantiation(const std::map<Variable, Term>& subst,
+                                       const Problem& problem) const;
 
   /* Returns the universal base of this formula. */
-  virtual const Formula& universal_base(const SubstitutionMap& subst,
-					const Problem& problem) const;
+  virtual const Formula& universal_base(const std::map<Variable, Term>& subst,
+                                        const Problem& problem) const;
 
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
@@ -321,7 +325,7 @@ private:
   /* Predicate of this atom. */
   Predicate predicate_;
   /* Terms of this atom. */
-  TermList terms_;
+  std::vector<Term> terms_;
 
   /* Constructs an atomic formula with the given predicate. */
   explicit Atom(const Predicate& predicate) : predicate_(predicate) {}
@@ -366,15 +370,16 @@ struct Negation : public Literal {
   virtual const Atom& atom() const { return *atom_; }
 
   /* Returns this formula subject to the given substitutions. */
-  virtual const Negation& substitution(const SubstitutionMap& subst) const;
+  virtual const Negation& substitution(
+      const std::map<Variable, Term>& subst) const;
 
   /* Returns an instantiation of this formula. */
-  virtual const Formula& instantiation(const SubstitutionMap& subst,
-				       const Problem& problem) const;
+  virtual const Formula& instantiation(const std::map<Variable, Term>& subst,
+                                       const Problem& problem) const;
 
   /* Returns the universal base of this formula. */
-  virtual const Formula& universal_base(const SubstitutionMap& subst,
-					const Problem& problem) const;
+  virtual const Formula& universal_base(const std::map<Variable, Term>& subst,
+                                        const Problem& problem) const;
 
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
@@ -480,15 +485,16 @@ struct Equality : public BindingLiteral {
 			     const Term& term2, size_t id2);
 
   /* Returns this formula subject to the given substitutions. */
-  virtual const Formula& substitution(const SubstitutionMap& subst) const;
+  virtual const Formula& substitution(
+      const std::map<Variable, Term>& subst) const;
 
   /* Returns an instantiation of this formula. */
-  virtual const Formula& instantiation(const SubstitutionMap& subst,
-				       const Problem& problem) const;
+  virtual const Formula& instantiation(const std::map<Variable, Term>& subst,
+                                       const Problem& problem) const;
 
   /* Returns the universal base of this formula. */
-  virtual const Formula& universal_base(const SubstitutionMap& subst,
-					const Problem& problem) const;
+  virtual const Formula& universal_base(const std::map<Variable, Term>& subst,
+                                        const Problem& problem) const;
 
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
@@ -525,15 +531,16 @@ struct Inequality : public BindingLiteral {
 			     const Term& term2, size_t id2);
 
   /* Returns this formula subject to the given substitutions. */
-  virtual const Formula& substitution(const SubstitutionMap& subst) const;
+  virtual const Formula& substitution(
+      const std::map<Variable, Term>& subst) const;
 
   /* Returns an instantiation of this formula. */
-  virtual const Formula& instantiation(const SubstitutionMap& subst,
-				       const Problem& problem) const;
+  virtual const Formula& instantiation(const std::map<Variable, Term>& subst,
+                                       const Problem& problem) const;
 
   /* Returns the universal base of this formula. */
-  virtual const Formula& universal_base(const SubstitutionMap& subst,
-					const Problem& problem) const;
+  virtual const Formula& universal_base(const std::map<Variable, Term>& subst,
+                                        const Problem& problem) const;
 
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
@@ -581,15 +588,16 @@ struct Conjunction : public Formula {
 				   const Domain& domain) const;
 
   /* Returns this formula subject to the given substitutions. */
-  virtual const Formula& substitution(const SubstitutionMap& subst) const;
+  virtual const Formula& substitution(
+      const std::map<Variable, Term>& subst) const;
 
   /* Returns an instantiation of this formula. */
-  virtual const Formula& instantiation(const SubstitutionMap& subst,
-				       const Problem& problem) const;
+  virtual const Formula& instantiation(const std::map<Variable, Term>& subst,
+                                       const Problem& problem) const;
 
   /* Returns the universal base of this formula. */
-  virtual const Formula& universal_base(const SubstitutionMap& subst,
-					const Problem& problem) const;
+  virtual const Formula& universal_base(const std::map<Variable, Term>& subst,
+                                        const Problem& problem) const;
 
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
@@ -635,15 +643,16 @@ struct Disjunction : public Formula {
 				   const Domain& domain) const;
 
   /* Returns this formula subject to the given substitution. */
-  virtual const Formula& substitution(const SubstitutionMap& subst) const;
+  virtual const Formula& substitution(
+      const std::map<Variable, Term>& subst) const;
 
   /* Returns an instantiation of this formula. */
-  virtual const Formula& instantiation(const SubstitutionMap& subst,
-				       const Problem& problem) const;
+  virtual const Formula& instantiation(const std::map<Variable, Term>& subst,
+                                       const Problem& problem) const;
 
   /* Returns the universal base of this formula. */
-  virtual const Formula& universal_base(const SubstitutionMap& subst,
-					const Problem& problem) const;
+  virtual const Formula& universal_base(const std::map<Variable, Term>& subst,
+                                        const Problem& problem) const;
 
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
@@ -681,7 +690,7 @@ struct Quantification : public Formula {
   void set_body(const Formula& body);
 
   /* Returns the quanitfied variables. */
-  const VariableList& parameters() const { return parameters_; }
+  const std::vector<Variable>& parameters() const { return parameters_; }
 
   /* Returns the quantified formula. */
   const Formula& body() const { return *body_; }
@@ -695,9 +704,9 @@ protected:
   /* Constructs a quantified formula. */
   explicit Quantification(const Formula& body);
 
-private:
+ private:
   /* Quanitfied variables. */
-  VariableList parameters_;
+  std::vector<Variable> parameters_;
   /* The quantified formula. */
   const Formula* body_;
 };
@@ -714,15 +723,16 @@ struct Exists : public Quantification {
   Exists();
 
   /* Returns this formula subject to the given substitutions. */
-  virtual const Formula& substitution(const SubstitutionMap& subst) const;
+  virtual const Formula& substitution(
+      const std::map<Variable, Term>& subst) const;
 
   /* Returns an instantiation of this formula. */
-  virtual const Formula& instantiation(const SubstitutionMap& subst,
-				       const Problem& problem) const;
+  virtual const Formula& instantiation(const std::map<Variable, Term>& subst,
+                                       const Problem& problem) const;
 
   /* Returns the universal base of this formula. */
-  virtual const Formula& universal_base(const SubstitutionMap& subst,
-					const Problem& problem) const;
+  virtual const Formula& universal_base(const std::map<Variable, Term>& subst,
+                                        const Problem& problem) const;
 
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
@@ -750,15 +760,16 @@ struct Forall : public Quantification {
   Forall();
 
   /* Returns this formula subject to the given substitutions. */
-  virtual const Formula& substitution(const SubstitutionMap& subst) const;
+  virtual const Formula& substitution(
+      const std::map<Variable, Term>& subst) const;
 
   /* Returns an instantiation of this formula. */
-  virtual const Formula& instantiation(const SubstitutionMap& subst,
-				       const Problem& problem) const;
+  virtual const Formula& instantiation(const std::map<Variable, Term>& subst,
+                                       const Problem& problem) const;
 
   /* Returns the universal base of this formula. */
-  virtual const Formula& universal_base(const SubstitutionMap& subst,
-					const Problem& problem) const;
+  virtual const Formula& universal_base(const std::map<Variable, Term>& subst,
+                                        const Problem& problem) const;
 
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
@@ -813,15 +824,16 @@ struct TimedLiteral : public Formula {
 				   const Domain& domain) const;
 
   /* Returns this formula subject to the given substitutions. */
-  virtual const TimedLiteral& substitution(const SubstitutionMap& subst) const;
+  virtual const TimedLiteral& substitution(
+      const std::map<Variable, Term>& subst) const;
 
   /* Returns an instantiation of this formula. */
-  virtual const Formula& instantiation(const SubstitutionMap& subst,
-				       const Problem& problem) const;
+  virtual const Formula& instantiation(const std::map<Variable, Term>& subst,
+                                       const Problem& problem) const;
 
   /* Returns the universal base of this formula. */
-  virtual const Formula& universal_base(const SubstitutionMap& subst,
-					const Problem& problem) const;
+  virtual const Formula& universal_base(const std::map<Variable, Term>& subst,
+                                        const Problem& problem) const;
 
   /* Returns the heuristic value of this formula. */
   virtual void heuristic_value(HeuristicValue& h, HeuristicValue& hs,
@@ -904,10 +916,10 @@ struct Condition {
   bool contradiction() const { return this == &FALSE; }
 
   /* Returns this condition subject to the given substitutions. */
-  const Condition& substitution(const SubstitutionMap& subst) const;
+  const Condition& substitution(const std::map<Variable, Term>& subst) const;
 
   /* Returns an instantiation of this condition. */
-  const Condition& instantiation(const SubstitutionMap& subst,
+  const Condition& instantiation(const std::map<Variable, Term>& subst,
 				 const Problem& problem) const;
 
   /* Returns the heuristic value of this condition. */

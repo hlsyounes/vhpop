@@ -116,7 +116,7 @@ class GroundAction : public Action {
   void add_argument(Object arg);
 
   // Action arguments.
-  const ObjectList& arguments() const { return arguments_; }
+  const std::vector<Object>& arguments() const { return arguments_; }
 
   // Prints this action on the given stream with the given bindings.
   virtual void print(std::ostream& os, size_t step_id,
@@ -124,7 +124,7 @@ class GroundAction : public Action {
 
  private:
   // Action arguments.
-  ObjectList arguments_;
+  std::vector<Object> arguments_;
 };
 
 // Action schema definition.
@@ -137,7 +137,7 @@ class ActionSchema : public Action {
   void add_parameter(Variable var);
 
   // Returns the parameters of this action schema.
-  const VariableList& parameters() const { return parameters_; }
+  const std::vector<Variable>& parameters() const { return parameters_; }
 
   // Fills the provided action list with all instantiations of this action
   // schema.
@@ -153,10 +153,10 @@ class ActionSchema : public Action {
 
  private:
   // Action schema parameters.
-  VariableList parameters_;
+  std::vector<Variable> parameters_;
 
   // Returns an instantiation of this action schema.
-  const GroundAction* instantiation(const SubstitutionMap& args,
+  const GroundAction* instantiation(const std::map<Variable, Term>& args,
                                     const Problem& problem,
                                     const Formula& condition) const;
 };

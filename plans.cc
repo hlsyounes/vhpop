@@ -219,9 +219,9 @@ static bool add_goal(const Chain<OpenCondition>*& open_conds,
 	    } else {
 	      const Forall* forall = dynamic_cast<const Forall*>(goal);
 	      if (forall != NULL) {
-		const Formula& g = forall->universal_base(SubstitutionMap(),
-							  *problem);
-		if (params->random_open_conditions) {
+                const Formula& g = forall->universal_base(
+                    std::map<Variable, Term>(), *problem);
+                if (params->random_open_conditions) {
 		  size_t pos =
 		    size_t((goals.size() + 1.0)*rand()/(RAND_MAX + 1.0));
 		  if (pos == goals.size()) {
@@ -415,10 +415,11 @@ static const Bindings* step_instantiation(const Chain<Step>* steps, size_t n,
 	return step_instantiation(steps, n + 1, bindings);
       } else {
 	const Type& t = TermTable::type(v);
-	const ObjectList& arguments = problem->terms().compatible_objects(t);
-	for (ObjectList::const_iterator oi = arguments.begin();
-	     oi != arguments.end(); oi++) {
-	  BindingList bl;
+        const std::vector<Object>& arguments =
+            problem->terms().compatible_objects(t);
+        for (std::vector<Object>::const_iterator oi = arguments.begin();
+             oi != arguments.end(); oi++) {
+          BindingList bl;
 	  bl.push_back(Binding(v, step.id(), *oi, 0, true));
 	  const Bindings* new_bindings = bindings.add(bl);
 	  if (new_bindings != NULL) {
@@ -431,8 +432,8 @@ static const Bindings* step_instantiation(const Chain<Step>* steps, size_t n,
 	      return result;
 	    }
 	  }
-	}
-	return NULL;
+        }
+        return NULL;
       }
     }
   }
@@ -448,7 +449,7 @@ const Plan* Plan::make_initial_plan(const Problem& problem) {
   if (params->ground_actions) {
     goal_action = new GroundAction("", false);
     const Formula& goal_formula =
-      problem.goal().instantiation(SubstitutionMap(), problem);
+        problem.goal().instantiation(std::map<Variable, Term>(), problem);
     goal_action->set_condition(goal_formula);
   } else {
     goal_action = new ActionSchema("", false);
@@ -1099,7 +1100,7 @@ int Plan::separate(PlanList& plans, const Unsafe& unsafe,
     size_t n = unsafe.effect().arity();
     if (n > 0) {
       Forall* forall = new Forall();
-      SubstitutionMap forall_subst;
+      std::map<Variable, Term> forall_subst;
       for (size_t i = 0; i < n; i++) {
 	Variable vi = unsafe.effect().parameter(i);
 	Variable v =
@@ -1319,7 +1320,7 @@ void Plan::separate(PlanList& plans, const MutexThreat& mutex_threat,
       size_t n = effect.arity();
       if (n > 0) {
 	Forall* forall = new Forall();
-	SubstitutionMap forall_subst;
+        std::map<Variable, Term> forall_subst;
 	for (size_t i = 0; i < n; i++) {
 	  Variable vi = effect.parameter(i);
 	  Variable v = TermTable::add_variable(TermTable::type(vi));
@@ -1813,7 +1814,7 @@ int Plan::make_link(PlanList& plans, const Step& step, const Effect& effect,
    * Add bindings needed to unify effect and goal.
    */
   BindingList new_bindings;
-  SubstitutionMap forall_subst;
+  std::map<Variable, Term> forall_subst;
   if (test_only) {
     new_bindings = unifier;
   } else {

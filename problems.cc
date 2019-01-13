@@ -167,7 +167,7 @@ void Problem::set_metric(const Expression& metric, bool negate) {
     real_metric = &metric;
   }
   const Expression& inst_metric =
-    real_metric->instantiation(SubstitutionMap(), init_values());
+      real_metric->instantiation(std::map<Variable, Term>(), init_values());
   if (&inst_metric != real_metric) {
     RCObject::ref(real_metric);
     RCObject::destructive_deref(real_metric);

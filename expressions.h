@@ -44,10 +44,10 @@ struct Expression : public RCObject {
   virtual float value(const ValueMap& values) const = 0;
 
   /* Returns an instantiation of this expression. */
-  virtual const Expression& instantiation(const SubstitutionMap& subst,
-					  const ValueMap& values) const = 0;
+  virtual const Expression& instantiation(const std::map<Variable, Term>& subst,
+                                          const ValueMap& values) const = 0;
 
-protected:
+ protected:
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const = 0;
 
@@ -75,10 +75,10 @@ struct Value : public Expression {
   virtual float value(const ValueMap& values) const;
 
   /* Returns an instantiation of this expression. */
-  virtual const Value& instantiation(const SubstitutionMap& subst,
-				     const ValueMap& values) const;
+  virtual const Value& instantiation(const std::map<Variable, Term>& subst,
+                                     const ValueMap& values) const;
 
-protected:
+ protected:
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
 
@@ -96,7 +96,8 @@ private:
  */
 struct Fluent : public Expression {
   /* Returns a fluent with the given function and terms. */
-  static const Fluent& make(const Function& function, const TermList& terms);
+  static const Fluent& make(const Function& function,
+                            const std::vector<Term>& terms);
 
   /* Deletes this fluent. */
   virtual ~Fluent();
@@ -108,19 +109,19 @@ struct Fluent : public Expression {
   const Function& function() const { return function_; }
 
   /* Returns the terms of this fluent. */
-  const TermList& terms() const { return terms_; }
+  const std::vector<Term>& terms() const { return terms_; }
 
   /* Returns the value of this expression in the given state. */
   virtual float value(const ValueMap& values) const;
 
   /* Returns this fluent subject to the given substitution. */
-  const Fluent& substitution(const SubstitutionMap& subst) const;
+  const Fluent& substitution(const std::map<Variable, Term>& subst) const;
 
   /* Returns an instantiation of this expression. */
-  virtual const Expression& instantiation(const SubstitutionMap& subst,
-					  const ValueMap& values) const;
+  virtual const Expression& instantiation(const std::map<Variable, Term>& subst,
+                                          const ValueMap& values) const;
 
-protected:
+ protected:
   /* Assigns an id to this fluent. */
   void assign_id(bool ground);
 
@@ -149,7 +150,7 @@ private:
   /* Function of this fluent. */
   Function function_;
   /* Terms of this fluent. */
-  TermList terms_;
+  std::vector<Term> terms_;
 
   /* Constructs a fluent with the given function. */
   explicit Fluent(const Function& function) : function_(function) {}
@@ -216,10 +217,10 @@ struct Addition : public Computation {
   virtual float value(const ValueMap& values) const;
 
   /* Returns an instantiation of this expression. */
-  virtual const Expression& instantiation(const SubstitutionMap& subst,
-					  const ValueMap& values) const;
+  virtual const Expression& instantiation(const std::map<Variable, Term>& subst,
+                                          const ValueMap& values) const;
 
-protected:
+ protected:
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
 
@@ -245,10 +246,10 @@ struct Subtraction : public Computation {
   virtual float value(const ValueMap& values) const;
 
   /* Returns an instantiation of this expression. */
-  virtual const Expression& instantiation(const SubstitutionMap& subst,
-					  const ValueMap& values) const;
+  virtual const Expression& instantiation(const std::map<Variable, Term>& subst,
+                                          const ValueMap& values) const;
 
-protected:
+ protected:
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
 
@@ -274,10 +275,10 @@ struct Multiplication : public Computation {
   virtual float value(const ValueMap& values) const;
 
   /* Returns an instantiation of this expression. */
-  virtual const Expression& instantiation(const SubstitutionMap& subst,
-					  const ValueMap& values) const;
+  virtual const Expression& instantiation(const std::map<Variable, Term>& subst,
+                                          const ValueMap& values) const;
 
-protected:
+ protected:
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
 
@@ -303,10 +304,10 @@ struct Division : public Computation {
   virtual float value(const ValueMap& values) const;
 
   /* Returns an instantiation of this expression. */
-  virtual const Expression& instantiation(const SubstitutionMap& subst,
-					  const ValueMap& values) const;
+  virtual const Expression& instantiation(const std::map<Variable, Term>& subst,
+                                          const ValueMap& values) const;
 
-protected:
+ protected:
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
 
@@ -332,10 +333,10 @@ struct Minimum : public Computation {
   virtual float value(const ValueMap& values) const;
 
   /* Returns an instantiation of this expression. */
-  virtual const Expression& instantiation(const SubstitutionMap& subst,
-					  const ValueMap& values) const;
+  virtual const Expression& instantiation(const std::map<Variable, Term>& subst,
+                                          const ValueMap& values) const;
 
-protected:
+ protected:
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
 
@@ -361,10 +362,10 @@ struct Maximum : public Computation {
   virtual float value(const ValueMap& values) const;
 
   /* Returns an instantiation of this expression. */
-  virtual const Expression& instantiation(const SubstitutionMap& subst,
-					  const ValueMap& values) const;
+  virtual const Expression& instantiation(const std::map<Variable, Term>& subst,
+                                          const ValueMap& values) const;
 
-protected:
+ protected:
   /* Prints this object on the given stream. */
   virtual void print(std::ostream& os) const;
 

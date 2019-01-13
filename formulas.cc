@@ -181,24 +181,22 @@ const Formula& Constant::separator(const Effect& effect,
 
 
 /* Returns this formula subject to the given substitutions. */
-const Constant& Constant::substitution(const SubstitutionMap& subst) const {
+const Constant& Constant::substitution(
+    const std::map<Variable, Term>& subst) const {
   return *this;
 }
-
 
 /* Returns an instantiation of this formula. */
-const Constant& Constant::instantiation(const SubstitutionMap& subst,
-					const Problem& problem) const {
+const Constant& Constant::instantiation(const std::map<Variable, Term>& subst,
+                                        const Problem& problem) const {
   return *this;
 }
-
 
 /* Returns the universal base of this formula. */
-const Formula& Constant::universal_base(const SubstitutionMap& subst,
-					const Problem& problem) const {
+const Formula& Constant::universal_base(const std::map<Variable, Term>& subst,
+                                        const Problem& problem) const {
   return *this;
 }
-
 
 /* Prints this formula on the given stream with the given bindings. */
 void Constant::print(std::ostream& os,
@@ -272,7 +270,7 @@ static bool unifiable_atoms(const Atom& a1, const Atom& a2) {
   if (a1.predicate() != a2.predicate()) {
     return false;
   } else {
-    SubstitutionMap bind;
+    std::map<Variable, Term> bind;
     size_t n = a1.arity();
     for (size_t i = 0; i < n; i++) {
       Term t1 = a1.term(i);
@@ -282,8 +280,8 @@ static bool unifiable_atoms(const Atom& a1, const Atom& a2) {
 	}
       } else {
 	const Variable& v1 = t1.as_variable();
-	SubstitutionMap::const_iterator b = bind.find(v1);
-	if (b != bind.end()) {
+        std::map<Variable, Term>::const_iterator b = bind.find(v1);
+        if (b != bind.end()) {
 	  if ((*b).second != a2.term(i)) {
 	    return false;
 	  }
@@ -321,10 +319,12 @@ bool Atom::AtomLess::operator()(const Atom* a1, const Atom* a2) const {
 
 
 /* Returns an atomic state formula with the given predicate and terms. */
-const Atom& Atom::make(const Predicate& predicate, const TermList& terms) {
+const Atom& Atom::make(const Predicate& predicate,
+                       const std::vector<Term>& terms) {
   Atom* atom = new Atom(predicate);
   bool ground = true;
-  for (TermList::const_iterator ti = terms.begin(); ti != terms.end(); ti++) {
+  for (std::vector<Term>::const_iterator ti = terms.begin(); ti != terms.end();
+       ti++) {
     atom->add_term(*ti);
     if (ground && (*ti).variable()) {
       ground = false;
@@ -345,7 +345,6 @@ const Atom& Atom::make(const Predicate& predicate, const TermList& terms) {
   }
 }
 
-
 /* Deletes this atomic formula. */
 Atom::~Atom() {
   AtomTable::const_iterator ai = atoms.find(this);
@@ -356,16 +355,16 @@ Atom::~Atom() {
 
 
 /* Returns this formula subject to the given substitutions. */
-const Atom& Atom::substitution(const SubstitutionMap& subst) const {
+const Atom& Atom::substitution(const std::map<Variable, Term>& subst) const {
   if (id() > 0) {
     return *this;
   } else {
-    TermList inst_terms;
+    std::vector<Term> inst_terms;
     bool substituted = false;
-    for (TermList::const_iterator ti = terms_.begin();
-	 ti != terms_.end(); ti++) {
-      SubstitutionMap::const_iterator si =
-	(*ti).variable() ? subst.find((*ti).as_variable()) : subst.end();
+    for (std::vector<Term>::const_iterator ti = terms_.begin();
+         ti != terms_.end(); ti++) {
+      std::map<Variable, Term>::const_iterator si =
+          (*ti).variable() ? subst.find((*ti).as_variable()) : subst.end();
       if (si != subst.end()) {
 	inst_terms.push_back((*si).second);
 	substituted = true;
@@ -381,20 +380,19 @@ const Atom& Atom::substitution(const SubstitutionMap& subst) const {
   }
 }
 
-
 /* Returns an instantiation of this formula. */
-const Formula& Atom::instantiation(const SubstitutionMap& subst,
-				   const Problem& problem) const {
+const Formula& Atom::instantiation(const std::map<Variable, Term>& subst,
+                                   const Problem& problem) const {
   bool substituted = false;
   const Atom* inst_atom;
   if (id() > 0) {
     inst_atom = this;
   } else {
-    TermList inst_terms;
-    for (TermList::const_iterator ti = terms_.begin();
-	 ti != terms_.end(); ti++) {
-      SubstitutionMap::const_iterator si =
-	(*ti).variable() ? subst.find((*ti).as_variable()) : subst.end();
+    std::vector<Term> inst_terms;
+    for (std::vector<Term>::const_iterator ti = terms_.begin();
+         ti != terms_.end(); ti++) {
+      std::map<Variable, Term>::const_iterator si =
+          (*ti).variable() ? subst.find((*ti).as_variable()) : subst.end();
       if (si != subst.end()) {
 	inst_terms.push_back((*si).second);
 	substituted = true;
@@ -431,19 +429,17 @@ const Formula& Atom::instantiation(const SubstitutionMap& subst,
   }
 }
 
-
 /* Returns the universal base of this formula. */
-const Formula& Atom::universal_base(const SubstitutionMap& subst,
-				    const Problem& problem) const {
+const Formula& Atom::universal_base(const std::map<Variable, Term>& subst,
+                                    const Problem& problem) const {
   return instantiation(subst, problem);
 }
-
 
 /* Prints this formula on the given stream with the given bindings. */
 void Atom::print(std::ostream& os,
 		 size_t step_id, const Bindings& bindings) const {
   os << '(' << predicate();
-  for (TermList::const_iterator ti = terms_.begin();
+  for (std::vector<Term>::const_iterator ti = terms_.begin();
        ti != terms_.end(); ti++) {
     os << ' ';
     bindings.print_term(os, *ti, step_id);
@@ -511,7 +507,8 @@ Negation::~Negation() {
 
 
 /* Returns this formula subject to the given substitutions. */
-const Negation& Negation::substitution(const SubstitutionMap& subst) const {
+const Negation& Negation::substitution(
+    const std::map<Variable, Term>& subst) const {
   if (id() > 0) {
     return *this;
   } else {
@@ -524,10 +521,9 @@ const Negation& Negation::substitution(const SubstitutionMap& subst) const {
   }
 }
 
-
 /* Returns an instantiation of this formula. */
-const Formula& Negation::instantiation(const SubstitutionMap& subst,
-				       const Problem& problem) const {
+const Formula& Negation::instantiation(const std::map<Variable, Term>& subst,
+                                       const Problem& problem) const {
   const Formula& f = atom().instantiation(subst, problem);
   if (&f == atom_) {
     return *this;
@@ -536,13 +532,11 @@ const Formula& Negation::instantiation(const SubstitutionMap& subst,
   }
 }
 
-
 /* Returns the universal base of this formula. */
-const Formula& Negation::universal_base(const SubstitutionMap& subst,
-					const Problem& problem) const {
+const Formula& Negation::universal_base(const std::map<Variable, Term>& subst,
+                                        const Problem& problem) const {
   return instantiation(subst, problem);
 }
-
 
 /* Prints this formula on the given stream with the given bindings. */
 void Negation::print(std::ostream& os,
@@ -609,8 +603,9 @@ const Formula& Equality::make(const Term& term1, size_t id1,
 
 
 /* Returns this formula subject to the given substitutions. */
-const Formula& Equality::substitution(const SubstitutionMap& subst) const {
-  SubstitutionMap::const_iterator si = subst.find(variable());
+const Formula& Equality::substitution(
+    const std::map<Variable, Term>& subst) const {
+  std::map<Variable, Term>::const_iterator si = subst.find(variable());
   const Term& term1 = (si != subst.end()) ? (*si).second : Term(variable());
   si = term().variable() ? subst.find(term().as_variable()) : subst.end();
   const Term& term2 = (si != subst.end()) ? (*si).second : term();
@@ -621,20 +616,17 @@ const Formula& Equality::substitution(const SubstitutionMap& subst) const {
   }
 }
 
-
 /* Returns an instantiation of this formula. */
-const Formula& Equality::instantiation(const SubstitutionMap& subst,
-				       const Problem& problem) const {
+const Formula& Equality::instantiation(const std::map<Variable, Term>& subst,
+                                       const Problem& problem) const {
   return substitution(subst);
 }
-
 
 /* Returns the universal base of this formula. */
-const Formula& Equality::universal_base(const SubstitutionMap& subst,
-					const Problem& problem) const {
+const Formula& Equality::universal_base(const std::map<Variable, Term>& subst,
+                                        const Problem& problem) const {
   return substitution(subst);
 }
-
 
 /* Prints this formula on the given stream with the given bindings. */
 void Equality::print(std::ostream& os,
@@ -692,8 +684,9 @@ const Formula& Inequality::make(const Term& term1, size_t id1,
 
 
 /* Returns this formula subject to the given substitutions. */
-const Formula& Inequality::substitution(const SubstitutionMap& subst) const {
-  SubstitutionMap::const_iterator si = subst.find(variable());
+const Formula& Inequality::substitution(
+    const std::map<Variable, Term>& subst) const {
+  std::map<Variable, Term>::const_iterator si = subst.find(variable());
   const Term& term1 = (si != subst.end()) ? (*si).second : Term(variable());
   si = term().variable() ? subst.find(term().as_variable()) : subst.end();
   const Term& term2 = (si != subst.end()) ? (*si).second : term();
@@ -704,20 +697,17 @@ const Formula& Inequality::substitution(const SubstitutionMap& subst) const {
   }
 }
 
-
 /* Returns an instantiation of this formula. */
-const Formula& Inequality::instantiation(const SubstitutionMap& subst,
-					 const Problem& problem) const {
+const Formula& Inequality::instantiation(const std::map<Variable, Term>& subst,
+                                         const Problem& problem) const {
   return substitution(subst);
 }
-
 
 /* Returns the universal base of this formula. */
-const Formula& Inequality::universal_base(const SubstitutionMap& subst,
-					  const Problem& problem) const {
+const Formula& Inequality::universal_base(const std::map<Variable, Term>& subst,
+                                          const Problem& problem) const {
   return substitution(subst);
 }
-
 
 /* Prints this formula on the given stream with the given bindings. */
 void Inequality::print(std::ostream& os,
@@ -798,7 +788,8 @@ const Formula& Conjunction::separator(const Effect& effect,
 
 
 /* Returns this formula subject to the given substitutions. */
-const Formula& Conjunction::substitution(const SubstitutionMap& subst) const {
+const Formula& Conjunction::substitution(
+    const std::map<Variable, Term>& subst) const {
   Conjunction* conj = NULL;
   const Formula* first_c = &TRUE;
   bool changed = false;
@@ -845,10 +836,9 @@ const Formula& Conjunction::substitution(const SubstitutionMap& subst) const {
   }
 }
 
-
 /* Returns an instantiation of this formula. */
-const Formula& Conjunction::instantiation(const SubstitutionMap& subst,
-					  const Problem& problem) const {
+const Formula& Conjunction::instantiation(const std::map<Variable, Term>& subst,
+                                          const Problem& problem) const {
   Conjunction* conj = NULL;
   const Formula* first_c = &TRUE;
   bool changed = false;
@@ -895,10 +885,9 @@ const Formula& Conjunction::instantiation(const SubstitutionMap& subst,
   }
 }
 
-
 /* Returns the universal base of this formula. */
-const Formula& Conjunction::universal_base(const SubstitutionMap& subst,
-					   const Problem& problem) const {
+const Formula& Conjunction::universal_base(
+    const std::map<Variable, Term>& subst, const Problem& problem) const {
   Conjunction* conj = NULL;
   const Formula* first_c = &TRUE;
   bool changed = false;
@@ -944,7 +933,6 @@ const Formula& Conjunction::universal_base(const SubstitutionMap& subst,
     return *first_c;
   }
 }
-
 
 /* Prints this formula on the given stream with the given bindings. */
 void Conjunction::print(std::ostream& os,
@@ -1058,7 +1046,8 @@ const Formula& Disjunction::separator(const Effect& effect,
 
 
 /* Returns this formula subject to the given substitutions. */
-const Formula& Disjunction::substitution(const SubstitutionMap& subst) const {
+const Formula& Disjunction::substitution(
+    const std::map<Variable, Term>& subst) const {
   Disjunction* disj = NULL;
   const Formula* first_d = &FALSE;
   bool changed = false;
@@ -1105,10 +1094,9 @@ const Formula& Disjunction::substitution(const SubstitutionMap& subst) const {
   }
 }
 
-
 /* Returns an instantiation of this formula. */
-const Formula& Disjunction::instantiation(const SubstitutionMap& subst,
-					  const Problem& problem) const {
+const Formula& Disjunction::instantiation(const std::map<Variable, Term>& subst,
+                                          const Problem& problem) const {
   Disjunction* disj = NULL;
   const Formula* first_d = &FALSE;
   bool changed = false;
@@ -1155,10 +1143,9 @@ const Formula& Disjunction::instantiation(const SubstitutionMap& subst,
   }
 }
 
-
 /* Returns the universal base of this formula. */
-const Formula& Disjunction::universal_base(const SubstitutionMap& subst,
-					   const Problem& problem) const {
+const Formula& Disjunction::universal_base(
+    const std::map<Variable, Term>& subst, const Problem& problem) const {
   Disjunction* disj = NULL;
   const Formula* first_d = &FALSE;
   bool changed = false;
@@ -1204,7 +1191,6 @@ const Formula& Disjunction::universal_base(const SubstitutionMap& subst,
     return *first_d;
   }
 }
-
 
 /* Prints this formula on the given stream with the given bindings. */
 void Disjunction::print(std::ostream& os,
@@ -1306,7 +1292,8 @@ Exists::Exists()
 
 
 /* Returns this formula subject to the given substitutions. */
-const Formula& Exists::substitution(const SubstitutionMap& subst) const {
+const Formula& Exists::substitution(
+    const std::map<Variable, Term>& subst) const {
   const Formula& b = body().substitution(subst);
   if (&b == &body()) {
     return *this;
@@ -1314,8 +1301,8 @@ const Formula& Exists::substitution(const SubstitutionMap& subst) const {
     return b;
   } else {
     Exists& exists = *new Exists();
-    for (VariableList::const_iterator vi = parameters().begin();
-	 vi != parameters().end(); vi++) {
+    for (std::vector<Variable>::const_iterator vi = parameters().begin();
+         vi != parameters().end(); vi++) {
       exists.add_parameter(*vi);
     }
     exists.set_body(b);
@@ -1323,17 +1310,16 @@ const Formula& Exists::substitution(const SubstitutionMap& subst) const {
   }
 }
 
-
 /* Returns an instantiation of this formula. */
-const Formula& Exists::instantiation(const SubstitutionMap& subst,
-				     const Problem& problem) const {
+const Formula& Exists::instantiation(const std::map<Variable, Term>& subst,
+                                     const Problem& problem) const {
   int n = parameters().size();
   if (n == 0) {
     return body().instantiation(subst, problem);
   } else {
-    SubstitutionMap args(subst);
-    std::vector<const ObjectList*> arguments(n);
-    std::vector<ObjectList::const_iterator> next_arg;
+    std::map<Variable, Term> args(subst);
+    std::vector<const std::vector<Object>*> arguments(n);
+    std::vector<std::vector<Object>::const_iterator> next_arg;
     for (int i = 0; i < n; i++) {
       const Type& t = TermTable::type(parameters()[i]);
       arguments[i] = &problem.terms().compatible_objects(t);
@@ -1347,7 +1333,7 @@ const Formula& Exists::instantiation(const SubstitutionMap& subst,
     disjuncts.push(&body().instantiation(args, problem));
     register_use(disjuncts.top());
     for (int i = 0; i < n; ) {
-      SubstitutionMap pargs;
+      std::map<Variable, Term> pargs;
       pargs.insert(std::make_pair(parameters()[i], *next_arg[i]));
       const Formula& disjunct = disjuncts.top()->instantiation(pargs, problem);
       disjuncts.push(&disjunct);
@@ -1387,10 +1373,9 @@ const Formula& Exists::instantiation(const SubstitutionMap& subst,
   }
 }
 
-
 /* Returns the universal base of this formula. */
-const Formula& Exists::universal_base(const SubstitutionMap& subst,
-				      const Problem& problem) const {
+const Formula& Exists::universal_base(const std::map<Variable, Term>& subst,
+                                      const Problem& problem) const {
   const Formula& b = body().universal_base(subst, problem);
   if (&b == &body()) {
     return *this;
@@ -1398,8 +1383,8 @@ const Formula& Exists::universal_base(const SubstitutionMap& subst,
     return b;
   } else {
     Exists& exists = *new Exists();
-    for (VariableList::const_iterator vi = parameters().begin();
-	 vi != parameters().end(); vi++) {
+    for (std::vector<Variable>::const_iterator vi = parameters().begin();
+         vi != parameters().end(); vi++) {
       exists.add_parameter(*vi);
     }
     exists.set_body(b);
@@ -1407,12 +1392,11 @@ const Formula& Exists::universal_base(const SubstitutionMap& subst,
   }
 }
 
-
 /* Prints this formula on the given stream with the given bindings. */
 void Exists::print(std::ostream& os, 
 		   size_t step_id, const Bindings& bindings) const {
   os << "(exists (";
-  for (VariableList::const_iterator vi = parameters().begin();
+  for (std::vector<Variable>::const_iterator vi = parameters().begin();
        vi != parameters().end(); vi++) {
     if (vi != parameters().begin()) {
       os << ' ';
@@ -1428,7 +1412,7 @@ void Exists::print(std::ostream& os,
 /* Returns the negation of this formula. */
 const Quantification& Exists::negation() const {
   Forall& forall = *new Forall();
-  for (VariableList::const_iterator vi = parameters().begin();
+  for (std::vector<Variable>::const_iterator vi = parameters().begin();
        vi != parameters().end(); vi++) {
     forall.add_parameter(*vi);
   }
@@ -1446,7 +1430,8 @@ Forall::Forall()
 
 
 /* Returns this formula subject to the given substitutions. */
-const Formula& Forall::substitution(const SubstitutionMap& subst) const {
+const Formula& Forall::substitution(
+    const std::map<Variable, Term>& subst) const {
   const Formula& b = body().substitution(subst);
   if (&b == &body()) {
     return *this;
@@ -1454,8 +1439,8 @@ const Formula& Forall::substitution(const SubstitutionMap& subst) const {
     return b;
   } else {
     Forall& forall = *new Forall();
-    for (VariableList::const_iterator vi = parameters().begin();
-	 vi != parameters().end(); vi++) {
+    for (std::vector<Variable>::const_iterator vi = parameters().begin();
+         vi != parameters().end(); vi++) {
       forall.add_parameter(*vi);
     }
     forall.set_body(b);
@@ -1463,17 +1448,16 @@ const Formula& Forall::substitution(const SubstitutionMap& subst) const {
   }
 }
 
-
 /* Returns an instantiation of this formula. */
-const Formula& Forall::instantiation(const SubstitutionMap& subst,
-				     const Problem& problem) const {
+const Formula& Forall::instantiation(const std::map<Variable, Term>& subst,
+                                     const Problem& problem) const {
   int n = parameters().size();
   if (n == 0) {
     return body().instantiation(subst, problem);
   } else {
-    SubstitutionMap args(subst);
-    std::vector<const ObjectList*> arguments(n);
-    std::vector<ObjectList::const_iterator> next_arg;
+    std::map<Variable, Term> args(subst);
+    std::vector<const std::vector<Object>*> arguments(n);
+    std::vector<std::vector<Object>::const_iterator> next_arg;
     for (int i = 0; i < n; i++) {
       const Type& t = TermTable::type(parameters()[i]);
       arguments[i] = &problem.terms().compatible_objects(t);
@@ -1487,7 +1471,7 @@ const Formula& Forall::instantiation(const SubstitutionMap& subst,
     conjuncts.push(&body().instantiation(args, problem));
     register_use(conjuncts.top());
     for (int i = 0; i < n; ) {
-      SubstitutionMap pargs;
+      std::map<Variable, Term> pargs;
       pargs.insert(std::make_pair(parameters()[i], *next_arg[i]));
       const Formula& conjunct = conjuncts.top()->instantiation(pargs, problem);
       conjuncts.push(&conjunct);
@@ -1527,10 +1511,9 @@ const Formula& Forall::instantiation(const SubstitutionMap& subst,
   }
 }
 
-
 /* Returns the universal base of this formula. */
-const Formula& Forall::universal_base(const SubstitutionMap& subst,
-				      const Problem& problem) const {
+const Formula& Forall::universal_base(const std::map<Variable, Term>& subst,
+                                      const Problem& problem) const {
   if (universal_base_ != NULL) {
     return *universal_base_;
   }
@@ -1538,9 +1521,9 @@ const Formula& Forall::universal_base(const SubstitutionMap& subst,
   if (n == 0) {
     universal_base_ = &body().universal_base(subst, problem);
   } else {
-    SubstitutionMap args(subst);
-    std::vector<const ObjectList*> arguments(n);
-    std::vector<ObjectList::const_iterator> next_arg;
+    std::map<Variable, Term> args(subst);
+    std::vector<const std::vector<Object>*> arguments(n);
+    std::vector<std::vector<Object>::const_iterator> next_arg;
     for (int i = 0; i < n; i++) {
       const Type& t = TermTable::type(parameters()[i]);
       arguments[i] = &problem.terms().compatible_objects(t);
@@ -1555,7 +1538,7 @@ const Formula& Forall::universal_base(const SubstitutionMap& subst,
     conjuncts.push(&body().universal_base(args, problem));
     register_use(conjuncts.top());
     for (int i = 0; i < n; ) {
-      SubstitutionMap pargs;
+      std::map<Variable, Term> pargs;
       pargs.insert(std::make_pair(parameters()[i], *next_arg[i]));
       const Formula& conjunct =
 	conjuncts.top()->universal_base(pargs, problem);
@@ -1596,12 +1579,11 @@ const Formula& Forall::universal_base(const SubstitutionMap& subst,
   return *universal_base_;
 }
 
-
 /* Prints this formula on the given stream with the given bindings. */
 void Forall::print(std::ostream& os, 
 		   size_t step_id, const Bindings& bindings) const {
   os << "(forall (";
-  for (VariableList::const_iterator vi = parameters().begin();
+  for (std::vector<Variable>::const_iterator vi = parameters().begin();
        vi != parameters().end(); vi++) {
     if (vi != parameters().begin()) {
       os << ' ';
@@ -1617,7 +1599,7 @@ void Forall::print(std::ostream& os,
 /* Returns the negation of this formula. */
 const Quantification& Forall::negation() const {
   Exists& exists = *new Exists();
-  for (VariableList::const_iterator vi = parameters().begin();
+  for (std::vector<Variable>::const_iterator vi = parameters().begin();
        vi != parameters().end(); vi++) {
     exists.add_parameter(*vi);
   }
@@ -1666,8 +1648,8 @@ const Formula& TimedLiteral::separator(const Effect& effect,
 
 
 /* Returns this formula subject to the given substitutions. */
-const TimedLiteral&
-TimedLiteral::substitution(const SubstitutionMap& subst) const {
+const TimedLiteral& TimedLiteral::substitution(
+    const std::map<Variable, Term>& subst) const {
   const Literal& subst_literal = literal().substitution(subst);
   if (&subst_literal != &literal()) {
     return *new TimedLiteral(subst_literal, when());
@@ -1676,10 +1658,9 @@ TimedLiteral::substitution(const SubstitutionMap& subst) const {
   }
 }
 
-
 /* Returns an instantiation of this formula. */
-const Formula& TimedLiteral::instantiation(const SubstitutionMap& subst,
-					   const Problem& problem) const {
+const Formula& TimedLiteral::instantiation(
+    const std::map<Variable, Term>& subst, const Problem& problem) const {
   const Formula& inst_literal = literal().instantiation(subst, problem);
   if (&inst_literal != &literal()) {
     const Literal* l = dynamic_cast<const Literal*>(&inst_literal);
@@ -1693,13 +1674,11 @@ const Formula& TimedLiteral::instantiation(const SubstitutionMap& subst,
   }
 }
 
-
 /* Returns the universal base of this formula. */
-const Formula& TimedLiteral::universal_base(const SubstitutionMap& subst,
-					    const Problem& problem) const {
+const Formula& TimedLiteral::universal_base(
+    const std::map<Variable, Term>& subst, const Problem& problem) const {
   return instantiation(subst, problem);
 }
-
 
 /* Prints this formula on the given stream with the given bindings. */
 void TimedLiteral::print(std::ostream& os,
@@ -1825,7 +1804,8 @@ Condition::~Condition() {
 
 
 /* Returns this condition subject to the given substitutions. */
-const Condition& Condition::substitution(const SubstitutionMap& subst) const {
+const Condition& Condition::substitution(
+    const std::map<Variable, Term>& subst) const {
   const Formula& f1 = at_start().substitution(subst);
   const Formula& f2 = over_all().substitution(subst);
   const Formula& f3 = at_end().substitution(subst);
@@ -1838,7 +1818,7 @@ const Condition& Condition::substitution(const SubstitutionMap& subst) const {
 
 
 /* Returns an instantiation of this condition. */
-const Condition& Condition::instantiation(const SubstitutionMap& subst,
+const Condition& Condition::instantiation(const std::map<Variable, Term>& subst,
 					  const Problem& problem) const {
   const Formula& f1 = at_start().instantiation(subst, problem);
   const Formula& f2 = over_all().instantiation(subst, problem);

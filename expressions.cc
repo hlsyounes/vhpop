@@ -41,11 +41,10 @@ float Value::value(const ValueMap& values) const {
 
 
 /* Returns an instantiation of this expression. */
-const Value& Value::instantiation(const SubstitutionMap& subst,
-				  const ValueMap& values) const {
+const Value& Value::instantiation(const std::map<Variable, Term>& subst,
+                                  const ValueMap& values) const {
   return *this;
 }
-
 
 /* Prints this object on the given stream. */
 void Value::print(std::ostream& os) const {
@@ -75,10 +74,12 @@ bool Fluent::FluentLess::operator()(const Fluent* f1, const Fluent* f2) const {
 
 
 /* Returns a fluent with the given function and terms. */
-const Fluent& Fluent::make(const Function& function, const TermList& terms) {
+const Fluent& Fluent::make(const Function& function,
+                           const std::vector<Term>& terms) {
   Fluent* fluent = new Fluent(function);
   bool ground = true;
-  for (TermList::const_iterator ti = terms.begin(); ti != terms.end(); ti++) {
+  for (std::vector<Term>::const_iterator ti = terms.begin(); ti != terms.end();
+       ti++) {
     fluent->add_term(*ti);
     if (ground && (*ti).variable()) {
       ground = false;
@@ -99,7 +100,6 @@ const Fluent& Fluent::make(const Function& function, const TermList& terms) {
     }
   }
 }
-
 
 /* Deletes this fluent. */
 Fluent::~Fluent() {
@@ -132,13 +132,14 @@ float Fluent::value(const ValueMap& values) const {
 
 
 /* Returns this fluent subject to the given substitution. */
-const Fluent& Fluent::substitution(const SubstitutionMap& subst) const {
-  TermList inst_terms;
+const Fluent& Fluent::substitution(
+    const std::map<Variable, Term>& subst) const {
+  std::vector<Term> inst_terms;
   bool substituted = false;
-  for (TermList::const_iterator ti = terms().begin();
+  for (std::vector<Term>::const_iterator ti = terms().begin();
        ti != terms().end(); ti++) {
-    SubstitutionMap::const_iterator si =
-      (*ti).variable() ? subst.find((*ti).as_variable()) : subst.end();
+    std::map<Variable, Term>::const_iterator si =
+        (*ti).variable() ? subst.find((*ti).as_variable()) : subst.end();
     if (si != subst.end()) {
       inst_terms.push_back((*si).second);
       substituted = true;
@@ -153,10 +154,9 @@ const Fluent& Fluent::substitution(const SubstitutionMap& subst) const {
   }
 }
 
-
 /* Returns an instantiation of this expression. */
-const Expression& Fluent::instantiation(const SubstitutionMap& subst,
-					const ValueMap& values) const {
+const Expression& Fluent::instantiation(const std::map<Variable, Term>& subst,
+                                        const ValueMap& values) const {
   if (terms().empty()) {
     if (FunctionTable::static_function(function())) {
       ValueMap::const_iterator vi = values.find(this);
@@ -169,13 +169,13 @@ const Expression& Fluent::instantiation(const SubstitutionMap& subst,
       return *this;
     }
   } else {
-    TermList inst_terms;
+    std::vector<Term> inst_terms;
     bool substituted = false;
     size_t objects = 0;
-    for (TermList::const_iterator ti = terms().begin();
-	 ti != terms().end(); ti++) {
-      SubstitutionMap::const_iterator si =
-	(*ti).variable() ? subst.find((*ti).as_variable()) : subst.end();
+    for (std::vector<Term>::const_iterator ti = terms().begin();
+         ti != terms().end(); ti++) {
+      std::map<Variable, Term>::const_iterator si =
+          (*ti).variable() ? subst.find((*ti).as_variable()) : subst.end();
       if (si != subst.end()) {
 	inst_terms.push_back((*si).second);
 	substituted = true;
@@ -206,11 +206,10 @@ const Expression& Fluent::instantiation(const SubstitutionMap& subst,
   }
 }
 
-
 /* Prints this object on the given stream. */
 void Fluent::print(std::ostream& os) const {
   os << '(' << function();
-  for (TermList::const_iterator ti = terms().begin();
+  for (std::vector<Term>::const_iterator ti = terms().begin();
        ti != terms().end(); ti++) {
     os << ' ' << *ti;
   }
@@ -266,8 +265,8 @@ float Addition::value(const ValueMap& values) const {
 
 
 /* Returns an instantiation of this expression. */
-const Expression& Addition::instantiation(const SubstitutionMap& subst,
-					  const ValueMap& values) const {
+const Expression& Addition::instantiation(const std::map<Variable, Term>& subst,
+                                          const ValueMap& values) const {
   const Expression& inst_term1 = operand1().instantiation(subst, values);
   const Expression& inst_term2 = operand2().instantiation(subst, values);
   if (&inst_term1 == &operand1() && &inst_term2 == &operand2()) {
@@ -276,7 +275,6 @@ const Expression& Addition::instantiation(const SubstitutionMap& subst,
     return make(inst_term1, inst_term2);
   }
 }
-
 
 /* Prints this object on the given stream. */
 void Addition::print(std::ostream& os) const {
@@ -313,8 +311,8 @@ float Subtraction::value(const ValueMap& values) const {
 
 
 /* Returns an instantiation of this expression. */
-const Expression& Subtraction::instantiation(const SubstitutionMap& subst,
-					     const ValueMap& values) const {
+const Expression& Subtraction::instantiation(
+    const std::map<Variable, Term>& subst, const ValueMap& values) const {
   const Expression& inst_term1 = operand1().instantiation(subst, values);
   const Expression& inst_term2 = operand2().instantiation(subst, values);
   if (&inst_term1 == &operand1() && &inst_term2 == &operand2()) {
@@ -323,7 +321,6 @@ const Expression& Subtraction::instantiation(const SubstitutionMap& subst,
     return make(inst_term1, inst_term2);
   }
 }
-
 
 /* Prints this object on the given stream. */
 void Subtraction::print(std::ostream& os) const {
@@ -360,8 +357,8 @@ float Multiplication::value(const ValueMap& values) const {
 
 
 /* Returns an instantiation of this expression. */
-const Expression& Multiplication::instantiation(const SubstitutionMap& subst,
-						const ValueMap& values) const {
+const Expression& Multiplication::instantiation(
+    const std::map<Variable, Term>& subst, const ValueMap& values) const {
   const Expression& inst_factor1 = operand1().instantiation(subst, values);
   const Expression& inst_factor2 = operand2().instantiation(subst, values);
   if (&inst_factor1 == &operand1() && &inst_factor2 == &operand2()) {
@@ -370,7 +367,6 @@ const Expression& Multiplication::instantiation(const SubstitutionMap& subst,
     return make(inst_factor1, inst_factor2);
   }
 }
-
 
 /* Prints this object on the given stream. */
 void Multiplication::print(std::ostream& os) const {
@@ -414,8 +410,8 @@ float Division::value(const ValueMap& values) const {
 
 
 /* Returns an instantiation of this expression. */
-const Expression& Division::instantiation(const SubstitutionMap& subst,
-					  const ValueMap& values) const {
+const Expression& Division::instantiation(const std::map<Variable, Term>& subst,
+                                          const ValueMap& values) const {
   const Expression& inst_factor1 = operand1().instantiation(subst, values);
   const Expression& inst_factor2 = operand2().instantiation(subst, values);
   if (&inst_factor1 == &operand1() && &inst_factor2 == &operand2()) {
@@ -424,7 +420,6 @@ const Expression& Division::instantiation(const SubstitutionMap& subst,
     return make(inst_factor1, inst_factor2);
   }
 }
-
 
 /* Prints this object on the given stream. */
 void Division::print(std::ostream& os) const {
@@ -464,8 +459,8 @@ float Minimum::value(const ValueMap& values) const {
 
 
 /* Returns an instantiation of this expression. */
-const Expression& Minimum::instantiation(const SubstitutionMap& subst,
-					 const ValueMap& values) const {
+const Expression& Minimum::instantiation(const std::map<Variable, Term>& subst,
+                                         const ValueMap& values) const {
   const Expression& inst_oper1 = operand1().instantiation(subst, values);
   const Expression& inst_oper2 = operand2().instantiation(subst, values);
   if (&inst_oper1 == &operand1() && &inst_oper2 == &operand2()) {
@@ -474,7 +469,6 @@ const Expression& Minimum::instantiation(const SubstitutionMap& subst,
     return make(inst_oper1, inst_oper2);
   }
 }
-
 
 /* Prints this object on the given stream. */
 void Minimum::print(std::ostream& os) const {
@@ -514,8 +508,8 @@ float Maximum::value(const ValueMap& values) const {
 
 
 /* Returns an instantiation of this expression. */
-const Expression& Maximum::instantiation(const SubstitutionMap& subst,
-					 const ValueMap& values) const {
+const Expression& Maximum::instantiation(const std::map<Variable, Term>& subst,
+                                         const ValueMap& values) const {
   const Expression& inst_oper1 = operand1().instantiation(subst, values);
   const Expression& inst_oper2 = operand2().instantiation(subst, values);
   if (&inst_oper1 == &operand1() && &inst_oper2 == &operand2()) {
@@ -524,7 +518,6 @@ const Expression& Maximum::instantiation(const SubstitutionMap& subst,
     return make(inst_oper1, inst_oper2);
   }
 }
-
 
 /* Prints this object on the given stream. */
 void Maximum::print(std::ostream& os) const {

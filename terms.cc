@@ -18,14 +18,9 @@
 // Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 #include "terms.h"
+
 #include <typeinfo>
 
-
-/* ====================================================================== */
-/* Term */
-
-/* Converts this term to an object.  Fails if the term is not an
-   object. */
 Object Term::as_object() const {
   if (object()) {
     return Object(index_);
@@ -34,9 +29,6 @@ Object Term::as_object() const {
   }
 }
 
-
-/* Converts this term to a variable.  Fails if the term is not a
-   variable. */
 Variable Term::as_variable() const {
   if (variable()) {
     return Variable(index_);
@@ -45,8 +37,6 @@ Variable Term::as_variable() const {
   }
 }
 
-
-/* Output operator for terms. */
 std::ostream& operator<<(std::ostream& os, const Term& t) {
   if (t.object()) {
     os << TermTable::names_[t.index_];
@@ -56,37 +46,23 @@ std::ostream& operator<<(std::ostream& os, const Term& t) {
   return os;
 }
 
-
-/* ====================================================================== */
-/* TermTable */
-
-/* Object names. */
 std::vector<std::string> TermTable::names_;
-/* Object types. */
 std::vector<Type> TermTable::object_types_;
-/* Variable types. */
 std::vector<Type> TermTable::variable_types_;
 
-
-/* Deletes this term table. */
 TermTable::~TermTable() {
-  for (std::map<Type, const ObjectList*>::const_iterator oi =
-	 compatible_.begin();
+  for (std::map<Type, const std::vector<Object>*>::const_iterator oi =
+           compatible_.begin();
        oi != compatible_.end(); oi++) {
     delete (*oi).second;
   }
 }
 
-
-/* Adds a variable with the given name and type to this term table
-   and returns the variable. */
 Variable TermTable::add_variable(const Type& type) {
   variable_types_.push_back(type);
   return Variable(-variable_types_.size());
 }
 
-
-/* Sets the type of the given term. */
 void TermTable::set_type(const Term& term, const Type& type) {
   if (term.object()) {
     object_types_[term.index_] = type;
@@ -95,8 +71,6 @@ void TermTable::set_type(const Term& term, const Type& type) {
   }
 }
 
-
-/* Returns the type of the given term. */
 const Type& TermTable::type(const Term& term) {
   if (term.object()) {
     return object_types_[term.index_];
@@ -105,21 +79,14 @@ const Type& TermTable::type(const Term& term) {
   }
 }
 
-
-/* Adds an object with the given name and type to this term table
-   and returns the object. */
-const Object& TermTable::add_object(const std::string& name,
-				    const Type& type) {
+const Object& TermTable::add_object(const std::string& name, const Type& type) {
   std::pair<std::map<std::string, Object>::const_iterator, bool> oi =
-    objects_.insert(std::make_pair(name, Object(names_.size())));
+      objects_.insert(std::make_pair(name, Object(names_.size())));
   names_.push_back(name);
   object_types_.push_back(type);
   return (*oi.first).second;
 }
 
-
-/* Returns the object with the given name, or 0 if no object with
-   the given name exists. */
 const Object* TermTable::find_object(const std::string& name) const {
   std::map<std::string, Object>::const_iterator oi = objects_.find(name);
   if (oi != objects_.end()) {
@@ -131,34 +98,30 @@ const Object* TermTable::find_object(const std::string& name) const {
   }
 }
 
-
-/* Returns a list with objects that are compatible with the given
-   type. */
-const ObjectList& TermTable::compatible_objects(const Type& type) const {
-  std::map<Type, const ObjectList*>::const_iterator oi =
-    compatible_.find(type);
+const std::vector<Object>& TermTable::compatible_objects(
+    const Type& type) const {
+  std::map<Type, const std::vector<Object>*>::const_iterator oi =
+      compatible_.find(type);
   if (oi != compatible_.end()) {
     return *(*oi).second;
   } else {
-    ObjectList* objects;
+    std::vector<Object>* objects;
     if (parent_ != 0) {
-      objects = new ObjectList(parent_->compatible_objects(type));
+      objects = new std::vector<Object>(parent_->compatible_objects(type));
     } else {
-      objects = new ObjectList();
+      objects = new std::vector<Object>();
     }
     for (std::map<std::string, Object>::const_iterator oi = objects_.begin();
-	 oi != objects_.end(); oi++) {
+         oi != objects_.end(); oi++) {
       const Object& o = (*oi).second;
       if (TypeTable::subtype(TermTable::type(o), type)) {
-	objects->push_back(o);
+        objects->push_back(o);
       }
     }
     return *objects;
   }
 }
 
-
-/* Output operator for term tables. */
 std::ostream& operator<<(std::ostream& os, const TermTable& t) {
   if (t.parent_ != 0) {
     os << *t.parent_;

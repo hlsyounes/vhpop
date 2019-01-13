@@ -128,9 +128,9 @@ static const Function* fluent_function;
 /* Whether the function of the currently parsed fluent was undeclared. */
 static bool undeclared_fluent_function;
 /* Paramerers for atomic formula or fluent being parsed. */
-static TermList term_parameters;
+static std::vector<Term> term_parameters;
 /* Quantified variables for effect or formula being parsed. */
-static TermList quantified;
+static std::vector<Term> quantified;
 /* Kind of name map being parsed. */
 static enum { TYPE_KIND, CONSTANT_KIND, OBJECT_KIND, VOID_KIND } name_kind;
 
@@ -1390,7 +1390,7 @@ static const Formula* make_forall(const Formula& body) {
 static void add_effect(const Literal& literal) {
   PredicateTable::make_dynamic(literal.predicate());
   Effect* effect = new Effect(literal, effect_time);
-  for (TermList::const_iterator vi = quantified.begin();
+  for (std::vector<Term>::const_iterator vi = quantified.begin();
        vi != quantified.end(); vi++) {
     if ((*vi).variable()) {
       effect->add_parameter((*vi).as_variable());

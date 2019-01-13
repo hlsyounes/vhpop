@@ -82,15 +82,15 @@ struct Effect {
 
   /* Fills the provided list with instantiations of this effect. */
   void instantiations(EffectList& effects, size_t& useful,
-		      const SubstitutionMap& subst,
-		      const Problem& problem) const;
+                      const std::map<Variable, Term>& subst,
+                      const Problem& problem) const;
 
   /* Prints this effect on the given stream. */
   void print(std::ostream& os) const;
 
 private:
   /* List of universally quantified variables for this effect. */
-  VariableList parameters_;
+  std::vector<Variable> parameters_;
   /* Condition for this effect, or TRUE if unconditional effect. */
   const Formula* condition_;
   /* Condition that must hold for this effect to be considered for linking. */
@@ -101,9 +101,9 @@ private:
   EffectTime when_;
 
   /* Returns an instantiation of this effect. */
-  const Effect* instantiation(const SubstitutionMap& args,
-			      const Problem& problem,
-			      const Formula& condition) const;
+  const Effect* instantiation(const std::map<Variable, Term>& args,
+                              const Problem& problem,
+                              const Formula& condition) const;
 };
 
 

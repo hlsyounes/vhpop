@@ -83,8 +83,8 @@ bool Effect::quantifies(Variable variable) const {
 
 /* Fills the provided list with instantiations of this effect. */
 void Effect::instantiations(EffectList& effects, size_t& useful,
-			    const SubstitutionMap& subst,
-			    const Problem& problem) const {
+                            const std::map<Variable, Term>& subst,
+                            const Problem& problem) const {
   size_t n = arity();
   if (n == 0) {
     const Formula& inst_cond = condition().instantiation(subst, problem);
@@ -96,9 +96,9 @@ void Effect::instantiations(EffectList& effects, size_t& useful,
       }
     }
   } else {
-    SubstitutionMap args(subst);
-    std::vector<const ObjectList*> arguments(n);
-    std::vector<ObjectList::const_iterator> next_arg;
+    std::map<Variable, Term> args(subst);
+    std::vector<const std::vector<Object>*> arguments(n);
+    std::vector<std::vector<Object>::const_iterator> next_arg;
     for (size_t i = 0; i < n; i++) {
       const Type& t = TermTable::type(parameter(i));
       arguments[i] = &problem.terms().compatible_objects(t);
@@ -112,7 +112,7 @@ void Effect::instantiations(EffectList& effects, size_t& useful,
     Formula::register_use(conds.top());
     for (size_t i = 0; i < n; ) {
       args.insert(std::make_pair(parameter(i), *next_arg[i]));
-      SubstitutionMap pargs;
+      std::map<Variable, Term> pargs;
       pargs.insert(std::make_pair(parameter(i), *next_arg[i]));
       const Formula& inst_cond = conds.top()->instantiation(pargs, problem);
       conds.push(&inst_cond);
@@ -153,22 +153,20 @@ void Effect::instantiations(EffectList& effects, size_t& useful,
   }
 }
 
-
 /* Returns an instantiation of this effect. */
-const Effect* Effect::instantiation(const SubstitutionMap& args,
-				    const Problem& problem,
-				    const Formula& condition) const {
+const Effect* Effect::instantiation(const std::map<Variable, Term>& args,
+                                    const Problem& problem,
+                                    const Formula& condition) const {
   Effect* inst_eff = new Effect(literal().substitution(args), when());
   inst_eff->set_condition(condition);
   inst_eff->set_link_condition(link_condition().instantiation(args, problem));
   return inst_eff;
 }
 
-
 /* Prints this effect on the given stream. */
 void Effect::print(std::ostream& os) const {
   os << '(';
-  for (VariableList::const_iterator vi = parameters_.begin();
+  for (std::vector<Variable>::const_iterator vi = parameters_.begin();
        vi != parameters_.end(); vi++) {
     os << *vi << ' ';
   }

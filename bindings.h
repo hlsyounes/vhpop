@@ -109,9 +109,7 @@ struct NameSet : public std::set<Object> {
 /*
  * A list of parameter tuples.
  */
-struct TupleList : public std::vector<const ObjectList*> {
-};
-
+struct TupleList : public std::vector<const std::vector<Object>*> {};
 
 /* ====================================================================== */
 /* ActionDomain */
@@ -138,7 +136,7 @@ struct ActionDomain {
   } 
 
  /* Constructs an action domain with a single tuple. */
-  ActionDomain(const ObjectList& tuple);
+  ActionDomain(const std::vector<Object>& tuple);
 
   /* Deletes this action domain. */
   ~ActionDomain();
@@ -150,7 +148,7 @@ struct ActionDomain {
   const TupleList& tuples() const { return tuples_; }
 
   /* Adds a tuple to this domain. */
-  void add(const ObjectList& tuple);
+  void add(const std::vector<Object>& tuple);
 
   /* Returns the set of names from the given column. */
   const NameSet& projection(size_t column) const;

@@ -142,14 +142,14 @@ void ActionSchema::instantiations(std::vector<const GroundAction*>& actions,
   size_t n = parameters().size();
   if (n == 0) {
     const GroundAction* inst_action =
-        instantiation(SubstitutionMap(), problem, condition());
+        instantiation(std::map<Variable, Term>(), problem, condition());
     if (inst_action != NULL) {
       actions.push_back(inst_action);
     }
   } else {
-    SubstitutionMap args;
-    std::vector<const ObjectList*> arguments(n);
-    std::vector<ObjectList::const_iterator> next_arg;
+    std::map<Variable, Term> args;
+    std::vector<const std::vector<Object>*> arguments(n);
+    std::vector<std::vector<Object>::const_iterator> next_arg;
     for (size_t i = 0; i < n; i++) {
       const Type& t = TermTable::type(parameters()[i]);
       arguments[i] = &problem.terms().compatible_objects(t);
@@ -163,7 +163,7 @@ void ActionSchema::instantiations(std::vector<const GroundAction*>& actions,
     Formula::register_use(conds.top());
     for (size_t i = 0; i < n;) {
       args.insert(std::make_pair(parameters()[i], *next_arg[i]));
-      SubstitutionMap pargs;
+      std::map<Variable, Term> pargs;
       pargs.insert(std::make_pair(parameters()[i], *next_arg[i]));
       const Formula& inst_cond = conds.top()->instantiation(pargs, problem);
       conds.push(&inst_cond);
@@ -205,7 +205,7 @@ void ActionSchema::instantiations(std::vector<const GroundAction*>& actions,
 }
 
 const GroundAction* ActionSchema::instantiation(
-    const SubstitutionMap& args, const Problem& problem,
+    const std::map<Variable, Term>& args, const Problem& problem,
     const Formula& condition) const {
   EffectList inst_effects;
   size_t useful = 0;
@@ -217,7 +217,7 @@ const GroundAction* ActionSchema::instantiation(
     GroundAction& ga = *new GroundAction(name(), durative());
     size_t n = parameters().size();
     for (size_t i = 0; i < n; i++) {
-      SubstitutionMap::const_iterator si = args.find(parameters()[i]);
+      std::map<Variable, Term>::const_iterator si = args.find(parameters()[i]);
       ga.add_argument((*si).second.as_object());
     }
     ga.set_condition(condition);
@@ -252,7 +252,7 @@ const GroundAction* ActionSchema::instantiation(
 void ActionSchema::print(std::ostream& os) const {
   os << "  " << name();
   os << std::endl << "    parameters:";
-  for (VariableList::const_iterator vi = parameters().begin();
+  for (std::vector<Variable>::const_iterator vi = parameters().begin();
        vi != parameters().end(); vi++) {
     os << ' ' << *vi;
   }
@@ -274,7 +274,7 @@ void ActionSchema::print(std::ostream& os) const {
 void ActionSchema::print(std::ostream& os, size_t step_id,
                          const Bindings& bindings) const {
   os << '(' << name();
-  for (VariableList::const_iterator ti = parameters().begin();
+  for (std::vector<Variable>::const_iterator ti = parameters().begin();
        ti != parameters().end(); ti++) {
     os << ' ';
     bindings.print_term(os, *ti, step_id);
@@ -290,7 +290,7 @@ void GroundAction::add_argument(Object arg) { arguments_.push_back(arg); }
 void GroundAction::print(std::ostream& os, size_t step_id,
                          const Bindings& bindings) const {
   os << '(' << name();
-  for (ObjectList::const_iterator ni = arguments().begin();
+  for (std::vector<Object>::const_iterator ni = arguments().begin();
        ni != arguments().end(); ni++) {
     os << ' ' << *ni;
   }
