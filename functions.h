@@ -19,8 +19,8 @@
 //
 // PDDL functions.
 
-#ifndef FUNCTIONS_H
-#define FUNCTIONS_H
+#ifndef FUNCTIONS_H_
+#define FUNCTIONS_H_
 
 #include <iostream>
 #include <map>
@@ -30,18 +30,14 @@
 
 #include "types.h"
 
-/* ====================================================================== */
-/* Function */
-
-/*
- * A function.
- */
-struct Function {
-  /* Constructs a function. */
+// A function.
+class Function {
+ public:
+  // Constructs a function.
   explicit Function(int index) : index_(index) {}
 
-private:
-  /* Function index. */
+ private:
+  // Function index.
   int index_;
 
   friend bool operator==(const Function& f1, const Function& f2);
@@ -50,80 +46,65 @@ private:
   friend struct FunctionTable;
 };
 
-/* Equality operator for functions. */
+// Equality operator for functions.
 inline bool operator==(const Function& f1, const Function& f2) {
   return f1.index_ == f2.index_;
 }
 
-/* Inequality operator for functions. */
+// Inequality operator for functions.
 inline bool operator!=(const Function& f1, const Function& f2) {
   return !(f1 == f2);
 }
 
-/* Less-than operator for functions. */
+// Less-than operator for functions.
 inline bool operator<(const Function& f1, const Function& f2) {
   return f1.index_ < f2.index_;
 }
 
-/* Output operator for functions. */
+// Output operator for functions.
 std::ostream& operator<<(std::ostream& os, const Function& f);
 
-
-/* ====================================================================== */
-/* FunctionSet */
-
-/* Set of function declarations. */
-struct FunctionSet : public std::set<Function> {
-};
-
-
-/* ====================================================================== */
-/* FunctionTable */
-
-/*
- * Function table.
- */
-struct FunctionTable {
-  /* Adds a parameter with the given type to the given function. */
+// Function table.
+class FunctionTable {
+ public:
+  // Adds a parameter with the given type to the given function.
   static void add_parameter(const Function& function, const Type& type);
 
-  /* Returns the name of the given function. */
+  // Returns the name of the given function.
   static const std::string& name(const Function& function);
 
-  /* Returns the parameter types of the given function. */
+  // Returns the parameter types of the given function.
   static const std::vector<Type>& parameters(const Function& function);
 
-  /* Makes the given function dynamic. */
+  // Makes the given function dynamic.
   static void make_dynamic(const Function& function);
 
-  /* Tests if the given function is static. */
+  // Tests if the given function is static.
   static bool static_function(const Function& function);
 
-  /* Adds a function with the given name to this table and returns the
-     function. */
+  // Adds a function with the given name to this table and returns the function.
   const Function& add_function(const std::string& name);
 
-  /* Returns a pointer to the function with the given name, or 0 if no
-     function with the given name exists. */
+  // Returns a pointer to the function with the given name, or 0 if no function
+  // with the given name exists.
   const Function* find_function(const std::string& name) const;
 
-private:
-  /* Function names. */
+ private:
+  // Function names.
   static std::vector<std::string> names_;
-  /* Function parameters. */
+  // Function parameters.
   static std::vector<std::vector<Type>> parameters_;
-  /* Static functions. */
-  static FunctionSet static_functions_;
+  // Static functions.
+  static std::set<Function> static_functions_;
 
-  /* Mapping of function names to functions. */
+  // Mapping of function names to functions.
   std::map<std::string, Function> functions_;
 
   friend std::ostream& operator<<(std::ostream& os, const FunctionTable& t);
   friend std::ostream& operator<<(std::ostream& os, const Function& f);
 };
 
-/* Output operator for function tables. */
+// Output operator for function tables.
 std::ostream& operator<<(std::ostream& os, const FunctionTable& t);
 
-
-#endif /* FUNCTIONS_H */
+#endif  // FUNCTIONS_H_
