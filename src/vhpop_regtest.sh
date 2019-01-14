@@ -18,6 +18,8 @@
 # along with VHPOP; if not, write to the Free Software Foundation,
 # Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
+set -o pipefail
+
 pass=1
 
 readonly VHPOP=${VHPOP:-./vhpop}
@@ -41,10 +43,10 @@ function expect_ok() {
 
 echo -n sussman_anomaly_lifted...
 start=$(timestamp)
-HEAPCHECK=normal ${VHPOP} examples/blocks-world-domain.pddl examples/sussman-anomaly.pddl 2>/dev/null | grep -v '^Time: ' | diff src/testdata/sussman_anomaly_lifted.golden -
+HEAPCHECK=normal VHPOP_FREE_ALL_MEMORY= ${VHPOP} examples/blocks-world-domain.pddl examples/sussman-anomaly.pddl 2>/dev/null | grep -v '^Time: ' | diff src/testdata/sussman_anomaly_lifted.golden -
 expect_ok ${start}
 
 echo -n sussman_anomaly_ground...
 start=$(timestamp)
-HEAPCHECK=normal ${VHPOP} examples/blocks-world-domain.pddl examples/sussman-anomaly.pddl 2>/dev/null | grep -v '^Time: ' | diff src/testdata/sussman_anomaly_ground.golden -
+HEAPCHECK=normal VHPOP_FREE_ALL_MEMORY= ${VHPOP} examples/blocks-world-domain.pddl examples/sussman-anomaly.pddl 2>/dev/null | grep -v '^Time: ' | diff src/testdata/sussman_anomaly_ground.golden -
 expect_ok ${start}

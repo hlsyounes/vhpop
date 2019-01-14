@@ -15,6 +15,9 @@
 /* Define to 1 if you have the <libintl.h> header file. */
 #undef HAVE_LIBINTL_H
 
+/* Define to 1 if you have the `tcmalloc' library (-ltcmalloc). */
+#undef HAVE_LIBTCMALLOC
+
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
 

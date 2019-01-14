@@ -46,13 +46,6 @@
 #include "getopt.h"
 #endif
 
-#ifdef ALWAYS_DELETE_ALL
-#define ALWAY_DELETE_ALL 1
-#else
-#define ALWAYS_DELETE_ALL 0
-#endif
-
-
 /* The parse function. */
 extern int yyparse();
 /* File to parse. */
@@ -235,6 +228,7 @@ size_t deleted_plans = 0;
 int main(int argc, char* argv[]) {
   atexit(cleanup);
 
+  const bool free_all_memory = getenv("VHPOP_FREE_ALL_MEMORY");
   /* Default planning parameters. */
   Parameters params;
   bool no_flaw_order = true;
@@ -421,8 +415,7 @@ int main(int argc, char* argv[]) {
       setitimer(ITIMER_PROF, &timer, NULL);
 #endif
       const Plan* plan =
-	Plan::plan(problem, params,
-		   !ALWAYS_DELETE_ALL && pi == Problem::end());
+          Plan::plan(problem, params, !free_all_memory && pi == Problem::end());
       if (plan != NULL) {
 	if (plan->complete()) {
 	  if (verbosity > 0) {
@@ -440,8 +433,8 @@ int main(int argc, char* argv[]) {
 	std::cout << "no plan" << std::endl;
 	std::cout << ";Problem has no solution." << std::endl;
       }
-      if (ALWAYS_DELETE_ALL || pi != Problem::end()) {
-	if (plan != NULL) {
+      if (free_all_memory || pi != Problem::end()) {
+        if (plan != NULL) {
 	  delete plan;
 	}
 	Plan::cleanup();
