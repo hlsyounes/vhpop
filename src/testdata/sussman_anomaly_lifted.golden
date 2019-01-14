@@ -1,0 +1,4 @@
+;sussman-anomaly
+1:(puton c table a)
+2:(puton b c table)
+3:(puton a b table)
