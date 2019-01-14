@@ -22,10 +22,11 @@
 #ifndef HEURISTICS_H
 #define HEURISTICS_H
 
-#include <config.h>
+#include <stdexcept>
+
 #include "domains.h"
 #include "formulas.h"
-#include <stdexcept>
+#include "predicates.h"
 
 struct Action;
 struct Problem;

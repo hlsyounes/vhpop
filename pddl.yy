@@ -21,17 +21,18 @@
 // PDDL parser.
 
 %{
-#include "requirements.h"
-#include "problems.h"
-#include "domains.h"
-#include "formulas.h"
-#include "terms.h"
-#include "types.h"
-#include <typeinfo>
-#include <utility>
 #include <cstdlib>
 #include <iostream>
+#include <typeinfo>
+#include <utility>
 
+#include "domains.h"
+#include "formulas.h"
+#include "predicates.h"
+#include "problems.h"
+#include "requirements.h"
+#include "terms.h"
+#include "types.h"
 
 /* Workaround for bug in Bison 1.35 that disables stack growth. */
 #define YYLTYPE_IS_TRIVIAL 1

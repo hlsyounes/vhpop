@@ -18,10 +18,10 @@
 // Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 #include "flaws.h"
-#include "plans.h"
 #include "domains.h"
 #include "formulas.h"
-
+#include "plans.h"
+#include "predicates.h"
 
 /* ====================================================================== */
 /* OpenCondition */

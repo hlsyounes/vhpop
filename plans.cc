@@ -31,6 +31,7 @@
 #include "formulas.h"
 #include "heuristics.h"
 #include "parameters.h"
+#include "predicates.h"
 #include "problems.h"
 #include "refcount.h"
 #include "requirements.h"
