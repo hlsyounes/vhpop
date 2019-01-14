@@ -19,7 +19,9 @@
 ## along with VHPOP; if not, write to the Free Software Foundation,
 ## Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
-AC_INIT(VHPOP, 3.0, lorens@cs.cmu.edu)
+AC_PREREQ(2.57)
+AC_INIT(VHPOP, 3.0, hlsyounes@gmail.com)
+AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR(vhpop.cc)
 AM_INIT_AUTOMAKE
 AM_CONFIG_HEADER(config.h)
@@ -32,15 +34,14 @@ AC_PROG_AWK
 AM_PROG_LEX
 AC_PROG_YACC
 
-AC_LANG(C++)
+AX_CXX_COMPILE_STDCXX([11], [noext], [mandatory])
 
 # Checks for libraries.
 AC_SEARCH_LIBS(gettext, intl)
 
 # Checks for header files.
-AC_FUNC_ALLOCA
 AC_HEADER_STDC
-AC_CHECK_HEADERS([libintl.h stdlib.h string.h strings.h sys/time.h unistd.h sstream])
+AC_CHECK_HEADERS([libintl.h stdlib.h string.h strings.h sys/time.h unistd.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -48,10 +49,8 @@ AC_C_INLINE
 AC_TYPE_SIZE_T
 
 # Checks for library functions.
-AC_FUNC_MALLOC
-AC_CHECK_FUNCS([atexit memset select strcasecmp strerror strncasecmp])
+AC_CHECK_FUNCS([atexit memset strcasecmp strerror strncasecmp])
 AC_CHECK_FUNCS(getopt_long, , [AC_LIBOBJ(getopt) AC_LIBOBJ(getopt1)])
-AC_CHECK_FUNCS(isinf, , [AC_EGREP_HEADER(finite, math.h, ,
-                                         [AC_CHECK_HEADERS(ieeefp.h)])])
+
 AC_CONFIG_FILES(Makefile)
 AC_OUTPUT

@@ -20,20 +20,12 @@
 #include "problems.h"
 
 #include <iostream>
+#include <sstream>
 #include <typeinfo>
 
 #include "bindings.h"
 #include "domains.h"
 #include "refcount.h"
-
-#if HAVE_SSTREAM
-#include <sstream>
-#else
-#include <strstream>
-namespace std {
-  typedef std::ostrstream ostringstream;
-}
-#endif
 
 
 /* ====================================================================== */
