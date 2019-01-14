@@ -28,6 +28,7 @@
 
 #include "domains.h"
 #include "formulas.h"
+#include "functions.h"
 #include "predicates.h"
 #include "problems.h"
 #include "requirements.h"
