@@ -63,8 +63,7 @@ AC_C_INLINE
 AC_TYPE_SIZE_T
 
 # Checks for library functions.
-AC_CHECK_FUNCS([atexit memset strcasecmp strerror strncasecmp])
-AC_CHECK_FUNCS(getopt_long, , [AC_LIBOBJ(getopt) AC_LIBOBJ(getopt1)])
+AC_CHECK_FUNCS([atexit memset strcasecmp strerror strncasecmp getopt_long])
 
 AC_CONFIG_FILES(Makefile)
 AC_OUTPUT

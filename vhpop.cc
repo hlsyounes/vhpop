@@ -38,8 +38,6 @@
 #define _GNU_SOURCE
 #endif
 #include <getopt.h>
-#else
-#include "getopt.h"
 #endif
 
 /* The parse function. */
@@ -61,21 +59,21 @@ static struct option long_options[] = {
   { "domain-constraints", optional_argument, NULL, 'd' },
   { "flaw-order", required_argument, NULL, 'f' },
   { "ground-actions", no_argument, NULL, 'g' },
+  { "help", no_argument, NULL, 'H' },
   { "heuristic", required_argument, NULL, 'h' },
   { "limit", required_argument, NULL, 'l' },
   { "random-open-conditions", no_argument, NULL, 'r' },
   { "search-algorithm", required_argument, NULL, 's' },
   { "seed", required_argument, NULL, 'S' },
-  { "tolerance", required_argument, NULL, 't' },
   { "time-limit", required_argument, NULL, 'T' },
-  { "verbose", optional_argument, NULL, 'v' },
+  { "tolerance", required_argument, NULL, 't' },
   { "version", no_argument, NULL, 'V' },
-  { "weight", required_argument, NULL, 'w' },
+  { "verbose", optional_argument, NULL, 'v' },
   { "warnings", optional_argument, NULL, 'W' },
-  { "help", no_argument, NULL, '?' },
+  { "weight", required_argument, NULL, 'w' },
   { 0, 0, 0, 0 }
 };
-static const char OPTION_STRING[] = "a:d::f:gh:l:rs:S:t:T:v::Vw:W::?";
+static const char OPTION_STRING[] = "a:d::f:gHh:l:rS:s:T:t:Vv::W::w:";
 
 
 /* Displays help. */
@@ -94,6 +92,8 @@ static void display_help() {
 	    << "use flaw selection order f" << std::endl
 	    << "  -g,    --ground-actions" << std::endl
 	    << "\t\t\tuse ground actions" << std::endl
+	    << "  -H     --help\t\t"
+	    << "display this help and exit" << std::endl
 	    << "  -h h,  --heuristic=h\t"
 	    << "use heuristic h to rank plans" << std::endl
 	    << "  -l l,  --limit=l\t"
@@ -101,17 +101,17 @@ static void display_help() {
 	    << "  -r,    --random-open-conditions" << std::endl
 	    << "\t\t\tadd open conditions in random order"
 	    << std::endl
-	    << "  -s s,  --search-algorithm=s" << std::endl
-	    << "\t\t\tuse search algorithm s" << std::endl
 	    << "  -S s,  --seed=s\t"
 	    << "uses s as seed for random number generator" << std::endl
+	    << "  -s s,  --search-algorithm=s" << std::endl
+	    << "\t\t\tuse search algorithm s" << std::endl
+	    << "  -T t,  --time-limit=t\t"
+	    << "limit search to t minutes" << std::endl
 	    << "  -t t,  --tolerance=t\t"
 	    << "use tolerance t with durative actions;" << std::endl
 	    << "\t\t\t  time stamps less than t appart are considered"
 	    << std::endl
 	    << "\t\t\t  indistinguishable (default is 0.01)" << std::endl
-	    << "  -T t,  --time-limit=t\t"
-	    << "limit search to t minutes" << std::endl
 	    << "  -v[n], --verbose[=n]\t"
 	    << "use verbosity level n;" << std::endl
 	    << "\t\t\t  n is a number from 0 (verbose mode off) and up;"
@@ -120,15 +120,13 @@ static void display_help() {
 	    << std::endl
 	    << "  -V,    --version\t"
 	    << "display version information and exit" << std::endl
-	    << "  -w,    --weight=w\t"
-	    << "weight to use with heuristic (default is 1)" << std::endl
 	    << "  -W[n], --warnings[=n]\t"
 	    << "determines how warnings are treated;" << std::endl
 	    << "\t\t\t  0 supresses warnings; 1 displays warnings;"
 	    << std::endl
 	    << "\t\t\t  2 treats warnings as errors" << std::endl
-	    << "  -?     --help\t\t"
-	    << "display this help and exit" << std::endl
+	    << "  -w,    --weight=w\t"
+	    << "weight to use with heuristic (default is 1)" << std::endl
 	    << "  file ...\t\t"
 	    << "files containing domain and problem descriptions;" << std::endl
 	    << "\t\t\t  if none, descriptions are read from standard input"
@@ -197,8 +195,11 @@ int main(int argc, char* argv[]) {
    */
   while (1) {
     int option_index = 0;
-    int c = getopt_long(argc, argv, OPTION_STRING,
-			long_options, &option_index);
+#if HAVE_GETOPT_LONG
+    int c = getopt_long(argc, argv, OPTION_STRING, long_options, &option_index);
+#else
+    int c = getopt(argc, argv, OPTION_STRING);
+#endif
     if (c == -1) {
       break;
     }
@@ -234,6 +235,9 @@ int main(int argc, char* argv[]) {
     case 'g':
       params.ground_actions = true;
       break;
+    case 'H':
+      display_help();
+      return 0;
     case 'h':
       try {
 	params.heuristic = optarg;
@@ -258,6 +262,9 @@ int main(int argc, char* argv[]) {
     case 'r':
       params.random_open_conditions = true;
       break;
+    case 'S':
+      srand(atoi(optarg));
+      break;
     case 's':
       try {
 	params.set_search_algorithm(optarg);
@@ -268,8 +275,8 @@ int main(int argc, char* argv[]) {
 	return -1;
       }
       break;
-    case 'S':
-      srand(atoi(optarg));
+    case 'T':
+      params.time_limit = atoi(optarg);
       break;
     case 't':
       if (optarg == std::string("unlimited")) {
@@ -278,26 +285,18 @@ int main(int argc, char* argv[]) {
 	Orderings::threshold = atof(optarg);
       }
       break;
-    case 'T':
-      params.time_limit = atoi(optarg);
-      break;
-    case 'v':
-      verbosity = (optarg != NULL) ? atoi(optarg) : 1;
-      break;
     case 'V':
       display_version();
       return 0;
-    case 'w':
-      params.weight = atof(optarg);
+    case 'v':
+      verbosity = (optarg != NULL) ? atoi(optarg) : 1;
       break;
     case 'W':
       warning_level = (optarg != NULL) ? atoi(optarg) : 1;
       break;
-    case '?':
-      if (optopt == '?') {
-	display_help();
-	return 0;
-      }
+    case 'w':
+      params.weight = atof(optarg);
+      break;
     case ':':
     default:
       std::cerr << "Try `" PACKAGE " --help' for more information."
