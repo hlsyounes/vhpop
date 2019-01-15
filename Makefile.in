@@ -103,13 +103,13 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
-am_vhpop_OBJECTS = vhpop.$(OBJEXT) refcount.$(OBJEXT) types.$(OBJEXT) \
-	terms.$(OBJEXT) predicates.$(OBJEXT) functions.$(OBJEXT) \
-	expressions.$(OBJEXT) formulas.$(OBJEXT) effects.$(OBJEXT) \
-	actions.$(OBJEXT) domains.$(OBJEXT) problems.$(OBJEXT) \
-	bindings.$(OBJEXT) orderings.$(OBJEXT) flaws.$(OBJEXT) \
-	heuristics.$(OBJEXT) plans.$(OBJEXT) parameters.$(OBJEXT) \
-	requirements.$(OBJEXT) pddl.$(OBJEXT) tokens.$(OBJEXT)
+am_vhpop_OBJECTS = vhpop.$(OBJEXT) types.$(OBJEXT) terms.$(OBJEXT) \
+	predicates.$(OBJEXT) functions.$(OBJEXT) expressions.$(OBJEXT) \
+	formulas.$(OBJEXT) effects.$(OBJEXT) actions.$(OBJEXT) \
+	domains.$(OBJEXT) problems.$(OBJEXT) bindings.$(OBJEXT) \
+	orderings.$(OBJEXT) flaws.$(OBJEXT) heuristics.$(OBJEXT) \
+	plans.$(OBJEXT) parameters.$(OBJEXT) requirements.$(OBJEXT) \
+	pddl.$(OBJEXT) tokens.$(OBJEXT)
 vhpop_OBJECTS = $(am_vhpop_OBJECTS)
 vhpop_DEPENDENCIES = @LIBOBJS@
 AM_V_P = $(am__v_P_@AM_V@)
@@ -314,7 +314,7 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-vhpop_SOURCES = vhpop.cc refcount.cc refcount.h chain.h types.cc types.h terms.cc terms.h predicates.cc predicates.h functions.cc functions.h expressions.cc expressions.h formulas.cc formulas.h effects.cc effects.h actions.cc actions.h domains.cc domains.h problems.cc problems.h bindings.cc bindings.h orderings.cc orderings.h flaws.cc flaws.h heuristics.cc heuristics.h plans.cc plans.h parameters.cc parameters.h requirements.cc requirements.h pddl.yy tokens.ll debug.h
+vhpop_SOURCES = vhpop.cc refcount.h chain.h types.cc types.h terms.cc terms.h predicates.cc predicates.h functions.cc functions.h expressions.cc expressions.h formulas.cc formulas.h effects.cc effects.h actions.cc actions.h domains.cc domains.h problems.cc problems.h bindings.cc bindings.h orderings.cc orderings.h flaws.cc flaws.h heuristics.cc heuristics.h plans.cc plans.h parameters.cc parameters.h requirements.cc requirements.h pddl.yy tokens.ll debug.h
 vhpop_LDADD = @LIBOBJS@
 MAINTAINERCLEANFILES = pddl.cc tokens.cc
 EXTRA_DIST = getopt.c getopt1.c getopt.h ipc3-vhpop examples scripts \
@@ -449,7 +449,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/plans.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/predicates.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/problems.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/refcount.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/requirements.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/terms.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tokens.Po@am__quote@

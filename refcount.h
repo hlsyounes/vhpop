@@ -22,19 +22,9 @@
 #ifndef REFCOUNT_H_
 #define REFCOUNT_H_
 
-#ifdef DEBUG_MEMORY
-#include <iostream>
-#include <map>
-#include <typeinfo>
-#endif
-
 // An object with a reference counter.
 class RCObject {
  public:
-#ifdef DEBUG_MEMORY
-  static void print_statistics(std::ostream& os);
-#endif
-
   // Increases the reference count for the given object.
   static void ref(const RCObject* o) {
     if (o != 0) {
@@ -61,33 +51,16 @@ class RCObject {
   }
 
   // Deletes this object.
-  virtual ~RCObject() {
-#ifdef DEBUG_MEMORY
-    deletion_count[typeid(*this).name()]++;
-#endif
-  }
+  virtual ~RCObject() {}
 
  protected:
   // Constructs an object with a reference counter.
-  RCObject() : ref_count_(0) {
-#ifdef DEBUG_MEMORY
-    creation_count[typeid(*this).name()]++;
-#endif
-  }
+  RCObject() : ref_count_(0) {}
 
   // Copy constructor.
-  RCObject(const RCObject& o) : ref_count_(0) {
-#ifdef DEBUG_MEMORY
-    creation_count[typeid(*this).name()]++;
-#endif
-  }
+  RCObject(const RCObject& o) : ref_count_(0) {}
 
  private:
-#ifdef DEBUG_MEMORY
-  static std::map<std::string, size_t> creation_count;
-  static std::map<std::string, size_t> deletion_count;
-#endif
-
   // Reference counter.
   mutable unsigned long ref_count_;
 };

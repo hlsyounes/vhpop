@@ -126,25 +126,12 @@ struct BoolVector : public std::vector<bool> {
   /* Constructs a vector with n copies of b. */
   BoolVector(size_t n, bool b)
     : std::vector<bool>(n, b), ref_count_(0) {
-#ifdef DEBUG_MEMORY
-    created_bool_vectors++;
-#endif
   }
 
   /* Constructs a copy of the given vector. */
   BoolVector(const BoolVector& v)
     : std::vector<bool>(v), ref_count_(0) {
-#ifdef DEBUG_MEMORY
-    created_bool_vectors++;
-#endif
   }
-
-#ifdef DEBUG_MEMORY
-  /* Deletes this vector. */
-  ~BoolVector() {
-    deleted_bool_vectors++;
-  }
-#endif
 
 private:
   /* Reference counter. */
@@ -179,25 +166,12 @@ struct IntVector : public std::vector<int> {
   /* Constructs a vector with n copies of b. */
   IntVector(size_t n, int f)
     : std::vector<int>(n, f), ref_count_(0) {
-#ifdef DEBUG_MEMORY
-    created_float_vectors++;
-#endif
   }
 
   /* Constructs a copy of the given vector. */
   IntVector(const IntVector& v)
     : std::vector<int>(v), ref_count_(0) {
-#ifdef DEBUG_MEMORY
-    created_float_vectors++;
-#endif
   }
-
-#ifdef DEBUG_MEMORY
-  /* Deletes this vector. */
-  ~IntVector() {
-    deleted_float_vectors++;
-  }
-#endif
 
 private:
   /* Reference counter. */
@@ -215,26 +189,17 @@ float Orderings::threshold = 0.01f;
 /* Constructs an empty ordering collection. */
 Orderings::Orderings()
   : ref_count_(0) {
-#ifdef DEBUG_MEMORY
-    created_orderings++;
-#endif
 }
 
 
 /* Constructs a copy of this ordering collection. */
 Orderings::Orderings(const Orderings& o)
   : ref_count_(0) {
-#ifdef DEBUG_MEMORY
-    created_orderings++;
-#endif
 }
 
 
 /* Deletes this ordering collection. */
 Orderings::~Orderings() {
-#ifdef DEBUG_MEMORY
-    deleted_orderings++;
-#endif
 }
 
 

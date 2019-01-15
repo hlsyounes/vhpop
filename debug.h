@@ -29,24 +29,5 @@
 /* Verbosity level. */
 extern int verbosity;
 
-#ifdef DEBUG_MEMORY
-extern size_t created_formulas;
-extern size_t deleted_formulas;
-extern size_t created_conditions;
-extern size_t deleted_conditions;
-extern size_t created_action_domains;
-extern size_t deleted_action_domains;
-extern size_t created_bindings;
-extern size_t deleted_bindings;
-extern size_t created_bool_vectors;
-extern size_t deleted_bool_vectors;
-extern size_t created_float_vectors;
-extern size_t deleted_float_vectors;
-extern size_t created_orderings;
-extern size_t deleted_orderings;
-extern size_t created_plans;
-extern size_t deleted_plans;
-#endif
-
 
 #endif /* DEBUG_H */

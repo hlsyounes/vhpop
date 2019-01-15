@@ -40,17 +40,11 @@ const Formula& Formula::FALSE = Constant::FALSE_;
 /* Constructs a formula. */
 Formula::Formula()
   : ref_count_(0) {
-#ifdef DEBUG_MEMORY
-  created_formulas++;
-#endif
 }
 
 
 /* Deletes this formula. */
 Formula::~Formula() {
-#ifdef DEBUG_MEMORY
-  deleted_formulas++;
-#endif
 }
 
 
@@ -166,9 +160,6 @@ const Constant Constant::FALSE_ = Constant(false);
 Constant::Constant(bool value)
   : value_(value) {
   register_use(this);
-#ifdef DEBUG_MEMORY
-  created_formulas--;
-#endif
 }
 
 
@@ -1786,9 +1777,6 @@ Condition::Condition(const Formula& at_start, const Formula& over_all,
   Formula::register_use(at_start_);
   Formula::register_use(over_all_);
   Formula::register_use(at_end_);
-#ifdef DEBUG_MEMORY
-  created_conditions++;
-#endif
 }
 
 
@@ -1797,9 +1785,6 @@ Condition::~Condition() {
   Formula::unregister_use(at_start_);
   Formula::unregister_use(over_all_);
   Formula::unregister_use(at_end_);
-#ifdef DEBUG_MEMORY
-  deleted_conditions++;
-#endif
 }
 
 

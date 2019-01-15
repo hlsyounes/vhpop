@@ -513,17 +513,11 @@ find_step_domain(const Chain<StepDomain>* step_domains,
 
 /* Constructs an action domain with a single tuple. */
 ActionDomain::ActionDomain(const std::vector<Object>& tuple) : ref_count_(0) {
-#ifdef DEBUG_MEMORY
-    created_action_domains++;
-#endif
   add(tuple);
 }
 
 /* Deletes this action domain. */
 ActionDomain::~ActionDomain() {
-#ifdef DEBUG_MEMORY
-  deleted_action_domains++;
-#endif
   for (ProjectionMap::const_iterator pi = projections_.begin();
        pi != projections_.end(); pi++) {
     delete (*pi).second;
@@ -696,9 +690,6 @@ Bindings::Bindings(const Chain<Varset>* varsets, size_t high_step,
 		   const Chain<StepDomain>* step_domains)
   : varsets_(varsets), high_step_(high_step), step_domains_(step_domains),
     ref_count_(0) {
-#ifdef DEBUG_MEMORY
-  created_bindings++;
-#endif
   RCObject::ref(varsets_);
   RCObject::ref(step_domains_);
 }
@@ -706,9 +697,6 @@ Bindings::Bindings(const Chain<Varset>* varsets, size_t high_step,
 
 /* Deletes this binding collection. */
 Bindings::~Bindings() {
-#ifdef DEBUG_MEMORY
-  deleted_bindings++;
-#endif
   RCObject::destructive_deref(varsets_);
   RCObject::destructive_deref(step_domains_);
 }

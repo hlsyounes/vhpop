@@ -884,9 +884,6 @@ Plan::Plan(const Chain<Step>* steps, size_t num_steps,
   RCObject::ref(unsafes);
   RCObject::ref(open_conds);
   RCObject::ref(mutex_threats);
-#ifdef DEBUG_MEMORY
-  created_plans++;
-#endif
 #ifdef DEBUG
   depth_ = (parent != NULL) ? parent->depth() + 1 : 0;
 #endif
@@ -895,9 +892,6 @@ Plan::Plan(const Chain<Step>* steps, size_t num_steps,
 
 /* Deletes this plan. */
 Plan::~Plan() {
-#ifdef DEBUG_MEMORY
-  deleted_plans++;
-#endif
   RCObject::destructive_deref(steps_);
   RCObject::destructive_deref(links_);
   Orderings::unregister_use(orderings_);

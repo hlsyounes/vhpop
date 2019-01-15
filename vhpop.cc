@@ -33,10 +33,6 @@
 #include "plans.h"
 #include "problems.h"
 
-#ifdef DEBUG_MEMORY
-#include "refcount.h"
-#endif
-
 #if HAVE_GETOPT_LONG
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -179,49 +175,7 @@ static bool read_file(const char* name) {
 static void cleanup() {
   Problem::clear();
   Domain::clear();
-
-#ifdef DEBUG_MEMORY
-  RCObject::print_statistics(std::cerr);
-  std::cerr << "Formulas created: " << created_formulas << std::endl
-	    << "Formulas deleted: " << deleted_formulas << std::endl
-	    << "Conditions created: " << created_conditions << std::endl
-	    << "Conditions deleted: " << deleted_conditions << std::endl
-	    << "Action domains created: " << created_action_domains
-	    << std::endl
-	    << "Action domains deleted: " << deleted_action_domains
-	    << std::endl
-	    << "Bindings created: " << created_bindings << std::endl
-	    << "Bindings deleted: " << deleted_bindings << std::endl
-	    << "Bool vectors created: " << created_bool_vectors << std::endl
-	    << "Bool vectors deleted: " << deleted_bool_vectors << std::endl
-	    << "Float vectors created: " << created_float_vectors << std::endl
-	    << "Float vectors deleted: " << deleted_float_vectors << std::endl
-	    << "Orderings created: " << created_orderings << std::endl
-	    << "Orderings deleted: " << deleted_orderings << std::endl
-	    << "Plans created: " << created_plans << std::endl
-	    << "Plans deleted: " << deleted_plans << std::endl;
-#endif
 }
-
-
-#ifdef DEBUG_MEMORY
-size_t created_formulas = 0;
-size_t deleted_formulas = 0;
-size_t created_conditions = 0;
-size_t deleted_conditions = 0;
-size_t created_action_domains = 0;
-size_t deleted_action_domains = 0;
-size_t created_bindings = 0;
-size_t deleted_bindings = 0;
-size_t created_bool_vectors = 0;
-size_t deleted_bool_vectors = 0;
-size_t created_float_vectors = 0;
-size_t deleted_float_vectors = 0;
-size_t created_orderings = 0;
-size_t deleted_orderings = 0;
-size_t created_plans = 0;
-size_t deleted_plans = 0;
-#endif
 
 
 /* The main program. */
