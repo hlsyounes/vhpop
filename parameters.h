@@ -22,12 +22,12 @@
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
 
-#include <config.h>
-#include "heuristics.h"
+#include <chrono>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
+#include "heuristics.h"
 
 /* ====================================================================== */
 /* InvalidSearchAlgorithm */
@@ -65,8 +65,8 @@ struct Parameters {
   /* Valid action costs. */
   typedef enum { UNIT_COST, DURATION, RELATIVE } ActionCost;
 
-  /* Time limit, in minutes. */
-  size_t time_limit;
+  /* Time limit. */
+  std::chrono::nanoseconds time_limit;
   /* Search algorithm to use. */
   SearchAlgorithm search_algorithm;
   /* Plan selection heuristic. */

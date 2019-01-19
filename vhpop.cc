@@ -19,7 +19,6 @@
 //
 // Main program.
 
-#include <sys/time.h>
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
@@ -32,6 +31,8 @@
 #include "parameters.h"
 #include "plans.h"
 #include "problems.h"
+
+#include "src/timer.h"
 
 #if HAVE_GETOPT_LONG
 #ifndef _GNU_SOURCE
@@ -276,7 +277,7 @@ int main(int argc, char* argv[]) {
       }
       break;
     case 'T':
-      params.time_limit = atoi(optarg);
+      params.time_limit = std::chrono::minutes(atoi(optarg));
       break;
     case 't':
       if (optarg == std::string("unlimited")) {
@@ -361,12 +362,7 @@ int main(int argc, char* argv[]) {
       const Problem& problem = *(*pi).second;
       pi++;
       std::cout << ';' << problem.name() << std::endl;
-      struct itimerval timer = { { 1000000, 900000 }, { 1000000, 900000 } };
-#ifdef PROFILING
-      setitimer(ITIMER_VIRTUAL, &timer, NULL);
-#else
-      setitimer(ITIMER_PROF, &timer, NULL);
-#endif
+      Timer<> timer;
       const Plan* plan =
           Plan::plan(problem, params, !free_all_memory && pi == Problem::end());
       if (plan != NULL) {
@@ -392,15 +388,11 @@ int main(int argc, char* argv[]) {
 	}
 	Plan::cleanup();
       }
-#ifdef PROFILING
-      getitimer(ITIMER_VIRTUAL, &timer);
-#else
-      getitimer(ITIMER_PROF, &timer);
-#endif
       /* Planning time. */
-      double t = 1000000.9
-	- (timer.it_value.tv_sec + timer.it_value.tv_usec*1e-6);
-      std::cout << "Time: " << std::max(0, int(1000.0*t + 0.5)) << std::endl;
+      const auto elapsed_millis =
+          std::chrono::duration_cast<std::chrono::milliseconds>(
+              timer.ElapsedTime());
+      std::cout << "Time: " << elapsed_millis.count() << std::endl;
     }
   } catch (const std::exception& e) {
     std::cerr << PACKAGE ": " << e.what() << std::endl;

@@ -19,7 +19,6 @@
 
 #include "plans.h"
 
-#include <sys/time.h>
 #include <algorithm>
 #include <limits>
 #include <queue>
@@ -37,6 +36,8 @@
 #include "requirements.h"
 #include "terms.h"
 #include "types.h"
+
+#include "src/timer.h"
 
 /*
  * Mapping of predicate names to achievers.
@@ -516,6 +517,8 @@ const Plan* Plan::make_initial_plan(const Problem& problem) {
 /* Returns plan for given problem. */
 const Plan* Plan::plan(const Problem& problem, const Parameters& p,
 		       bool last_problem) {
+  Timer<> timer;
+
   /* Set planning parameters. */
   params = &p;
   /* Set current domain. */
@@ -603,7 +606,7 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
   /* Variable for progress bar (number of generated plans). */
   size_t last_dot = 0;
   /* Variable for progress bar (time). */
-  size_t last_hash = 0;
+  std::chrono::minutes next_hash(1);
 
   /*
    * Search for complete plan.
@@ -636,16 +639,9 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
 	  dead_queues.pop_back();
 	}
       }
-      struct itimerval timer;
-#ifdef PROFILING
-      getitimer(ITIMER_VIRTUAL, &timer);
-#else
-      getitimer(ITIMER_PROF, &timer);
-#endif
-      double t = 1000000.9
-	- (timer.it_value.tv_sec + timer.it_value.tv_usec*1e-6);
-      if (t >= 60.0*params->time_limit) {
-	/* Time limit exceeded. */
+      const auto elapsed_time = timer.ElapsedTime();
+      if (elapsed_time >= params->time_limit) {
+        /* Time limit exceeded. */
 	break;
       }
 
@@ -658,10 +654,10 @@ const Plan* Plan::plan(const Problem& problem, const Parameters& p,
 	  std::cerr << '.';
 	  last_dot += 1000;
 	}
-	while (t - 60.0*last_hash >= 60.0) {
-	  std::cerr << '#';
-	  last_hash++;
-	}
+	while (elapsed_time >= next_hash) {
+          std::cerr << '#';
+          ++next_hash;
+        }
       }
       if (verbosity > 1) {
 	std::cerr << std::endl << (num_visited_plans - num_static) << ": "

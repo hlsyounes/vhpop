@@ -23,7 +23,7 @@ AC_PREREQ(2.57)
 AC_INIT(VHPOP, 3.0, hlsyounes@gmail.com)
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR(vhpop.cc)
-AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([subdir-objects])
 AM_CONFIG_HEADER(config.h)
 
 # Checks for programs.
@@ -32,6 +32,7 @@ AC_PROG_CC
 AC_PROG_INSTALL
 AC_PROG_AWK
 AM_PROG_LEX
+AC_PROG_LIBTOOL
 AC_PROG_YACC
 
 AX_CXX_COMPILE_STDCXX([11], [noext], [mandatory])
@@ -66,4 +67,5 @@ AC_TYPE_SIZE_T
 AC_CHECK_FUNCS([atexit memset strcasecmp strerror strncasecmp getopt_long])
 
 AC_CONFIG_FILES(Makefile)
+AC_CONFIG_SUBDIRS([gtest])
 AC_OUTPUT
