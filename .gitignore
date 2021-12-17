@@ -1,18 +1,30 @@
-.deps/
-.dirstamp
 .libs/
-autom4te.cache/
 config.h
-config.h.in~
-config.log
-config.status
 libtool
-Makefile
-stamp-h1
 vhpop
-*.la
-*.lo
 *.log
-*.o
 *.trs
 src/*_test
+
+# Automake files.
+.deps/
+.dirstamp
+
+# Autoconf files.
+autom4te.cache/
+config.log
+config.status
+stamp-h1
+
+# Generated Makefile.
+Makefile
+
+# Compiled object files.
+*.lo
+*.o
+
+# Compiled static libraries.
+*.la
+
+# Backup files.
+*~
