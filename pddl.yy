@@ -211,7 +211,6 @@ static void pop_forall_effect();
 static void add_init_literal(float time, const Literal& literal);
 %}
 
-%token DEFINE DOMAIN_TOKEN PROBLEM
 %token REQUIREMENTS TYPES CONSTANTS PREDICATES FUNCTIONS
 %token STRIPS TYPING NEGATIVE_PRECONDITIONS DISJUNCTIVE_PRECONDITIONS EQUALITY
 %token EXISTENTIAL_PRECONDITIONS UNIVERSAL_PRECONDITIONS
@@ -221,11 +220,7 @@ static void add_init_literal(float time, const Literal& literal);
 %token ACTION PARAMETERS PRECONDITION EFFECT
 %token DURATIVE_ACTION DURATION CONDITION
 %token PDOMAIN OBJECTS INIT GOAL METRIC
-%token WHEN NOT AND OR IMPLY EXISTS FORALL
-%token AT OVER START END ALL
-%token MINIMIZE MAXIMIZE TOTAL_TIME
-%token NUMBER_TOKEN OBJECT_TOKEN EITHER
-%token LE GE NAME DURATION_VAR VARIABLE NUMBER
+%token LE GE
 %token ILLEGAL_TOKEN
 
 %union {
@@ -252,13 +247,13 @@ static void add_init_literal(float time, const Literal& literal);
 %type <type> type_spec type
 %type <types> types
 %type <str> type_name predicate init_predicate function name variable
-%type <str> DEFINE DOMAIN_TOKEN PROBLEM
-%type <str> WHEN NOT AND OR IMPLY EXISTS FORALL
-%type <str> NUMBER_TOKEN OBJECT_TOKEN EITHER
-%type <str> AT OVER START END ALL
-%type <str> MINIMIZE MAXIMIZE TOTAL_TIME
-%type <str> NAME DURATION_VAR VARIABLE
-%type <num> NUMBER
+%token <str> DEFINE DOMAIN_TOKEN PROBLEM
+%token <str> WHEN NOT AND OR IMPLY EXISTS FORALL
+%token <str> AT OVER START END ALL
+%token <str> MINIMIZE MAXIMIZE TOTAL_TIME
+%token <str> NUMBER_TOKEN OBJECT_TOKEN EITHER
+%token <str> NAME DURATION_VAR VARIABLE
+%token <num> NUMBER
 
 %%
 

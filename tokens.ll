@@ -35,7 +35,7 @@ struct Fluent;
 #include <set>
 #include <string>
 #include <vector>
-#include "pddl.h"
+#include "pddl.hh"
 
 
 /* Current line number. */

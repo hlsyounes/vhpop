@@ -2,6 +2,7 @@
 config.h
 libtool
 vhpop
+vhpop-*.*.tar.gz
 vhpop-*.*/
 *.log
 *.trs
@@ -31,6 +32,8 @@ ltversion.m4
 
 # Generated Makefile.
 Makefile
+!gtest/make/Makefile
+!gtest/scripts/test/Makefile
 
 # Compiled object files.
 *.lo

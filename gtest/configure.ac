@@ -41,9 +41,9 @@ AM_CONDITIONAL([HAVE_PYTHON],[test "$PYTHON" != ":"])
 # Configure pthreads.
 AC_ARG_WITH([pthreads],
             [AS_HELP_STRING([--with-pthreads],
-               [use pthreads (default is yes)])],
+               [use pthreads (default is no)])],
             [with_pthreads=$withval],
-            [with_pthreads=check])
+            [with_pthreads=no])
 
 have_pthreads=no
 AS_IF([test "x$with_pthreads" != "xno"],
