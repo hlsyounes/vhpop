@@ -173,8 +173,11 @@ AM_CPPFLAGS = -I$(srcdir) -I$(srcdir)/include
 
 # Modifies compiler and linker flags for pthreads compatibility.
 if HAVE_PTHREADS
-  AM_CXXFLAGS = @PTHREAD_CFLAGS@ -DGTEST_HAS_PTHREAD=1
   AM_LIBS = @PTHREAD_LIBS@
+  AM_CFLAGS = @PTHREAD_CFLAGS@ -DGTEST_HAS_PTHREAD=1
+  AM_CXXFLAGS = @PTHREAD_CFLAGS@ -DGTEST_HAS_PTHREAD=1
+  AM_CC = @PTHREAD_CC@
+  AM_CXX = @PTHREAD_CXX@
 else
   AM_CXXFLAGS = -DGTEST_HAS_PTHREAD=0
 endif

@@ -19,20 +19,20 @@
 ## along with VHPOP; if not, write to the Free Software Foundation,
 ## Inc., #59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
-AC_PREREQ(2.57)
-AC_INIT(VHPOP, 3.0, hlsyounes@gmail.com)
+AC_PREREQ([2.71])
+AC_INIT([VHPOP],[3.0],[hlsyounes@gmail.com])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR(vhpop.cc)
 AM_INIT_AUTOMAKE([subdir-objects])
-AM_CONFIG_HEADER(config.h)
+AC_CONFIG_HEADERS([config.h])
 
 # Checks for programs.
 AC_PROG_CXX
 AC_PROG_CC
 AC_PROG_INSTALL
 AC_PROG_AWK
-AM_PROG_LEX
-AC_PROG_LIBTOOL
+AC_PROG_LEX([noyywrap])
+LT_INIT
 AC_PROG_YACC
 
 AX_CXX_COMPILE_STDCXX([11], [noext], [mandatory])
@@ -55,7 +55,6 @@ AS_IF([test "x$with_tcmalloc" != xno],
 AC_SEARCH_LIBS(gettext, intl)
 
 # Checks for header files.
-AC_HEADER_STDC
 AC_CHECK_HEADERS([libintl.h stdlib.h string.h strings.h sys/time.h unistd.h])
 
 # Checks for typedefs, structures, and compiler characteristics.

@@ -2,19 +2,32 @@
 config.h
 libtool
 vhpop
+vhpop-*.*/
 *.log
 *.trs
 src/*_test
 
 # Automake files.
+Makefile.in
 .deps/
 .dirstamp
 
 # Autoconf files.
 autom4te.cache/
+aclocal.m4
+config.h.in
 config.log
 config.status
+configure
 stamp-h1
+
+# Libtool files.
+ltmain.sh
+
+# M4 files.
+libtool.m4
+ltoptions.m4
+ltversion.m4
 
 # Generated Makefile.
 Makefile

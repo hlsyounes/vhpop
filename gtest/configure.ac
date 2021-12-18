@@ -1,16 +1,14 @@
-m4_include(m4/acx_pthread.m4)
+m4_include(m4/ax_pthread.m4)
 
 # At this point, the Xcode project assumes the version string will be three
 # integers separated by periods and surrounded by square brackets (e.g.
 # "[1.0.1]"). It also asumes that there won't be any closing parenthesis
-# between "AC_INIT(" and the closing ")" including comments and strings.
-AC_INIT([Google C++ Testing Framework],
-        [1.7.0],
-        [googletestframework@googlegroups.com],
-        [gtest])
+# between "AC_INIT
+AC_CONFIG_SRCDIR([" and the closing "])" including comments and strings.
+AC_INIT([Google C++ Testing Framework],[1.7.0],[googletestframework@googlegroups.com],[gtest])
 
 # Provide various options to initialize the Autoconf and configure processes.
-AC_PREREQ([2.59])
+AC_PREREQ([2.71])
 AC_CONFIG_SRCDIR([./LICENSE])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([build-aux])
@@ -27,7 +25,7 @@ AM_INIT_AUTOMAKE([1.9 dist-bzip2 dist-zip foreign subdir-objects])
 AC_PROG_CC
 AC_PROG_CXX
 AC_LANG([C++])
-AC_PROG_LIBTOOL
+LT_INIT
 
 # TODO(chandlerc@google.com): Currently we aren't running the Python tests
 # against the interpreter detected by AM_PATH_PYTHON, and so we condition
@@ -49,12 +47,12 @@ AC_ARG_WITH([pthreads],
 
 have_pthreads=no
 AS_IF([test "x$with_pthreads" != "xno"],
-      [ACX_PTHREAD(
+      [AX_PTHREAD(
         [],
         [AS_IF([test "x$with_pthreads" != "xcheck"],
                [AC_MSG_FAILURE(
                  [--with-pthreads was specified, but unable to be used])])])
-       have_pthreads="$acx_pthread_ok"])
+       have_pthreads="$ax_pthread_ok"])
 AM_CONDITIONAL([HAVE_PTHREADS],[test "x$have_pthreads" = "xyes"])
 AC_SUBST(PTHREAD_CFLAGS)
 AC_SUBST(PTHREAD_LIBS)
