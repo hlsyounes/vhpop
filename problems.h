@@ -120,6 +120,9 @@ struct Problem {
      from the action schemas of the domain. */
   void instantiated_actions(std::vector<const GroundAction*>& actions) const;
 
+  // Whether this problem is durative.
+  bool durative() const { return durative_; }
+
  private:
   /* Table of defined problems. */
   static ProblemMap problems;
@@ -142,6 +145,7 @@ struct Problem {
   const Formula* goal_;
   /* Metric to minimize. */
   const Expression* metric_;
+  bool durative_;
 
   friend std::ostream& operator<<(std::ostream& os, const Problem& p);
 };

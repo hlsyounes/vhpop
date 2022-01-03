@@ -27,9 +27,9 @@
 #include "actions.h"
 #include "functions.h"
 #include "predicates.h"
-#include "requirements.h"
 #include "terms.h"
 #include "types.h"
+#include "src/pddl-requirements.h"
 
 /* ====================================================================== */
 /* Domain */
@@ -43,7 +43,7 @@ struct Domain {
   };
 
   /* Requirements for this domain. */
-  Requirements requirements;
+  PddlRequirements requirements;
 
   /* Returns a const_iterator pointing to the first domain. */
   static DomainMap::const_iterator begin();

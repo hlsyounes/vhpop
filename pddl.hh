@@ -187,7 +187,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 226 "pddl.yy"
+#line 228 "pddl.yy"
 
   const Formula* formula;
   const Literal* literal;

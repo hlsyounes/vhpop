@@ -74,12 +74,14 @@
 #include <typeinfo>
 #include <utility>
 
+#include <config.h>
+
 #include "domains.h"
 #include "formulas.h"
 #include "functions.h"
 #include "predicates.h"
 #include "problems.h"
-#include "requirements.h"
+#include "src/pddl-requirements.h"
 #include "terms.h"
 #include "types.h"
 
@@ -114,10 +116,10 @@ struct Context {
 
   const Variable* find(const std::string& name) const {
     for (std::vector<VariableMap>::const_reverse_iterator fi =
-	   frames_.rbegin(); fi != frames_.rend(); fi++) {
+           frames_.rbegin(); fi != frames_.rend(); fi++) {
       VariableMap::const_iterator vi = (*fi).find(name);
       if (vi != (*fi).end()) {
-	return &(*vi).second;
+        return &(*vi).second;
       }
     }
     return 0;
@@ -149,7 +151,7 @@ static std::map<std::string, Domain*> domains;
 /* Problem being parsed, or 0 if no problem is being parsed. */
 static Problem* problem;
 /* Current requirements. */
-static Requirements* requirements;
+static PddlRequirements* requirements;
 /* Predicate being parsed. */
 static const Predicate* predicate;
 /* Whether predicate declaration is repeated. */
@@ -160,12 +162,12 @@ static const Function* function;
 static bool repeated_function;
 /* Action being parsed, or 0 if no action is being parsed. */
 static ActionSchema* action;
-/* Time of current condition. */ 
-static FormulaTime formula_time; 
+/* Time of current condition. */
+static FormulaTime formula_time;
 /* Time of current effect. */
 static Effect::EffectTime effect_time;
 /* Condition for effect being parsed, or 0 if unconditional effect. */
-static const Formula* effect_condition; 
+static const Formula* effect_condition;
 /* Current variable context. */
 static Context context;
 /* Predicate for atomic formula being parsed. */
@@ -186,14 +188,14 @@ static std::vector<Term> quantified;
 static enum { TYPE_KIND, CONSTANT_KIND, OBJECT_KIND, VOID_KIND } name_kind;
 
 /* Outputs an error message. */
-static void yyerror(const std::string& s); 
+static void yyerror(const std::string& s);
 /* Outputs a warning message. */
 static void yywarning(const std::string& s);
 /* Creates an empty domain with the given name. */
 static void make_domain(const std::string* name);
 /* Creates an empty problem with the given name. */
 static void make_problem(const std::string* name,
-			 const std::string* domain_name);
+                         const std::string* domain_name);
 /* Adds :typing to the requirements. */
 static void require_typing();
 /* Adds :fluents to the requirements. */
@@ -214,21 +216,21 @@ static void make_predicate(const std::string* name);
 static void make_function(const std::string* name);
 /* Creates an action with the given name. */
 static void make_action(const std::string* name, bool durative);
-/* Adds the current action to the current domain. */ 
+/* Adds the current action to the current domain. */
 static void add_action();
-/* Prepares for the parsing of a universally quantified effect. */ 
+/* Prepares for the parsing of a universally quantified effect. */
 static void prepare_forall_effect();
-/* Prepares for the parsing of a conditional effect. */ 
+/* Prepares for the parsing of a conditional effect. */
 static void prepare_conditional_effect(const Formula& condition);
 /* Adds types, constants, or objects to the current domain or problem. */
 static void add_names(const std::vector<const std::string*>* names,
-		      const Type& type);
+                      const Type& type);
 /* Adds variables to the current variable list. */
 static void add_variables(const std::vector<const std::string*>* names,
-			  const Type& type);
-/* Prepares for the parsing of an atomic formula. */ 
+                          const Type& type);
+/* Prepares for the parsing of an atomic formula. */
 static void prepare_atom(const std::string* name);
-/* Prepares for the parsing of a fluent. */ 
+/* Prepares for the parsing of a fluent. */
 static void prepare_fluent(const std::string* name);
 /* Adds a term with the given name to the current atomic formula. */
 static void add_term(const std::string* name);
@@ -238,7 +240,7 @@ static const Atom* make_atom();
 static const Fluent* make_fluent();
 /* Creates a subtraction. */
 static const Expression* make_subtraction(const Expression& term,
-					  const Expression* opt_term);
+                                          const Expression* opt_term);
 /* Creates an equality formula. */
 static const Formula* make_equality(const Term* term1, const Term* term2);
 /* Creates a negation. */
@@ -258,7 +260,7 @@ static void pop_forall_effect();
 /* Adds a timed initial literal to the current problem. */
 static void add_init_literal(float time, const Literal& literal);
 
-#line 262 "pddl.cc"
+#line 264 "pddl.cc"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -435,7 +437,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 226 "pddl.yy"
+#line 228 "pddl.yy"
 
   const Formula* formula;
   const Literal* literal;
@@ -449,7 +451,7 @@ union YYSTYPE
   std::vector<const std::string*>* strs;
   float num;
 
-#line 453 "pddl.cc"
+#line 455 "pddl.cc"
 
 };
 typedef union YYSTYPE YYSTYPE;
@@ -1084,40 +1086,40 @@ static const yytype_int8 yytranslate[] =
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int16 yyrline[] =
 {
-       0,   260,   260,   260,   264,   265,   266,   273,   273,   277,
-     278,   279,   280,   283,   284,   285,   288,   289,   290,   291,
-     292,   293,   294,   297,   298,   299,   300,   301,   304,   305,
-     306,   307,   308,   311,   312,   313,   314,   315,   318,   319,
-     320,   323,   324,   325,   328,   329,   330,   333,   334,   337,
-     340,   343,   344,   347,   348,   349,   351,   353,   354,   356,
-     358,   360,   361,   362,   363,   364,   366,   368,   375,   375,
-     379,   379,   383,   386,   386,   393,   394,   397,   397,   401,
-     402,   403,   406,   407,   410,   410,   413,   413,   421,   421,
-     423,   423,   428,   429,   432,   433,   436,   437,   440,   440,
-     444,   444,   447,   448,   451,   452,   459,   460,   464,   469,
-     474,   478,   479,   487,   488,   491,   492,   495,   495,   496,
-     496,   497,   497,   504,   505,   506,   506,   508,   509,   508,
-     513,   514,   517,   518,   521,   522,   526,   527,   530,   531,
-     532,   532,   534,   534,   538,   539,   543,   542,   546,   545,
-     550,   551,   552,   552,   554,   554,   558,   559,   567,   566,
-     571,   572,   575,   576,   579,   580,   583,   583,   587,   590,
-     591,   594,   594,   596,   596,   598,   600,   602,   606,   607,
-     610,   613,   613,   615,   615,   623,   624,   625,   626,   627,
-     627,   628,   628,   630,   630,   632,   632,   636,   637,   640,
-     641,   644,   644,   648,   648,   652,   653,   660,   661,   662,
-     663,   664,   665,   668,   669,   672,   672,   674,   677,   678,
-     680,   682,   684,   686,   689,   690,   693,   693,   695,   702,
-     703,   704,   707,   708,   711,   712,   715,   716,   717,   717,
-     721,   722,   725,   726,   727,   727,   730,   731,   734,   734,
-     737,   738,   739,   742,   743,   744,   745,   748,   755,   758,
-     761,   764,   767,   770,   773,   776,   779,   782,   785,   788,
-     791,   794,   797,   800,   803,   806,   809,   812,   815,   818,
-     818,   818,   819,   820,   820,   820,   820,   820,   821,   821,
-     821,   822,   825,   826,   826,   829,   829,   829,   830,   831,
-     831,   831,   831,   832,   832,   832,   833,   834,   834,   837,
-     840,   840,   840,   841,   841,   841,   842,   842,   842,   842,
-     842,   842,   842,   843,   843,   843,   843,   843,   844,   844,
-     844,   845,   848
+       0,   262,   262,   262,   266,   267,   268,   275,   275,   279,
+     280,   281,   282,   285,   286,   287,   290,   291,   292,   293,
+     294,   295,   296,   299,   300,   301,   302,   303,   306,   307,
+     308,   309,   310,   313,   314,   315,   316,   317,   320,   321,
+     322,   325,   326,   327,   330,   331,   332,   335,   336,   339,
+     342,   345,   346,   349,   350,   351,   353,   355,   356,   358,
+     360,   362,   363,   364,   365,   366,   368,   373,   377,   377,
+     381,   381,   385,   388,   388,   395,   396,   399,   399,   403,
+     404,   405,   408,   409,   412,   412,   415,   415,   423,   423,
+     425,   425,   430,   431,   434,   435,   438,   439,   442,   442,
+     446,   446,   449,   450,   453,   454,   461,   462,   466,   471,
+     476,   480,   481,   489,   490,   493,   494,   497,   497,   498,
+     498,   499,   499,   506,   507,   508,   508,   510,   511,   510,
+     515,   516,   519,   520,   523,   524,   528,   529,   532,   533,
+     534,   534,   536,   536,   540,   541,   545,   544,   548,   547,
+     552,   553,   554,   554,   556,   556,   560,   561,   569,   568,
+     573,   574,   577,   578,   581,   582,   585,   585,   589,   592,
+     593,   596,   596,   598,   598,   600,   602,   604,   608,   609,
+     612,   615,   615,   617,   617,   625,   626,   627,   628,   629,
+     629,   630,   630,   632,   632,   634,   634,   638,   639,   642,
+     643,   646,   646,   650,   650,   654,   655,   662,   663,   664,
+     665,   666,   667,   670,   671,   674,   674,   676,   679,   680,
+     682,   684,   686,   688,   691,   692,   695,   695,   697,   704,
+     705,   706,   709,   710,   713,   714,   717,   718,   719,   719,
+     723,   724,   727,   728,   729,   729,   732,   733,   736,   736,
+     739,   740,   741,   744,   745,   746,   747,   750,   757,   760,
+     763,   766,   769,   772,   775,   778,   781,   784,   787,   790,
+     793,   796,   799,   802,   805,   808,   811,   814,   817,   820,
+     820,   820,   821,   822,   822,   822,   822,   822,   823,   823,
+     823,   824,   827,   828,   828,   831,   831,   831,   832,   833,
+     833,   833,   833,   834,   834,   834,   835,   836,   836,   839,
+     842,   842,   842,   843,   843,   843,   844,   844,   844,   844,
+     844,   844,   844,   845,   845,   845,   845,   845,   846,   846,
+     846,   847,   850
 };
 #endif
 
@@ -2166,1018 +2168,1012 @@ yyreduce:
   switch (yyn)
     {
   case 2: /* $@1: %empty  */
-#line 260 "pddl.yy"
+#line 262 "pddl.yy"
             { success = true; line_number = 1; }
-#line 2172 "pddl.cc"
+#line 2174 "pddl.cc"
     break;
 
   case 3: /* pddl_file: $@1 domains_and_problems  */
-#line 261 "pddl.yy"
+#line 263 "pddl.yy"
               { if (!success) YYERROR; }
-#line 2178 "pddl.cc"
+#line 2180 "pddl.cc"
     break;
 
   case 7: /* $@2: %empty  */
-#line 273 "pddl.yy"
+#line 275 "pddl.yy"
                                             { make_domain((yyvsp[-1].str)); }
-#line 2184 "pddl.cc"
-    break;
-
-  case 53: /* require_key: STRIPS  */
-#line 347 "pddl.yy"
-                     { requirements->strips = true; }
-#line 2190 "pddl.cc"
+#line 2186 "pddl.cc"
     break;
 
   case 54: /* require_key: TYPING  */
-#line 348 "pddl.yy"
-                     { requirements->typing = true; }
-#line 2196 "pddl.cc"
+#line 350 "pddl.yy"
+                     { requirements->EnableTyping(); }
+#line 2192 "pddl.cc"
     break;
 
   case 55: /* require_key: NEGATIVE_PRECONDITIONS  */
-#line 350 "pddl.yy"
-                { requirements->negative_preconditions = true; }
-#line 2202 "pddl.cc"
+#line 352 "pddl.yy"
+                { requirements->EnableNegativePreconditions(); }
+#line 2198 "pddl.cc"
     break;
 
   case 56: /* require_key: DISJUNCTIVE_PRECONDITIONS  */
-#line 352 "pddl.yy"
-                { requirements->disjunctive_preconditions = true; }
-#line 2208 "pddl.cc"
+#line 354 "pddl.yy"
+                { requirements->EnableDisjunctivePreconditions(); }
+#line 2204 "pddl.cc"
     break;
 
   case 57: /* require_key: EQUALITY  */
-#line 353 "pddl.yy"
-                       { requirements->equality = true; }
-#line 2214 "pddl.cc"
+#line 355 "pddl.yy"
+                       { requirements->EnableEquality(); }
+#line 2210 "pddl.cc"
     break;
 
   case 58: /* require_key: EXISTENTIAL_PRECONDITIONS  */
-#line 355 "pddl.yy"
-                { requirements->existential_preconditions = true; }
-#line 2220 "pddl.cc"
+#line 357 "pddl.yy"
+                { requirements->EnableExistentialPreconditions(); }
+#line 2216 "pddl.cc"
     break;
 
   case 59: /* require_key: UNIVERSAL_PRECONDITIONS  */
-#line 357 "pddl.yy"
-                { requirements->universal_preconditions = true; }
-#line 2226 "pddl.cc"
+#line 359 "pddl.yy"
+                { requirements->EnableUniversalPreconditions(); }
+#line 2222 "pddl.cc"
     break;
 
   case 60: /* require_key: QUANTIFIED_PRECONDITIONS  */
-#line 359 "pddl.yy"
-                { requirements->quantified_preconditions(); }
-#line 2232 "pddl.cc"
+#line 361 "pddl.yy"
+                { requirements->EnableQuantifiedPreconditions(); }
+#line 2228 "pddl.cc"
     break;
 
   case 61: /* require_key: CONDITIONAL_EFFECTS  */
-#line 360 "pddl.yy"
-                                  { requirements->conditional_effects = true; }
-#line 2238 "pddl.cc"
+#line 362 "pddl.yy"
+                                  { requirements->EnableConditionalEffects(); }
+#line 2234 "pddl.cc"
     break;
 
   case 62: /* require_key: FLUENTS  */
-#line 361 "pddl.yy"
-                      { requirements->fluents = true; }
-#line 2244 "pddl.cc"
+#line 363 "pddl.yy"
+                      { requirements->EnableFluents(); }
+#line 2240 "pddl.cc"
     break;
 
   case 63: /* require_key: ADL  */
-#line 362 "pddl.yy"
-                  { requirements->adl(); }
-#line 2250 "pddl.cc"
+#line 364 "pddl.yy"
+                  { requirements->EnableAdl(); }
+#line 2246 "pddl.cc"
     break;
 
   case 64: /* require_key: DURATIVE_ACTIONS  */
-#line 363 "pddl.yy"
-                               { requirements->durative_actions = true; }
-#line 2256 "pddl.cc"
+#line 365 "pddl.yy"
+                               { requirements->EnableDurativeActions(); }
+#line 2252 "pddl.cc"
     break;
 
   case 65: /* require_key: DURATION_INEQUALITIES  */
-#line 365 "pddl.yy"
-                { requirements->duration_inequalities = true; }
-#line 2262 "pddl.cc"
+#line 367 "pddl.yy"
+                { requirements->EnableDurationInequalities(); }
+#line 2258 "pddl.cc"
     break;
 
   case 66: /* require_key: CONTINUOUS_EFFECTS  */
-#line 367 "pddl.yy"
-                { yyerror("`:continuous-effects' not supported"); }
-#line 2268 "pddl.cc"
+#line 369 "pddl.yy"
+                {
+                  requirements->EnableContinuousEffects();
+                  yyerror("`:continuous-effects' not supported");
+                }
+#line 2267 "pddl.cc"
     break;
 
   case 67: /* require_key: TIMED_INITIAL_LITERALS  */
-#line 369 "pddl.yy"
-                {
-		  requirements->durative_actions = true;
-		  requirements->timed_initial_literals = true;
-		}
-#line 2277 "pddl.cc"
+#line 374 "pddl.yy"
+                { requirements->EnableTimedInitialLiterals(); }
+#line 2273 "pddl.cc"
     break;
 
   case 68: /* $@3: %empty  */
-#line 375 "pddl.yy"
+#line 377 "pddl.yy"
                       { require_typing(); name_kind = TYPE_KIND; }
-#line 2283 "pddl.cc"
+#line 2279 "pddl.cc"
     break;
 
   case 69: /* types_def: '(' TYPES $@3 typed_names ')'  */
-#line 376 "pddl.yy"
+#line 378 "pddl.yy"
                               { name_kind = VOID_KIND; }
-#line 2289 "pddl.cc"
+#line 2285 "pddl.cc"
     break;
 
   case 70: /* $@4: %empty  */
-#line 379 "pddl.yy"
+#line 381 "pddl.yy"
                               { name_kind = CONSTANT_KIND; }
-#line 2295 "pddl.cc"
+#line 2291 "pddl.cc"
     break;
 
   case 71: /* constants_def: '(' CONSTANTS $@4 typed_names ')'  */
-#line 380 "pddl.yy"
+#line 382 "pddl.yy"
                   { name_kind = VOID_KIND; }
-#line 2301 "pddl.cc"
+#line 2297 "pddl.cc"
     break;
 
   case 73: /* $@5: %empty  */
-#line 386 "pddl.yy"
+#line 388 "pddl.yy"
                               { require_fluents(); }
-#line 2307 "pddl.cc"
+#line 2303 "pddl.cc"
     break;
 
   case 77: /* $@6: %empty  */
-#line 397 "pddl.yy"
+#line 399 "pddl.yy"
                                { make_predicate((yyvsp[0].str)); }
-#line 2313 "pddl.cc"
+#line 2309 "pddl.cc"
     break;
 
   case 78: /* predicate_decl: '(' predicate $@6 variables ')'  */
-#line 398 "pddl.yy"
+#line 400 "pddl.yy"
                    { predicate = 0; }
-#line 2319 "pddl.cc"
+#line 2315 "pddl.cc"
     break;
 
   case 84: /* $@7: %empty  */
-#line 410 "pddl.yy"
+#line 412 "pddl.yy"
                          { require_typing(); }
-#line 2325 "pddl.cc"
+#line 2321 "pddl.cc"
     break;
 
   case 86: /* $@8: %empty  */
-#line 413 "pddl.yy"
+#line 415 "pddl.yy"
                              { make_function((yyvsp[0].str)); }
-#line 2331 "pddl.cc"
+#line 2327 "pddl.cc"
     break;
 
   case 87: /* function_decl: '(' function $@8 variables ')'  */
-#line 414 "pddl.yy"
+#line 416 "pddl.yy"
                   { function = 0; }
-#line 2337 "pddl.cc"
+#line 2333 "pddl.cc"
     break;
 
   case 88: /* $@9: %empty  */
-#line 421 "pddl.yy"
+#line 423 "pddl.yy"
                              { make_action((yyvsp[0].str), false); }
-#line 2343 "pddl.cc"
+#line 2339 "pddl.cc"
     break;
 
   case 89: /* action_def: '(' ACTION name $@9 parameters action_body ')'  */
-#line 422 "pddl.yy"
+#line 424 "pddl.yy"
                                           { add_action(); }
-#line 2349 "pddl.cc"
+#line 2345 "pddl.cc"
     break;
 
   case 90: /* $@10: %empty  */
-#line 423 "pddl.yy"
+#line 425 "pddl.yy"
                                       { make_action((yyvsp[0].str), true); }
-#line 2355 "pddl.cc"
+#line 2351 "pddl.cc"
     break;
 
   case 91: /* action_def: '(' DURATIVE_ACTION name $@10 parameters DURATION duration_constraint da_body ')'  */
-#line 425 "pddl.yy"
+#line 427 "pddl.yy"
                { add_action(); }
-#line 2361 "pddl.cc"
+#line 2357 "pddl.cc"
     break;
 
   case 98: /* $@11: %empty  */
-#line 440 "pddl.yy"
+#line 442 "pddl.yy"
                             { formula_time = AT_START; }
-#line 2367 "pddl.cc"
+#line 2363 "pddl.cc"
     break;
 
   case 99: /* precondition: PRECONDITION $@11 formula  */
-#line 441 "pddl.yy"
+#line 443 "pddl.yy"
                  { action->set_condition(*(yyvsp[0].formula)); }
-#line 2373 "pddl.cc"
+#line 2369 "pddl.cc"
     break;
 
   case 100: /* $@12: %empty  */
-#line 444 "pddl.yy"
+#line 446 "pddl.yy"
                 { effect_time = Effect::AT_END; }
-#line 2379 "pddl.cc"
+#line 2375 "pddl.cc"
     break;
 
   case 102: /* da_body: CONDITION da_gd da_body2  */
-#line 447 "pddl.yy"
+#line 449 "pddl.yy"
                                    { action->set_condition(*(yyvsp[-1].formula)); }
-#line 2385 "pddl.cc"
+#line 2381 "pddl.cc"
     break;
 
   case 107: /* duration_constraint: '(' and simple_duration_constraints ')'  */
-#line 461 "pddl.yy"
+#line 463 "pddl.yy"
                         { require_duration_inequalities(); }
-#line 2391 "pddl.cc"
+#line 2387 "pddl.cc"
     break;
 
   case 108: /* simple_duration_constraint: '(' LE duration_var f_exp ')'  */
-#line 465 "pddl.yy"
+#line 467 "pddl.yy"
                                {
-				 require_duration_inequalities();
-				 action->set_max_duration(*(yyvsp[-1].expr));
-			       }
-#line 2400 "pddl.cc"
+                                 require_duration_inequalities();
+                                 action->set_max_duration(*(yyvsp[-1].expr));
+                               }
+#line 2396 "pddl.cc"
     break;
 
   case 109: /* simple_duration_constraint: '(' GE duration_var f_exp ')'  */
-#line 470 "pddl.yy"
+#line 472 "pddl.yy"
                                {
-				 require_duration_inequalities();
-				 action->set_min_duration(*(yyvsp[-1].expr));
-			       }
-#line 2409 "pddl.cc"
+                                 require_duration_inequalities();
+                                 action->set_min_duration(*(yyvsp[-1].expr));
+                               }
+#line 2405 "pddl.cc"
     break;
 
   case 110: /* simple_duration_constraint: '(' '=' duration_var f_exp ')'  */
-#line 475 "pddl.yy"
+#line 477 "pddl.yy"
                                { action->set_duration(*(yyvsp[-1].expr)); }
-#line 2415 "pddl.cc"
+#line 2411 "pddl.cc"
     break;
 
   case 114: /* da_gd: '(' and timed_gds ')'  */
-#line 488 "pddl.yy"
+#line 490 "pddl.yy"
                               { (yyval.formula) = (yyvsp[-1].formula); }
-#line 2421 "pddl.cc"
+#line 2417 "pddl.cc"
     break;
 
   case 115: /* timed_gds: %empty  */
-#line 491 "pddl.yy"
+#line 493 "pddl.yy"
                         { (yyval.formula) = &Formula::TRUE; }
-#line 2427 "pddl.cc"
+#line 2423 "pddl.cc"
     break;
 
   case 116: /* timed_gds: timed_gds timed_gd  */
-#line 492 "pddl.yy"
+#line 494 "pddl.yy"
                                { (yyval.formula) = &(*(yyvsp[-1].formula) && *(yyvsp[0].formula)); }
-#line 2433 "pddl.cc"
+#line 2429 "pddl.cc"
     break;
 
   case 117: /* $@13: %empty  */
-#line 495 "pddl.yy"
+#line 497 "pddl.yy"
                         { formula_time = AT_START; }
-#line 2439 "pddl.cc"
+#line 2435 "pddl.cc"
     break;
 
   case 118: /* timed_gd: '(' at start $@13 formula ')'  */
-#line 495 "pddl.yy"
+#line 497 "pddl.yy"
                                                                  { (yyval.formula) = (yyvsp[-1].formula); }
-#line 2445 "pddl.cc"
+#line 2441 "pddl.cc"
     break;
 
   case 119: /* $@14: %empty  */
-#line 496 "pddl.yy"
+#line 498 "pddl.yy"
                       { formula_time = AT_END; }
-#line 2451 "pddl.cc"
+#line 2447 "pddl.cc"
     break;
 
   case 120: /* timed_gd: '(' at end $@14 formula ')'  */
-#line 496 "pddl.yy"
+#line 498 "pddl.yy"
                                                              { (yyval.formula) = (yyvsp[-1].formula); }
-#line 2457 "pddl.cc"
+#line 2453 "pddl.cc"
     break;
 
   case 121: /* $@15: %empty  */
-#line 497 "pddl.yy"
+#line 499 "pddl.yy"
                         { formula_time = OVER_ALL; }
-#line 2463 "pddl.cc"
+#line 2459 "pddl.cc"
     break;
 
   case 122: /* timed_gd: '(' over all $@15 formula ')'  */
-#line 497 "pddl.yy"
+#line 499 "pddl.yy"
                                                                  { (yyval.formula) = (yyvsp[-1].formula); }
-#line 2469 "pddl.cc"
+#line 2465 "pddl.cc"
     break;
 
   case 125: /* $@16: %empty  */
-#line 506 "pddl.yy"
+#line 508 "pddl.yy"
                          { prepare_forall_effect(); }
-#line 2475 "pddl.cc"
+#line 2471 "pddl.cc"
     break;
 
   case 126: /* eff_formula: '(' forall $@16 '(' variables ')' eff_formula ')'  */
-#line 507 "pddl.yy"
+#line 509 "pddl.yy"
                                                   { pop_forall_effect(); }
-#line 2481 "pddl.cc"
+#line 2477 "pddl.cc"
     break;
 
   case 127: /* $@17: %empty  */
-#line 508 "pddl.yy"
+#line 510 "pddl.yy"
                        { formula_time = AT_START; }
-#line 2487 "pddl.cc"
+#line 2483 "pddl.cc"
     break;
 
   case 128: /* $@18: %empty  */
-#line 509 "pddl.yy"
+#line 511 "pddl.yy"
                 { prepare_conditional_effect(*(yyvsp[0].formula)); }
-#line 2493 "pddl.cc"
+#line 2489 "pddl.cc"
     break;
 
   case 129: /* eff_formula: '(' when $@17 formula $@18 one_eff_formula ')'  */
-#line 510 "pddl.yy"
+#line 512 "pddl.yy"
                                     { effect_condition = 0; }
-#line 2499 "pddl.cc"
+#line 2495 "pddl.cc"
     break;
 
   case 134: /* term_literal: atomic_term_formula  */
-#line 521 "pddl.yy"
+#line 523 "pddl.yy"
                                    { add_effect(*(yyvsp[0].atom)); }
-#line 2505 "pddl.cc"
+#line 2501 "pddl.cc"
     break;
 
   case 135: /* term_literal: '(' not atomic_term_formula ')'  */
-#line 523 "pddl.yy"
+#line 525 "pddl.yy"
                  { add_effect(Negation::make(*(yyvsp[-1].atom))); }
-#line 2511 "pddl.cc"
+#line 2507 "pddl.cc"
     break;
 
   case 140: /* $@19: %empty  */
-#line 532 "pddl.yy"
+#line 534 "pddl.yy"
                        { prepare_forall_effect(); }
-#line 2517 "pddl.cc"
+#line 2513 "pddl.cc"
     break;
 
   case 141: /* da_effect: '(' forall $@19 '(' variables ')' da_effect ')'  */
-#line 533 "pddl.yy"
+#line 535 "pddl.yy"
                                               { pop_forall_effect(); }
-#line 2523 "pddl.cc"
+#line 2519 "pddl.cc"
     break;
 
   case 142: /* $@20: %empty  */
-#line 534 "pddl.yy"
+#line 536 "pddl.yy"
                            { prepare_conditional_effect(*(yyvsp[0].formula)); }
-#line 2529 "pddl.cc"
+#line 2525 "pddl.cc"
     break;
 
   case 143: /* da_effect: '(' when da_gd $@20 timed_effect ')'  */
-#line 535 "pddl.yy"
+#line 537 "pddl.yy"
                                { effect_condition = 0; }
-#line 2535 "pddl.cc"
+#line 2531 "pddl.cc"
     break;
 
   case 146: /* $@21: %empty  */
-#line 543 "pddl.yy"
+#line 545 "pddl.yy"
                  { effect_time = Effect::AT_START; formula_time = AT_START; }
-#line 2541 "pddl.cc"
+#line 2537 "pddl.cc"
     break;
 
   case 148: /* $@22: %empty  */
-#line 546 "pddl.yy"
+#line 548 "pddl.yy"
                  { effect_time = Effect::AT_END; formula_time = AT_END; }
-#line 2547 "pddl.cc"
+#line 2543 "pddl.cc"
     break;
 
   case 152: /* $@23: %empty  */
-#line 552 "pddl.yy"
+#line 554 "pddl.yy"
                       { prepare_forall_effect(); }
-#line 2553 "pddl.cc"
+#line 2549 "pddl.cc"
     break;
 
   case 153: /* a_effect: '(' forall $@23 '(' variables ')' a_effect ')'  */
-#line 553 "pddl.yy"
+#line 555 "pddl.yy"
                                             { pop_forall_effect(); }
-#line 2559 "pddl.cc"
+#line 2555 "pddl.cc"
     break;
 
   case 154: /* $@24: %empty  */
-#line 554 "pddl.yy"
+#line 556 "pddl.yy"
                             { prepare_conditional_effect(*(yyvsp[0].formula)); }
-#line 2565 "pddl.cc"
+#line 2561 "pddl.cc"
     break;
 
   case 155: /* a_effect: '(' when formula $@24 one_eff_formula ')'  */
-#line 555 "pddl.yy"
+#line 557 "pddl.yy"
                                  { effect_condition = 0; }
-#line 2571 "pddl.cc"
+#line 2567 "pddl.cc"
     break;
 
   case 158: /* $@25: %empty  */
-#line 567 "pddl.yy"
+#line 569 "pddl.yy"
                 { make_problem((yyvsp[-5].str), (yyvsp[-1].str)); }
-#line 2577 "pddl.cc"
+#line 2573 "pddl.cc"
     break;
 
   case 159: /* problem_def: '(' define '(' problem name ')' '(' PDOMAIN name ')' $@25 problem_body ')'  */
-#line 568 "pddl.yy"
+#line 570 "pddl.yy"
                 { delete requirements; }
-#line 2583 "pddl.cc"
+#line 2579 "pddl.cc"
     break;
 
   case 166: /* $@26: %empty  */
-#line 583 "pddl.yy"
+#line 585 "pddl.yy"
                           { name_kind = OBJECT_KIND; }
-#line 2589 "pddl.cc"
+#line 2585 "pddl.cc"
     break;
 
   case 167: /* object_decl: '(' OBJECTS $@26 typed_names ')'  */
-#line 584 "pddl.yy"
+#line 586 "pddl.yy"
                 { name_kind = VOID_KIND; }
-#line 2595 "pddl.cc"
+#line 2591 "pddl.cc"
     break;
 
   case 171: /* $@27: %empty  */
-#line 594 "pddl.yy"
+#line 596 "pddl.yy"
                                   { prepare_atom((yyvsp[0].str)); }
-#line 2601 "pddl.cc"
+#line 2597 "pddl.cc"
     break;
 
   case 172: /* init_element: '(' init_predicate $@27 names ')'  */
-#line 595 "pddl.yy"
+#line 597 "pddl.yy"
                  { problem->add_init_atom(*make_atom()); }
-#line 2607 "pddl.cc"
+#line 2603 "pddl.cc"
     break;
 
   case 173: /* $@28: %empty  */
-#line 596 "pddl.yy"
+#line 598 "pddl.yy"
                       { prepare_atom((yyvsp[0].str)); }
-#line 2613 "pddl.cc"
+#line 2609 "pddl.cc"
     break;
 
   case 174: /* init_element: '(' AT $@28 names ')'  */
-#line 597 "pddl.yy"
+#line 599 "pddl.yy"
                  { problem->add_init_atom(*make_atom()); }
-#line 2619 "pddl.cc"
+#line 2615 "pddl.cc"
     break;
 
   case 175: /* init_element: '(' not atomic_name_formula ')'  */
-#line 599 "pddl.yy"
+#line 601 "pddl.yy"
                  { Formula::register_use((yyvsp[-1].atom)); Formula::unregister_use((yyvsp[-1].atom)); }
-#line 2625 "pddl.cc"
+#line 2621 "pddl.cc"
     break;
 
   case 176: /* init_element: '(' '=' ground_f_head NUMBER ')'  */
-#line 601 "pddl.yy"
+#line 603 "pddl.yy"
                  { problem->add_init_value(*(yyvsp[-2].fluent), (yyvsp[-1].num)); }
-#line 2631 "pddl.cc"
+#line 2627 "pddl.cc"
     break;
 
   case 177: /* init_element: '(' at NUMBER name_literal ')'  */
-#line 603 "pddl.yy"
+#line 605 "pddl.yy"
                  { add_init_literal((yyvsp[-2].num), *(yyvsp[-1].literal)); }
-#line 2637 "pddl.cc"
+#line 2633 "pddl.cc"
     break;
 
   case 180: /* goal: '(' GOAL formula ')'  */
-#line 610 "pddl.yy"
+#line 612 "pddl.yy"
                             { problem->set_goal(*(yyvsp[-1].formula)); }
-#line 2643 "pddl.cc"
+#line 2639 "pddl.cc"
     break;
 
   case 181: /* $@29: %empty  */
-#line 613 "pddl.yy"
+#line 615 "pddl.yy"
                                   { metric_fluent = true; }
-#line 2649 "pddl.cc"
+#line 2645 "pddl.cc"
     break;
 
   case 182: /* metric_spec: '(' METRIC maximize $@29 ground_f_exp ')'  */
-#line 614 "pddl.yy"
+#line 616 "pddl.yy"
                 { problem->set_metric(*(yyvsp[-1].expr), true); metric_fluent = false; }
-#line 2655 "pddl.cc"
+#line 2651 "pddl.cc"
     break;
 
   case 183: /* $@30: %empty  */
-#line 615 "pddl.yy"
+#line 617 "pddl.yy"
                                   { metric_fluent = true; }
-#line 2661 "pddl.cc"
+#line 2657 "pddl.cc"
     break;
 
   case 184: /* metric_spec: '(' METRIC minimize $@30 ground_f_exp ')'  */
-#line 616 "pddl.yy"
+#line 618 "pddl.yy"
                 { problem->set_metric(*(yyvsp[-1].expr)); metric_fluent = false; }
-#line 2667 "pddl.cc"
+#line 2663 "pddl.cc"
     break;
 
   case 185: /* formula: atomic_term_formula  */
-#line 623 "pddl.yy"
+#line 625 "pddl.yy"
                               { (yyval.formula) = &TimedLiteral::make(*(yyvsp[0].atom), formula_time); }
-#line 2673 "pddl.cc"
+#line 2669 "pddl.cc"
     break;
 
   case 186: /* formula: '(' '=' term term ')'  */
-#line 624 "pddl.yy"
+#line 626 "pddl.yy"
                                 { (yyval.formula) = make_equality((yyvsp[-2].term), (yyvsp[-1].term)); }
-#line 2679 "pddl.cc"
+#line 2675 "pddl.cc"
     break;
 
   case 187: /* formula: '(' not formula ')'  */
-#line 625 "pddl.yy"
+#line 627 "pddl.yy"
                               { (yyval.formula) = make_negation(*(yyvsp[-1].formula)); }
-#line 2685 "pddl.cc"
+#line 2681 "pddl.cc"
     break;
 
   case 188: /* formula: '(' and conjuncts ')'  */
-#line 626 "pddl.yy"
+#line 628 "pddl.yy"
                                 { (yyval.formula) = (yyvsp[-1].formula); }
-#line 2691 "pddl.cc"
+#line 2687 "pddl.cc"
     break;
 
   case 189: /* $@31: %empty  */
-#line 627 "pddl.yy"
+#line 629 "pddl.yy"
                  { require_disjunction(); }
-#line 2697 "pddl.cc"
+#line 2693 "pddl.cc"
     break;
 
   case 190: /* formula: '(' or $@31 disjuncts ')'  */
-#line 627 "pddl.yy"
+#line 629 "pddl.yy"
                                                           { (yyval.formula) = (yyvsp[-1].formula); }
-#line 2703 "pddl.cc"
+#line 2699 "pddl.cc"
     break;
 
   case 191: /* $@32: %empty  */
-#line 628 "pddl.yy"
+#line 630 "pddl.yy"
                     { require_disjunction(); }
-#line 2709 "pddl.cc"
+#line 2705 "pddl.cc"
     break;
 
   case 192: /* formula: '(' imply $@32 formula formula ')'  */
-#line 629 "pddl.yy"
+#line 631 "pddl.yy"
             { (yyval.formula) = &(!*(yyvsp[-2].formula) || *(yyvsp[-1].formula)); }
-#line 2715 "pddl.cc"
+#line 2711 "pddl.cc"
     break;
 
   case 193: /* $@33: %empty  */
-#line 630 "pddl.yy"
+#line 632 "pddl.yy"
                      { prepare_exists(); }
-#line 2721 "pddl.cc"
+#line 2717 "pddl.cc"
     break;
 
   case 194: /* formula: '(' exists $@33 '(' variables ')' formula ')'  */
-#line 631 "pddl.yy"
+#line 633 "pddl.yy"
             { (yyval.formula) = make_exists(*(yyvsp[-1].formula)); }
-#line 2727 "pddl.cc"
+#line 2723 "pddl.cc"
     break;
 
   case 195: /* $@34: %empty  */
-#line 632 "pddl.yy"
+#line 634 "pddl.yy"
                      { prepare_forall(); }
-#line 2733 "pddl.cc"
+#line 2729 "pddl.cc"
     break;
 
   case 196: /* formula: '(' forall $@34 '(' variables ')' formula ')'  */
-#line 633 "pddl.yy"
+#line 635 "pddl.yy"
             { (yyval.formula) = make_forall(*(yyvsp[-1].formula)); }
-#line 2739 "pddl.cc"
+#line 2735 "pddl.cc"
     break;
 
   case 197: /* conjuncts: %empty  */
-#line 636 "pddl.yy"
+#line 638 "pddl.yy"
                         { (yyval.formula) = &Formula::TRUE; }
-#line 2745 "pddl.cc"
+#line 2741 "pddl.cc"
     break;
 
   case 198: /* conjuncts: conjuncts formula  */
-#line 637 "pddl.yy"
+#line 639 "pddl.yy"
                               { (yyval.formula) = &(*(yyvsp[-1].formula) && *(yyvsp[0].formula)); }
-#line 2751 "pddl.cc"
+#line 2747 "pddl.cc"
     break;
 
   case 199: /* disjuncts: %empty  */
-#line 640 "pddl.yy"
+#line 642 "pddl.yy"
                         { (yyval.formula) = &Formula::FALSE; }
-#line 2757 "pddl.cc"
+#line 2753 "pddl.cc"
     break;
 
   case 200: /* disjuncts: disjuncts formula  */
-#line 641 "pddl.yy"
+#line 643 "pddl.yy"
                               { (yyval.formula) = &(*(yyvsp[-1].formula) || *(yyvsp[0].formula)); }
-#line 2763 "pddl.cc"
+#line 2759 "pddl.cc"
     break;
 
   case 201: /* $@35: %empty  */
-#line 644 "pddl.yy"
+#line 646 "pddl.yy"
                                     { prepare_atom((yyvsp[0].str)); }
-#line 2769 "pddl.cc"
+#line 2765 "pddl.cc"
     break;
 
   case 202: /* atomic_term_formula: '(' predicate $@35 terms ')'  */
-#line 645 "pddl.yy"
+#line 647 "pddl.yy"
                         { (yyval.atom) = make_atom(); }
-#line 2775 "pddl.cc"
+#line 2771 "pddl.cc"
     break;
 
   case 203: /* $@36: %empty  */
-#line 648 "pddl.yy"
+#line 650 "pddl.yy"
                                     { prepare_atom((yyvsp[0].str)); }
-#line 2781 "pddl.cc"
+#line 2777 "pddl.cc"
     break;
 
   case 204: /* atomic_name_formula: '(' predicate $@36 names ')'  */
-#line 649 "pddl.yy"
+#line 651 "pddl.yy"
                         { (yyval.atom) = make_atom(); }
-#line 2787 "pddl.cc"
+#line 2783 "pddl.cc"
     break;
 
   case 205: /* name_literal: atomic_name_formula  */
-#line 652 "pddl.yy"
+#line 654 "pddl.yy"
                                    { (yyval.literal) = (yyvsp[0].atom); }
-#line 2793 "pddl.cc"
+#line 2789 "pddl.cc"
     break;
 
   case 206: /* name_literal: '(' not atomic_name_formula ')'  */
-#line 653 "pddl.yy"
+#line 655 "pddl.yy"
                                                { (yyval.literal) = &Negation::make(*(yyvsp[-1].atom)); }
-#line 2799 "pddl.cc"
+#line 2795 "pddl.cc"
     break;
 
   case 207: /* f_exp: NUMBER  */
-#line 660 "pddl.yy"
+#line 662 "pddl.yy"
                { (yyval.expr) = new Value((yyvsp[0].num)); }
-#line 2805 "pddl.cc"
+#line 2801 "pddl.cc"
     break;
 
   case 208: /* f_exp: '(' '+' f_exp f_exp ')'  */
-#line 661 "pddl.yy"
+#line 663 "pddl.yy"
                                 { (yyval.expr) = &Addition::make(*(yyvsp[-2].expr), *(yyvsp[-1].expr)); }
-#line 2811 "pddl.cc"
+#line 2807 "pddl.cc"
     break;
 
   case 209: /* f_exp: '(' '-' f_exp opt_f_exp ')'  */
-#line 662 "pddl.yy"
+#line 664 "pddl.yy"
                                     { (yyval.expr) = make_subtraction(*(yyvsp[-2].expr), (yyvsp[-1].expr)); }
-#line 2817 "pddl.cc"
+#line 2813 "pddl.cc"
     break;
 
   case 210: /* f_exp: '(' '*' f_exp f_exp ')'  */
-#line 663 "pddl.yy"
+#line 665 "pddl.yy"
                                 { (yyval.expr) = &Multiplication::make(*(yyvsp[-2].expr), *(yyvsp[-1].expr)); }
-#line 2823 "pddl.cc"
+#line 2819 "pddl.cc"
     break;
 
   case 211: /* f_exp: '(' '/' f_exp f_exp ')'  */
-#line 664 "pddl.yy"
+#line 666 "pddl.yy"
                                 { (yyval.expr) = &Division::make(*(yyvsp[-2].expr), *(yyvsp[-1].expr)); }
-#line 2829 "pddl.cc"
+#line 2825 "pddl.cc"
     break;
 
   case 212: /* f_exp: f_head  */
-#line 665 "pddl.yy"
+#line 667 "pddl.yy"
                { (yyval.expr) = (yyvsp[0].fluent); }
-#line 2835 "pddl.cc"
+#line 2831 "pddl.cc"
     break;
 
   case 213: /* opt_f_exp: %empty  */
-#line 668 "pddl.yy"
+#line 670 "pddl.yy"
                         { (yyval.expr) = 0; }
-#line 2841 "pddl.cc"
+#line 2837 "pddl.cc"
     break;
 
   case 215: /* $@37: %empty  */
-#line 672 "pddl.yy"
+#line 674 "pddl.yy"
                       { prepare_fluent((yyvsp[0].str)); }
-#line 2847 "pddl.cc"
+#line 2843 "pddl.cc"
     break;
 
   case 216: /* f_head: '(' function $@37 terms ')'  */
-#line 673 "pddl.yy"
+#line 675 "pddl.yy"
            { (yyval.fluent) = make_fluent(); }
-#line 2853 "pddl.cc"
+#line 2849 "pddl.cc"
     break;
 
   case 217: /* f_head: function  */
-#line 674 "pddl.yy"
+#line 676 "pddl.yy"
                   { prepare_fluent((yyvsp[0].str)); (yyval.fluent) = make_fluent(); }
-#line 2859 "pddl.cc"
+#line 2855 "pddl.cc"
     break;
 
   case 218: /* ground_f_exp: NUMBER  */
-#line 677 "pddl.yy"
+#line 679 "pddl.yy"
                       { (yyval.expr) = new Value((yyvsp[0].num)); }
-#line 2865 "pddl.cc"
+#line 2861 "pddl.cc"
     break;
 
   case 219: /* ground_f_exp: '(' '+' ground_f_exp ground_f_exp ')'  */
-#line 679 "pddl.yy"
+#line 681 "pddl.yy"
                  { (yyval.expr) = &Addition::make(*(yyvsp[-2].expr), *(yyvsp[-1].expr)); }
-#line 2871 "pddl.cc"
+#line 2867 "pddl.cc"
     break;
 
   case 220: /* ground_f_exp: '(' '-' ground_f_exp opt_ground_f_exp ')'  */
-#line 681 "pddl.yy"
+#line 683 "pddl.yy"
                  { (yyval.expr) = make_subtraction(*(yyvsp[-2].expr), (yyvsp[-1].expr)); }
-#line 2877 "pddl.cc"
+#line 2873 "pddl.cc"
     break;
 
   case 221: /* ground_f_exp: '(' '*' ground_f_exp ground_f_exp ')'  */
-#line 683 "pddl.yy"
+#line 685 "pddl.yy"
                  { (yyval.expr) = &Multiplication::make(*(yyvsp[-2].expr), *(yyvsp[-1].expr)); }
-#line 2883 "pddl.cc"
+#line 2879 "pddl.cc"
     break;
 
   case 222: /* ground_f_exp: '(' '/' ground_f_exp ground_f_exp ')'  */
-#line 685 "pddl.yy"
+#line 687 "pddl.yy"
                  { (yyval.expr) = &Division::make(*(yyvsp[-2].expr), *(yyvsp[-1].expr)); }
-#line 2889 "pddl.cc"
+#line 2885 "pddl.cc"
     break;
 
   case 223: /* ground_f_exp: ground_f_head  */
-#line 686 "pddl.yy"
+#line 688 "pddl.yy"
                              { (yyval.expr) = (yyvsp[0].fluent); }
-#line 2895 "pddl.cc"
+#line 2891 "pddl.cc"
     break;
 
   case 224: /* opt_ground_f_exp: %empty  */
-#line 689 "pddl.yy"
+#line 691 "pddl.yy"
                                { (yyval.expr) = 0; }
-#line 2901 "pddl.cc"
+#line 2897 "pddl.cc"
     break;
 
   case 226: /* $@38: %empty  */
-#line 693 "pddl.yy"
+#line 695 "pddl.yy"
                              { prepare_fluent((yyvsp[0].str)); }
-#line 2907 "pddl.cc"
+#line 2903 "pddl.cc"
     break;
 
   case 227: /* ground_f_head: '(' function $@38 names ')'  */
-#line 694 "pddl.yy"
+#line 696 "pddl.yy"
                   { (yyval.fluent) = make_fluent(); }
-#line 2913 "pddl.cc"
+#line 2909 "pddl.cc"
     break;
 
   case 228: /* ground_f_head: function  */
-#line 695 "pddl.yy"
+#line 697 "pddl.yy"
                          { prepare_fluent((yyvsp[0].str)); (yyval.fluent) = make_fluent(); }
-#line 2919 "pddl.cc"
+#line 2915 "pddl.cc"
     break;
 
   case 230: /* terms: terms name  */
-#line 703 "pddl.yy"
+#line 705 "pddl.yy"
                    { add_term((yyvsp[0].str)); }
-#line 2925 "pddl.cc"
+#line 2921 "pddl.cc"
     break;
 
   case 231: /* terms: terms variable  */
-#line 704 "pddl.yy"
+#line 706 "pddl.yy"
                        { add_term((yyvsp[0].str)); }
-#line 2931 "pddl.cc"
+#line 2927 "pddl.cc"
     break;
 
   case 233: /* names: names name  */
-#line 708 "pddl.yy"
+#line 710 "pddl.yy"
                    { add_term((yyvsp[0].str)); }
-#line 2937 "pddl.cc"
+#line 2933 "pddl.cc"
     break;
 
   case 234: /* term: name  */
-#line 711 "pddl.yy"
+#line 713 "pddl.yy"
             { (yyval.term) = new Term(make_term((yyvsp[0].str))); }
-#line 2943 "pddl.cc"
+#line 2939 "pddl.cc"
     break;
 
   case 235: /* term: variable  */
-#line 712 "pddl.yy"
+#line 714 "pddl.yy"
                 { (yyval.term) = new Term(make_term((yyvsp[0].str))); }
-#line 2949 "pddl.cc"
+#line 2945 "pddl.cc"
     break;
 
   case 237: /* variables: variable_seq  */
-#line 716 "pddl.yy"
+#line 718 "pddl.yy"
                          { add_variables((yyvsp[0].strs), TypeTable::OBJECT); }
-#line 2955 "pddl.cc"
+#line 2951 "pddl.cc"
     break;
 
   case 238: /* $@39: %empty  */
-#line 717 "pddl.yy"
+#line 719 "pddl.yy"
                                    { add_variables((yyvsp[-1].strs), *(yyvsp[0].type)); delete (yyvsp[0].type); }
-#line 2961 "pddl.cc"
+#line 2957 "pddl.cc"
     break;
 
   case 240: /* variable_seq: variable  */
-#line 721 "pddl.yy"
+#line 723 "pddl.yy"
                         { (yyval.strs) = new std::vector<const std::string*>(1, (yyvsp[0].str)); }
-#line 2967 "pddl.cc"
+#line 2963 "pddl.cc"
     break;
 
   case 241: /* variable_seq: variable_seq variable  */
-#line 722 "pddl.yy"
+#line 724 "pddl.yy"
                                      { (yyval.strs) = (yyvsp[-1].strs); (yyval.strs)->push_back((yyvsp[0].str)); }
-#line 2973 "pddl.cc"
+#line 2969 "pddl.cc"
     break;
 
   case 243: /* typed_names: name_seq  */
-#line 726 "pddl.yy"
+#line 728 "pddl.yy"
                        { add_names((yyvsp[0].strs), TypeTable::OBJECT); }
-#line 2979 "pddl.cc"
+#line 2975 "pddl.cc"
     break;
 
   case 244: /* $@40: %empty  */
-#line 727 "pddl.yy"
+#line 729 "pddl.yy"
                                  { add_names((yyvsp[-1].strs), *(yyvsp[0].type)); delete (yyvsp[0].type); }
-#line 2985 "pddl.cc"
+#line 2981 "pddl.cc"
     break;
 
   case 246: /* name_seq: name  */
-#line 730 "pddl.yy"
+#line 732 "pddl.yy"
                 { (yyval.strs) = new std::vector<const std::string*>(1, (yyvsp[0].str)); }
-#line 2991 "pddl.cc"
+#line 2987 "pddl.cc"
     break;
 
   case 247: /* name_seq: name_seq name  */
-#line 731 "pddl.yy"
+#line 733 "pddl.yy"
                          { (yyval.strs) = (yyvsp[-1].strs); (yyval.strs)->push_back((yyvsp[0].str)); }
-#line 2997 "pddl.cc"
+#line 2993 "pddl.cc"
     break;
 
   case 248: /* $@41: %empty  */
-#line 734 "pddl.yy"
+#line 736 "pddl.yy"
                 { require_typing(); }
-#line 3003 "pddl.cc"
+#line 2999 "pddl.cc"
     break;
 
   case 249: /* type_spec: '-' $@41 type  */
-#line 734 "pddl.yy"
+#line 736 "pddl.yy"
                                            { (yyval.type) = (yyvsp[0].type); }
-#line 3009 "pddl.cc"
+#line 3005 "pddl.cc"
     break;
 
   case 250: /* type: object  */
-#line 737 "pddl.yy"
+#line 739 "pddl.yy"
               { (yyval.type) = new Type(TypeTable::OBJECT); }
-#line 3015 "pddl.cc"
+#line 3011 "pddl.cc"
     break;
 
   case 251: /* type: type_name  */
-#line 738 "pddl.yy"
+#line 740 "pddl.yy"
                  { (yyval.type) = new Type(make_type((yyvsp[0].str))); }
-#line 3021 "pddl.cc"
+#line 3017 "pddl.cc"
     break;
 
   case 252: /* type: '(' either types ')'  */
-#line 739 "pddl.yy"
+#line 741 "pddl.yy"
                             { (yyval.type) = new Type(make_type(*(yyvsp[-1].types))); delete (yyvsp[-1].types); }
-#line 3027 "pddl.cc"
+#line 3023 "pddl.cc"
     break;
 
   case 253: /* types: object  */
-#line 742 "pddl.yy"
+#line 744 "pddl.yy"
                { (yyval.types) = new std::set<Type>(); }
-#line 3033 "pddl.cc"
+#line 3029 "pddl.cc"
     break;
 
   case 254: /* types: type_name  */
-#line 743 "pddl.yy"
+#line 745 "pddl.yy"
                   { (yyval.types) = new std::set<Type>(); (yyval.types)->insert(make_type((yyvsp[0].str))); }
-#line 3039 "pddl.cc"
+#line 3035 "pddl.cc"
     break;
 
   case 255: /* types: types object  */
-#line 744 "pddl.yy"
+#line 746 "pddl.yy"
                      { (yyval.types) = (yyvsp[-1].types); }
-#line 3045 "pddl.cc"
+#line 3041 "pddl.cc"
     break;
 
   case 256: /* types: types type_name  */
-#line 745 "pddl.yy"
+#line 747 "pddl.yy"
                         { (yyval.types) = (yyvsp[-1].types); (yyval.types)->insert(make_type((yyvsp[0].str))); }
-#line 3051 "pddl.cc"
+#line 3047 "pddl.cc"
     break;
 
   case 258: /* define: DEFINE  */
-#line 755 "pddl.yy"
+#line 757 "pddl.yy"
                 { delete (yyvsp[0].str); }
-#line 3057 "pddl.cc"
+#line 3053 "pddl.cc"
     break;
 
   case 259: /* domain: DOMAIN_TOKEN  */
-#line 758 "pddl.yy"
+#line 760 "pddl.yy"
                       { delete (yyvsp[0].str); }
-#line 3063 "pddl.cc"
+#line 3059 "pddl.cc"
     break;
 
   case 260: /* problem: PROBLEM  */
-#line 761 "pddl.yy"
+#line 763 "pddl.yy"
                   { delete (yyvsp[0].str); }
-#line 3069 "pddl.cc"
+#line 3065 "pddl.cc"
     break;
 
   case 261: /* when: WHEN  */
-#line 764 "pddl.yy"
+#line 766 "pddl.yy"
             { delete (yyvsp[0].str); }
-#line 3075 "pddl.cc"
+#line 3071 "pddl.cc"
     break;
 
   case 262: /* not: NOT  */
-#line 767 "pddl.yy"
+#line 769 "pddl.yy"
           { delete (yyvsp[0].str); }
-#line 3081 "pddl.cc"
+#line 3077 "pddl.cc"
     break;
 
   case 263: /* and: AND  */
-#line 770 "pddl.yy"
+#line 772 "pddl.yy"
           { delete (yyvsp[0].str); }
-#line 3087 "pddl.cc"
+#line 3083 "pddl.cc"
     break;
 
   case 264: /* or: OR  */
-#line 773 "pddl.yy"
+#line 775 "pddl.yy"
         { delete (yyvsp[0].str); }
-#line 3093 "pddl.cc"
+#line 3089 "pddl.cc"
     break;
 
   case 265: /* imply: IMPLY  */
-#line 776 "pddl.yy"
+#line 778 "pddl.yy"
               { delete (yyvsp[0].str); }
-#line 3099 "pddl.cc"
+#line 3095 "pddl.cc"
     break;
 
   case 266: /* exists: EXISTS  */
-#line 779 "pddl.yy"
+#line 781 "pddl.yy"
                 { delete (yyvsp[0].str); }
-#line 3105 "pddl.cc"
+#line 3101 "pddl.cc"
     break;
 
   case 267: /* forall: FORALL  */
-#line 782 "pddl.yy"
+#line 784 "pddl.yy"
                 { delete (yyvsp[0].str); }
-#line 3111 "pddl.cc"
+#line 3107 "pddl.cc"
     break;
 
   case 268: /* at: AT  */
-#line 785 "pddl.yy"
+#line 787 "pddl.yy"
         { delete (yyvsp[0].str); }
-#line 3117 "pddl.cc"
+#line 3113 "pddl.cc"
     break;
 
   case 269: /* over: OVER  */
-#line 788 "pddl.yy"
+#line 790 "pddl.yy"
             { delete (yyvsp[0].str); }
-#line 3123 "pddl.cc"
+#line 3119 "pddl.cc"
     break;
 
   case 270: /* start: START  */
-#line 791 "pddl.yy"
+#line 793 "pddl.yy"
               { delete (yyvsp[0].str); }
-#line 3129 "pddl.cc"
+#line 3125 "pddl.cc"
     break;
 
   case 271: /* end: END  */
-#line 794 "pddl.yy"
+#line 796 "pddl.yy"
           { delete (yyvsp[0].str); }
-#line 3135 "pddl.cc"
+#line 3131 "pddl.cc"
     break;
 
   case 272: /* all: ALL  */
-#line 797 "pddl.yy"
+#line 799 "pddl.yy"
           { delete (yyvsp[0].str); }
-#line 3141 "pddl.cc"
+#line 3137 "pddl.cc"
     break;
 
   case 273: /* duration_var: DURATION_VAR  */
-#line 800 "pddl.yy"
+#line 802 "pddl.yy"
                             { delete (yyvsp[0].str); }
-#line 3147 "pddl.cc"
+#line 3143 "pddl.cc"
     break;
 
   case 274: /* minimize: MINIMIZE  */
-#line 803 "pddl.yy"
+#line 805 "pddl.yy"
                     { delete (yyvsp[0].str); }
-#line 3153 "pddl.cc"
+#line 3149 "pddl.cc"
     break;
 
   case 275: /* maximize: MAXIMIZE  */
-#line 806 "pddl.yy"
+#line 808 "pddl.yy"
                     { delete (yyvsp[0].str); }
-#line 3159 "pddl.cc"
+#line 3155 "pddl.cc"
     break;
 
   case 276: /* number: NUMBER_TOKEN  */
-#line 809 "pddl.yy"
+#line 811 "pddl.yy"
                       { delete (yyvsp[0].str); }
-#line 3165 "pddl.cc"
+#line 3161 "pddl.cc"
     break;
 
   case 277: /* object: OBJECT_TOKEN  */
-#line 812 "pddl.yy"
+#line 814 "pddl.yy"
                       { delete (yyvsp[0].str); }
-#line 3171 "pddl.cc"
+#line 3167 "pddl.cc"
     break;
 
   case 278: /* either: EITHER  */
-#line 815 "pddl.yy"
+#line 817 "pddl.yy"
                 { delete (yyvsp[0].str); }
-#line 3177 "pddl.cc"
+#line 3173 "pddl.cc"
     break;
 
 
-#line 3181 "pddl.cc"
+#line 3177 "pddl.cc"
 
       default: break;
     }
@@ -3370,13 +3366,13 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 851 "pddl.yy"
+#line 853 "pddl.yy"
 
 
 /* Outputs an error message. */
 static void yyerror(const std::string& s) {
   std::cerr << PACKAGE ":" << current_file << ':' << line_number << ": " << s
-	    << std::endl;
+            << std::endl;
   success = false;
 }
 
@@ -3385,7 +3381,7 @@ static void yyerror(const std::string& s) {
 static void yywarning(const std::string& s) {
   if (warning_level > 0) {
     std::cerr << PACKAGE ":" << current_file << ':' << line_number << ": " << s
-	      << std::endl;
+              << std::endl;
     if (warning_level > 1) {
       success = false;
     }
@@ -3405,7 +3401,7 @@ static void make_domain(const std::string* name) {
 
 /* Creates an empty problem with the given name. */
 static void make_problem(const std::string* name,
-			 const std::string* domain_name) {
+                         const std::string* domain_name) {
   std::map<std::string, Domain*>::const_iterator di =
     domains.find(*domain_name);
   if (di != domains.end()) {
@@ -3415,45 +3411,44 @@ static void make_problem(const std::string* name,
     domains[*domain_name] = domain;
     yyerror("undeclared domain `" + *domain_name + "' used");
   }
-  requirements = new Requirements(domain->requirements);
+  requirements = new PddlRequirements(domain->requirements);
   problem = new Problem(*name, *domain);
   delete name;
   delete domain_name;
 }
 
-
 /* Adds :typing to the requirements. */
 static void require_typing() {
-  if (!requirements->typing) {
+  if (!requirements->typing()) {
     yywarning("assuming `:typing' requirement");
-    requirements->typing = true;
+    requirements->EnableTyping();
   }
 }
 
 
 /* Adds :fluents to the requirements. */
 static void require_fluents() {
-  if (!requirements->fluents) {
+  if (!requirements->fluents()) {
     yywarning("assuming `:fluents' requirement");
-    requirements->fluents = true;
+    requirements->EnableFluents();
   }
 }
 
 
 /* Adds :disjunctive-preconditions to the requirements. */
 static void require_disjunction() {
-  if (!requirements->disjunctive_preconditions) {
+  if (!requirements->disjunctive_preconditions()) {
     yywarning("assuming `:disjunctive-preconditions' requirement");
-    requirements->disjunctive_preconditions = true;
+    requirements->EnableDisjunctivePreconditions();
   }
 }
 
 
 /* Adds :duration-inequalities to the requirements. */
 static void require_duration_inequalities() {
-  if (!requirements->duration_inequalities) {
+  if (!requirements->duration_inequalities()) {
     yywarning("assuming `:duration-inequalities' requirement");
-    requirements->duration_inequalities = true;
+    requirements->EnableDurationInequalities();
   }
 }
 
@@ -3497,11 +3492,11 @@ static Term make_term(const std::string* name) {
     if (o == 0) {
       size_t n = term_parameters.size();
       if (atom_predicate != 0
-	  && PredicateTable::parameters(*atom_predicate).size() > n) {
-	const Type& t = PredicateTable::parameters(*atom_predicate)[n];
-	o = &terms.add_object(*name, t);
+          && PredicateTable::parameters(*atom_predicate).size() > n) {
+        const Type& t = PredicateTable::parameters(*atom_predicate)[n];
+        o = &terms.add_object(*name, t);
       } else {
-	o = &terms.add_object(*name, TypeTable::OBJECT);
+        o = &terms.add_object(*name, TypeTable::OBJECT);
       }
       yywarning("implicit declaration of object `" + *name + "'");
     }
@@ -3546,9 +3541,9 @@ static void make_function(const std::string* name) {
 /* Creates an action with the given name. */
 static void make_action(const std::string* name, bool durative) {
   if (durative) {
-    if (!requirements->durative_actions) {
+    if (!requirements->durative_actions()) {
       yywarning("assuming `:durative-actions' requirement");
-      requirements->durative_actions = true;
+      requirements->EnableDurativeActions();
     }
   }
   context.push_frame();
@@ -3565,29 +3560,29 @@ static void add_action() {
     domain->add_action(*action);
   } else {
     yywarning("ignoring repeated declaration of action `"
-	      + action->name() + "'");
+              + action->name() + "'");
     delete action;
   }
   action = 0;
 }
 
 
-/* Prepares for the parsing of a universally quantified effect. */ 
+/* Prepares for the parsing of a universally quantified effect. */
 static void prepare_forall_effect() {
-  if (!requirements->conditional_effects) {
+  if (!requirements->conditional_effects()) {
     yywarning("assuming `:conditional-effects' requirement");
-    requirements->conditional_effects = true;
+    requirements->EnableConditionalEffects();
   }
   context.push_frame();
   quantified.push_back(Term(0));
 }
 
 
-/* Prepares for the parsing of a conditional effect. */ 
+/* Prepares for the parsing of a conditional effect. */
 static void prepare_conditional_effect(const Formula& condition) {
-  if (!requirements->conditional_effects) {
+  if (!requirements->conditional_effects()) {
     yywarning("assuming `:conditional-effects' requirement");
-    requirements->conditional_effects = true;
+    requirements->EnableConditionalEffects();
   }
   effect_condition = &condition;
 }
@@ -3595,48 +3590,48 @@ static void prepare_conditional_effect(const Formula& condition) {
 
 /* Adds types, constants, or objects to the current domain or problem. */
 static void add_names(const std::vector<const std::string*>* names,
-		      const Type& type) {
+                      const Type& type) {
   for (std::vector<const std::string*>::const_iterator si = names->begin();
        si != names->end(); si++) {
     const std::string* s = *si;
     if (name_kind == TYPE_KIND) {
       if (*s == TypeTable::OBJECT_NAME) {
-	yywarning("ignoring declaration of reserved type `object'");
+        yywarning("ignoring declaration of reserved type `object'");
       } else if (*s == TypeTable::NUMBER_NAME) {
-	yywarning("ignoring declaration of reserved type `number'");
+        yywarning("ignoring declaration of reserved type `number'");
       } else {
-	const Type* t = domain->types().find_type(*s);
-	if (t == 0) {
-	  t = &domain->types().add_type(*s);
-	}
-	if (!TypeTable::add_supertype(*t, type)) {
-	  yyerror("cyclic type hierarchy");
-	}
+        const Type* t = domain->types().find_type(*s);
+        if (t == 0) {
+          t = &domain->types().add_type(*s);
+        }
+        if (!TypeTable::add_supertype(*t, type)) {
+          yyerror("cyclic type hierarchy");
+        }
       }
     } else if (name_kind == CONSTANT_KIND) {
       const Object* o = domain->terms().find_object(*s);
       if (o == 0) {
-	domain->terms().add_object(*s, type);
+        domain->terms().add_object(*s, type);
       } else {
         std::set<Type> components;
-	TypeTable::components(components, TermTable::type(*o));
-	components.insert(type);
-	TermTable::set_type(*o, make_type(components));
+        TypeTable::components(components, TermTable::type(*o));
+        components.insert(type);
+        TermTable::set_type(*o, make_type(components));
       }
     } else { /* name_kind == OBJECT_KIND */
       if (domain->terms().find_object(*s) != 0) {
-	yywarning("ignoring declaration of object `" + *s
-		  + "' previously declared as constant");
+        yywarning("ignoring declaration of object `" + *s
+                  + "' previously declared as constant");
       } else {
-	const Object* o = problem->terms().find_object(*s);
-	if (o == 0) {
-	  problem->terms().add_object(*s, type);
-	} else {
+        const Object* o = problem->terms().find_object(*s);
+        if (o == 0) {
+          problem->terms().add_object(*s, type);
+        } else {
           std::set<Type> components;
-	  TypeTable::components(components, TermTable::type(*o));
-	  components.insert(type);
-	  TermTable::set_type(*o, make_type(components));
-	}
+          TypeTable::components(components, TermTable::type(*o));
+          components.insert(type);
+          TermTable::set_type(*o, make_type(components));
+        }
       }
     }
     delete s;
@@ -3647,30 +3642,30 @@ static void add_names(const std::vector<const std::string*>* names,
 
 /* Adds variables to the current variable list. */
 static void add_variables(const std::vector<const std::string*>* names,
-			  const Type& type) {
+                          const Type& type) {
   for (std::vector<const std::string*>::const_iterator si = names->begin();
        si != names->end(); si++) {
     const std::string* s = *si;
     if (predicate != 0) {
       if (!repeated_predicate) {
-	PredicateTable::add_parameter(*predicate, type);
+        PredicateTable::add_parameter(*predicate, type);
       }
     } else if (function != 0) {
       if (!repeated_function) {
-	FunctionTable::add_parameter(*function, type);
+        FunctionTable::add_parameter(*function, type);
       }
     } else {
       if (context.shallow_find(*s) != 0) {
-	yyerror("repetition of parameter `" + *s + "'");
+        yyerror("repetition of parameter `" + *s + "'");
       } else if (context.find(*s) != 0) {
-	yywarning("shadowing parameter `" + *s + "'");
+        yywarning("shadowing parameter `" + *s + "'");
       }
       Variable var = TermTable::add_variable(type);
       context.insert(*s, var);
       if (!quantified.empty()) {
-	quantified.push_back(var);
+        quantified.push_back(var);
       } else { /* action != 0 */
-	action->add_parameter(var);
+        action->add_parameter(var);
       }
     }
     delete s;
@@ -3679,7 +3674,7 @@ static void add_variables(const std::vector<const std::string*>* names,
 }
 
 
-/* Prepares for the parsing of an atomic formula. */ 
+/* Prepares for the parsing of an atomic formula. */
 static void prepare_atom(const std::string* name) {
   atom_predicate = domain->predicates().find_predicate(*name);
   if (atom_predicate == 0) {
@@ -3698,7 +3693,7 @@ static void prepare_atom(const std::string* name) {
 }
 
 
-/* Prepares for the parsing of a fluent. */ 
+/* Prepares for the parsing of a fluent. */
 static void prepare_fluent(const std::string* name) {
   fluent_function = domain->functions().find_function(*name);
   if (fluent_function == 0) {
@@ -3735,8 +3730,8 @@ static void add_term(const std::string* name) {
       const std::vector<Type>& params =
           PredicateTable::parameters(*atom_predicate);
       if (params.size() > n
-	  && !TypeTable::subtype(TermTable::type(term), params[n])) {
-	yyerror("type mismatch");
+          && !TypeTable::subtype(TermTable::type(term), params[n])) {
+        yyerror("type mismatch");
       }
     }
   } else if (fluent_function != 0) {
@@ -3747,8 +3742,8 @@ static void add_term(const std::string* name) {
       const std::vector<Type>& params =
           FunctionTable::parameters(*fluent_function);
       if (params.size() > n
-	  && !TypeTable::subtype(TermTable::type(term), params[n])) {
-	yyerror("type mismatch");
+          && !TypeTable::subtype(TermTable::type(term), params[n])) {
+        yyerror("type mismatch");
       }
     }
   }
@@ -3761,10 +3756,10 @@ static const Atom* make_atom() {
   size_t n = term_parameters.size();
   if (PredicateTable::parameters(*atom_predicate).size() < n) {
     yyerror("too many parameters passed to predicate `"
-	    + PredicateTable::name(*atom_predicate) + "'");
+            + PredicateTable::name(*atom_predicate) + "'");
   } else if (PredicateTable::parameters(*atom_predicate).size() > n) {
     yyerror("too few parameters passed to predicate `"
-	    + PredicateTable::name(*atom_predicate) + "'");
+            + PredicateTable::name(*atom_predicate) + "'");
   }
   const Atom& atom = Atom::make(*atom_predicate, term_parameters);
   atom_predicate = 0;
@@ -3777,10 +3772,10 @@ static const Fluent* make_fluent() {
   size_t n = term_parameters.size();
   if (FunctionTable::parameters(*fluent_function).size() < n) {
     yyerror("too many parameters passed to function `"
-	    + FunctionTable::name(*fluent_function) + "'");
+            + FunctionTable::name(*fluent_function) + "'");
   } else if (FunctionTable::parameters(*fluent_function).size() > n) {
     yyerror("too few parameters passed to function `"
-	    + FunctionTable::name(*fluent_function) + "'");
+            + FunctionTable::name(*fluent_function) + "'");
   }
   const Fluent& fluent = Fluent::make(*fluent_function, term_parameters);
   fluent_function = 0;
@@ -3790,7 +3785,7 @@ static const Fluent* make_fluent() {
 
 /* Creates a subtraction. */
 static const Expression* make_subtraction(const Expression& term,
-					  const Expression* opt_term) {
+                                          const Expression* opt_term) {
   if (opt_term != 0) {
     return &Subtraction::make(term, *opt_term);
   } else {
@@ -3801,9 +3796,9 @@ static const Expression* make_subtraction(const Expression& term,
 
 /* Creates an equality formula. */
 static const Formula* make_equality(const Term* term1, const Term* term2) {
-  if (!requirements->equality) {
+  if (!requirements->equality()) {
     yywarning("assuming `:equality' requirement");
-    requirements->equality = true;
+    requirements->EnableEquality();
   }
   const Formula& eq = Equality::make(*term1, *term2);
   delete term1;
@@ -3816,14 +3811,14 @@ static const Formula* make_equality(const Term* term1, const Term* term2) {
 static const Formula* make_negation(const Formula& negand) {
   if (typeid(negand) == typeid(Literal)
       || typeid(negand) == typeid(TimedLiteral)) {
-    if (!requirements->negative_preconditions) {
+    if (!requirements->negative_preconditions()) {
       yywarning("assuming `:negative-preconditions' requirement");
-      requirements->negative_preconditions = true;
+      requirements->EnableNegativePreconditions();
     }
-  } else if (!requirements->disjunctive_preconditions
-	     && typeid(negand) != typeid(Equality)) {
+  } else if (!requirements->disjunctive_preconditions() &&
+             typeid(negand) != typeid(Equality)) {
     yywarning("assuming `:disjunctive-preconditions' requirement");
-    requirements->disjunctive_preconditions = true;
+    requirements->EnableDisjunctivePreconditions();
   }
   return &!negand;
 }
@@ -3831,9 +3826,9 @@ static const Formula* make_negation(const Formula& negand) {
 
 /* Prepares for the parsing of an existentially quantified formula. */
 static void prepare_exists() {
-  if (!requirements->existential_preconditions) {
+  if (!requirements->existential_preconditions()) {
     yywarning("assuming `:existential-preconditions' requirement");
-    requirements->existential_preconditions = true;
+    requirements->EnableExistentialPreconditions();
   }
   context.push_frame();
   quantified.push_back(Term(0));
@@ -3842,9 +3837,9 @@ static void prepare_exists() {
 
 /* Prepares for the parsing of a universally quantified formula. */
 static void prepare_forall() {
-  if (!requirements->universal_preconditions) {
+  if (!requirements->universal_preconditions()) {
     yywarning("assuming `:universal-preconditions' requirement");
-    requirements->universal_preconditions = true;
+    requirements->EnableUniversalPreconditions();
   }
   context.push_frame();
   quantified.push_back(Term(0));
@@ -3866,7 +3861,7 @@ static const Formula* make_exists(const Formula& body) {
     } else {
       Exists& exists = *new Exists();
       for (size_t i = n + 1; i <= m; i++) {
-	exists.add_parameter(quantified[i].as_variable());
+        exists.add_parameter(quantified[i].as_variable());
       }
       exists.set_body(body);
       quantified.resize(n, Term(0));
@@ -3894,7 +3889,7 @@ static const Formula* make_forall(const Formula& body) {
     } else {
       Forall& forall = *new Forall();
       for (size_t i = n + 1; i <= m; i++) {
-	forall.add_parameter(quantified[i].as_variable());
+        forall.add_parameter(quantified[i].as_variable());
       }
       forall.set_body(body);
       quantified.resize(n, Term(0));

@@ -69,12 +69,17 @@ void Problem::clear() {
 Problem::Problem(const std::string& name, const Domain& domain)
   : name_(name), domain_(&domain), terms_(TermTable(domain.terms())),
     init_action_(GroundAction("<init 0>", false)), goal_(&Formula::TRUE),
-    metric_(new Value(0)) {
+    metric_(new Value(0)), durative_(false) {
   Formula::register_use(goal_);
   RCObject::ref(metric_);
   const Problem* p = find(name);
   if (p != NULL) {
     delete p;
+  }
+  for (const auto&[action_name, action] : domain.actions()) {
+    if (action->durative()) {
+      durative_ = true;
+    }
   }
   problems[name] = this;
 }
@@ -123,6 +128,7 @@ void Problem::add_init_literal(float time, const Literal& literal) {
 #endif
       action = new GroundAction(ss.str(), false);
       timed_actions_.insert(std::make_pair(time, action));
+      durative_ = true;
     }
     action->add_effect(*new Effect(literal, Effect::AT_END));
   }
@@ -206,7 +212,7 @@ std::ostream& operator<<(std::ostream& os, const Problem& p) {
     float time = (*ai).first;
     const EffectList& effects = (*ai).second->effects();
     for (EffectList::const_iterator ei = effects.begin();
-	 ei != effects.end(); ei++) {
+         ei != effects.end(); ei++) {
       os << " (at " << time << ' ';
       (*ei)->literal().print(os, 0, Bindings::EMPTY);
       os << ")";
