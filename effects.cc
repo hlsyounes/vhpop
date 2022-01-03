@@ -77,7 +77,7 @@ void Effect::set_link_condition(const Formula& link_condition) const {
 /* Tests if this effect quantifies the given variable. */
 bool Effect::quantifies(Variable variable) const {
   return (find(parameters_.begin(), parameters_.end(), variable)
-	  != parameters_.end());
+          != parameters_.end());
 }
 
 
@@ -92,7 +92,7 @@ void Effect::instantiations(EffectList& effects, size_t& useful,
       const Effect* inst_effect = instantiation(subst, problem, inst_cond);
       effects.push_back(inst_effect);
       if (!inst_effect->link_condition().contradiction()) {
-	useful++;
+        useful++;
       }
     }
   } else {
@@ -103,7 +103,7 @@ void Effect::instantiations(EffectList& effects, size_t& useful,
       const Type& t = TermTable::type(parameter(i));
       arguments[i] = &problem.terms().compatible_objects(t);
       if (arguments[i]->empty()) {
-	return;
+        return;
       }
       next_arg.push_back(arguments[i]->begin());
     }
@@ -118,32 +118,32 @@ void Effect::instantiations(EffectList& effects, size_t& useful,
       conds.push(&inst_cond);
       Formula::register_use(conds.top());
       if (i + 1 == n || inst_cond.contradiction()) {
-	if (!inst_cond.contradiction()) {
-	  const Effect* inst_effect = instantiation(args, problem, inst_cond);
-	  effects.push_back(inst_effect);
-	  if (!inst_effect->link_condition().contradiction()) {
-	    useful++;
-	  }
-	}
-	for (int j = i; j >= 0; j--) {
-	  Formula::unregister_use(conds.top());
-	  conds.pop();
-	  args.erase(parameter(j));
-	  next_arg[j]++;
-	  if (next_arg[j] == arguments[j]->end()) {
-	    if (j == 0) {
-	      i = n;
-	      break;
-	    } else {
-	      next_arg[j] = arguments[j]->begin();
-	    }
-	  } else {
-	    i = j;
-	    break;
-	  }
-	}
+        if (!inst_cond.contradiction()) {
+          const Effect* inst_effect = instantiation(args, problem, inst_cond);
+          effects.push_back(inst_effect);
+          if (!inst_effect->link_condition().contradiction()) {
+            useful++;
+          }
+        }
+        for (int j = i; j >= 0; j--) {
+          Formula::unregister_use(conds.top());
+          conds.pop();
+          args.erase(parameter(j));
+          next_arg[j]++;
+          if (next_arg[j] == arguments[j]->end()) {
+            if (j == 0) {
+              i = n;
+              break;
+            } else {
+              next_arg[j] = arguments[j]->begin();
+            }
+          } else {
+            i = j;
+            break;
+          }
+        }
       } else {
-	i++;
+        i++;
       }
     }
     while (!conds.empty()) {

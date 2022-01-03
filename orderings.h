@@ -89,7 +89,7 @@ StepTime start_time(FormulaTime ft);
 struct Ordering {
   /* Constructs an ordering constraint. */
   Ordering(size_t before_id, StepTime before_time,
-	   size_t after_id, StepTime after_time)
+           size_t after_id, StepTime after_time)
     : before_id_(before_id), before_time_(before_time),
       after_id_(after_id), after_time_(after_time) {}
 
@@ -139,7 +139,7 @@ struct Orderings {
     if (o != NULL) {
       o->ref_count_--;
       if (o->ref_count_ == 0) {
-	delete o;
+        delete o;
       }
     }
   }
@@ -149,43 +149,43 @@ struct Orderings {
 
   /* Checks if the first step could be ordered before the second step. */
   virtual bool possibly_before(size_t id1, StepTime t1,
-			       size_t id2, StepTime t2) const = 0;
+                               size_t id2, StepTime t2) const = 0;
 
   /* Checks if the first step could be ordered after or at the same
      time as the second step. */
   virtual bool possibly_not_before(size_t id1, StepTime t1,
-				   size_t id2, StepTime t2) const = 0;
+                                   size_t id2, StepTime t2) const = 0;
 
   /* Checks if the first step could be ordered after the second step. */
   virtual bool possibly_after(size_t id1, StepTime t1,
-			      size_t id2, StepTime t2) const = 0;
+                              size_t id2, StepTime t2) const = 0;
 
   /* Checks if the first step could be ordered before or at the same
      time as the second step. */
   virtual bool possibly_not_after(size_t id1, StepTime t1,
-				  size_t id2, StepTime t2) const = 0;
+                                  size_t id2, StepTime t2) const = 0;
 
   /* Checks if the two steps are possibly concurrent. */
   virtual bool possibly_concurrent(size_t id1, size_t id2, bool& ss, bool& se,
-				   bool& es, bool& ee) const = 0;
+                                   bool& es, bool& ee) const = 0;
 
   /* Returns the ordering collection with the given addition. */
   virtual const Orderings* refine(const Ordering& new_ordering) const = 0;
 
   /* Returns the ordering collection with the given additions. */
   virtual const Orderings* refine(const Ordering& new_ordering,
-				  const Step& new_step,
-				  const PlanningGraph* pg,
-				  const Bindings* bindings) const = 0;
+                                  const Step& new_step,
+                                  const PlanningGraph* pg,
+                                  const Bindings* bindings) const = 0;
 
   /* Fills the given tables with distances for each step from the
      start step, and returns the greatest distance. */
   virtual float schedule(std::map<size_t, float>& start_times,
-			 std::map<size_t, float>& end_times) const = 0;
+                         std::map<size_t, float>& end_times) const = 0;
 
   /* Returns the makespan of this ordering collection. */
   virtual float makespan(const std::map<std::pair<size_t,
-			 StepTime::StepPoint>, float>& min_times) const = 0;
+                         StepTime::StepPoint>, float>& min_times) const = 0;
 
 protected:
   /* Constructs an empty ordering collection. */
@@ -225,43 +225,43 @@ struct BinaryOrderings : public Orderings {
 
   /* Checks if the first step could be ordered before the second step. */
   virtual bool possibly_before(size_t id1, StepTime t1,
-			       size_t id2, StepTime t2) const;
+                               size_t id2, StepTime t2) const;
 
   /* Checks if the first step could be ordered after or at the same
      time as the second step. */
   virtual bool possibly_not_before(size_t id1, StepTime t1,
-				   size_t id2, StepTime t2) const;
+                                   size_t id2, StepTime t2) const;
 
   /* Checks if the first step could be ordered after the second step. */
   virtual bool possibly_after(size_t id1, StepTime t1,
-			      size_t id2, StepTime t2) const;
+                              size_t id2, StepTime t2) const;
 
   /* Checks if the first step could be ordered before or at the same
      time as the second step. */
   virtual bool possibly_not_after(size_t id1, StepTime t1,
-				  size_t id2, StepTime t2) const;
+                                  size_t id2, StepTime t2) const;
 
   /* Checks if the two steps are possibly concurrent. */
   virtual bool possibly_concurrent(size_t id1, size_t id2, bool& ss, bool& se,
-				   bool& es, bool& ee) const;
+                                   bool& es, bool& ee) const;
 
   /* Returns the ordering collection with the given addition. */
   virtual const BinaryOrderings* refine(const Ordering& new_ordering) const;
 
   /* Returns the ordering collection with the given additions. */
   virtual const BinaryOrderings* refine(const Ordering& new_ordering,
-					const Step& new_step,
-					const PlanningGraph* pg,
-					const Bindings* bindings) const;
+                                        const Step& new_step,
+                                        const PlanningGraph* pg,
+                                        const Bindings* bindings) const;
 
   /* Fills the given tables with distances for each step from the
      start step, and returns the greatest distance. */
   virtual float schedule(std::map<size_t, float>& start_times,
-			 std::map<size_t, float>& end_times) const;
+                         std::map<size_t, float>& end_times) const;
 
   /* Returns the makespan of this ordering collection. */
   virtual float makespan(const std::map<std::pair<size_t,
-			 StepTime::StepPoint>, float>& min_times) const;
+                         StepTime::StepPoint>, float>& min_times) const;
 
 protected:
   /* Prints this object on the given stream. */
@@ -277,24 +277,24 @@ private:
 
   /* Schedules the given instruction with the given constraints. */
   float schedule(std::map<size_t, float>& start_times,
-		 std::map<size_t, float>& end_times, size_t step_id) const;
+                 std::map<size_t, float>& end_times, size_t step_id) const;
 
   /* Schedules the given instruction with the given constraints. */
   float schedule(std::map<size_t, float>& start_times,
-		 std::map<size_t, float>& end_times, size_t step_id,
-		 const std::map<std::pair<size_t,
-		 StepTime::StepPoint>, float>& min_times) const;
+                 std::map<size_t, float>& end_times, size_t step_id,
+                 const std::map<std::pair<size_t,
+                 StepTime::StepPoint>, float>& min_times) const;
 
   /* Returns true iff the first step is ordered before the second step. */
   bool before(size_t id1, size_t id2) const;
 
   /* Orders the first step before the second step. */
   void set_before(std::map<size_t, BoolVector*>& own_data,
-		  size_t id1, size_t id2);
+                  size_t id1, size_t id2);
 
   /* Updates the transitive closure given a new ordering constraint. */
   void fill_transitive(std::map<size_t, BoolVector*>& own_data,
-		       const Ordering& ordering);
+                       const Ordering& ordering);
 };
 
 
@@ -315,29 +315,29 @@ struct TemporalOrderings : public Orderings {
 
   /* Checks if the first step could be ordered before the second step. */
   virtual bool possibly_before(size_t id1, StepTime t1,
-			       size_t id2, StepTime t2) const;
+                               size_t id2, StepTime t2) const;
 
   /* Checks if the first step could be ordered after or at the same
      time as the second step. */
   virtual bool possibly_not_before(size_t id1, StepTime t1,
-				   size_t id2, StepTime t2) const;
+                                   size_t id2, StepTime t2) const;
 
   /* Checks if the first step could be ordered after the second step. */
   virtual bool possibly_after(size_t id1, StepTime t1,
-			      size_t id2, StepTime t2) const;
+                              size_t id2, StepTime t2) const;
 
   /* Checks if the first step could be ordered before or at the same
      time as the second step. */
   virtual bool possibly_not_after(size_t id1, StepTime t1,
-				  size_t id2, StepTime t2) const;
+                                  size_t id2, StepTime t2) const;
 
   /* Checks if the two steps are possibly concurrent. */
   virtual bool possibly_concurrent(size_t id1, size_t id2, bool& ss, bool& se,
-				   bool& es, bool& ee) const;
+                                   bool& es, bool& ee) const;
 
   /* Returns the ordering collection with the given additions. */
   const TemporalOrderings* refine(size_t step_id,
-				  float min_start, float min_end) const;
+                                  float min_start, float min_end) const;
 
   /* Returns the ordering collection with the given additions. */
   const TemporalOrderings* refine(float time, const Step& new_step) const;
@@ -347,18 +347,18 @@ struct TemporalOrderings : public Orderings {
 
   /* Returns the ordering collection with the given additions. */
   virtual const TemporalOrderings* refine(const Ordering& new_ordering,
-					  const Step& new_step,
-					  const PlanningGraph* pg,
-					  const Bindings* bindings) const;
+                                          const Step& new_step,
+                                          const PlanningGraph* pg,
+                                          const Bindings* bindings) const;
 
   /* Fills the given tables with distances for each step from the
      start step, and returns the greatest distance. */
   virtual float schedule(std::map<size_t, float>& start_times,
-			 std::map<size_t, float>& end_times) const;
+                         std::map<size_t, float>& end_times) const;
 
   /* Returns the makespan of this ordering collection. */
   virtual float makespan(const std::map<std::pair<size_t,
-			 StepTime::StepPoint>, float>& min_times) const;
+                         StepTime::StepPoint>, float>& min_times) const;
 
 protected:
   /* Prints this opbject on the given stream. */
@@ -383,11 +383,11 @@ private:
 
   /* Sets the maximum distance from the first and the second time node. */
   void set_distance(std::map<size_t, IntVector*>& own_data,
-		    size_t t1, size_t t2, int d);
+                    size_t t1, size_t t2, int d);
 
   /* Updates the transitive closure given a new ordering constraint. */
   bool fill_transitive(std::map<size_t, IntVector*>& own_data,
-		       size_t i, size_t j, int dist);
+                       size_t i, size_t j, int dist);
 };
 
 

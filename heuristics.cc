@@ -52,9 +52,9 @@ static int sum(int n, int m) {
 
 /* Computes the heuristic value of the given formula. */
 static void formula_value(HeuristicValue& h, HeuristicValue& hs,
-			  const Formula& formula, size_t step_id,
-			  const Plan& plan, const PlanningGraph& pg,
-			  bool reuse = false) {
+                          const Formula& formula, size_t step_id,
+                          const Plan& plan, const PlanningGraph& pg,
+                          bool reuse = false) {
   const Bindings* bindings = plan.bindings();
   if (reuse) {
     const Literal* literal;
@@ -70,74 +70,74 @@ static void formula_value(HeuristicValue& h, HeuristicValue& hs,
     if (literal != NULL) {
       StepTime gt = start_time(when);
       if (!PredicateTable::static_predicate(literal->predicate())) {
-	for (const Chain<Step>* sc = plan.steps(); sc != NULL; sc = sc->tail) {
-	  const Step& step = sc->head;
-	  if (step.id() != 0
-	      && plan.orderings().possibly_before(step.id(),
-						  StepTime::AT_START,
-						  step_id, gt)) {
-	    const EffectList& effs = step.action().effects();
-	    for (EffectList::const_iterator ei = effs.begin();
-		 ei != effs.end(); ei++) {
-	      const Effect& e = **ei;
-	      StepTime et = end_time(e);
-	      if (plan.orderings().possibly_before(step.id(), et,
-						   step_id, gt)) {
-		if (typeid(*literal) == typeid(e.literal())) {
-		  if ((bindings != NULL
-		       && bindings->unify(*literal, step_id,
-					  e.literal(), step.id()))
-		      || (bindings == NULL && literal == &e.literal())) {
-		    h = HeuristicValue::ZERO_COST_UNIT_WORK;
-		    if (when != AT_END) {
-		      hs = HeuristicValue::ZERO_COST_UNIT_WORK;
-		    } else {
-		      hs = HeuristicValue::ZERO;
-		    }
-		    return;
-		  }
-		}
-	      }
-	    }
-	  }
-	}
+        for (const Chain<Step>* sc = plan.steps(); sc != NULL; sc = sc->tail) {
+          const Step& step = sc->head;
+          if (step.id() != 0
+              && plan.orderings().possibly_before(step.id(),
+                                                  StepTime::AT_START,
+                                                  step_id, gt)) {
+            const EffectList& effs = step.action().effects();
+            for (EffectList::const_iterator ei = effs.begin();
+                 ei != effs.end(); ei++) {
+              const Effect& e = **ei;
+              StepTime et = end_time(e);
+              if (plan.orderings().possibly_before(step.id(), et,
+                                                   step_id, gt)) {
+                if (typeid(*literal) == typeid(e.literal())) {
+                  if ((bindings != NULL
+                       && bindings->unify(*literal, step_id,
+                                          e.literal(), step.id()))
+                      || (bindings == NULL && literal == &e.literal())) {
+                    h = HeuristicValue::ZERO_COST_UNIT_WORK;
+                    if (when != AT_END) {
+                      hs = HeuristicValue::ZERO_COST_UNIT_WORK;
+                    } else {
+                      hs = HeuristicValue::ZERO;
+                    }
+                    return;
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     } else {
       const Disjunction* disj = dynamic_cast<const Disjunction*>(&formula);
       if (disj != NULL) {
-	h = hs = HeuristicValue::INFINITE;
-	for (FormulaList::const_iterator fi = disj->disjuncts().begin();
-	     fi != disj->disjuncts().end(); fi++) {
-	  HeuristicValue hi, hsi;
-	  formula_value(hi, hsi, **fi, step_id, plan, pg, true);
-	  h = min(h, hi);
-	  hs = min(hs, hsi);
-	}
+        h = hs = HeuristicValue::INFINITE;
+        for (FormulaList::const_iterator fi = disj->disjuncts().begin();
+             fi != disj->disjuncts().end(); fi++) {
+          HeuristicValue hi, hsi;
+          formula_value(hi, hsi, **fi, step_id, plan, pg, true);
+          h = min(h, hi);
+          hs = min(hs, hsi);
+        }
       } else {
-	const Conjunction* conj = dynamic_cast<const Conjunction*>(&formula);
-	if (conj != NULL) {
-	  h = hs = HeuristicValue::ZERO;
-	  for (FormulaList::const_iterator fi = conj->conjuncts().begin();
-	       fi != conj->conjuncts().end(); fi++) {
-	    HeuristicValue hi, hsi;
-	    formula_value(hi, hsi, **fi, step_id, plan, pg, true);
-	    h += hi;
-	    hs += hsi;
-	  }
-	} else {
-	  const Exists* exists = dynamic_cast<const Exists*>(&formula);
-	  if (exists != NULL) {
-	    formula_value(h, hs, exists->body(), step_id, plan, pg, true);
-	  } else {
-	    const Forall* forall = dynamic_cast<const Forall*>(&formula);
-	    if (forall != NULL) {
+        const Conjunction* conj = dynamic_cast<const Conjunction*>(&formula);
+        if (conj != NULL) {
+          h = hs = HeuristicValue::ZERO;
+          for (FormulaList::const_iterator fi = conj->conjuncts().begin();
+               fi != conj->conjuncts().end(); fi++) {
+            HeuristicValue hi, hsi;
+            formula_value(hi, hsi, **fi, step_id, plan, pg, true);
+            h += hi;
+            hs += hsi;
+          }
+        } else {
+          const Exists* exists = dynamic_cast<const Exists*>(&formula);
+          if (exists != NULL) {
+            formula_value(h, hs, exists->body(), step_id, plan, pg, true);
+          } else {
+            const Forall* forall = dynamic_cast<const Forall*>(&formula);
+            if (forall != NULL) {
               formula_value(h, hs,
                             forall->universal_base(std::map<Variable, Term>(),
                                                    pg.problem()),
                             step_id, plan, pg, true);
             }
-	  }
-	}
+          }
+        }
       }
       return;
     }
@@ -223,14 +223,14 @@ void HeuristicValue::increase_makespan(float x) {
 /* Equality operator for heuristic values. */
 bool operator==(const HeuristicValue& v1, const HeuristicValue& v2) {
   return (v1.add_cost() == v2.add_cost() && v1.add_work() == v2.add_work()
-	  && v1.makespan() == v2.makespan());
+          && v1.makespan() == v2.makespan());
 }
 #endif
 
 /* Inequality operator for heuristic values. */
 bool operator!=(const HeuristicValue& v1, const HeuristicValue& v2) {
   return (v1.add_cost() != v2.add_cost() || v1.add_work() != v2.add_work()
-	  || v1.makespan() != v2.makespan());
+          || v1.makespan() != v2.makespan());
 }
 
 #if 0
@@ -249,14 +249,14 @@ bool operator>(const HeuristicValue& v1, const HeuristicValue& v2) {
 /* Less than or equal to operator for heuristic values. */
 bool operator<=(const HeuristicValue& v1, const HeuristicValue& v2) {
   return (v1.add_cost() <= v2.add_cost() && v1.add_work() <= v2.add_work()
-	  && v1.makespan() <= v2.makespan());
+          && v1.makespan() <= v2.makespan());
 }
 
 
 /* Greater than or equal to operator for heuristic values. */
 bool operator>=(const HeuristicValue& v1, const HeuristicValue& v2) {
   return (v1.add_cost() >= v2.add_cost() && v1.add_work() >= v2.add_work()
-	  && v1.makespan() >= v2.makespan());
+          && v1.makespan() >= v2.makespan());
 }
 #endif
 
@@ -275,8 +275,8 @@ HeuristicValue min(const HeuristicValue& v1, const HeuristicValue& v2) {
     add_cost = v2.add_cost();
     add_work = v2.add_work();
   }
-  return HeuristicValue(add_cost, add_work, 
-			std::min(v1.makespan(), v2.makespan()));
+  return HeuristicValue(add_cost, add_work,
+                        std::min(v1.makespan(), v2.makespan()));
 }
 
 
@@ -293,32 +293,32 @@ std::ostream& operator<<(std::ostream& os, const HeuristicValue& v) {
 
 /* Returns the heuristic value of this formula. */
 void Constant::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
-			       const PlanningGraph& pg, size_t step_id,
-			       const Bindings* b) const {
+                               const PlanningGraph& pg, size_t step_id,
+                               const Bindings* b) const {
   h = hs = HeuristicValue::ZERO;
 }
 
 
 /* Returns the heuristic value of this formula. */
 void Atom::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
-			   const PlanningGraph& pg, size_t step_id,
-			   const Bindings* b) const {
+                           const PlanningGraph& pg, size_t step_id,
+                           const Bindings* b) const {
   h = hs = pg.heuristic_value(*this, step_id, b);
 }
 
 
 /* Returns the heuristic value of this formula. */
 void Negation::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
-			       const PlanningGraph& pg, size_t step_id,
-			       const Bindings* b) const {
+                               const PlanningGraph& pg, size_t step_id,
+                               const Bindings* b) const {
   h = hs = pg.heuristic_value(*this, step_id, b);
 }
 
 
 /* Returns the heuristic vaue of this formula. */
 void Equality::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
-			       const PlanningGraph& pg, size_t step_id,
-			       const Bindings* b) const {
+                               const PlanningGraph& pg, size_t step_id,
+                               const Bindings* b) const {
   if (b == NULL) {
     h = hs = HeuristicValue::ZERO;
   } else if (b->consistent_with(*this, step_id)) {
@@ -331,8 +331,8 @@ void Equality::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
 
 /* Returns the heuristic value of this formula. */
 void Inequality::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
-				 const PlanningGraph& pg, size_t step_id,
-				 const Bindings* b) const {
+                                 const PlanningGraph& pg, size_t step_id,
+                                 const Bindings* b) const {
   if (b == NULL) {
     h = hs = HeuristicValue::ZERO;
   } else if (b->consistent_with(*this, step_id)) {
@@ -345,8 +345,8 @@ void Inequality::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
 
 /* Returns the heuristic value of this formula. */
 void Conjunction::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
-				  const PlanningGraph& pg, size_t step_id,
-				  const Bindings* b) const {
+                                  const PlanningGraph& pg, size_t step_id,
+                                  const Bindings* b) const {
   h = hs = HeuristicValue::ZERO;
   for (FormulaList::const_iterator fi = conjuncts().begin();
        fi != conjuncts().end() && !h.infinite(); fi++) {
@@ -360,8 +360,8 @@ void Conjunction::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
 
 /* Returns the heuristic value of this formula. */
 void Disjunction::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
-				  const PlanningGraph& pg, size_t step_id,
-				  const Bindings* b) const {
+                                  const PlanningGraph& pg, size_t step_id,
+                                  const Bindings* b) const {
   h = hs = HeuristicValue::INFINITE;
   for (FormulaList::const_iterator fi = disjuncts().begin();
        fi != disjuncts().end() && !h.zero(); fi++) {
@@ -375,16 +375,16 @@ void Disjunction::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
 
 /* Returns the heuristic value of this formula. */
 void Exists::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
-			     const PlanningGraph& pg, size_t step_id,
-			     const Bindings* b) const {
+                             const PlanningGraph& pg, size_t step_id,
+                             const Bindings* b) const {
   body().heuristic_value(h, hs, pg, step_id, b);
 }
 
 
 /* Returns the heuristic value of this formula. */
 void Forall::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
-			     const PlanningGraph& pg, size_t step_id,
-			     const Bindings* b) const {
+                             const PlanningGraph& pg, size_t step_id,
+                             const Bindings* b) const {
   const Formula& f = universal_base(std::map<Variable, Term>(), pg.problem());
   f.heuristic_value(h, hs, pg, step_id, b);
 }
@@ -392,8 +392,8 @@ void Forall::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
 
 /* Returns the heuristic value of this formula. */
 void TimedLiteral::heuristic_value(HeuristicValue& h, HeuristicValue& hs,
-				   const PlanningGraph& pg, size_t step_id,
-				   const Bindings* b) const {
+                                   const PlanningGraph& pg, size_t step_id,
+                                   const Bindings* b) const {
   literal().heuristic_value(h, hs, pg, step_id, b);
   if (when() == AT_END) {
     hs = HeuristicValue::ZERO;
@@ -414,7 +414,7 @@ PlanningGraph::PlanningGraph(const Problem& problem, const Parameters& params)
   problem.instantiated_actions(actions);
   if (verbosity > 0) {
     std::cerr << std::endl << "Instantiated actions: " << actions.size()
-	      << std::endl;
+              << std::endl;
   }
   /*
    * Find duration scaling factors for literals.
@@ -426,42 +426,42 @@ PlanningGraph::PlanningGraph(const Problem& problem, const Parameters& params)
       const GroundAction& action = **ai;
       const Value* min_v = dynamic_cast<const Value*>(&action.min_duration());
       if (min_v == NULL) {
-	throw std::runtime_error("non-constant minimum duration");
+        throw std::runtime_error("non-constant minimum duration");
       }
       float d = std::max(Orderings::threshold, min_v->value());
       for (EffectList::const_iterator ei = action.effects().begin();
-	   ei != action.effects().end(); ei++) {
-	const Literal& literal = (*ei)->literal();
-	std::map<const Literal*, float>::const_iterator di =
-	  duration_factor.find(&literal);
-	if (di == duration_factor.end()) {
-	  duration_factor.insert(std::make_pair(&literal, d));
-	} else if (d < (*di).second) {
-	  duration_factor[&literal] = d;
-	}
+           ei != action.effects().end(); ei++) {
+        const Literal& literal = (*ei)->literal();
+        std::map<const Literal*, float>::const_iterator di =
+          duration_factor.find(&literal);
+        if (di == duration_factor.end()) {
+          duration_factor.insert(std::make_pair(&literal, d));
+        } else if (d < (*di).second) {
+          duration_factor[&literal] = d;
+        }
       }
     }
     for (TimedActionTable::const_iterator ai = problem.timed_actions().begin();
-	 ai != problem.timed_actions().end(); ai++) {
+         ai != problem.timed_actions().end(); ai++) {
       float d = (*ai).first;
       const GroundAction& action = *(*ai).second;
       for (EffectList::const_iterator ei = action.effects().begin();
-	   ei != action.effects().end(); ei++) {
-	const Literal& literal = (*ei)->literal();
-	std::map<const Literal*, float>::const_iterator di =
-	  duration_factor.find(&literal);
-	if (di == duration_factor.end()) {
-	  duration_factor.insert(std::make_pair(&literal, d));
-	} else if (d < (*di).second) {
-	  duration_factor[&literal] = d;
-	}
+           ei != action.effects().end(); ei++) {
+        const Literal& literal = (*ei)->literal();
+        std::map<const Literal*, float>::const_iterator di =
+          duration_factor.find(&literal);
+        if (di == duration_factor.end()) {
+          duration_factor.insert(std::make_pair(&literal, d));
+        } else if (d < (*di).second) {
+          duration_factor[&literal] = d;
+        }
       }
     }
   }
   if (verbosity > 2) {
     std::cerr << "Duration factors:" << std::endl;
     for (std::map<const Literal*, float>::const_iterator di =
-	   duration_factor.begin(); di != duration_factor.end(); di++) {
+           duration_factor.begin(); di != duration_factor.end(); di++) {
       std::cerr << "  ";
       (*di).first->print(std::cerr, 0, Bindings::EMPTY);
       std::cerr << ": " << (*di).second << std::endl;
@@ -480,7 +480,7 @@ PlanningGraph::PlanningGraph(const Problem& problem, const Parameters& params)
       atom_values_.insert(std::make_pair(&atom, HeuristicValue::ZERO));
     } else {
       atom_values_.insert(std::make_pair(&atom,
-					 HeuristicValue::ZERO_COST_UNIT_WORK));
+                                         HeuristicValue::ZERO_COST_UNIT_WORK));
     }
   }
   for (TimedActionTable::const_iterator ai = problem.timed_actions().begin();
@@ -488,28 +488,28 @@ PlanningGraph::PlanningGraph(const Problem& problem, const Parameters& params)
     float time = (*ai).first;
     const GroundAction& action = *(*ai).second;
     for (EffectList::const_iterator ei = action.effects().begin();
-	 ei != action.effects().end(); ei++) {
+         ei != action.effects().end(); ei++) {
       const Literal& literal = (*ei)->literal();
       achievers_[&literal].insert(std::make_pair(&action, *ei));
       float d = (params.action_cost == Parameters::UNIT_COST) ? 1.0f : time;
       std::map<const Literal*, float>::const_iterator di =
-	duration_factor.find(&literal);
+        duration_factor.find(&literal);
       if (di != duration_factor.end()) {
-	d /= (*di).second;
+        d /= (*di).second;
       }
       const Atom* atom = dynamic_cast<const Atom*>(&literal);
       if (atom != NULL) {
-	if (atom_values_.find(atom) == atom_values_.end()) {
-	  atom_values_.insert(std::make_pair(atom,
-					     HeuristicValue(d, 1, time)));
-	}
+        if (atom_values_.find(atom) == atom_values_.end()) {
+          atom_values_.insert(std::make_pair(atom,
+                                             HeuristicValue(d, 1, time)));
+        }
       } else {
-	const Negation& negation = dynamic_cast<const Negation&>(literal);
-	if (negation_values_.find(&negation.atom()) == negation_values_.end()
-	    && heuristic_value(negation.atom(), 0).zero()) {
-	  negation_values_.insert(std::make_pair(&negation.atom(),
-						 HeuristicValue(d, 1, time)));
-	}
+        const Negation& negation = dynamic_cast<const Negation&>(literal);
+        if (negation_values_.find(&negation.atom()) == negation_values_.end()
+            && heuristic_value(negation.atom(), 0).zero()) {
+          negation_values_.insert(std::make_pair(&negation.atom(),
+                                                 HeuristicValue(d, 1, time)));
+        }
       }
     }
   }
@@ -535,16 +535,16 @@ PlanningGraph::PlanningGraph(const Problem& problem, const Parameters& params)
        */
       std::cerr << "Literal values at level " << level << ":" << std::endl;
       for (AtomValueMap::const_iterator vi = atom_values_.begin();
-	   vi != atom_values_.end(); vi++) {
-	std::cerr << "  ";
-	(*vi).first->print(std::cerr, 0, Bindings::EMPTY);
-	std::cerr << " -- " << (*vi).second << std::endl;
+           vi != atom_values_.end(); vi++) {
+        std::cerr << "  ";
+        (*vi).first->print(std::cerr, 0, Bindings::EMPTY);
+        std::cerr << " -- " << (*vi).second << std::endl;
       }
       for (AtomValueMap::const_iterator vi = negation_values_.begin();
-	   vi != negation_values_.end(); vi++) {
-	std::cerr << "  (not ";
-	(*vi).first->print(std::cerr, 0, Bindings::EMPTY);
-	std::cerr << ") -- " << (*vi).second << std::endl;
+           vi != negation_values_.end(); vi++) {
+        std::cerr << "  (not ";
+        (*vi).first->print(std::cerr, 0, Bindings::EMPTY);
+        std::cerr << ") -- " << (*vi).second << std::endl;
       }
     }
     level++;
@@ -563,123 +563,123 @@ PlanningGraph::PlanningGraph(const Problem& problem, const Parameters& params)
       HeuristicValue start_value;
       action.condition().heuristic_value(pre_value, start_value, *this, 0);
       if (!start_value.infinite()) {
-	/* Precondition is achievable at this level. */
-	if (!pre_value.infinite()
-	    && applicable_actions.find(&action) == applicable_actions.end()) {
-	  /* First time this action is applicable. */
-	  applicable_actions.insert(&action);
-	}
-	for (EffectList::const_iterator ei = action.effects().begin();
-	     ei != action.effects().end(); ei++) {
-	  const Effect& effect = **ei;
-	  if (effect.when() == Effect::AT_END && pre_value.infinite()) {
-	    continue;
-	  }
-	  HeuristicValue cond_value, cond_value_start;
-	  effect.condition().heuristic_value(cond_value, cond_value_start,
-					     *this, 0);
-	  if (!cond_value.infinite()
-	      && !effect.link_condition().contradiction()) {
-	    /* Effect condition is achievable at this level. */
-	    if (effect.when() == Effect::AT_START) {
-	      cond_value += start_value;
-	    } else {
-	      cond_value += pre_value;
-	    }
-	    const Value* min_v =
-	      dynamic_cast<const Value*>(&action.min_duration());
-	    if (min_v == NULL) {
-	      throw std::runtime_error("non-constant minimum duration");
-	    }
-	    cond_value.increase_makespan(Orderings::threshold
-					 + min_v->value());
+        /* Precondition is achievable at this level. */
+        if (!pre_value.infinite()
+            && applicable_actions.find(&action) == applicable_actions.end()) {
+          /* First time this action is applicable. */
+          applicable_actions.insert(&action);
+        }
+        for (EffectList::const_iterator ei = action.effects().begin();
+             ei != action.effects().end(); ei++) {
+          const Effect& effect = **ei;
+          if (effect.when() == Effect::AT_END && pre_value.infinite()) {
+            continue;
+          }
+          HeuristicValue cond_value, cond_value_start;
+          effect.condition().heuristic_value(cond_value, cond_value_start,
+                                             *this, 0);
+          if (!cond_value.infinite()
+              && !effect.link_condition().contradiction()) {
+            /* Effect condition is achievable at this level. */
+            if (effect.when() == Effect::AT_START) {
+              cond_value += start_value;
+            } else {
+              cond_value += pre_value;
+            }
+            const Value* min_v =
+              dynamic_cast<const Value*>(&action.min_duration());
+            if (min_v == NULL) {
+              throw std::runtime_error("non-constant minimum duration");
+            }
+            cond_value.increase_makespan(Orderings::threshold
+                                         + min_v->value());
 
-	    /*
-	     * Update heuristic values of literal added by effect.
-	     */
-	    const Literal& literal = effect.literal();
-	    float d = ((params.action_cost == Parameters::UNIT_COST)
-		       ? 1.0f : Orderings::threshold + min_v->value());
-	    std::map<const Literal*, float>::const_iterator di =
-	      duration_factor.find(&literal);
-	    if (di != duration_factor.end()) {
-	      d /= (*di).second;
-	    }
-	    cond_value.increase_cost(d);
-	    if (!find(achievers_, literal, action, effect)) {
-	      if (!pre_value.infinite()) {
-		achievers_[&literal].insert(std::make_pair(&action, &effect));
-	      }
-	      if (useful_actions.find(&action) == useful_actions.end()) {
-		useful_actions.insert(&action);
-	      }
-	      if (verbosity > 4) {
-		std::cerr << "  ";
-		action.print(std::cerr, 0, Bindings::EMPTY);
-		std::cerr << " achieves ";
-		literal.print(std::cerr, 0, Bindings::EMPTY);
-		std::cerr << " with ";
-		effect.print(std::cerr);
-		std::cerr << ' ' << cond_value << std::endl;
-	      }
-	    }
-	    const Atom* atom = dynamic_cast<const Atom*>(&literal);
-	    if (atom != NULL) {
-	      AtomValueMap::const_iterator vi = new_atom_values.find(atom);
-	      if (vi == new_atom_values.end()) {
-		vi = atom_values_.find(atom);
-		if (vi == atom_values_.end()) {
-		  /* First level this atom is achieved. */
-		  HeuristicValue new_value = cond_value;
-		  new_value.increment_work();
-		  new_atom_values.insert(std::make_pair(atom, new_value));
-		  changed = true;
-		  continue;
-		}
-	      }
-	      /* This atom has been achieved earlier. */
-	      HeuristicValue old_value = (*vi).second;
-	      HeuristicValue new_value = cond_value;
-	      new_value.increment_work();
-	      new_value = min(new_value, old_value);
-	      if (new_value != old_value) {
-		new_atom_values[atom] = new_value;
-		changed = true;
-	      }
-	    } else {
-	      const Negation& negation =
-		dynamic_cast<const Negation&>(literal);
-	      AtomValueMap::const_iterator vi =
-		new_negation_values.find(&negation.atom());
-	      if (vi == new_negation_values.end()) {
-		vi = negation_values_.find(&negation.atom());
-		if (vi == negation_values_.end()) {
-		  if (heuristic_value(negation.atom(), 0).zero()) {
-		    /* First level this negated atom is achieved. */
-		    HeuristicValue new_value = cond_value;
-		    new_value.increment_work();
-		    new_negation_values.insert(std::make_pair(&negation.atom(),
-							      new_value));
-		    changed = true;
-		    continue;
-		  } else {
-		    /* Closed world assumption. */
-		    continue;
-		  }
-		}
-	      }
-	      /* This negated atom has been achieved earlier. */
-	      HeuristicValue old_value = (*vi).second;
-	      HeuristicValue new_value = cond_value;
-	      new_value.increment_work();
-	      new_value = min(new_value, old_value);
-	      if (new_value != old_value) {
-		new_negation_values[&negation.atom()] = new_value;
-		changed = true;
-	      }
-	    }
-	  }
-	}
+            /*
+             * Update heuristic values of literal added by effect.
+             */
+            const Literal& literal = effect.literal();
+            float d = ((params.action_cost == Parameters::UNIT_COST)
+                       ? 1.0f : Orderings::threshold + min_v->value());
+            std::map<const Literal*, float>::const_iterator di =
+              duration_factor.find(&literal);
+            if (di != duration_factor.end()) {
+              d /= (*di).second;
+            }
+            cond_value.increase_cost(d);
+            if (!find(achievers_, literal, action, effect)) {
+              if (!pre_value.infinite()) {
+                achievers_[&literal].insert(std::make_pair(&action, &effect));
+              }
+              if (useful_actions.find(&action) == useful_actions.end()) {
+                useful_actions.insert(&action);
+              }
+              if (verbosity > 4) {
+                std::cerr << "  ";
+                action.print(std::cerr, 0, Bindings::EMPTY);
+                std::cerr << " achieves ";
+                literal.print(std::cerr, 0, Bindings::EMPTY);
+                std::cerr << " with ";
+                effect.print(std::cerr);
+                std::cerr << ' ' << cond_value << std::endl;
+              }
+            }
+            const Atom* atom = dynamic_cast<const Atom*>(&literal);
+            if (atom != NULL) {
+              AtomValueMap::const_iterator vi = new_atom_values.find(atom);
+              if (vi == new_atom_values.end()) {
+                vi = atom_values_.find(atom);
+                if (vi == atom_values_.end()) {
+                  /* First level this atom is achieved. */
+                  HeuristicValue new_value = cond_value;
+                  new_value.increment_work();
+                  new_atom_values.insert(std::make_pair(atom, new_value));
+                  changed = true;
+                  continue;
+                }
+              }
+              /* This atom has been achieved earlier. */
+              HeuristicValue old_value = (*vi).second;
+              HeuristicValue new_value = cond_value;
+              new_value.increment_work();
+              new_value = min(new_value, old_value);
+              if (new_value != old_value) {
+                new_atom_values[atom] = new_value;
+                changed = true;
+              }
+            } else {
+              const Negation& negation =
+                dynamic_cast<const Negation&>(literal);
+              AtomValueMap::const_iterator vi =
+                new_negation_values.find(&negation.atom());
+              if (vi == new_negation_values.end()) {
+                vi = negation_values_.find(&negation.atom());
+                if (vi == negation_values_.end()) {
+                  if (heuristic_value(negation.atom(), 0).zero()) {
+                    /* First level this negated atom is achieved. */
+                    HeuristicValue new_value = cond_value;
+                    new_value.increment_work();
+                    new_negation_values.insert(std::make_pair(&negation.atom(),
+                                                              new_value));
+                    changed = true;
+                    continue;
+                  } else {
+                    /* Closed world assumption. */
+                    continue;
+                  }
+                }
+              }
+              /* This negated atom has been achieved earlier. */
+              HeuristicValue old_value = (*vi).second;
+              HeuristicValue new_value = cond_value;
+              new_value.increment_work();
+              new_value = min(new_value, old_value);
+              if (new_value != old_value) {
+                new_negation_values[&negation.atom()] = new_value;
+                changed = true;
+              }
+            }
+          }
+        }
       }
     }
 
@@ -687,14 +687,14 @@ PlanningGraph::PlanningGraph(const Problem& problem, const Parameters& params)
      * Add achieved atoms to previously achieved atoms.
      */
     for (AtomValueMap::const_iterator vi = new_atom_values.begin();
-	 vi != new_atom_values.end(); vi++) {
+         vi != new_atom_values.end(); vi++) {
       atom_values_[(*vi).first] = (*vi).second;
     }
     /*
      * Add achieved negated atoms to previously achieved negated atoms.
      */
     for (AtomValueMap::const_iterator vi = new_negation_values.begin();
-	 vi != new_negation_values.end(); vi++) {
+         vi != new_negation_values.end(); vi++) {
       negation_values_[(*vi).first] = (*vi).second;
     }
   } while (changed);
@@ -724,29 +724,29 @@ PlanningGraph::PlanningGraph(const Problem& problem, const Parameters& params)
   GroundActionSet good_actions;
   if (verbosity > 1 || params.domain_constraints) {
     for (GroundActionSet::const_iterator ai = applicable_actions.begin();
-	 ai != applicable_actions.end(); ai++) {
+         ai != applicable_actions.end(); ai++) {
       const GroundAction& action = **ai;
       if (useful_actions.find(&action) != useful_actions.end()) {
-	good_actions.insert(&action);
-	if (params.domain_constraints && !action.arguments().empty()) {
-	  ActionDomainMap::const_iterator di =
-	    action_domains_.find(action.name());
-	  if (di == action_domains_.end()) {
-	    ActionDomain* domain = new ActionDomain(action.arguments());
-	    ActionDomain::register_use(domain);
-	    action_domains_.insert(std::make_pair(action.name(), domain));
-	  } else {
-	    (*di).second->add(action.arguments());
-	  }
-	}
+        good_actions.insert(&action);
+        if (params.domain_constraints && !action.arguments().empty()) {
+          ActionDomainMap::const_iterator di =
+            action_domains_.find(action.name());
+          if (di == action_domains_.end()) {
+            ActionDomain* domain = new ActionDomain(action.arguments());
+            ActionDomain::register_use(domain);
+            action_domains_.insert(std::make_pair(action.name(), domain));
+          } else {
+            (*di).second->add(action.arguments());
+          }
+        }
       }
     }
   }
 
   if (verbosity > 0) {
     std::cerr << "Applicable actions: " << applicable_actions.size()
-	      << std::endl
-	      << "Useful actions: " << useful_actions.size() << std::endl;
+              << std::endl
+              << "Useful actions: " << useful_actions.size() << std::endl;
     if (verbosity > 1) {
       std::cerr << "Good actions: " << good_actions.size() << std::endl;
     }
@@ -768,7 +768,7 @@ PlanningGraph::PlanningGraph(const Problem& problem, const Parameters& params)
      * Print good actions.
      */
     for (GroundActionSet::const_iterator ai = good_actions.begin();
-	 ai != good_actions.end(); ai++) {
+         ai != good_actions.end(); ai++) {
       std::cerr << "  ";
       (*ai)->print(std::cerr, 0, Bindings::EMPTY);
       std::cerr << std::endl;
@@ -778,13 +778,13 @@ PlanningGraph::PlanningGraph(const Problem& problem, const Parameters& params)
      */
     std::cerr << "Achievable literals:" << std::endl;
     for (AtomValueMap::const_iterator vi = atom_values_.begin();
-	 vi != atom_values_.end(); vi++) {
+         vi != atom_values_.end(); vi++) {
       std::cerr << "  ";
       (*vi).first->print(std::cerr, 0, Bindings::EMPTY);
       std::cerr << " -- " << (*vi).second << std::endl;
     }
     for (AtomValueMap::const_iterator vi = negation_values_.begin();
-	 vi != negation_values_.end(); vi++) {
+         vi != negation_values_.end(); vi++) {
       std::cerr << "  (not ";
       (*vi).first->print(std::cerr, 0, Bindings::EMPTY);
       std::cerr << ") -- " << (*vi).second << std::endl;
@@ -803,9 +803,9 @@ PlanningGraph::~PlanningGraph() {
   for (LiteralAchieverMap::const_iterator lai = achievers_.begin();
        lai != achievers_.end(); lai++) {
     for (ActionEffectMap::const_iterator aei = (*lai).second.begin();
-	 aei != (*lai).second.end(); aei++) {
+         aei != (*lai).second.end(); aei++) {
       if ((*aei).first->name().substr(0, 1) != "<") {
-	useful_actions.insert(dynamic_cast<const GroundAction*>((*aei).first));
+        useful_actions.insert(dynamic_cast<const GroundAction*>((*aei).first));
       }
     }
   }
@@ -818,12 +818,12 @@ PlanningGraph::~PlanningGraph() {
 
 /* Returns the heuristic value of a ground atom. */
 HeuristicValue PlanningGraph::heuristic_value(const Atom& atom, size_t step_id,
-					      const Bindings* bindings) const {
+                                              const Bindings* bindings) const {
   if (bindings == NULL) {
     /* Assume ground atom. */
     AtomValueMap::const_iterator vi = atom_values_.find(&atom);
     return ((vi != atom_values_.end())
-	    ? (*vi).second : HeuristicValue::INFINITE);
+            ? (*vi).second : HeuristicValue::INFINITE);
   } else {
     /* Take minimum value of ground atoms that unify. */
     HeuristicValue value = HeuristicValue::INFINITE;
@@ -831,14 +831,14 @@ HeuristicValue PlanningGraph::heuristic_value(const Atom& atom, size_t step_id,
       PredicateAtomsMap::const_iterator> bounds =
       predicate_atoms_.equal_range(atom.predicate());
     for (PredicateAtomsMap::const_iterator gi = bounds.first;
-	 gi != bounds.second; gi++) {
+         gi != bounds.second; gi++) {
       const Atom& a = *(*gi).second;
       if (bindings->unify(atom, step_id, a, 0)) {
-	HeuristicValue v = heuristic_value(a, 0);
-	value = min(value, v);
-	if (value.zero()) {
-	  return value;
-	}
+        HeuristicValue v = heuristic_value(a, 0);
+        value = min(value, v);
+        if (value.zero()) {
+          return value;
+        }
       }
     }
     return value;
@@ -848,8 +848,8 @@ HeuristicValue PlanningGraph::heuristic_value(const Atom& atom, size_t step_id,
 
 /* Returns the heuristic value of a negated atom. */
 HeuristicValue PlanningGraph::heuristic_value(const Negation& negation,
-					      size_t step_id,
-					      const Bindings* bindings) const {
+                                              size_t step_id,
+                                              const Bindings* bindings) const {
   if (bindings == NULL) {
     /* Assume ground negated atom. */
     AtomValueMap::const_iterator vi = negation_values_.find(&negation.atom());
@@ -858,8 +858,8 @@ HeuristicValue PlanningGraph::heuristic_value(const Negation& negation,
     } else {
       vi = atom_values_.find(&negation.atom());
       return ((vi == atom_values_.end() || !(*vi).second.zero())
-	      ? HeuristicValue::ZERO_COST_UNIT_WORK
-	      : HeuristicValue::INFINITE);
+              ? HeuristicValue::ZERO_COST_UNIT_WORK
+              : HeuristicValue::INFINITE);
     }
   } else {
     /* Take minimum value of ground negated atoms that unify. */
@@ -872,14 +872,14 @@ HeuristicValue PlanningGraph::heuristic_value(const Negation& negation,
       PredicateAtomsMap::const_iterator> bounds =
       predicate_negations_.equal_range(negation.predicate());
     for (PredicateAtomsMap::const_iterator gi = bounds.first;
-	 gi != bounds.second; gi++) {
+         gi != bounds.second; gi++) {
       const Atom& a = *(*gi).second;
       if (bindings->unify(atom, step_id, a, 0)) {
-	HeuristicValue v = heuristic_value(a, 0);
-	value = min(value, v);
-	if (value.zero()) {
-	  return value;
-	}
+        HeuristicValue v = heuristic_value(a, 0);
+        value = min(value, v);
+        if (value.zero()) {
+          return value;
+        }
       }
     }
     return value;
@@ -906,16 +906,16 @@ PlanningGraph::action_domain(const std::string& name) const {
 
 /* Finds an element in a LiteralActionsMap. */
 bool PlanningGraph::find(const PlanningGraph::LiteralAchieverMap& m,
-			 const Literal &l, const Action& a,
-			 const Effect& e) const {
+                         const Literal &l, const Action& a,
+                         const Effect& e) const {
   LiteralAchieverMap::const_iterator lai = m.find(&l);
   if (lai != m.end()) {
     std::pair<ActionEffectMap::const_iterator,
       ActionEffectMap::const_iterator> bounds = (*lai).second.equal_range(&a);
     for (ActionEffectMap::const_iterator i = bounds.first;
-	 i != bounds.second; i++) {
+         i != bounds.second; i++) {
       if ((*i).second == &e) {
-	return true;
+        return true;
       }
     }
   }
@@ -991,7 +991,7 @@ Heuristic& Heuristic::operator=(const std::string& name) {
     if (name[pos] == '/') {
       pos++;
       if (pos >= name.length()) {
-	throw InvalidHeuristic(name);
+        throw InvalidHeuristic(name);
       }
     }
   }
@@ -1007,8 +1007,8 @@ bool Heuristic::needs_planning_graph() const {
 
 /* Fills the provided vector with the ranks for the given plan. */
 void Heuristic::plan_rank(std::vector<float>& rank, const Plan& plan,
-			  float weight, const Domain& domain,
-			  const PlanningGraph* planning_graph) const {
+                          float weight, const Domain& domain,
+                          const PlanningGraph* planning_graph) const {
   bool add_done = false;
   float add_cost = 0.0f;
   int add_work = 0;
@@ -1039,108 +1039,108 @@ void Heuristic::plan_rank(std::vector<float>& rank, const Plan& plan,
       break;
     case UCPOP:
       rank.push_back(plan.num_steps()
-		     + weight*(plan.num_open_conds() + plan.num_unsafes()));
+                     + weight*(plan.num_open_conds() + plan.num_unsafes()));
       break;
     case ADD:
     case ADD_COST:
     case ADD_WORK:
       if (!add_done) {
-	add_done = true;
-	for (const Chain<OpenCondition>* occ = plan.open_conds();
-	     occ != NULL; occ = occ->tail) {
-	  const OpenCondition& open_cond = occ->head;
-	  HeuristicValue v, vs;
-	  formula_value(v, vs, open_cond.condition(), open_cond.step_id(),
-			plan, *planning_graph);
-	  add_cost += v.add_cost();
-	  add_work = sum(add_work, v.add_work());
-	}
+        add_done = true;
+        for (const Chain<OpenCondition>* occ = plan.open_conds();
+             occ != NULL; occ = occ->tail) {
+          const OpenCondition& open_cond = occ->head;
+          HeuristicValue v, vs;
+          formula_value(v, vs, open_cond.condition(), open_cond.step_id(),
+                        plan, *planning_graph);
+          add_cost += v.add_cost();
+          add_work = sum(add_work, v.add_work());
+        }
       }
       if (h == ADD) {
-	if (add_cost < std::numeric_limits<int>::max()) {
-	  rank.push_back(plan.num_steps() + weight*add_cost);
-	} else {
-	  rank.push_back(std::numeric_limits<float>::infinity());
-	}
+        if (add_cost < std::numeric_limits<int>::max()) {
+          rank.push_back(plan.num_steps() + weight*add_cost);
+        } else {
+          rank.push_back(std::numeric_limits<float>::infinity());
+        }
       } else if (h == ADD_COST) {
-	if (add_cost < std::numeric_limits<int>::max()) {
-	  rank.push_back(add_cost);
-	} else {
-	  rank.push_back(std::numeric_limits<float>::infinity());
-	}
+        if (add_cost < std::numeric_limits<int>::max()) {
+          rank.push_back(add_cost);
+        } else {
+          rank.push_back(std::numeric_limits<float>::infinity());
+        }
       } else {
-	if (add_work < std::numeric_limits<int>::max()) {
-	  rank.push_back(add_work);
-	} else {
-	  rank.push_back(std::numeric_limits<float>::infinity());
-	}
+        if (add_work < std::numeric_limits<int>::max()) {
+          rank.push_back(add_work);
+        } else {
+          rank.push_back(std::numeric_limits<float>::infinity());
+        }
       }
       break;
     case ADDR:
     case ADDR_COST:
     case ADDR_WORK:
       if (!addr_done) {
-	addr_done = true;
-	for (const Chain<OpenCondition>* occ = plan.open_conds();
-	     occ != NULL; occ = occ->tail) {
-	  const OpenCondition& open_cond = occ->head;
-	  HeuristicValue v, vs;
-	  formula_value(v, vs, open_cond.condition(), open_cond.step_id(),
-			plan, *planning_graph, true);
-	  addr_cost += v.add_cost();
-	  addr_work = sum(addr_work, v.add_work());
-	}
+        addr_done = true;
+        for (const Chain<OpenCondition>* occ = plan.open_conds();
+             occ != NULL; occ = occ->tail) {
+          const OpenCondition& open_cond = occ->head;
+          HeuristicValue v, vs;
+          formula_value(v, vs, open_cond.condition(), open_cond.step_id(),
+                        plan, *planning_graph, true);
+          addr_cost += v.add_cost();
+          addr_work = sum(addr_work, v.add_work());
+        }
       }
       if (h == ADDR) {
-	if (addr_cost < std::numeric_limits<int>::max()) {
-	  rank.push_back(plan.num_steps() + weight*addr_cost);
-	} else {
-	  rank.push_back(std::numeric_limits<float>::infinity());
-	}
+        if (addr_cost < std::numeric_limits<int>::max()) {
+          rank.push_back(plan.num_steps() + weight*addr_cost);
+        } else {
+          rank.push_back(std::numeric_limits<float>::infinity());
+        }
       } else if (h == ADDR_COST) {
-	if (addr_cost < std::numeric_limits<int>::max()) {
-	  rank.push_back(addr_cost);
-	} else {
-	  rank.push_back(std::numeric_limits<float>::infinity());
-	}
+        if (addr_cost < std::numeric_limits<int>::max()) {
+          rank.push_back(addr_cost);
+        } else {
+          rank.push_back(std::numeric_limits<float>::infinity());
+        }
       } else {
-	if (addr_work < std::numeric_limits<int>::max()) {
-	  rank.push_back(addr_work);
-	} else {
-	  rank.push_back(std::numeric_limits<float>::infinity());
-	}
+        if (addr_work < std::numeric_limits<int>::max()) {
+          rank.push_back(addr_work);
+        } else {
+          rank.push_back(std::numeric_limits<float>::infinity());
+        }
       }
       break;
     case MAKESPAN:
       std::map<std::pair<size_t, StepTime::StepPoint>, float> min_times;
       for (const Chain<OpenCondition>* occ = plan.open_conds();
-	   occ != NULL; occ = occ->tail) {
-	const OpenCondition& open_cond = occ->head;
-	HeuristicValue v, vs;
-	formula_value(v, vs, open_cond.condition(), open_cond.step_id(),
-		      plan, *planning_graph);
-	std::map<std::pair<size_t, StepTime::StepPoint>, float>::iterator di =
-	  min_times.find(std::make_pair(open_cond.step_id(), StepTime::START));
-	if (di != min_times.end()) {
-	  if (weight*vs.makespan() > (*di).second) {
-	    (*di).second = weight*vs.makespan();
-	  }
-	} else {
-	  min_times.insert(std::make_pair(std::make_pair(open_cond.step_id(),
-							 StepTime::START),
-					  weight*vs.makespan()));
-	}
-	di = min_times.find(std::make_pair(open_cond.step_id(),
-					   StepTime::END));
-	if (di != min_times.end()) {
-	  if (weight*v.makespan() > (*di).second) {
-	    (*di).second = weight*v.makespan();
-	  }
-	} else {
-	  min_times.insert(std::make_pair(std::make_pair(open_cond.step_id(),
-							 StepTime::END),
-					  weight*v.makespan()));
-	}
+           occ != NULL; occ = occ->tail) {
+        const OpenCondition& open_cond = occ->head;
+        HeuristicValue v, vs;
+        formula_value(v, vs, open_cond.condition(), open_cond.step_id(),
+                      plan, *planning_graph);
+        std::map<std::pair<size_t, StepTime::StepPoint>, float>::iterator di =
+          min_times.find(std::make_pair(open_cond.step_id(), StepTime::START));
+        if (di != min_times.end()) {
+          if (weight*vs.makespan() > (*di).second) {
+            (*di).second = weight*vs.makespan();
+          }
+        } else {
+          min_times.insert(std::make_pair(std::make_pair(open_cond.step_id(),
+                                                         StepTime::START),
+                                          weight*vs.makespan()));
+        }
+        di = min_times.find(std::make_pair(open_cond.step_id(),
+                                           StepTime::END));
+        if (di != min_times.end()) {
+          if (weight*v.makespan() > (*di).second) {
+            (*di).second = weight*v.makespan();
+          }
+        } else {
+          min_times.insert(std::make_pair(std::make_pair(open_cond.step_id(),
+                                                         StepTime::END),
+                                          weight*v.makespan()));
+        }
       }
       rank.push_back(plan.orderings().makespan(min_times));
       break;
@@ -1238,7 +1238,7 @@ std::ostream& operator<<(std::ostream& os, const SelectionCriterion& c) {
     case SelectionCriterion::ADD:
       os << "ADD";
       if (c.reuse) {
-	os << 'R';
+        os << 'R';
       }
       break;
     case SelectionCriterion::MAKESPAN:
@@ -1252,7 +1252,7 @@ std::ostream& operator<<(std::ostream& os, const SelectionCriterion& c) {
     case SelectionCriterion::ADD:
       os << "ADD";
       if (c.reuse) {
-	os << 'R';
+        os << 'R';
       }
       break;
     case SelectionCriterion::MAKESPAN:
@@ -1266,7 +1266,7 @@ std::ostream& operator<<(std::ostream& os, const SelectionCriterion& c) {
     case SelectionCriterion::ADD:
       os << "ADD";
       if (c.reuse) {
-	os << 'R';
+        os << 'R';
       }
       break;
     case SelectionCriterion::MAKESPAN:
@@ -1280,7 +1280,7 @@ std::ostream& operator<<(std::ostream& os, const SelectionCriterion& c) {
     case SelectionCriterion::ADD:
       os << "ADD";
       if (c.reuse) {
-	os << 'R';
+        os << 'R';
       }
       break;
     case SelectionCriterion::MAKESPAN:
@@ -1397,94 +1397,94 @@ FlawSelectionOrder& FlawSelectionOrder::operator=(const std::string& name) {
     do {
       switch (name[pos]) {
       case 'n':
-	pos++;
-	if (name[pos] == ',' || name[pos] == '}') {
-	  criterion.non_separable = true;
-	  if (first_unsafe_criterion_ > last_unsafe_criterion_) {
-	    first_unsafe_criterion_ = selection_criteria_.size();
-	  }
-	  last_unsafe_criterion_ = selection_criteria_.size();
-	} else {
-	  throw InvalidFlawSelectionOrder(name);
-	}
-	break;
+        pos++;
+        if (name[pos] == ',' || name[pos] == '}') {
+          criterion.non_separable = true;
+          if (first_unsafe_criterion_ > last_unsafe_criterion_) {
+            first_unsafe_criterion_ = selection_criteria_.size();
+          }
+          last_unsafe_criterion_ = selection_criteria_.size();
+        } else {
+          throw InvalidFlawSelectionOrder(name);
+        }
+        break;
       case 's':
-	pos++;
-	if (name[pos] == ',' || name[pos] == '}') {
-	  criterion.separable = true;
-	  if (first_unsafe_criterion_ > last_unsafe_criterion_) {
-	    first_unsafe_criterion_ = selection_criteria_.size();
-	  }
-	  last_unsafe_criterion_ = selection_criteria_.size();
-	} else {
-	  throw InvalidFlawSelectionOrder(name);
-	}
-	break;
+        pos++;
+        if (name[pos] == ',' || name[pos] == '}') {
+          criterion.separable = true;
+          if (first_unsafe_criterion_ > last_unsafe_criterion_) {
+            first_unsafe_criterion_ = selection_criteria_.size();
+          }
+          last_unsafe_criterion_ = selection_criteria_.size();
+        } else {
+          throw InvalidFlawSelectionOrder(name);
+        }
+        break;
       case 'o':
-	pos++;
-	if (name[pos] == ',' || name[pos] == '}') {
-	  criterion.open_cond = true;
-	  criterion.local_open_cond = false;
-	  criterion.static_open_cond = false;
-	  criterion.unsafe_open_cond = false;
-	  if (first_open_cond_criterion_ > last_open_cond_criterion_) {
-	    first_open_cond_criterion_ = selection_criteria_.size();
-	  }
-	  last_open_cond_criterion_ = selection_criteria_.size();
-	} else {
-	  throw InvalidFlawSelectionOrder(name);
-	}
-	break;
+        pos++;
+        if (name[pos] == ',' || name[pos] == '}') {
+          criterion.open_cond = true;
+          criterion.local_open_cond = false;
+          criterion.static_open_cond = false;
+          criterion.unsafe_open_cond = false;
+          if (first_open_cond_criterion_ > last_open_cond_criterion_) {
+            first_open_cond_criterion_ = selection_criteria_.size();
+          }
+          last_open_cond_criterion_ = selection_criteria_.size();
+        } else {
+          throw InvalidFlawSelectionOrder(name);
+        }
+        break;
       case 'l':
-	pos++;
-	if (name[pos] == ',' || name[pos] == '}') {
-	  if (!criterion.open_cond) {
-	    criterion.local_open_cond = true;
-	    if (first_open_cond_criterion_ > last_open_cond_criterion_) {
-	      first_open_cond_criterion_ = selection_criteria_.size();
-	    }
-	    last_open_cond_criterion_ = selection_criteria_.size();
-	  }
-	} else {
-	  throw InvalidFlawSelectionOrder(name);
-	}
-	break;
+        pos++;
+        if (name[pos] == ',' || name[pos] == '}') {
+          if (!criterion.open_cond) {
+            criterion.local_open_cond = true;
+            if (first_open_cond_criterion_ > last_open_cond_criterion_) {
+              first_open_cond_criterion_ = selection_criteria_.size();
+            }
+            last_open_cond_criterion_ = selection_criteria_.size();
+          }
+        } else {
+          throw InvalidFlawSelectionOrder(name);
+        }
+        break;
       case 't':
-	pos++;
-	if (name[pos] == ',' || name[pos] == '}') {
-	  if (!criterion.open_cond) {
-	    criterion.static_open_cond = true;
-	    if (first_open_cond_criterion_ > last_open_cond_criterion_) {
-	      first_open_cond_criterion_ = selection_criteria_.size();
-	    }
-	    last_open_cond_criterion_ = selection_criteria_.size();
-	  }
-	} else {
-	  throw InvalidFlawSelectionOrder(name);
-	}
-	break;
+        pos++;
+        if (name[pos] == ',' || name[pos] == '}') {
+          if (!criterion.open_cond) {
+            criterion.static_open_cond = true;
+            if (first_open_cond_criterion_ > last_open_cond_criterion_) {
+              first_open_cond_criterion_ = selection_criteria_.size();
+            }
+            last_open_cond_criterion_ = selection_criteria_.size();
+          }
+        } else {
+          throw InvalidFlawSelectionOrder(name);
+        }
+        break;
       case 'u':
-	pos++;
-	if (name[pos] == ',' || name[pos] == '}') {
-	  if (!criterion.open_cond) {
-	    criterion.unsafe_open_cond = true;
-	    if (first_open_cond_criterion_ > last_open_cond_criterion_) {
-	      first_open_cond_criterion_ = selection_criteria_.size();
-	    }
-	    last_open_cond_criterion_ = selection_criteria_.size();
-	  }
-	} else {
-	  throw InvalidFlawSelectionOrder(name);
-	}
-	break;
+        pos++;
+        if (name[pos] == ',' || name[pos] == '}') {
+          if (!criterion.open_cond) {
+            criterion.unsafe_open_cond = true;
+            if (first_open_cond_criterion_ > last_open_cond_criterion_) {
+              first_open_cond_criterion_ = selection_criteria_.size();
+            }
+            last_open_cond_criterion_ = selection_criteria_.size();
+          }
+        } else {
+          throw InvalidFlawSelectionOrder(name);
+        }
+        break;
       default:
-	throw InvalidFlawSelectionOrder(name);
+        throw InvalidFlawSelectionOrder(name);
       }
       if (name[pos] == ',') {
-	pos++;
-	if (name[pos] == '}') {
-	  throw InvalidFlawSelectionOrder(name);
-	}
+        pos++;
+        if (name[pos] == '}') {
+          throw InvalidFlawSelectionOrder(name);
+        }
       }
     } while (name[pos] != '}');
     pos++;
@@ -1514,89 +1514,89 @@ FlawSelectionOrder& FlawSelectionOrder::operator=(const std::string& name) {
       criterion.order = SelectionCriterion::MR;
     } else {
       if (criterion.non_separable || criterion.separable) {
-	/* No other orders that the above can be used with threats. */
-	throw InvalidFlawSelectionOrder(name);
+        /* No other orders that the above can be used with threats. */
+        throw InvalidFlawSelectionOrder(name);
       }
       if (strcasecmp(n, "NEW") == 0) {
-	criterion.order = SelectionCriterion::NEW;
+        criterion.order = SelectionCriterion::NEW;
       } else if (strcasecmp(n, "REUSE") == 0) {
-	criterion.order = SelectionCriterion::REUSE;
+        criterion.order = SelectionCriterion::REUSE;
       } else if (strncasecmp(n, "LC_", 3) == 0) {
-	criterion.order = SelectionCriterion::LC;
-	needs_pg_ = true;
-	if (strcasecmp(n + 3, "ADD") == 0) {
-	  criterion.heuristic = SelectionCriterion::ADD;
-	  criterion.reuse = false;
-	} else if (strcasecmp(n + 3, "ADDR") == 0) {
-	  criterion.heuristic = SelectionCriterion::ADD;
-	  criterion.reuse = true;
-	} else if (strcasecmp(n + 3, "MAKESPAN") == 0) {
-	  criterion.heuristic = SelectionCriterion::MAKESPAN;
-	  criterion.reuse = false;
-	} else {
-	  throw InvalidFlawSelectionOrder(name);
-	}
+        criterion.order = SelectionCriterion::LC;
+        needs_pg_ = true;
+        if (strcasecmp(n + 3, "ADD") == 0) {
+          criterion.heuristic = SelectionCriterion::ADD;
+          criterion.reuse = false;
+        } else if (strcasecmp(n + 3, "ADDR") == 0) {
+          criterion.heuristic = SelectionCriterion::ADD;
+          criterion.reuse = true;
+        } else if (strcasecmp(n + 3, "MAKESPAN") == 0) {
+          criterion.heuristic = SelectionCriterion::MAKESPAN;
+          criterion.reuse = false;
+        } else {
+          throw InvalidFlawSelectionOrder(name);
+        }
       } else if (strncasecmp(n, "MC_", 3) == 0) {
-	criterion.order = SelectionCriterion::MC;
-	needs_pg_ = true;
-	if (strcasecmp(n + 3, "ADD") == 0) {
-	  criterion.heuristic = SelectionCriterion::ADD;
-	  criterion.reuse = false;
-	} else if (strcasecmp(n + 3, "ADDR") == 0) {
-	  criterion.heuristic = SelectionCriterion::ADD;
-	  criterion.reuse = true;
-	} else if (strcasecmp(n + 3, "MAKESPAN") == 0) {
-	  criterion.heuristic = SelectionCriterion::MAKESPAN;
-	  criterion.reuse = false;
-	} else {
-	  throw InvalidFlawSelectionOrder(name);
-	}
+        criterion.order = SelectionCriterion::MC;
+        needs_pg_ = true;
+        if (strcasecmp(n + 3, "ADD") == 0) {
+          criterion.heuristic = SelectionCriterion::ADD;
+          criterion.reuse = false;
+        } else if (strcasecmp(n + 3, "ADDR") == 0) {
+          criterion.heuristic = SelectionCriterion::ADD;
+          criterion.reuse = true;
+        } else if (strcasecmp(n + 3, "MAKESPAN") == 0) {
+          criterion.heuristic = SelectionCriterion::MAKESPAN;
+          criterion.reuse = false;
+        } else {
+          throw InvalidFlawSelectionOrder(name);
+        }
       } else if (strncasecmp(n, "LW_", 3) == 0) {
-	criterion.order = SelectionCriterion::LW;
-	needs_pg_ = true;
-	if (strcasecmp(n + 3, "ADD") == 0) {
-	  criterion.heuristic = SelectionCriterion::ADD;
-	  criterion.reuse = false;
-	} else if (strcasecmp(n + 3, "ADDR") == 0) {
-	  criterion.heuristic = SelectionCriterion::ADD;
-	  criterion.reuse = true;
-	} else {
-	  throw InvalidFlawSelectionOrder(name);
-	}
+        criterion.order = SelectionCriterion::LW;
+        needs_pg_ = true;
+        if (strcasecmp(n + 3, "ADD") == 0) {
+          criterion.heuristic = SelectionCriterion::ADD;
+          criterion.reuse = false;
+        } else if (strcasecmp(n + 3, "ADDR") == 0) {
+          criterion.heuristic = SelectionCriterion::ADD;
+          criterion.reuse = true;
+        } else {
+          throw InvalidFlawSelectionOrder(name);
+        }
       } else if (strncasecmp(n, "MW_", 3) == 0) {
-	criterion.order = SelectionCriterion::MW;
-	needs_pg_ = true;
-	if (strcasecmp(n + 3, "ADD") == 0) {
-	  criterion.heuristic = SelectionCriterion::ADD;
-	  criterion.reuse = false;
-	} else if (strcasecmp(n + 3, "ADDR") == 0) {
-	  criterion.heuristic = SelectionCriterion::ADD;
-	  criterion.reuse = true;
-	} else {
-	  throw InvalidFlawSelectionOrder(name);
-	}
+        criterion.order = SelectionCriterion::MW;
+        needs_pg_ = true;
+        if (strcasecmp(n + 3, "ADD") == 0) {
+          criterion.heuristic = SelectionCriterion::ADD;
+          criterion.reuse = false;
+        } else if (strcasecmp(n + 3, "ADDR") == 0) {
+          criterion.heuristic = SelectionCriterion::ADD;
+          criterion.reuse = true;
+        } else {
+          throw InvalidFlawSelectionOrder(name);
+        }
       } else {
-	throw InvalidFlawSelectionOrder(name);
+        throw InvalidFlawSelectionOrder(name);
       }
     }
     if (criterion.non_separable) {
       non_separable_max_refinements = std::max(criterion.max_refinements,
-					       non_separable_max_refinements);
+                                               non_separable_max_refinements);
     }
     if (criterion.separable) {
       separable_max_refinements = std::max(criterion.max_refinements,
-					   separable_max_refinements);
+                                           separable_max_refinements);
     }
     if (criterion.open_cond || criterion.local_open_cond) {
       open_cond_max_refinements = std::max(criterion.max_refinements,
-					   open_cond_max_refinements);
+                                           open_cond_max_refinements);
     }
     selection_criteria_.push_back(criterion);
     pos = next_pos;
     if (name[pos] == '/') {
       pos++;
       if (pos >= name.length()) {
-	throw InvalidFlawSelectionOrder(name);
+        throw InvalidFlawSelectionOrder(name);
       }
     }
   }
@@ -1618,9 +1618,9 @@ bool FlawSelectionOrder::needs_planning_graph() const {
 
 /* Seaches threats for a flaw to select. */
 int FlawSelectionOrder::select_unsafe(FlawSelection& selection,
-				      const Plan& plan, const Problem& problem,
-				      int first_criterion,
-				      int last_criterion) const {
+                                      const Plan& plan, const Problem& problem,
+                                      int first_criterion,
+                                      int last_criterion) const {
   if (first_criterion > last_criterion || plan.unsafes() == NULL) {
     return std::numeric_limits<int>::max();
   }
@@ -1643,103 +1643,103 @@ int FlawSelectionOrder::select_unsafe(FlawSelection& selection,
       /* If criterion applies only to one type of threats, make sure
          we know which type of threat this is. */
       if (criterion.non_separable != criterion.separable && separable < 0) {
-	separable = plan.separable(unsafe);
-	if (separable < 0) {
-	  refinements = separable = 0;
-	}
+        separable = plan.separable(unsafe);
+        if (separable < 0) {
+          refinements = separable = 0;
+        }
       }
       /* Test if criterion applies. */
       if ((criterion.non_separable && criterion.separable)
-	  || (criterion.separable && separable > 0)
-	  || (criterion.non_separable && separable == 0)) {
-	/* Right type of threat, so now check if the refinement
+          || (criterion.separable && separable > 0)
+          || (criterion.non_separable && separable == 0)) {
+        /* Right type of threat, so now check if the refinement
            constraint is satisfied. */
-	if (criterion.max_refinements >= 3
-	    || plan.unsafe_refinements(refinements, separable, promotable,
-				       demotable, unsafe,
-				       criterion.max_refinements)) {
-	  /* Refinement constraint is satisfied, so criterion applies. */
-	  switch (criterion.order) {
-	  case SelectionCriterion::LIFO:
-	    selection.flaw = &unsafe;
-	    selection.criterion = c;
-	    last_criterion = c - 1;
-	    if (verbosity > 1) {
-	      std::cerr << "selecting ";
-	      unsafe.print(std::cerr, Bindings::EMPTY);
-	      std::cerr << " by criterion " << criterion << std::endl;
-	    }
-	    break;
-	  case SelectionCriterion::FIFO:
-	    selection.flaw = &unsafe;
-	    selection.criterion = c;
-	    last_criterion = c;
-	    if (verbosity > 1) {
-	      std::cerr << "selecting ";
-	      unsafe.print(std::cerr, Bindings::EMPTY);
-	      std::cerr << " by criterion " << criterion << std::endl;
-	    }
-	    break;
-	  case SelectionCriterion::RANDOM:
-	    if (c == selection.criterion) {
-	      selection.streak++;
-	    } else {
-	      selection.streak = 1;
-	    }
-	    if (rand01ex() < 1.0/selection.streak) {
-	      selection.flaw = &unsafe;
-	      selection.criterion = c;
-	      last_criterion = c;
-	      if (verbosity > 1) {
-		std::cerr << "selecting ";
-		unsafe.print(std::cerr, Bindings::EMPTY);
-		std::cerr << " by criterion " << criterion << std::endl;
-	      }
-	    }
-	    break;
-	  case SelectionCriterion::LR:
-	    if (c < selection.criterion
-		|| plan.unsafe_refinements(refinements, separable, promotable,
-					   demotable, unsafe,
-					   int(selection.rank + 0.5) - 1)) {
-	      selection.flaw = &unsafe;
-	      selection.criterion = c;
-	      plan.unsafe_refinements(refinements, separable, promotable,
-				      demotable, unsafe,
+        if (criterion.max_refinements >= 3
+            || plan.unsafe_refinements(refinements, separable, promotable,
+                                       demotable, unsafe,
+                                       criterion.max_refinements)) {
+          /* Refinement constraint is satisfied, so criterion applies. */
+          switch (criterion.order) {
+          case SelectionCriterion::LIFO:
+            selection.flaw = &unsafe;
+            selection.criterion = c;
+            last_criterion = c - 1;
+            if (verbosity > 1) {
+              std::cerr << "selecting ";
+              unsafe.print(std::cerr, Bindings::EMPTY);
+              std::cerr << " by criterion " << criterion << std::endl;
+            }
+            break;
+          case SelectionCriterion::FIFO:
+            selection.flaw = &unsafe;
+            selection.criterion = c;
+            last_criterion = c;
+            if (verbosity > 1) {
+              std::cerr << "selecting ";
+              unsafe.print(std::cerr, Bindings::EMPTY);
+              std::cerr << " by criterion " << criterion << std::endl;
+            }
+            break;
+          case SelectionCriterion::RANDOM:
+            if (c == selection.criterion) {
+              selection.streak++;
+            } else {
+              selection.streak = 1;
+            }
+            if (rand01ex() < 1.0/selection.streak) {
+              selection.flaw = &unsafe;
+              selection.criterion = c;
+              last_criterion = c;
+              if (verbosity > 1) {
+                std::cerr << "selecting ";
+                unsafe.print(std::cerr, Bindings::EMPTY);
+                std::cerr << " by criterion " << criterion << std::endl;
+              }
+            }
+            break;
+          case SelectionCriterion::LR:
+            if (c < selection.criterion
+                || plan.unsafe_refinements(refinements, separable, promotable,
+                                           demotable, unsafe,
+                                           int(selection.rank + 0.5) - 1)) {
+              selection.flaw = &unsafe;
+              selection.criterion = c;
+              plan.unsafe_refinements(refinements, separable, promotable,
+                                      demotable, unsafe,
                                       std::numeric_limits<int>::max());
-	      selection.rank = refinements;
-	      last_criterion = (refinements == 0) ? c - 1 : c;
-	      if (verbosity > 1) {
-		std::cerr << "selecting ";
-		unsafe.print(std::cerr, Bindings::EMPTY);
-		std::cerr << " by criterion " << criterion
-			  << " with rank " << refinements << std::endl;
-	      }
-	    }
-	    break;
-	  case SelectionCriterion::MR:
-	    plan.unsafe_refinements(refinements, separable, promotable,
-				    demotable, unsafe,
+              selection.rank = refinements;
+              last_criterion = (refinements == 0) ? c - 1 : c;
+              if (verbosity > 1) {
+                std::cerr << "selecting ";
+                unsafe.print(std::cerr, Bindings::EMPTY);
+                std::cerr << " by criterion " << criterion
+                          << " with rank " << refinements << std::endl;
+              }
+            }
+            break;
+          case SelectionCriterion::MR:
+            plan.unsafe_refinements(refinements, separable, promotable,
+                                    demotable, unsafe,
                                     std::numeric_limits<int>::max());
-	    if (c < selection.criterion
-		|| refinements > selection.rank) {
-	      selection.flaw = &unsafe;
-	      selection.criterion = c;
-	      selection.rank = refinements;
-	      last_criterion = (refinements == 3) ? c - 1 : c;
-	      if (verbosity > 1) {
-		std::cerr << "selecting ";
-		unsafe.print(std::cerr, Bindings::EMPTY);
-		std::cerr << " by criterion " << criterion
-			  << " with rank " << refinements << std::endl;
-	      }
-	    }
-	    break;
-	  default:
-	    /* No other ordering criteria apply to threats. */
-	    break;
-	  }
-	}
+            if (c < selection.criterion
+                || refinements > selection.rank) {
+              selection.flaw = &unsafe;
+              selection.criterion = c;
+              selection.rank = refinements;
+              last_criterion = (refinements == 3) ? c - 1 : c;
+              if (verbosity > 1) {
+                std::cerr << "selecting ";
+                unsafe.print(std::cerr, Bindings::EMPTY);
+                std::cerr << " by criterion " << criterion
+                          << " with rank " << refinements << std::endl;
+              }
+            }
+            break;
+          default:
+            /* No other ordering criteria apply to threats. */
+            break;
+          }
+        }
       }
     }
   }
@@ -1749,11 +1749,11 @@ int FlawSelectionOrder::select_unsafe(FlawSelection& selection,
 
 /* Seaches open conditions for a flaw to select. */
 int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
-					 const Plan& plan,
-					 const Problem& problem,
-					 const PlanningGraph* pg,
-					 int first_criterion,
-					 int last_criterion) const {
+                                         const Plan& plan,
+                                         const Problem& problem,
+                                         const PlanningGraph* pg,
+                                         int first_criterion,
+                                         int last_criterion) const {
   if (first_criterion > last_criterion || plan.open_conds() == NULL) {
     return std::numeric_limits<int>::max();
   }
@@ -1780,248 +1780,248 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
     for (int c = first_criterion; c <= last_criterion; c++) {
       const SelectionCriterion& criterion = selection_criteria_[c];
       if (criterion.local_open_cond && !local
-	  && !criterion.static_open_cond && !criterion.unsafe_open_cond) {
-	if (c == last_criterion) {
-	  last_criterion--;
-	}
-	continue;
+          && !criterion.static_open_cond && !criterion.unsafe_open_cond) {
+        if (c == last_criterion) {
+          last_criterion--;
+        }
+        continue;
       }
       /* If criterion applies only to one type of open condition, make
          sure we know which type of open condition this is. */
       if (criterion.static_open_cond && is_static < 0) {
-	is_static = open_cond.is_static() ? 1 : 0;
+        is_static = open_cond.is_static() ? 1 : 0;
       }
       if (criterion.unsafe_open_cond && is_unsafe < 0) {
-	is_unsafe = (plan.unsafe_open_condition(open_cond)) ? 1 : 0;
+        is_unsafe = (plan.unsafe_open_condition(open_cond)) ? 1 : 0;
       }
       /* Test if criterion applies. */
       if (criterion.open_cond
-	  || (criterion.local_open_cond && local)
-	  || (criterion.static_open_cond && is_static > 0)
-	  || (criterion.unsafe_open_cond && is_unsafe > 0)) {
-	/* Right type of open condition, so now check if the
+          || (criterion.local_open_cond && local)
+          || (criterion.static_open_cond && is_static > 0)
+          || (criterion.unsafe_open_cond && is_unsafe > 0)) {
+        /* Right type of open condition, so now check if the
            refinement constraint is satisfied. */
-	if (criterion.max_refinements == std::numeric_limits<int>::max()
-	    || plan.open_cond_refinements(refinements, addable, reusable,
-					  open_cond,
-					  criterion.max_refinements)) {
-	  /* Refinement constraint is satisfied, so criterion applies. */
-	  switch (criterion.order) {
-	  case SelectionCriterion::LIFO:
-	    selection.flaw = &open_cond;
-	    selection.criterion = c;
-	    last_criterion = c - 1;
-	    if (verbosity > 1) {
-	      std::cerr << "selecting ";
-	      open_cond.print(std::cerr, Bindings::EMPTY);
-	      std::cerr << " by criterion " << criterion << std::endl;
-	    }
-	    break;
-	  case SelectionCriterion::FIFO:
-	    selection.flaw = &open_cond;
-	    selection.criterion = c;
-	    last_criterion = c;
-	    if (verbosity > 1) {
-	      std::cerr << "selecting ";
-	      open_cond.print(std::cerr, Bindings::EMPTY);
-	      std::cerr << " by criterion " << criterion << std::endl;
-	    }
-	    break;
-	  case SelectionCriterion::RANDOM:
-	    if (c == selection.criterion) {
-	      selection.streak++;
-	    } else {
-	      selection.streak = 1;
-	    }
-	    if (rand01ex() < 1.0/selection.streak) {
-	      selection.flaw = &open_cond;
-	      selection.criterion = c;
-	      last_criterion = c;
-	      if (verbosity > 1) {
-		std::cerr << "selecting ";
-		open_cond.print(std::cerr, Bindings::EMPTY);
-		std::cerr << " by criterion " << criterion << std::endl;
-	      }
-	    }
-	    break;
-	  case SelectionCriterion::LR:
-	    if (c < selection.criterion
-		|| plan.open_cond_refinements(refinements, addable, reusable,
-					      open_cond,
-					      int(selection.rank + 0.5) - 1)) {
-	      selection.flaw = &open_cond;
-	      selection.criterion = c;
-	      plan.open_cond_refinements(refinements, addable, reusable,
-					 open_cond,
+        if (criterion.max_refinements == std::numeric_limits<int>::max()
+            || plan.open_cond_refinements(refinements, addable, reusable,
+                                          open_cond,
+                                          criterion.max_refinements)) {
+          /* Refinement constraint is satisfied, so criterion applies. */
+          switch (criterion.order) {
+          case SelectionCriterion::LIFO:
+            selection.flaw = &open_cond;
+            selection.criterion = c;
+            last_criterion = c - 1;
+            if (verbosity > 1) {
+              std::cerr << "selecting ";
+              open_cond.print(std::cerr, Bindings::EMPTY);
+              std::cerr << " by criterion " << criterion << std::endl;
+            }
+            break;
+          case SelectionCriterion::FIFO:
+            selection.flaw = &open_cond;
+            selection.criterion = c;
+            last_criterion = c;
+            if (verbosity > 1) {
+              std::cerr << "selecting ";
+              open_cond.print(std::cerr, Bindings::EMPTY);
+              std::cerr << " by criterion " << criterion << std::endl;
+            }
+            break;
+          case SelectionCriterion::RANDOM:
+            if (c == selection.criterion) {
+              selection.streak++;
+            } else {
+              selection.streak = 1;
+            }
+            if (rand01ex() < 1.0/selection.streak) {
+              selection.flaw = &open_cond;
+              selection.criterion = c;
+              last_criterion = c;
+              if (verbosity > 1) {
+                std::cerr << "selecting ";
+                open_cond.print(std::cerr, Bindings::EMPTY);
+                std::cerr << " by criterion " << criterion << std::endl;
+              }
+            }
+            break;
+          case SelectionCriterion::LR:
+            if (c < selection.criterion
+                || plan.open_cond_refinements(refinements, addable, reusable,
+                                              open_cond,
+                                              int(selection.rank + 0.5) - 1)) {
+              selection.flaw = &open_cond;
+              selection.criterion = c;
+              plan.open_cond_refinements(refinements, addable, reusable,
+                                         open_cond,
                                          std::numeric_limits<int>::max());
-	      selection.rank = refinements;
-	      last_criterion = (refinements == 0) ? c - 1 : c;
-	      if (verbosity > 1) {
-		std::cerr << "selecting ";
-		open_cond.print(std::cerr, Bindings::EMPTY);
-		std::cerr << " by criterion " << criterion
-			  << " with rank " << refinements << std::endl;
-	      }
-	    }
-	    break;
-	  case SelectionCriterion::MR:
-	    plan.open_cond_refinements(refinements, addable, reusable,
-				       open_cond,
+              selection.rank = refinements;
+              last_criterion = (refinements == 0) ? c - 1 : c;
+              if (verbosity > 1) {
+                std::cerr << "selecting ";
+                open_cond.print(std::cerr, Bindings::EMPTY);
+                std::cerr << " by criterion " << criterion
+                          << " with rank " << refinements << std::endl;
+              }
+            }
+            break;
+          case SelectionCriterion::MR:
+            plan.open_cond_refinements(refinements, addable, reusable,
+                                       open_cond,
                                        std::numeric_limits<int>::max());
-	    if (c < selection.criterion
-		|| refinements > selection.rank) {
-	      selection.flaw = &open_cond;
-	      selection.criterion = c;
-	      selection.rank = refinements;
-	      last_criterion = c;
-	      if (verbosity > 1) {
-		std::cerr << "selecting ";
-		open_cond.print(std::cerr, Bindings::EMPTY);
-		std::cerr << " by criterion " << criterion
-			  << " with rank " << refinements << std::endl;
-	      }
-	    }
-	    break;
-	  case SelectionCriterion::NEW:
-	    {
-	      bool has_new = false;
-	      if (addable < 0) {
-		const Literal* literal = open_cond.literal();
-		if (literal != NULL) {
-		  has_new = !plan.addable_steps(addable, *literal,
-						open_cond, 0);
-		}
-	      } else {
-		has_new = (addable > 0);
-	      }
-	      if (has_new || c < selection.criterion) {
-		selection.flaw = &open_cond;
-		selection.criterion = c;
-		last_criterion = has_new ? c - 1 : c;
-		if (verbosity > 1) {
-		  std::cerr << "selecting ";
-		  open_cond.print(std::cerr, Bindings::EMPTY);
-		  std::cerr << " by criterion " << criterion;
-		  if (has_new) {
-		    std::cerr << " with new";
-		  }
-		  std::cerr << std::endl;
-		}
-	      }
-	    }
-	    break;
-	  case SelectionCriterion::REUSE:
-	    {
-	      bool has_reuse = false;
-	      if (reusable < 0) {
-		const Literal* literal = open_cond.literal();
-		if (literal != NULL) {
-		  has_reuse = !plan.reusable_steps(reusable, *literal,
-						   open_cond, 0);
-		}
-	      } else {
-		has_reuse = (reusable > 0);
-	      }
-	      if (has_reuse || c < selection.criterion) {
-		selection.flaw = &open_cond;
-		selection.criterion = c;
-		last_criterion = has_reuse ? c - 1 : c;
-		if (verbosity > 1) {
-		  std::cerr << "selecting ";
-		  open_cond.print(std::cerr, Bindings::EMPTY);
-		  std::cerr << " by criterion " << criterion;
-		  if (has_reuse) {
-		    std::cerr << " with reuse";
-		  }
-		  std::cerr << std::endl;
-		}
-	      }
-	    }
-	    break;
-	  case SelectionCriterion::LC:
-	    {
-	      HeuristicValue h, hs;
-	      formula_value(h, hs, open_cond.condition(), open_cond.step_id(),
-			    plan, *pg, criterion.reuse);
-	      float rank = ((criterion.heuristic == SelectionCriterion::ADD)
-			    ? h.add_cost() : h.makespan());
-	      if (c < selection.criterion || rank < selection.rank) {
-		selection.flaw = &open_cond;
-		selection.criterion = c;
-		selection.rank = rank;
-		last_criterion = (rank == 0.0f) ? c - 1 : c;
-		if (verbosity > 1) {
-		  std::cerr << "selecting ";
-		  open_cond.print(std::cerr, Bindings::EMPTY);
-		  std::cerr << " by criterion " << criterion
-			    << " with rank " << rank << std::endl;
-		}
-	      }
-	    }
-	    break;
-	  case SelectionCriterion::MC:
-	    {
-	      HeuristicValue h, hs;
-	      formula_value(h, hs, open_cond.condition(), open_cond.step_id(),
-			    plan, *pg, criterion.reuse);
-	      float rank = ((criterion.heuristic == SelectionCriterion::ADD)
-			    ? h.add_cost() : h.makespan() + 0.5);
-	      if (c < selection.criterion || rank > selection.rank) {
-		selection.flaw = &open_cond;
-		selection.criterion = c;
-		selection.rank = rank;
-		last_criterion = c;
-		if (verbosity > 1) {
-		  std::cerr << "selecting ";
-		  open_cond.print(std::cerr, Bindings::EMPTY);
-		  std::cerr << " by criterion " << criterion
-			    << " with rank " << rank << std::endl;
-		}
-	      }
-	    }
-	    break;
-	  case SelectionCriterion::LW:
-	    {
-	      HeuristicValue h, hs;
-	      formula_value(h, hs, open_cond.condition(), open_cond.step_id(),
-			    plan, *pg, criterion.reuse);
-	      int rank = h.add_work();
-	      if (c < selection.criterion || rank < selection.rank) {
-		selection.flaw = &open_cond;
-		selection.criterion = c;
-		selection.rank = rank;
-		last_criterion = (rank == 0) ? c - 1 : c;
-		if (verbosity > 1) {
-		  std::cerr << "selecting ";
-		  open_cond.print(std::cerr, Bindings::EMPTY);
-		  std::cerr << " by criterion " << criterion
-			    << " with rank " << rank << std::endl;
-		}
-	      }
-	    }
-	    break;
-	  case SelectionCriterion::MW:
-	    {
-	      HeuristicValue h, hs;
-	      formula_value(h, hs, open_cond.condition(), open_cond.step_id(),
-			    plan, *pg, criterion.reuse);
-	      int rank = h.add_work();
-	      if (c < selection.criterion || rank > selection.rank) {
-		selection.flaw = &open_cond;
-		selection.criterion = c;
-		selection.rank = rank;
-		last_criterion = c;
-		if (verbosity > 1) {
-		  std::cerr << "selecting ";
-		  open_cond.print(std::cerr, Bindings::EMPTY);
-		  std::cerr << " by criterion " << criterion
-			    << " with rank " << rank << std::endl;
-		}
-	      }
-	    }
-	    break;
-	  }
-	}
+            if (c < selection.criterion
+                || refinements > selection.rank) {
+              selection.flaw = &open_cond;
+              selection.criterion = c;
+              selection.rank = refinements;
+              last_criterion = c;
+              if (verbosity > 1) {
+                std::cerr << "selecting ";
+                open_cond.print(std::cerr, Bindings::EMPTY);
+                std::cerr << " by criterion " << criterion
+                          << " with rank " << refinements << std::endl;
+              }
+            }
+            break;
+          case SelectionCriterion::NEW:
+            {
+              bool has_new = false;
+              if (addable < 0) {
+                const Literal* literal = open_cond.literal();
+                if (literal != NULL) {
+                  has_new = !plan.addable_steps(addable, *literal,
+                                                open_cond, 0);
+                }
+              } else {
+                has_new = (addable > 0);
+              }
+              if (has_new || c < selection.criterion) {
+                selection.flaw = &open_cond;
+                selection.criterion = c;
+                last_criterion = has_new ? c - 1 : c;
+                if (verbosity > 1) {
+                  std::cerr << "selecting ";
+                  open_cond.print(std::cerr, Bindings::EMPTY);
+                  std::cerr << " by criterion " << criterion;
+                  if (has_new) {
+                    std::cerr << " with new";
+                  }
+                  std::cerr << std::endl;
+                }
+              }
+            }
+            break;
+          case SelectionCriterion::REUSE:
+            {
+              bool has_reuse = false;
+              if (reusable < 0) {
+                const Literal* literal = open_cond.literal();
+                if (literal != NULL) {
+                  has_reuse = !plan.reusable_steps(reusable, *literal,
+                                                   open_cond, 0);
+                }
+              } else {
+                has_reuse = (reusable > 0);
+              }
+              if (has_reuse || c < selection.criterion) {
+                selection.flaw = &open_cond;
+                selection.criterion = c;
+                last_criterion = has_reuse ? c - 1 : c;
+                if (verbosity > 1) {
+                  std::cerr << "selecting ";
+                  open_cond.print(std::cerr, Bindings::EMPTY);
+                  std::cerr << " by criterion " << criterion;
+                  if (has_reuse) {
+                    std::cerr << " with reuse";
+                  }
+                  std::cerr << std::endl;
+                }
+              }
+            }
+            break;
+          case SelectionCriterion::LC:
+            {
+              HeuristicValue h, hs;
+              formula_value(h, hs, open_cond.condition(), open_cond.step_id(),
+                            plan, *pg, criterion.reuse);
+              float rank = ((criterion.heuristic == SelectionCriterion::ADD)
+                            ? h.add_cost() : h.makespan());
+              if (c < selection.criterion || rank < selection.rank) {
+                selection.flaw = &open_cond;
+                selection.criterion = c;
+                selection.rank = rank;
+                last_criterion = (rank == 0.0f) ? c - 1 : c;
+                if (verbosity > 1) {
+                  std::cerr << "selecting ";
+                  open_cond.print(std::cerr, Bindings::EMPTY);
+                  std::cerr << " by criterion " << criterion
+                            << " with rank " << rank << std::endl;
+                }
+              }
+            }
+            break;
+          case SelectionCriterion::MC:
+            {
+              HeuristicValue h, hs;
+              formula_value(h, hs, open_cond.condition(), open_cond.step_id(),
+                            plan, *pg, criterion.reuse);
+              float rank = ((criterion.heuristic == SelectionCriterion::ADD)
+                            ? h.add_cost() : h.makespan() + 0.5);
+              if (c < selection.criterion || rank > selection.rank) {
+                selection.flaw = &open_cond;
+                selection.criterion = c;
+                selection.rank = rank;
+                last_criterion = c;
+                if (verbosity > 1) {
+                  std::cerr << "selecting ";
+                  open_cond.print(std::cerr, Bindings::EMPTY);
+                  std::cerr << " by criterion " << criterion
+                            << " with rank " << rank << std::endl;
+                }
+              }
+            }
+            break;
+          case SelectionCriterion::LW:
+            {
+              HeuristicValue h, hs;
+              formula_value(h, hs, open_cond.condition(), open_cond.step_id(),
+                            plan, *pg, criterion.reuse);
+              int rank = h.add_work();
+              if (c < selection.criterion || rank < selection.rank) {
+                selection.flaw = &open_cond;
+                selection.criterion = c;
+                selection.rank = rank;
+                last_criterion = (rank == 0) ? c - 1 : c;
+                if (verbosity > 1) {
+                  std::cerr << "selecting ";
+                  open_cond.print(std::cerr, Bindings::EMPTY);
+                  std::cerr << " by criterion " << criterion
+                            << " with rank " << rank << std::endl;
+                }
+              }
+            }
+            break;
+          case SelectionCriterion::MW:
+            {
+              HeuristicValue h, hs;
+              formula_value(h, hs, open_cond.condition(), open_cond.step_id(),
+                            plan, *pg, criterion.reuse);
+              int rank = h.add_work();
+              if (c < selection.criterion || rank > selection.rank) {
+                selection.flaw = &open_cond;
+                selection.criterion = c;
+                selection.rank = rank;
+                last_criterion = c;
+                if (verbosity > 1) {
+                  std::cerr << "selecting ";
+                  open_cond.print(std::cerr, Bindings::EMPTY);
+                  std::cerr << " by criterion " << criterion
+                            << " with rank " << rank << std::endl;
+                }
+              }
+            }
+            break;
+          }
+        }
       }
     }
   }
@@ -2031,16 +2031,16 @@ int FlawSelectionOrder::select_open_cond(FlawSelection& selection,
 
 /* Selects a flaw from the flaws of the given plan. */
 const Flaw& FlawSelectionOrder::select(const Plan& plan,
-				       const Problem& problem,
-				       const PlanningGraph* pg) const {
+                                       const Problem& problem,
+                                       const PlanningGraph* pg) const {
   FlawSelection selection;
   selection.flaw = NULL;
   selection.criterion = std::numeric_limits<int>::max();
   int last_criterion = select_unsafe(selection, plan, problem,
-				     first_unsafe_criterion_,
-				     last_unsafe_criterion_);
+                                     first_unsafe_criterion_,
+                                     last_unsafe_criterion_);
   select_open_cond(selection, plan, problem, pg, first_open_cond_criterion_,
-		   std::min(last_open_cond_criterion_, last_criterion));
+                   std::min(last_open_cond_criterion_, last_criterion));
   if (selection.flaw != NULL) {
     return *selection.flaw;
   } else {

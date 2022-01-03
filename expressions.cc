@@ -149,7 +149,7 @@ const Fluent& Fluent::substitution(
   }
   if (substituted) {
     return make(function(), inst_terms);
-  } else { 
+  } else {
     return *this;
   }
 }
@@ -161,9 +161,9 @@ const Expression& Fluent::instantiation(const std::map<Variable, Term>& subst,
     if (FunctionTable::static_function(function())) {
       ValueMap::const_iterator vi = values.find(this);
       if (vi != values.end()) {
-	return *new Value((*vi).second);
+        return *new Value((*vi).second);
       } else {
-	throw std::logic_error("value of static fluent is undefined");
+        throw std::logic_error("value of static fluent is undefined");
       }
     } else {
       return *this;
@@ -177,30 +177,30 @@ const Expression& Fluent::instantiation(const std::map<Variable, Term>& subst,
       std::map<Variable, Term>::const_iterator si =
           (*ti).variable() ? subst.find((*ti).as_variable()) : subst.end();
       if (si != subst.end()) {
-	inst_terms.push_back((*si).second);
-	substituted = true;
-	objects++;
+        inst_terms.push_back((*si).second);
+        substituted = true;
+        objects++;
       } else {
-	inst_terms.push_back(*ti);
-	if ((*ti).object()) {
-	  objects++;
-	}
+        inst_terms.push_back(*ti);
+        if ((*ti).object()) {
+          objects++;
+        }
       }
     }
     if (substituted) {
       const Fluent& inst_fluent = make(function(), inst_terms);
       if (FunctionTable::static_function(function())
-	  && objects == inst_terms.size()) {
-	ValueMap::const_iterator vi = values.find(&inst_fluent);
-	if (vi != values.end()) {
-	  return *new Value((*vi).second);
-	} else {
-	  throw std::logic_error("value of static fluent is undefined");
-	}
+          && objects == inst_terms.size()) {
+        ValueMap::const_iterator vi = values.find(&inst_fluent);
+        if (vi != values.end()) {
+          return *new Value((*vi).second);
+        } else {
+          throw std::logic_error("value of static fluent is undefined");
+        }
       } else {
-	return inst_fluent;
+        return inst_fluent;
       }
-    } else { 
+    } else {
       return *this;
     }
   }
@@ -222,7 +222,7 @@ void Fluent::print(std::ostream& os) const {
 
 /* Constructs a computation. */
 Computation::Computation(const Expression& operand1,
-			 const Expression& operand2)
+                         const Expression& operand2)
   : operand1_(&operand1), operand2_(&operand2) {
   ref(operand1_);
   ref(operand2_);
@@ -241,7 +241,7 @@ Computation::~Computation() {
 
 /* Returns an addition of the two expressions. */
 const Expression& Addition::make(const Expression& term1,
-				 const Expression& term2) {
+                                 const Expression& term2) {
   const Value* v1 = dynamic_cast<const Value*>(&term1);
   if (v1 != 0) {
     const Value* v2 = dynamic_cast<const Value*>(&term2);
@@ -287,7 +287,7 @@ void Addition::print(std::ostream& os) const {
 
 /* Returns a subtraction of the two expressions. */
 const Expression& Subtraction::make(const Expression& term1,
-				    const Expression& term2) {
+                                    const Expression& term2) {
   const Value* v1 = dynamic_cast<const Value*>(&term1);
   if (v1 != 0) {
     const Value* v2 = dynamic_cast<const Value*>(&term2);
@@ -333,7 +333,7 @@ void Subtraction::print(std::ostream& os) const {
 
 /* Returns a multiplication of the two expressions. */
 const Expression& Multiplication::make(const Expression& factor1,
-				       const Expression& factor2) {
+                                       const Expression& factor2) {
   const Value* v1 = dynamic_cast<const Value*>(&factor1);
   if (v1 != 0) {
     const Value* v2 = dynamic_cast<const Value*>(&factor2);
@@ -379,13 +379,13 @@ void Multiplication::print(std::ostream& os) const {
 
 /* Returns a division of the two expressions. */
 const Expression& Division::make(const Expression& factor1,
-				 const Expression& factor2) {
+                                 const Expression& factor2) {
   const Value* v1 = dynamic_cast<const Value*>(&factor1);
   if (v1 != 0) {
     const Value* v2 = dynamic_cast<const Value*>(&factor2);
     if (v2 != 0) {
       if (v2->value() == 0) {
-	throw std::logic_error("division by zero");
+        throw std::logic_error("division by zero");
       }
       const Value& value = *new Value(v1->value() / v2->value());
       ref(v1);
@@ -432,19 +432,19 @@ void Division::print(std::ostream& os) const {
 
 /* Returns the minimum of the two expressions. */
 const Expression& Minimum::make(const Expression& operand1,
-				const Expression& operand2) {
+                                const Expression& operand2) {
   const Value* v1 = dynamic_cast<const Value*>(&operand1);
   if (v1 != 0) {
     const Value* v2 = dynamic_cast<const Value*>(&operand2);
     if (v2 != 0) {
       if (v1->value() < v2->value()) {
-	ref(v2);
-	destructive_deref(v2);
-	return *v1;
+        ref(v2);
+        destructive_deref(v2);
+        return *v1;
       } else {
-	ref(v1);
-	destructive_deref(v1);
-	return *v2;
+        ref(v1);
+        destructive_deref(v1);
+        return *v2;
       }
     }
   }
@@ -481,19 +481,19 @@ void Minimum::print(std::ostream& os) const {
 
 /* Returns the maximum of the two expressions. */
 const Expression& Maximum::make(const Expression& operand1,
-				const Expression& operand2) {
+                                const Expression& operand2) {
   const Value* v1 = dynamic_cast<const Value*>(&operand1);
   if (v1 != 0) {
     const Value* v2 = dynamic_cast<const Value*>(&operand2);
     if (v2 != 0) {
       if (v1->value() > v2->value()) {
-	ref(v2);
-	destructive_deref(v2);
-	return *v1;
+        ref(v2);
+        destructive_deref(v2);
+        return *v1;
       } else {
-	ref(v1);
-	destructive_deref(v1);
-	return *v2;
+        ref(v1);
+        destructive_deref(v1);
+        return *v2;
       }
     }
   }

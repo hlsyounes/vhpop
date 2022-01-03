@@ -45,7 +45,7 @@ struct PlanningGraph;
 struct Binding {
   /* Constructs a variable binding. */
   Binding(const Variable& var, size_t var_id, const Term& term, size_t term_id,
-	  bool equality)
+          bool equality)
     : var_(var), var_id_(var_id), term_(term), term_id_(term_id),
       equality_(equality) {}
 
@@ -130,10 +130,10 @@ struct ActionDomain {
     if (a != 0) {
       a->ref_count_--;
       if (a->ref_count_ == 0) {
-	delete a;
+        delete a;
       }
     }
-  } 
+  }
 
  /* Constructs an action domain with a single tuple. */
   ActionDomain(const std::vector<Object>& tuple);
@@ -211,20 +211,20 @@ struct Bindings {
     if (b != 0) {
       b->ref_count_--;
       if (b->ref_count_ == 0) {
-	delete b;
+        delete b;
       }
     }
   }
 
   /* Checks if the given formulas can be unified. */
   static bool unifiable(const Literal& l1, size_t id1,
-			const Literal& l2, size_t id2);
+                        const Literal& l2, size_t id2);
 
   /* Checks if the given formulas can be unified; the most general
      unifier is added to the provided substitution list. */
   static bool unifiable(BindingList& mgu,
-			const Literal& l1, size_t id1,
-			const Literal& l2, size_t id2);
+                        const Literal& l1, size_t id1,
+                        const Literal& l2, size_t id2);
 
   /* Deletes this binding collection. */
   ~Bindings();
@@ -235,27 +235,27 @@ struct Bindings {
 
   /* Returns the domain for the given step variable. */
   const NameSet& domain(const Variable& var, size_t step_id,
-			const Problem& problem) const;
+                        const Problem& problem) const;
 
   /* Checks if one of the given formulas is the negation of the other,
      and the atomic formulas can be unified. */
   bool affects(const Literal& l1, size_t id1,
-	       const Literal& l2, size_t id2) const;
+               const Literal& l2, size_t id2) const;
 
   /* Checks if one of the given formulas is the negation of the other,
      and the atomic formulas can be unified; the most general unifier
      is added to the provided substitution list. */
   bool affects(BindingList& mgu, const Literal& l1, size_t id1,
-	       const Literal& l2, size_t id2) const;
+               const Literal& l2, size_t id2) const;
 
   /* Checks if the given formulas can be unified. */
   bool unify(const Literal& l1, size_t id1,
-	     const Literal& l2, size_t id2) const;
+             const Literal& l2, size_t id2) const;
 
   /* Checks if the given formulas can be unified; the most general
      unifier is added to the provided substitution list. */
   bool unify(BindingList& mgu, const Literal& l1, size_t id1,
-	     const Literal& l2, size_t id2) const;
+             const Literal& l2, size_t id2) const;
 
   /* Checks if the given equality is consistent with the current
      bindings. */
@@ -269,13 +269,13 @@ struct Bindings {
      bindings to this binding collection, or 0 if the new bindings
      are inconsistent with the current. */
   const Bindings* add(const BindingList& new_bindings,
-		      bool test_only = false) const;
+                      bool test_only = false) const;
 
   /* Returns the binding collection obtained by adding the constraints
      associated with the given step to this binding collection, or
      0 if the new binding collection would be inconsistent. */
   const Bindings* add(size_t step_id, const Action& step_action,
-		      const PlanningGraph& pg, bool test_only = false) const;
+                      const PlanningGraph& pg, bool test_only = false) const;
 
   /* Prints this object on the given stream. */
   void print(std::ostream& os) const;
@@ -298,7 +298,7 @@ private:
 
   /* Constructs a binding collection. */
   Bindings(const Chain<Varset>* varsets, size_t high_step,
-	   const Chain<StepDomain>* step_domains);
+           const Chain<StepDomain>* step_domains);
 };
 
 

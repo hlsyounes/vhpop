@@ -131,7 +131,7 @@ struct Plan {
 
   /* Returns plan for given problem. */
   static const Plan* plan(const Problem& problem, const Parameters& params,
-			  bool last_problem);
+                          bool last_problem);
 
   /* Cleans up after planning. */
   static void cleanup();
@@ -144,7 +144,7 @@ struct Plan {
 
   /* Returns the number of unique steps in this plan. */
   size_t num_steps() const { return num_steps_; }
-  
+
   /* Returns the links of this plan. */
   const Chain<Link>* links() const { return links_; }
 
@@ -191,8 +191,8 @@ struct Plan {
      true iff the number of refinements does not exceed the given
      limit. */
   bool unsafe_refinements(int& refinements, int& separable,
-			  int& promotable, int& demotable,
-			  const Unsafe& unsafe, int limit) const;
+                          int& promotable, int& demotable,
+                          const Unsafe& unsafe, int limit) const;
 
   /* Checks if the given threat is separable. */
   int separable(const Unsafe& unsafe) const;
@@ -204,19 +204,19 @@ struct Plan {
      returns true iff the number of refinements does not exceed the
      given limit. */
   bool open_cond_refinements(int& refinements, int& addable, int& reusable,
-			     const OpenCondition& open_cond, int limit) const;
+                             const OpenCondition& open_cond, int limit) const;
 
   /* Counts the number of add-step refinements for the given literal
      open condition, and returns true iff the number of refinements
      does not exceed the given limit. */
   bool addable_steps(int& refinements, const Literal& literal,
-		     const OpenCondition& open_cond, int limit) const;
+                     const OpenCondition& open_cond, int limit) const;
 
   /* Counts the number of reuse-step refinements for the given literal
      open condition, and returns true iff the number of refinements
      does not exceed the given limit. */
   bool reusable_steps(int& refinements, const Literal& literal,
-		      const OpenCondition& open_cond, int limit) const;
+                      const OpenCondition& open_cond, int limit) const;
 
 private:
   /* List of plans. */
@@ -271,35 +271,35 @@ private:
 
   /* Returns the refinements for the next flaw to work on. */
   void refinements(PlanList& plans,
-		   const FlawSelectionOrder& flaw_order) const;
+                   const FlawSelectionOrder& flaw_order) const;
 
   /* Handles an unsafe link. */
   void handle_unsafe(PlanList& plans, const Unsafe& unsafe) const;
 
   /* Handles an unsafe link through separation. */
   int separate(PlanList& plans, const Unsafe& unsafe,
-		const BindingList& unifier, bool test_only = false) const;
+                const BindingList& unifier, bool test_only = false) const;
 
   /* Handles an unsafe link through demotion. */
   int demote(PlanList& plans, const Unsafe& unsafe,
-	     bool test_only = false) const;
+             bool test_only = false) const;
 
   /* Handles an unsafe link through promotion. */
   int promote(PlanList& plans, const Unsafe& unsasfe,
-	      bool test_only = false) const;
+              bool test_only = false) const;
 
   /* Adds a plan to the given plan list with an ordering added. */
   void new_ordering(PlanList& plans, size_t before_id, StepTime t1,
-		    size_t after_id, StepTime t2,
-		    const Unsafe& unsafe) const;
+                    size_t after_id, StepTime t2,
+                    const Unsafe& unsafe) const;
 
   /* Handles a mutex threat. */
   void handle_mutex_threat(PlanList& plans,
-			   const MutexThreat& mutex_threat) const;
+                           const MutexThreat& mutex_threat) const;
 
   /* Handles a mutex threat through separation. */
   void separate(PlanList& plans, const MutexThreat& mutex_threat,
-		const BindingList& unifier) const;
+                const BindingList& unifier) const;
 
   /* Handles a mutex threat through demotion. */
   void demote(PlanList& plans, const MutexThreat& mutex_threat) const;
@@ -309,51 +309,51 @@ private:
 
   /* Adds a plan to the given plan list with an ordering added. */
   void new_ordering(PlanList& plans, size_t before_id, StepTime t1,
-		    size_t after_id, StepTime t2,
-		    const MutexThreat& mutex_threat) const;
+                    size_t after_id, StepTime t2,
+                    const MutexThreat& mutex_threat) const;
 
   /* Handles an open condition. */
   void handle_open_condition(PlanList& plans,
-			     const OpenCondition& open_cond) const;
+                             const OpenCondition& open_cond) const;
 
   /* Handles a disjunctive open condition. */
   int handle_disjunction(PlanList& plans, const Disjunction& disj,
-			 const OpenCondition& open_cond,
-			 bool test_only = false) const;
+                         const OpenCondition& open_cond,
+                         bool test_only = false) const;
 
   /* Handles an inequality open condition. */
   int handle_inequality(PlanList& plans, const Inequality& neq,
-			const OpenCondition& open_cond,
-			bool test_only = false) const;
+                        const OpenCondition& open_cond,
+                        bool test_only = false) const;
 
   /* Handles a literal open condition by adding a new step. */
   void add_step(PlanList& plans, const Literal& literal,
-		const OpenCondition& open_cond,
-		const ActionEffectMap& achievers) const;
+                const OpenCondition& open_cond,
+                const ActionEffectMap& achievers) const;
 
   /* Handles a literal open condition by reusing an existing step. */
   void reuse_step(PlanList& plans, const Literal& literal,
-		  const OpenCondition& open_cond,
-		  const ActionEffectMap& achievers) const;
+                  const OpenCondition& open_cond,
+                  const ActionEffectMap& achievers) const;
 
   /* Adds plans to the given plan list with a link from the given step
      to the given open condition added. */
   int new_link(PlanList& plans, const Step& step, const Effect& effect,
-	       const Literal& literal, const OpenCondition& open_cond,
-	       bool test_only = false) const;
+               const Literal& literal, const OpenCondition& open_cond,
+               bool test_only = false) const;
 
   /* Adds plans to the given plan list with a link from the given step
      to the given open condition added using the closed world
      assumption. */
   int new_cw_link(PlanList& plans, const EffectList& effects,
-		  const Negation& negation, const OpenCondition& open_cond,
-		  bool test_only = false) const;
+                  const Negation& negation, const OpenCondition& open_cond,
+                  bool test_only = false) const;
 
   /* Returns a plan with a link added from the given effect to the
      given open condition. */
   int make_link(PlanList& plans, const Step& step, const Effect& effect,
-		const Literal& literal, const OpenCondition& open_cond,
-		const BindingList& unifier, bool test_only = false) const;
+                const Literal& literal, const OpenCondition& open_cond,
+                const BindingList& unifier, bool test_only = false) const;
 
   friend bool operator<(const Plan& p1, const Plan& p2);
   friend std::ostream& operator<<(std::ostream& os, const Plan& p);

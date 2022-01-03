@@ -210,7 +210,7 @@ private:
 struct Addition : public Computation {
   /* Returns an addition of the two expressions. */
   static const Expression& make(const Expression& term1,
-				const Expression& term2);
+                                const Expression& term2);
 
   /* Returns the value of this expression in the given state. */
   virtual float value(const ValueMap& values) const;
@@ -239,7 +239,7 @@ private:
 struct Subtraction : public Computation {
   /* Returns a subtraction of the two expressions. */
   static const Expression& make(const Expression& term1,
-				const Expression& term2);
+                                const Expression& term2);
 
   /* Returns the value of this expression in the given state. */
   virtual float value(const ValueMap& values) const;
@@ -268,7 +268,7 @@ private:
 struct Multiplication : public Computation {
   /* Returns a multiplication of the two expressions. */
   static const Expression& make(const Expression& factor1,
-				const Expression& factor2);
+                                const Expression& factor2);
 
   /* Returns the value of this expression in the given state. */
   virtual float value(const ValueMap& values) const;
@@ -297,7 +297,7 @@ private:
 struct Division : public Computation {
   /* Returns a division of the two expressions. */
   static const Expression& make(const Expression& factor1,
-				const Expression& factor2);
+                                const Expression& factor2);
 
   /* Returns the value of this expression in the given state. */
   virtual float value(const ValueMap& values) const;
@@ -326,7 +326,7 @@ private:
 struct Minimum : public Computation {
   /* Returns the minimum of the two expressions. */
   static const Expression& make(const Expression& operand1,
-				const Expression& operand2);
+                                const Expression& operand2);
 
   /* Returns the value of this expression in the given state. */
   virtual float value(const ValueMap& values) const;
@@ -355,7 +355,7 @@ private:
 struct Maximum : public Computation {
   /* Returns the maximum of the two expressions. */
   static const Expression& make(const Expression& operand1,
-				const Expression& operand2);
+                                const Expression& operand2);
 
   /* Returns the value of this expression in the given state. */
   virtual float value(const ValueMap& values) const;

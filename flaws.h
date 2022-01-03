@@ -155,7 +155,7 @@ struct MutexThreat : public Flaw {
 
   /* Constructs a mutex threat. */
   MutexThreat(size_t step_id1, const Effect& effect1,
-	      size_t step_id2, const Effect& effect2)
+              size_t step_id2, const Effect& effect2)
     : step_id1_(step_id1), effect1_(&effect1),
       step_id2_(step_id2), effect2_(&effect2) {}
 

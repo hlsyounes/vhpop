@@ -35,7 +35,7 @@ OpenCondition::OpenCondition(size_t step_id, const Formula& condition)
 
 /* Constructs an open condition. */
 OpenCondition::OpenCondition(size_t step_id, const Literal& condition,
-			     FormulaTime when)
+                             FormulaTime when)
   : step_id_(step_id), condition_(&condition), when_(when) {
   Formula::register_use(condition_);
 }
@@ -58,7 +58,7 @@ OpenCondition::~OpenCondition() {
 bool OpenCondition::is_static() const {
   const Literal* lit = literal();
   return (lit != NULL && step_id() != Plan::GOAL_ID
-	  && PredicateTable::static_predicate(lit->predicate()));
+          && PredicateTable::static_predicate(lit->predicate()));
 }
 
 

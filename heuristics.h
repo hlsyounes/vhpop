@@ -148,14 +148,14 @@ struct PlanningGraph {
 
   /* Returns the problem associated with this planning graph. */
   const Problem& problem() const { return *problem_; }
-  
+
   /* Returns the heurisitc value of an atom. */
   HeuristicValue heuristic_value(const Atom& atom, size_t step_id,
-				 const Bindings* bindings = NULL) const;
+                                 const Bindings* bindings = NULL) const;
 
   /* Returns the heuristic value of a negated atom. */
   HeuristicValue heuristic_value(const Negation& negation, size_t step_id,
-				 const Bindings* bindings = NULL) const;
+                                 const Bindings* bindings = NULL) const;
 
   /* Returns a set of achievers for the given literal. */
   const ActionEffectMap* literal_achievers(const Literal& literal) const;
@@ -199,7 +199,7 @@ private:
 
   /* Finds an element in a LiteralActionsMap. */
   bool find(const LiteralAchieverMap& m, const Literal& l,
-	    const Action& a, const Effect& e) const;
+            const Action& a, const Effect& e) const;
 };
 
 
@@ -246,14 +246,14 @@ struct Heuristic {
 
   /* Fills the provided vector with the ranks for the given plan. */
   void plan_rank(std::vector<float>& rank, const Plan& plan,
-		 float weight, const Domain& domain,
-		 const PlanningGraph* planning_graph) const;
+                 float weight, const Domain& domain,
+                 const PlanningGraph* planning_graph) const;
 
 private:
   /* Heuristics. */
   typedef enum { LIFO, FIFO, OC, UC, BUC, S_PLUS_OC, UCPOP,
-		 ADD, ADD_COST, ADD_WORK, ADDR, ADDR_COST, ADDR_WORK,
-		 MAKESPAN } HVal;
+                 ADD, ADD_COST, ADD_WORK, ADDR, ADDR_COST, ADDR_WORK,
+                 MAKESPAN } HVal;
 
   /* The selected heuristics. */
   std::vector<HVal> h_;
@@ -298,7 +298,7 @@ struct InvalidFlawSelectionOrder : public std::runtime_error {
 struct SelectionCriterion {
   /* A selection order. */
   typedef enum { LIFO, FIFO, RANDOM, LR, MR,
-		 NEW, REUSE, LC, MC, LW, MW } OrderType;
+                 NEW, REUSE, LC, MC, LW, MW } OrderType;
   /* A heuristic. */
   typedef enum { ADD, MAKESPAN } RankHeuristic;
 
@@ -346,7 +346,7 @@ struct FlawSelectionOrder {
 
   /* Selects a flaw from the flaws of the given plan. */
   const Flaw& select(const Plan& plan, const Problem& problem,
-		     const PlanningGraph* pg) const;
+                     const PlanningGraph* pg) const;
 
 private:
   /* A flaw selection. */
@@ -376,13 +376,13 @@ private:
 
   /* Seaches threats for a flaw to select. */
   int select_unsafe(FlawSelection& selection, const Plan& plan,
-		    const Problem& problem,
-		    int first_criterion, int last_criterion) const;
+                    const Problem& problem,
+                    int first_criterion, int last_criterion) const;
 
   /* Seaches open conditions for a flaw to select. */
   int select_open_cond(FlawSelection& selection, const Plan& plan,
-		       const Problem& problem, const PlanningGraph* pg,
-		       int first_criterion, int last_criterion) const;
+                       const Problem& problem, const PlanningGraph* pg,
+                       int first_criterion, int last_criterion) const;
 };
 
 
