@@ -81,9 +81,9 @@
 #include "functions.h"
 #include "predicates.h"
 #include "problems.h"
-#include "src/pddl-requirements.h"
 #include "terms.h"
 #include "types.h"
+#include "src/pddl-requirements.h"
 
 /* Workaround for bug in Bison 1.35 that disables stack growth. */
 #define YYLTYPE_IS_TRIVIAL 1
