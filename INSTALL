@@ -1,7 +1,22 @@
-Follow these simple steps to build VHPOP:
 
-  ./configure [options]
-  make
+Installation from the git sources require autoconf and automake. If you
+are running on a ubuntu/mint variant, make sure these are installed:
+
+```bash
+sudo apt-get -y install autoconf automake autoconf-archive libtool
+```
+
+Then, run the following commands:
+
+```bash
+autoreconf --install
+./configure
+make
+```
+
+the 'configure' script accepts some options, run './configure --help' to
+see them.
+
 
 For brief information on how to run VHPOP, use the following command:
 
